@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
@@ -41,4 +42,61 @@ func TestTeamBoardFollowsTheColumnsOfTheTeamConfig(t *testing.T) {
 	l := cfg.Layout()
 	require.Len(t, l.Board.Columns, 3, "the layout is the one of the read")
 	assert.Equal(t, map[string]string{"wip": "in_progress"}, l.LabelStatusMapping)
+}
+
+// The « active » figure of the team mode counts the claims in the active
+// columns of the board of the team, not three fixed statuses: with a board of
+// its own, the claims of its columns count, and what only the default board
+// calls active (a status the team has no column for) does not.
+func TestTeamModeActiveCountFollowsTheColumnsOfTheBoard(t *testing.T) {
+	i18ntest.Set(t, "en")
+	a, repo := setupBeat(t)
+	create := func(ticket, status string) {
+		t.Helper()
+		_, err := repo.CreateClaim(t.Context(), teamstate.Claim{TicketID: ticket, Project: claimsProject, ClaimedBy: "testuser", Status: status})
+		require.NoError(t, err)
+	}
+	create("D-1", teamstate.ClaimStatusInProgress)
+	create("D-2", teamstate.ClaimStatusReview)
+	create("D-3", teamstate.ClaimStatusValidation)
+	create("D-4", teamstate.ClaimStatusPlanned)
+	assert.Equal(t, 3, teamModeStats(a).ActiveCount, "the default board: in progress, review and validation")
+
+	team, err := repo.LoadConfig(t.Context())
+	require.NoError(t, err)
+	team.Board.Columns = []teamstate.BoardColumnConfig{
+		{ID: "todo", Name: "To do", Role: teamstate.ColumnRoleInitial},
+		{ID: "in_progress", Name: "Doing", Role: teamstate.ColumnRoleActive},
+		{ID: "qa", Name: "QA", Role: teamstate.ColumnRoleActive},
+		{ID: "shipped", Name: "Shipped", Role: teamstate.ColumnRoleTerminal},
+		{ID: "stuck", Name: "Stuck", Role: teamstate.ColumnRoleBlocked},
+	}
+	require.NoError(t, repo.SaveConfig(t.Context(), team))
+	create("D-5", "qa")
+	create("D-6", "shipped")
+	create("D-7", "stuck")
+	stats := teamModeStats(a)
+	assert.Equal(t, 2, stats.ActiveCount, "in_progress and qa: the active columns of this board (review is not one)")
+	assert.Equal(t, 1, stats.MemberCount)
+}
+
+// The sessions of the other members name their project, or mark the ID of one
+// the registry does not know.
+func TestTeamModeSessionsOfTheOthersNameTheProject(t *testing.T) {
+	i18ntest.Set(t, "en")
+	a, repo := setupBeat(t)
+	store := &mockProjectStore{projects: []domain.Project{{ID: claimsProject, Name: "Alpha", Path: "/p/alpha", TeamID: strp("test-team")}}}
+	a.Projects = store
+	for _, c := range []teamstate.Claim{
+		{TicketID: "O-1", Project: claimsProject, ClaimedBy: "colleague", Status: teamstate.ClaimStatusInProgress, Session: "ses_1"},
+		{TicketID: "O-2", Project: "deadbeef", ClaimedBy: "colleague", Status: teamstate.ClaimStatusInProgress, Session: "ses_2"},
+	} {
+		_, err := repo.CreateClaim(t.Context(), c)
+		require.NoError(t, err)
+	}
+	byTicket := map[string]string{}
+	for _, o := range teamModeStats(a).Others {
+		byTicket[o.Ticket] = o.ProjectName
+	}
+	assert.Equal(t, map[string]string{"O-1": "Alpha", "O-2": "deadbeef (unknown project)"}, byTicket)
 }

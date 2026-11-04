@@ -16,8 +16,20 @@ func (e Event) Glyph() glyph.EventGlyph { return glyph.ForEvent(e.Type) }
 // Describe is the phrase of the event after its actor ("a pris api/bd-7"):
 // oh team activity, the Activity view and the Team Status view all use it. An
 // event type it does not know is returned as it is.
-func (e Event) Describe() string {
-	subject := e.subject()
+func (e Event) Describe() string { return e.DescribeAs(nil) }
+
+// EventNames names what an event refers to by ID: the project of a ticket,
+// the member a claim went to. An ID it does not know is returned as it is.
+type EventNames interface {
+	Project(id string) string
+	Member(id string) string
+}
+
+// DescribeAs is Describe with the names of the projects and of the members
+// where Describe has their IDs ("a pris API/bd-7", "transféré à Alice"). nil
+// names: the IDs.
+func (e Event) DescribeAs(names EventNames) string {
+	subject := e.subject(names)
 	switch e.Type {
 	case EventClaimTaken:
 		return i18n.Tf("teamstate.event.claim_taken", subject)
@@ -25,6 +37,9 @@ func (e Event) Describe() string {
 		return i18n.Tf("teamstate.event.claim_released", subject)
 	case EventClaimTransferred:
 		if to := e.dataText("to"); to != "" {
+			if names != nil {
+				to = names.Member(to)
+			}
 			return i18n.Tf("teamstate.event.claim_transferred_to", subject, to)
 		}
 		return i18n.Tf("teamstate.event.claim_transferred", subject)
@@ -60,12 +75,16 @@ func (e Event) Describe() string {
 }
 
 // subject is what the event is about: project and ticket when known.
-func (e Event) subject() string {
+func (e Event) subject(names EventNames) string {
+	project := e.Project
+	if names != nil && project != "" {
+		project = names.Project(project)
+	}
 	switch {
-	case e.Project != "" && e.Ticket != "":
-		return e.Project + "/" + e.Ticket
-	case e.Project != "":
-		return e.Project
+	case project != "" && e.Ticket != "":
+		return project + "/" + e.Ticket
+	case project != "":
+		return project
 	}
 	return e.Ticket
 }

@@ -155,7 +155,7 @@ func offerBeadsClean(a *app.App, path string) {
 				r := applyBeadsClean(path, opts)
 				var hints strings.Builder
 				printCleanHints(&hints, r)
-				sh.App().QueueUpdateDraw(func() {
+				queueOnShell(sh, func() {
 					msg := i18n.T("cmd.beads.clean.auto_done")
 					if h := strings.TrimSpace(hints.String()); h != "" {
 						msg += " — " + h
@@ -164,7 +164,7 @@ func offerBeadsClean(a *app.App, path string) {
 				})
 			})
 		}
-		sh.App().QueueUpdateDraw(func() {
+		queueOnShell(sh, func() {
 			if zeroImpactMode(a) == zeroImpactAuto {
 				apply()
 				return

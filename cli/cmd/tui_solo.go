@@ -36,7 +36,7 @@ func tuiAttachProjectSolo(project *domain.Project) {
 	}
 	safego.Go(func() {
 		sp, err := attachProjectSolo(sh.Context(), a, project)
-		sh.App().QueueUpdateDraw(func() {
+		queueOnShell(sh, func() {
 			if err != nil {
 				sh.ShowToast(i18n.Tf("tui.solo.project.failed", err.Error()), shell.ToastError)
 				return
@@ -75,7 +75,7 @@ func tuiCreateSoloSpace(then func()) {
 			}
 			safego.Go(func() {
 				res, err := initSoloTeam(sh.Context(), a, p)
-				sh.App().QueueUpdateDraw(func() {
+				queueOnShell(sh, func() {
 					if err != nil {
 						sh.ShowToast(err.Error(), shell.ToastError)
 						return
@@ -104,7 +104,7 @@ func tuiPromoteSolo(teamID, remote string) {
 	sh.ShowToast(i18n.T("tui.solo.promoting"), shell.ToastInfo)
 	safego.Go(func() {
 		team, err := promoteSoloTeam(sh.Context(), a, teamID, remote)
-		sh.App().QueueUpdateDraw(func() {
+		queueOnShell(sh, func() {
 			if err != nil {
 				sh.ShowToast(err.Error(), shell.ToastError)
 				return

@@ -88,7 +88,7 @@ func (t *tuiStart) load(scope views.StartScope) {
 	t.loaded[scope] = time.Now()
 	t.mu.Unlock()
 	if sh := tuiShell; sh != nil {
-		sh.App().QueueUpdateDraw(func() { sh.RemountIf("home", "project.mode", "team.mode") })
+		queueOnShell(sh, func() { sh.RemountIf("home", "project.mode", "team.mode") })
 	}
 }
 
@@ -170,7 +170,7 @@ func (t *tuiStart) togglePin(scope views.StartScope, e views.StartEntry) {
 		}
 		t.invalidate()
 		if sh := tuiShell; sh != nil {
-			sh.App().QueueUpdateDraw(func() {
+			queueOnShell(sh, func() {
 				if ok {
 					sh.ShowToast(msg, shell.ToastSuccess)
 				} else {

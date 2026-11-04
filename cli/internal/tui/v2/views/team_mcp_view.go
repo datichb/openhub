@@ -33,8 +33,6 @@ type TeamMCPViewConfig struct {
 	// writes the team-state config to the team-state repo, which the view
 	// runs off the loop. Nil: nothing to save with.
 	SaveTeamConfig func() TeamConfigWriter
-	// SaveLocalMCP persists a local hub.toml MCP override key/value.
-	SaveLocalMCP func(key, value string) error
 	// UpdateHubConfig changes hub.toml: fn receives the file as it is on disk
 	// and changes only the settings the view edited (the host then brings the
 	// shared config up to date). The view never keeps nor saves a whole config.

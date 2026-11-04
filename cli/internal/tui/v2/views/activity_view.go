@@ -32,6 +32,7 @@ type ActivityView struct {
 	list        *tview.TextView
 	filter      string   // "today", "week", "all"
 	loads       loadSlot // the reads of the events: only the latest is applied
+	names       NamesFunc
 
 	// read replaces the read of the events (tests).
 	read func(ctx context.Context, repo activityReader, filter string) (activityData, error)
@@ -41,6 +42,7 @@ type ActivityView struct {
 type activityData struct {
 	cloned bool
 	events []teamstate.Event
+	names  Names
 }
 
 // activityReader is what the view reads of the team-state: whether the clone
@@ -49,6 +51,10 @@ type activityReader interface {
 	teamstate.RepoInfo
 	teamstate.EventReader
 }
+
+// SetNames sets the source of the names shown for the actors and the projects of
+// the events (their IDs without it).
+func (v *ActivityView) SetNames(f NamesFunc) { v.names = f }
 
 var _ View = (*ActivityView)(nil)
 
@@ -126,11 +132,15 @@ func (v *ActivityView) refresh() {
 	v.list.SetText("  " + stateText(stateLoading, ""))
 
 	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-	filter, read := v.filter, v.read
+	filter, read, names := v.filter, v.read, v.names
 	if read == nil {
 		read = readActivity
 	}
-	fetch := func(ctx context.Context) (activityData, error) { return read(ctx, repo, filter) }
+	fetch := func(ctx context.Context) (activityData, error) {
+		d, err := read(ctx, repo, filter)
+		d.names = names.Read(ctx, repo)
+		return d, err
+	}
 	// Pull first (the toast of a slow pull, the warning of a failed one).
 	syncLoad(v.app, shellContext(v.shell), &v.loads, repo, v.shell, fetch, func(d activityData, err error) {
 		if v.list != nil {
@@ -182,8 +192,8 @@ func (v *ActivityView) render(filter string, d activityData, err error) {
 		fmt.Fprintf(&b, "  %s  %s %s %s\n",
 			theme.Paint(theme.TextMutedHex, textfmt.Clock(e.Timestamp)),
 			eventIcon(e.Type),
-			theme.Paint(theme.TextSecondaryHex, tview.Escape(e.Actor)),
-			tview.Escape(formatEventDescription(e)),
+			theme.Paint(theme.TextSecondaryHex, tview.Escape(d.names.Member(e.Actor))),
+			tview.Escape(formatEventDescription(e, d.names)),
 		)
 	}
 	v.list.SetText(b.String())
@@ -219,4 +229,4 @@ func eventIcon(eventType string) string {
 
 // formatEventDescription is the phrase of an event after its actor (Activity
 // and Team Status views): Event.Describe, escaped for tview by the callers.
-func formatEventDescription(e teamstate.Event) string { return e.Describe() }
+func formatEventDescription(e teamstate.Event, names Names) string { return e.DescribeAs(names) }

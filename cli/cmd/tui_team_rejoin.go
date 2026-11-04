@@ -83,7 +83,7 @@ func (w *rejoinWizard) onComplete(completed bool, err error) {
 		safego.Go(func() {
 			time.Sleep(200 * time.Millisecond)
 			if tuiShell != nil {
-				tuiShell.App().QueueUpdateDraw(func() {
+				queueOnShell(tuiShell, func() {
 					actionTrackerDiscovery()
 				})
 			}
@@ -298,7 +298,7 @@ func (w *rejoinWizard) validateStep() views.WizardStep {
 				return err
 			}
 			if result.ProfileErr != nil && tuiShell != nil {
-				tuiShell.App().QueueUpdateDraw(func() {
+				queueOnShell(tuiShell, func() {
 					tuiShell.ShowToast(i18n.Tf("cmd.team.rejoin.tracker_failed", result.ProfileErr), shell.ToastError)
 				})
 			}
@@ -311,7 +311,7 @@ func (w *rejoinWizard) validateStep() views.WizardStep {
 				bgCtx := context.Background()
 				count, err := retroTagSessionsOf(bgCtx, a, w.memberID)
 				if err == nil && count > 0 && tuiShell != nil {
-					tuiShell.App().QueueUpdateDraw(func() {
+					queueOnShell(tuiShell, func() {
 						tuiShell.ShowToast(
 							i18n.Tf("cmd.team.rejoin.retro_tagged", count),
 							shell.ToastSuccess,
@@ -326,7 +326,7 @@ func (w *rejoinWizard) validateStep() views.WizardStep {
 				if result.EventCount > 0 {
 					msg += " — " + i18n.Tf("cmd.team.rejoin.events_found", result.EventCount)
 				}
-				tuiShell.App().QueueUpdateDraw(func() {
+				queueOnShell(tuiShell, func() {
 					tuiShell.ShowToast(msg, shell.ToastSuccess)
 				})
 			}

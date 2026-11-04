@@ -207,3 +207,23 @@ func TestSaveConfigWritesTheInProgressKey(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(data), "max_in_progress_per_member", "absent stays absent")
 }
+
+// The active figure follows the active columns of the board: the three of the
+// default board (review and validation included), or those the team defined.
+func TestCountActive(t *testing.T) {
+	t.Parallel()
+	claims := []Claim{
+		claimOf("a", "x", ClaimStatusPlanned), claimOf("b", "x", ClaimStatusInProgress), claimOf("c", "y", ClaimStatusReview),
+		claimOf("d", "y", ClaimStatusValidation), claimOf("e", "y", ClaimStatusBlocked), claimOf("f", "y", ClaimStatusDone),
+		claimOf("g", "", "qa"),
+	}
+	assert.Equal(t, 3, CountActive(claims, BoardConfig{}), "no column configured: the default board")
+	assert.Equal(t, 3, CountActive(claims, DefaultBoardConfig()), "and the default board saved as it is")
+	assert.Zero(t, CountActive(nil, BoardConfig{}))
+
+	custom := BoardConfig{Columns: []BoardColumnConfig{
+		{ID: "planned", Role: ColumnRoleInitial}, {ID: "in_progress", Role: ColumnRoleActive}, {ID: "qa", Role: ColumnRoleActive},
+		{ID: "done", Role: ColumnRoleTerminal},
+	}}
+	assert.Equal(t, 2, CountActive(claims, custom), "in_progress and qa; review and validation are not columns of this board")
+}

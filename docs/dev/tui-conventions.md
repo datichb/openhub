@@ -146,7 +146,7 @@ content.AddItem(l.Primitive(), 0, 1, true)
 - `ActionItem.Cells` sont du texte brut (échappé par la liste) ; `Detail` accepte les balises tview : **échapper** ce qui vient des agents ou des fichiers (`tview.Escape`).
 - Confirmation : toujours pour `keys.Delete` (destructive), et pour toute action qui a `Confirm` ; consigne : toujours pour `keys.Refuse` (`ReasonOptional` l'autorise vide), ou avec `AskReason`.
 - Les touches arrivent par la table (`InputCapture`) ; une vue qui garde les touches de son écran peut aussi appeler `l.HandleKey(ev)`. `StatusHints` peut renvoyer `l.Hints()`.
-- Dans une fenêtre (fiche de checkpoint) : `Shell.Confirm` et `ShowInputModal` remplacent la fenêtre ; passer `Confirm` / `AskReason` qui rouvrent la fiche ensuite (comme `openCheckpoint` aujourd'hui).
+- Dans une fenêtre (fiche de checkpoint) : `Shell.Confirm`, `ShowInputModal` et `AskReason` s'ouvrent par-dessus la fiche (pile de fenêtres, `shell/windows.go`) : répondus, ils ferment la fiche avec eux ; annulés, ils la rendent telle qu'elle était. Rien à rouvrir, sauf quand l'action échoue et que la fiche doit rester lisible (`ModalAction.KeepOpen`).
 - `cfg.Validate()` dans un test de la vue : refuse deux actions sur une touche, une touche réservée (`r`, `/`, `g`…), une action sans `Run`.
 
 ## Tests

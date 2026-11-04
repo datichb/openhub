@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"slices"
@@ -29,6 +30,12 @@ type TeamsView struct {
 	onUpdate   func(fn func(*config.Config) error) error
 	onNavigate func(viewID string)
 	undoStack  *widgets.UndoStack[[]config.TeamConfig]
+
+	// memberNames: the display name of the member of each team, by team ID,
+	// read in the team-states (the IDs until they are there).
+	memberNames func(ctx context.Context, teams []config.TeamConfig) map[string]string
+	shown       map[string]string
+	nameLoads   loadSlot
 }
 
 // TeamsViewDeps holds the dependencies for constructing a TeamsView.
@@ -40,6 +47,10 @@ type TeamsViewDeps struct {
 	// config up to date with the result.
 	OnUpdate   func(fn func(*config.Config) error) error
 	OnNavigate func(viewID string) // Called to navigate to another view
+	// MemberNames gives the display name of the member of each team (team ID →
+	// name) from the team-states. It reads files: called off the event loop.
+	// Nil: the member IDs.
+	MemberNames func(ctx context.Context, teams []config.TeamConfig) map[string]string
 }
 
 var _ View = (*TeamsView)(nil)
@@ -53,6 +64,8 @@ func NewTeamsView(deps TeamsViewDeps) *TeamsView {
 		onUpdate:   deps.OnUpdate,
 		onNavigate: deps.OnNavigate,
 		undoStack:  widgets.NewUndoStack[[]config.TeamConfig](10),
+
+		memberNames: deps.MemberNames,
 	}
 	v.list.SetItemSelectedFunc(v.handleSelect)
 	v.list.SetItemChangedFunc(func(_ int, it widgets.SectionItem) { v.showDetail(it) })
@@ -75,12 +88,54 @@ func (v *TeamsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.list.SetApp(app)
 	v.page = newListPage(v.Title(), v.list)
 	v.rebuild()
+	v.loadMemberNames()
 
 	v.page.Mount(content)
 	app.SetFocus(v.list)
 }
 
-func (v *TeamsView) Unmount() { v.page = nil }
+func (v *TeamsView) Unmount() {
+	v.nameLoads.Invalidate()
+	v.page = nil
+}
+
+// loadMemberNames reads the display name of the member of each team off the
+// event loop, then draws the list again with them.
+func (v *TeamsView) loadMemberNames() {
+	if v.memberNames == nil || v.page == nil {
+		return
+	}
+	read, teams := v.memberNames, copyTeams(v.cfg.Teams)
+	load(v.app, shellContext(v.shell), &v.nameLoads, func(ctx context.Context) (map[string]string, error) {
+		return read(ctx, teams), nil
+	}, func(names map[string]string, _ error) {
+		if v.page == nil {
+			return
+		}
+		v.shown = names
+		v.rebuild()
+	})
+}
+
+// memberOf is the member of the team as shown: their display name, or the ID
+// they gave when the team-state does not tell it.
+func (v *TeamsView) memberOf(t config.TeamConfig) string {
+	if name := v.shown[t.ID]; name != "" {
+		return name
+	}
+	return t.MemberID
+}
+
+// teamName is the name of the team with this ID in the configuration (the ID
+// when it is not there).
+func (v *TeamsView) teamName(id string) string {
+	for _, t := range v.cfg.Teams {
+		if t.ID == id {
+			return t.DisplayName()
+		}
+	}
+	return id
+}
 
 // showDetail fills the detail pane with the team of it.
 func (v *TeamsView) showDetail(it widgets.SectionItem) {
@@ -114,7 +169,7 @@ func (v *TeamsView) showDetail(it widgets.SectionItem) {
 	d.title(tview.Escape(team.DisplayName()))
 	d.para(i18n.T("tui.detail.team.desc"))
 	d.field("ID :", tview.Escape(team.ID))
-	d.field(i18n.T("tui.detail.member"), tview.Escape(team.MemberID))
+	d.field(i18n.T("tui.detail.member"), tview.Escape(v.memberOf(*team)))
 	d.field(i18n.T("tui.detail.status"), status)
 	d.field(i18n.T("tui.detail.repo"), tview.Escape(repo))
 	d.field(i18n.T("tui.detail.path"), tview.Escape(team.StatePath))
@@ -139,6 +194,7 @@ func (v *TeamsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case keys.Refresh.Matches(event):
 		v.rebuild()
+		v.loadMemberNames()
 		return nil
 	case cfgSyncKey.Matches(event):
 		v.handleSync()
@@ -239,7 +295,7 @@ func (v *TeamsView) rebuild() {
 
 			items = append(items, widgets.SectionItem{
 				MainText:      fmt.Sprintf("%s  %s", t.ID, t.DisplayName()),
-				SecondaryText: i18n.Tf("tui.teams.member_info", t.MemberID, teamRepoLabel(t), status),
+				SecondaryText: i18n.Tf("tui.teams.member_info", v.memberOf(t), teamRepoLabel(t), status),
 				Reference:     t.ID,
 			})
 		}
@@ -307,6 +363,7 @@ func (v *TeamsView) handleAdd() {
 				}
 			}
 			v.rebuild()
+			v.loadMemberNames()
 			v.shell.ShowToastMsg(i18n.Tf("tui.teams.team_added", newTeam.DisplayName()), true)
 		},
 	})
@@ -327,7 +384,8 @@ func (v *TeamsView) handleDelete() {
 		return
 	}
 
-	v.shell.Confirm(i18n.Tf("tui.teams.confirm_delete", teamID), i18n.T("tui.teams.delete_detail"), true, func() {
+	name := v.teamName(teamID)
+	v.shell.Confirm(i18n.Tf("tui.teams.confirm_delete", name), i18n.T("tui.teams.delete_detail"), true, func() {
 
 		// Push undo state before mutation
 		v.undoStack.Push(copyTeams(v.cfg.Teams))
@@ -356,7 +414,7 @@ func (v *TeamsView) handleDelete() {
 		}
 
 		v.rebuild()
-		v.shell.ShowToastMsg(i18n.Tf("tui.teams.team_deleted", teamID), true)
+		v.shell.ShowToastMsg(i18n.Tf("tui.teams.team_deleted", name), true)
 	})
 }
 

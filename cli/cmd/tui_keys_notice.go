@@ -50,7 +50,7 @@ func offerKeysNoticeInTUI(ctx context.Context, a *app.App, sh *shell.Shell, firs
 	if sh == nil || !keysNoticeDue(ctx, a, firstRun) {
 		return
 	}
-	sh.App().QueueUpdateDraw(func() {
+	queueOnShell(sh, func() {
 		sh.OfferKeysNotice(func() { safego.Go(func() { markKeysNoticeSeen(context.Background(), a) }) })
 	})
 }

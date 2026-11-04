@@ -18,7 +18,7 @@ import (
 )
 
 // domainProjectToViewItem converts a domain.Project to a views.ProjectItem.
-func domainProjectToViewItem(p domain.Project) views.ProjectItem {
+func domainProjectToViewItem(p domain.Project, cfg *config.Config) views.ProjectItem {
 	var mcpOverrides map[string]string
 	if p.MCPConfig != nil && len(p.MCPConfig.Services) > 0 {
 		mcpOverrides = make(map[string]string, len(p.MCPConfig.Services))
@@ -45,6 +45,7 @@ func domainProjectToViewItem(p domain.Project) views.ProjectItem {
 	}
 	if p.TeamID != nil {
 		item.TeamID = *p.TeamID
+		item.TeamName = teamName(cfg, item.TeamID)
 	}
 	return item
 }
@@ -69,7 +70,7 @@ func teamProjects(a *app.App, teamID string) []views.ActiveProject {
 }
 
 // loadProjectItems fetches all projects from the store and converts them to view items.
-func loadProjectItems(store domain.ProjectStore) []views.ProjectItem {
+func loadProjectItems(store domain.ProjectStore, cfg *config.Config) []views.ProjectItem {
 	if store == nil {
 		return nil
 	}
@@ -80,7 +81,7 @@ func loadProjectItems(store domain.ProjectStore) []views.ProjectItem {
 	}
 	items := make([]views.ProjectItem, 0, len(projects))
 	for _, p := range projects {
-		items = append(items, domainProjectToViewItem(p))
+		items = append(items, domainProjectToViewItem(p, cfg))
 	}
 	return items
 }
@@ -106,8 +107,8 @@ func buildViews(a *app.App) []views.View {
 		newWorkflowCatalogView(tuiStartWiring),
 		projectsView,
 		projectModeView,
-		views.NewTeamStatusView(makeResolveTeamFunc(a)),
-		views.NewActivityView(makeResolveTeamFunc(a)),
+		newTeamStatusView(a),
+		newActivityView(a),
 		views.NewWorktreeView(a, views.WorktreeViewConfig{
 			OpenSession: func(path string) { openLaunchForm(a, tuiLaunchRequest{WorkflowID: "libre", Location: path}) },
 		}),

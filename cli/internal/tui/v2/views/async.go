@@ -153,3 +153,14 @@ func persist(app *tview.Application, work func(context.Context) error, done func
 		app.QueueUpdateDraw(func() { done(err) })
 	})
 }
+
+// queueIfLive queues fn on the event loop of app, from the goroutine of an
+// action that has just ended, unless ctx (the one of the shell, which ends with
+// the application) is over: QueueUpdateDraw then waits for a loop that is gone,
+// for ever.
+func queueIfLive(ctx context.Context, app *tview.Application, fn func()) {
+	if app == nil || ctx.Err() != nil {
+		return
+	}
+	app.QueueUpdateDraw(fn)
+}

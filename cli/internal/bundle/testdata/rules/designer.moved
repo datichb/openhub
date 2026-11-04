@@ -197,3 +197,5 @@ Liste avec champ de filtre intégré. Le filtre est toujours visible et actif.	m
 
 # v5.2 (spec depth) : handoff-envelope — une hypothèse non bloquante est numérotée et l'utilisateur peut la contester, plus « validée » d'office.
 **Questions bloquantes** : `Aucune.`, ou une liste numérotée (contexte en une ligne, 2 à 3 options, la recommandée en premier). Ce qui ne bloque pas devient une hypothèse documentée dans ton rapport. Avec une question, arrête-toi : ton appelant la pose et te relance avec ton `task_id` et la réponse ; reprends où tu t'étais arrêté.	merged:**Questions bloquantes** : `Aucune.`, ou une liste numérotée (contexte en une ligne, 2 à 3 options, la recommandée en premier). Ce qui ne bloque pas devient une hypothèse numérotée de ton rapport, que l'utilisateur peut contester. Avec une question, arrête-toi : ton appelant la pose et te relance avec ton `task_id` et la réponse ; reprends où tu t'étais arrêté.
+# v5.2 : la pile de fenêtres compte 3 niveaux (shell/windows.go), la règle des 2 niveaux ne tenait plus.
+Jamais plus de 2 niveaux d'overlay	merged:Jamais plus de 3 niveaux de fenêtre

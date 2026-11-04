@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
@@ -71,7 +72,11 @@ type editorShell struct {
 	selectFn  func(string)
 	selectOpt []SelectOption
 	multiFn   func([]string)
+	hints     []string // the hints line each time the shell was asked to show it again
+	view      *WorkflowEditorView
 }
+
+func (s *editorShell) RefreshHints() { s.hints = append(s.hints, s.view.StatusHints()) }
 
 func (s *editorShell) ShowSelectModal(_ string, o []SelectOption, _ string, fn func(string)) {
 	s.selectOpt, s.selectFn = o, fn
@@ -106,6 +111,7 @@ func newEditorEnv(t *testing.T, cfg WorkflowEditorConfig) *editorEnv {
 	}
 	cfg.Agents = append(cfg.Agents, "debugger", "developer")
 	env.v = NewWorkflowEditorView(cfg)
+	env.sh.view = env.v
 	env.v.SetShell(env.sh)
 	content := tview.NewFlex()
 	env.app = runApp(t, content)
@@ -352,4 +358,25 @@ func TestWorkflowEditorInputsAndRaw(t *testing.T) {
 	env.key(tcell.KeyRune, 'Y')
 	assert.Contains(t, env.text(), "description: Raw")
 	assert.Equal(t, []string{"prompt.md.tmpl", "ticket-hotfix.yaml"}, external)
+}
+
+// Each section has its own keys: the hints line follows the section, not only
+// the one the editor was mounted on.
+func TestWorkflowEditorHintsFollowTheSection(t *testing.T) {
+	i18ntest.Set(t, "en")
+	env := newEditorEnv(t, WorkflowEditorConfig{})
+	var general string
+	onLoop(env.app, func() { general = env.v.StatusHints() })
+
+	env.key(tcell.KeyTab, 0) // → graph
+	var graph string
+	var shown []string
+	onLoop(env.app, func() { graph, shown = env.v.StatusHints(), append([]string(nil), env.sh.hints...) })
+	require.NotEqual(t, general, graph, "the sections have different keys")
+	require.NotEmpty(t, shown, "the shell was asked to show the hints again")
+	assert.Equal(t, graph, shown[len(shown)-1], "with those of the graph")
+
+	env.key(tcell.KeyBacktab, 0) // ← general
+	onLoop(env.app, func() { shown = append([]string(nil), env.sh.hints...) })
+	assert.Equal(t, general, shown[len(shown)-1], "and back to those of the general section")
 }

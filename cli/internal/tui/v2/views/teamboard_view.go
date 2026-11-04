@@ -966,7 +966,7 @@ func (v *TeamBoardView) formatTicketDetail(ticket *TeamTicket) string {
 	fmt.Fprintf(&detail, "\n  %s%s%s\n\n", theme.StyleTag(theme.AttrBold), tview.Escape(ticket.Title), theme.TagAttrs)
 	fmt.Fprintf(&detail, "  %s         %s\n", label("ID:"), tview.Escape(ticket.ID))
 	if ticket.Project != "" {
-		fmt.Fprintf(&detail, "  %s     %s\n", label(i18n.T("tui.teamboard.detail.project")), tview.Escape(ticket.Project))
+		fmt.Fprintf(&detail, "  %s     %s\n", label(i18n.T("tui.teamboard.detail.project")), tview.Escape(projectLabel(ticket.Project, ticket.ProjectName)))
 	}
 	fmt.Fprintf(&detail, "  %s     %s\n", label(i18n.T("tui.teamboard.detail.status")), tview.Escape(ticket.Status))
 
@@ -1092,13 +1092,13 @@ func (v *TeamBoardView) claimTicket() {
 		return
 	}
 	v.actionInProgress.Store(true)
-	onClaim, app := v.actions.OnClaim, v.app
+	onClaim, app, ctx := v.actions.OnClaim, v.app, shellContext(v.shell)
 	safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
 		err := onClaim(ticketID)
 		if app == nil {
 			return
 		}
-		app.QueueUpdateDraw(func() {
+		queueIfLive(ctx, app, func() {
 			v.actionInProgress.Store(false)
 			if err != nil {
 				v.shell.ShowToastMsg(i18n.T("tui.teamboard.claim_failed")+err.Error(), false)
@@ -1133,13 +1133,13 @@ func (v *TeamBoardView) doReleaseTicket(ticketID string) {
 		return
 	}
 	v.actionInProgress.Store(true)
-	onRelease, app := v.actions.OnRelease, v.app
+	onRelease, app, ctx := v.actions.OnRelease, v.app, shellContext(v.shell)
 	safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
 		err := onRelease(ticketID)
 		if app == nil {
 			return
 		}
-		app.QueueUpdateDraw(func() {
+		queueIfLive(ctx, app, func() {
 			v.actionInProgress.Store(false)
 			if err != nil {
 				v.shell.ShowToastMsg(i18n.T("tui.teamboard.release_failed")+err.Error(), false)
@@ -1171,18 +1171,24 @@ func (v *TeamBoardView) transferTicket() {
 	}
 	v.actionInProgress.Store(true)
 	v.shell.ShowSelectModal(i18n.Tf("tui.teamboard.transfer_title", ticketID), members, "", func(toMember string) {
-		app := v.app
+		app, ctx := v.app, shellContext(v.shell)
+		toName := toMember // the toast names the member as the list did
+		for _, m := range members {
+			if m.Value == toMember {
+				toName = m.Label
+			}
+		}
 		safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
 			err := v.actions.OnTransfer(ticketID, toMember)
 			if app == nil {
 				return
 			}
-			app.QueueUpdateDraw(func() {
+			queueIfLive(ctx, app, func() {
 				v.actionInProgress.Store(false)
 				if err != nil {
 					v.shell.ShowToastMsg(i18n.T("tui.teamboard.transfer_failed")+err.Error(), false)
 				} else {
-					v.shell.ShowToastMsg(i18n.T("tui.teamboard.transfer_success")+toMember, true)
+					v.shell.ShowToastMsg(i18n.T("tui.teamboard.transfer_success")+toName, true)
 					if v.cfg.RefreshFunc != nil {
 						v.reload(nil)
 					}
@@ -1217,13 +1223,13 @@ func (v *TeamBoardView) changeStatus() {
 
 	v.actionInProgress.Store(true)
 	v.shell.ShowSelectModal(i18n.Tf("tui.teamboard.status_title", ticketID), statusOptions, currentStatus, func(newStatus string) {
-		app := v.app
+		app, ctx := v.app, shellContext(v.shell)
 		safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
 			err := v.actions.OnStatus(ticketID, newStatus)
 			if app == nil {
 				return
 			}
-			app.QueueUpdateDraw(func() {
+			queueIfLive(ctx, app, func() {
 				v.actionInProgress.Store(false)
 				if err != nil {
 					v.shell.ShowToastMsg(i18n.T("tui.teamboard.status_failed")+err.Error(), false)
@@ -1316,10 +1322,18 @@ func (v *TeamBoardView) showAssigneeFilter() {
 		}
 	}
 
+	// By displayed name: the order of a map changes at each opening.
 	var options []SelectOption
 	for a := range assigneeSet {
 		options = append(options, SelectOption{Label: "@" + a, Value: a})
 	}
+	sort.Slice(options, func(i, j int) bool {
+		a, b := strings.ToLower(options[i].Value), strings.ToLower(options[j].Value)
+		if a != b {
+			return a < b
+		}
+		return options[i].Value < options[j].Value
+	})
 	if len(options) == 0 {
 		v.shell.ShowToastMsg(i18n.T("tui.teamboard.filter_no_assignee"), false)
 		return

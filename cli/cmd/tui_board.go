@@ -100,22 +100,19 @@ func boardIssueRef(a *app.App, ticket views.TicketContext) string {
 }
 
 // buildResolveProjectByDirID builds a resolver that maps team-state directory IDs
-// to project IDs and paths from the hub's project registry.
+// to project IDs and paths from the hub's project registry. The registry is
+// read at each call: a project added after the start, or moved, is launched
+// where it is.
 func buildResolveProjectByDirID(a *app.App) func(dirID string) (string, string, bool) {
 	if a.Projects == nil {
 		return nil
 	}
-	// Pre-load the mapping once — project list doesn't change during a TUI session.
-	projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
-	byID := make(map[string]*domain.Project, len(projects))
-	for i := range projects {
-		byID[projects[i].ID] = &projects[i]
-	}
 	return func(dirID string) (string, string, bool) {
 		// dirID from team-state is usually the project's directory name / ID.
-		if p, ok := byID[dirID]; ok {
-			return p.ID, p.Path, true
+		p, err := a.Projects.Get(context.Background(), dirID)
+		if err != nil || p == nil {
+			return "", "", false
 		}
-		return "", "", false
+		return p.ID, p.Path, true
 	}
 }

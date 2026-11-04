@@ -87,3 +87,25 @@ func CheckInProgressRoom(claims []Claim, member string, board BoardConfig, limit
 	}
 	return &InProgressLimitError{Member: member, Count: len(current), Limit: limit, Adding: adding}
 }
+
+// CountActive is how many claims are alive on the board: in an "active"
+// column, which is a role of the columns of the board and not the name of
+// three statuses (a custom board has its own). Unlike the in-progress count of
+// a member, it keeps the claims in review and in validation: they are active
+// columns of the default board, and a ticket that waits for a review is still
+// moving, which is what the « active » figure of the team mode tells; it
+// leaves out the planned, blocked and finished ones. The default board is
+// used when the team did not configure columns.
+func CountActive(claims []Claim, board BoardConfig) int {
+	if !board.HasCustomColumns() {
+		board = DefaultBoardConfig()
+	}
+	active := board.ActiveStatuses()
+	n := 0
+	for i := range claims {
+		if slices.Contains(active, claims[i].Status) {
+			n++
+		}
+	}
+	return n
+}

@@ -283,7 +283,7 @@ func actionTeamInit() {
 				safego.Go(func() {
 					time.Sleep(200 * time.Millisecond)
 					if tuiShell != nil {
-						tuiShell.App().QueueUpdateDraw(func() {
+						queueOnShell(tuiShell, func() {
 							actionTrackerDiscovery()
 						})
 					}
@@ -342,7 +342,7 @@ func actionTeamConfigure() {
 
 	tuiShell.ShowSelectModal(i18n.T("tui.team.configure.modal_title"), modeOptions, defaultVal, func(teamID string) {
 		safego.Go(func() {
-			tuiShell.App().QueueUpdateDraw(func() {
+			queueOnShell(tuiShell, func() {
 				applyProjectTeamID(a, project.ID, teamID)
 			})
 		})

@@ -172,7 +172,7 @@ func (t *tuiSessions) sessionEnded(ctx context.Context, s domain.Session) {
 	if s.Title != nil && *s.Title != "" {
 		label = *s.Title
 	}
-	sh.App().QueueUpdateDraw(func() {
+	queueOnShell(sh, func() {
 		sh.ShowToast(i18n.Tf("tui.launch.session_done", label, textfmt.Cost(s.Cost), next), shell.ToastSuccess)
 	})
 }

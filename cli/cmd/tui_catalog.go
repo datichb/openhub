@@ -6,10 +6,12 @@ import (
 	"io"
 	"path/filepath"
 
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/prefsvc"
 	"github.com/datichb/openhub/cli/internal/safego"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -89,13 +91,12 @@ func loadCatalogData(ctx context.Context, start *tuiStart) (views.CatalogData, e
 		}
 	}
 	data := views.CatalogData{Team: ws.TeamID, Member: ws.Member, Editable: ws.Editable, Queue: len(ws.Queue)}
+	if ws.TeamID != "" {
+		data.Team = teamName(start.a.Config, ws.TeamID)
+		data.Member = catalogMemberName(ctx, start.a, ws.TeamID, ws.Member)
+	}
 	if ws.Project != "" {
-		data.Project = ws.Project
-		if tuiShell != nil {
-			if p := tuiShell.ActiveProject(); p != nil && p.ID == ws.Project {
-				data.Project = p.Name
-			}
-		}
+		data.Project = readNames(ctx, start.a, nil).ProjectLabel(ws.Project)
 	}
 	drafts := map[string]bool{}
 	for _, d := range ws.Drafts {
@@ -113,6 +114,18 @@ func loadCatalogData(ctx context.Context, start *tuiStart) (views.CatalogData, e
 		data.Integrity = append(data.Integrity, views.CatalogIntegrity{Message: d.Message, Source: d.Source})
 	}
 	return data, nil
+}
+
+// catalogMemberName is the display name of the member in the team-state of the
+// team; their ID when the team-state is not there or does not list them.
+func catalogMemberName(ctx context.Context, a *app.App, teamID, member string) string {
+	var members teamstate.MemberReader
+	if t := a.Config.FindTeam(teamID); t != nil {
+		if repo := teamstate.NewRepo(t.StateRepo, t.StatePath); repo.IsCloned() {
+			members = repo
+		}
+	}
+	return readNames(ctx, a, members).Member(member)
 }
 
 func catalogEntry(s workflowsvc.Summary, pinned bool) views.CatalogEntry {
@@ -180,7 +193,7 @@ func tuiAsync(fn func(ctx context.Context) error, then func()) {
 	}
 	safego.Go(func() {
 		err := fn(sh.Context())
-		sh.App().QueueUpdateDraw(func() {
+		queueOnShell(sh, func() {
 			if err != nil {
 				sh.ShowToast(tuiWorkflowError(err), shell.ToastError)
 				return

@@ -40,7 +40,7 @@ func openWorkflowEditor(c workflowsvc.Context, layer workflow.Layer, t *workflow
 				workflows = append(workflows, r.String())
 			}
 		}
-		sh.App().QueueUpdateDraw(func() {
+		queueOnShell(sh, func() {
 			sh.PushView(views.NewWorkflowEditorView(views.WorkflowEditorConfig{
 				Ref: ref.String(), Layer: layer, YAML: t.YAML, Prompt: t.Prompt, Unsaved: unsaved, PromptOwn: promptOwn,
 				Lang: i18n.Locale(), Agents: agents, Workflows: workflows,

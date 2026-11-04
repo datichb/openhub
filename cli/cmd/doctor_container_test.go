@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/gateway/bdargs"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/runtime/container"
 	"github.com/datichb/openhub/cli/internal/services/doctor"
 )
@@ -65,4 +66,14 @@ func TestBdSchemaCheck(t *testing.T) {
 	bad := bdSchemaResult(nil, errors.New("unknown command"))
 	assert.True(t, bad.Warn)
 	assert.Contains(t, bad.Detail, "unknown command")
+}
+
+// The check of an image names the project, with the ID in brackets; a project the
+// registry does not know is its ID.
+func TestImageCheckNameNamesTheProject(t *testing.T) {
+	i18ntest.Set(t, "en")
+	names := map[string]string{"3f2a9c1d": "api"}
+	assert.Equal(t, "Container: image of api [3f2a9c1d]", imageCheckName("3f2a9c1d", names))
+	assert.Equal(t, "Container: image of deadbeef", imageCheckName("deadbeef", names))
+	assert.Equal(t, "Container: image of deadbeef", imageCheckName("deadbeef", nil))
 }

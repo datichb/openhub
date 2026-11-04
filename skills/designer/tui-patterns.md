@@ -103,10 +103,13 @@ Les modals utilisent `tview.Pages` avec une grille 3x3 : fond assombri sur les 8
 cellules périphériques, contenu dans la cellule centrale.
 
 **Règles :**
-- Deux couches : `inline-overlay` (modal primaire) + `sub-overlay` (sous-modal)
-- Jamais plus de 2 niveaux d'overlay
+- Une pile de fenêtres à 3 niveaux (`shell/windows.go`) : `inline-overlay`, `sub-overlay`, puis `sub-overlay-2` au-dessus de toutes. Une fenêtre ouverte alors que d'autres sont affichées s'ouvre par-dessus ; la pile pleine, la dernière est remplacée
+- Jamais plus de 3 niveaux de fenêtre
+- Fermer une fenêtre ferme celles qui sont au-dessus et rend le focus au widget qui l'avait à l'ouverture (le bouton de la fenêtre du dessous, le widget de la vue pour la première) : rien ne reste affiché sans le focus
+- Une question (confirmation, saisie, formulaire, choix) s'ouvre par-dessus la fenêtre d'où elle est posée : répondue, elle ferme avec elle les fenêtres d'où elle vient (leur action est faite) ; annulée, elle rend la fenêtre du dessous telle qu'elle était
+- Le fond est plus sombre derrière une fenêtre qui en recouvre une autre
 - Un clic sur le fond assombri ferme les overlays simples (pas les formulaires)
-- Escape ferme le dernier overlay
+- Escape ferme la fenêtre du dessus
 
 ### Toast notifications
 

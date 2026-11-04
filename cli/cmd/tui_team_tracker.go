@@ -48,7 +48,7 @@ func actionSyncTracker() {
 			return
 		default:
 		}
-		tuiShell.App().QueueUpdateDraw(func() {
+		queueOnShell(tuiShell, func() {
 			if err != nil {
 				tuiShell.ShowToast(i18n.T("tui.team.sync.error_prefix")+err.Error(), shell.ToastError)
 				return

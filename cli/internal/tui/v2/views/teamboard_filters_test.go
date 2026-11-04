@@ -2,6 +2,8 @@ package views
 
 import (
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/rivo/tview"
@@ -154,4 +156,32 @@ func TestFetchTeamTicketsCarriesTheIDOfTheOwner(t *testing.T) {
 	assert.Equal(t, "alice", byID["T-1"].AssigneeID)
 	assert.Equal(t, "Alice A.", byID["T-1"].Assignee, "the card still shows the name")
 	assert.Empty(t, byID["T-2"].AssigneeID, "the pool has no owner")
+}
+
+// The assignees of the filter are listed by name, in the same order each time
+// (the order of a map changes with each opening).
+func TestTeamBoardAssigneeFilterIsSortedByName(t *testing.T) {
+	i18ntest.Set(t, "en")
+	var tickets []TeamTicket
+	for i, name := range []string{"Zoé", "bob", "Alice", "Charlie", "alice b.", "David", "Eve", "Frank", "Grace"} {
+		tickets = append(tickets, TeamTicket{ID: strconv.Itoa(i), Status: "todo", Assignee: name, AssigneeID: strings.ToLower(name), Project: "p"})
+	}
+	board := NewTeamBoardView(TeamBoardViewConfig{Tickets: tickets, IsConfigured: func() bool { return true }})
+	board.Mount(tview.NewFlex().SetDirection(tview.FlexRow), tview.NewApplication())
+	t.Cleanup(board.Unmount)
+	sh := &choosingShell{choice: "_assignee"}
+	board.SetShell(sh)
+	board.populateColumns(tickets, board.allColumns)
+
+	var first []string
+	for range 5 {
+		sh.offered = nil
+		board.showAssigneeFilter()
+		if first == nil {
+			first = sh.offered
+			continue
+		}
+		assert.Equal(t, first, sh.offered, "the same order at each opening")
+	}
+	assert.Equal(t, []string{"Alice", "alice b.", "bob", "Charlie", "David", "Eve", "Frank", "Grace", "Zoé"}, first)
 }

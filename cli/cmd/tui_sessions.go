@@ -168,7 +168,7 @@ func (t *tuiSessions) refresh(ctx context.Context) {
 	if sh == nil {
 		return
 	}
-	sh.App().QueueUpdateDraw(func() {
+	queueOnShell(sh, func() {
 		sh.SetSessionsBadge(views.SessionsBadge(running, decisions), decisions > 0)
 		if changed {
 			sh.RemountIf("home", "project.mode", "team.mode")
@@ -471,7 +471,7 @@ func (t *tuiSessions) Attach(sessionID, how string) {
 	if sh == nil {
 		return
 	}
-	toast := func(msg string, ok bool) { sh.App().QueueUpdateDraw(func() { sh.ShowToastMsg(msg, ok) }) }
+	toast := func(msg string, ok bool) { queueOnShell(sh, func() { sh.ShowToastMsg(msg, ok) }) }
 	safego.Go(func() {
 		ctx := context.Background()
 		rs, err := newRunService(ctx, t.a)

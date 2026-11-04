@@ -33,7 +33,7 @@ func offerCleanupInTUI(ctx context.Context, a *app.App, sh *shell.Shell) {
 		}
 		markCleanupOffered(ctx, a)
 		if len(list) > 0 {
-			sh.App().QueueUpdateDraw(func() { showCleanupScreen(a, sh, list) })
+			queueOnShell(sh, func() { showCleanupScreen(a, sh, list) })
 		}
 	})
 }
@@ -136,7 +136,7 @@ func cleanupConfigFile(list []projectCleanup) string {
 func applyCleanupInTUI(sh *shell.Shell, list []projectCleanup) {
 	safego.Go(func() {
 		msg, ok := applyCleanup(list)
-		sh.App().QueueUpdateDraw(func() { sh.ShowToastMsg(msg, ok) })
+		queueOnShell(sh, func() { sh.ShowToastMsg(msg, ok) })
 	})
 }
 

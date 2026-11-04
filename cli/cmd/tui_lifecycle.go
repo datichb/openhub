@@ -83,7 +83,7 @@ func showAbsenceRecap(ctx context.Context, a *app.App, sh *shell.Shell) {
 		if r.OpenDecisions > 0 {
 			level = shell.ToastWarning
 		}
-		sh.App().QueueUpdateDraw(func() { sh.ShowToast(msg, level) })
+		queueOnShell(sh, func() { sh.ShowToast(msg, level) })
 	})
 }
 
@@ -103,21 +103,21 @@ func beforeQuit(a *app.App, sh *shell.Shell) func(quit func()) {
 			ctx, cancel := context.WithTimeout(context.Background(), quitReadTimeout)
 			defer cancel()
 			if !toolAvailable(ctx) {
-				sh.App().QueueUpdateDraw(finish)
+				queueOnShell(sh, finish)
 				return
 			}
 			if _, err := client.NewClient(api.Paths{Dir: ohRunDir()}).Health(ctx); err != nil {
-				sh.App().QueueUpdateDraw(finish)
+				queueOnShell(sh, finish)
 				return
 			}
 			svc, err := newRunService(ctx, a)
 			if err != nil {
-				sh.App().QueueUpdateDraw(finish)
+				queueOnShell(sh, finish)
 				return
 			}
 			plan, err := svc.QuitPlan(ctx)
 			if err != nil || len(plan.Groups) == 0 {
-				sh.App().QueueUpdateDraw(finish)
+				queueOnShell(sh, finish)
 				return
 			}
 			apply := func(choices map[string]runsvc.QuitChoice) {
@@ -128,12 +128,12 @@ func beforeQuit(a *app.App, sh *shell.Shell) func(quit func()) {
 					if inProcessDaemonRunning() && len(plan.Working) > 0 {
 						// The daemon stops with this process (Windows): let the
 						// chosen steps finish first.
-						sh.App().QueueUpdateDraw(func() { sh.ShowToast(i18n.T("cmd.daemon.inprocess_waiting"), shell.ToastInfo) })
+						queueOnShell(sh, func() { sh.ShowToast(i18n.T("cmd.daemon.inprocess_waiting"), shell.ToastInfo) })
 						wctx, cancel := context.WithTimeout(context.Background(), quitStepWait)
 						_ = svc.WaitFinished(wctx, plan, choices)
 						cancel()
 					}
-					sh.App().QueueUpdateDraw(finish)
+					queueOnShell(sh, finish)
 				})
 			}
 			if len(plan.Working) == 0 {
@@ -145,7 +145,7 @@ func beforeQuit(a *app.App, sh *shell.Shell) func(quit func()) {
 			if n := len(plan.Resting); n > 0 {
 				title += " · " + i18n.Tf("tui.sessions.quit_resting", n)
 			}
-			sh.App().QueueUpdateDraw(func() {
+			queueOnShell(sh, func() {
 				sh.ShowInlineForm(views.InlineFormConfig{
 					Title:  title,
 					Fields: fields,

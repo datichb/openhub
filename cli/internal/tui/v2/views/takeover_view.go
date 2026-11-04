@@ -24,6 +24,8 @@ type TakeoverView struct {
 	page        *widgets.ListDetailPage
 	shell       ShellAccess
 	briefs      []teamstate.TakeoverMeta
+	names       NamesFunc // the source of the names (IDs without it)
+	shown       Names     // the names of the briefs on the screen
 	onEnrich    func(project, ticketID string) error
 	loads       loadSlot // the reads of the briefs: only the latest is applied
 	briefRead   loadSlot // the read of the brief being opened
@@ -40,6 +42,7 @@ var takeoverEnrichKey = keys.Own("takeover.enrich", 'e', "tui.hints.enrich_ai")
 type takeoverReader interface {
 	teamstate.RepoInfo
 	teamstate.BriefReader
+	teamstate.MemberReader
 }
 
 // takeoverState is the team-state of the view: pulled, then read.
@@ -52,6 +55,7 @@ type takeoverState interface {
 type takeoverData struct {
 	cloned bool
 	briefs []teamstate.TakeoverMeta
+	names  Names
 }
 
 var _ View = (*TakeoverView)(nil)
@@ -64,6 +68,10 @@ func NewTakeoverView(resolveTeam ResolveTeamFunc) *TakeoverView {
 
 // SetShell provides the shell reference for modal interactions.
 func (v *TakeoverView) SetShell(s ShellAccess) { v.shell = s }
+
+// SetNames sets the source of the names shown for the project and the members
+// of a brief (their IDs without it); the IDs stay what the actions take.
+func (v *TakeoverView) SetNames(f NamesFunc) { v.names = f }
 
 // SetOnEnrich sets the callback for AI enrichment of a brief.
 func (v *TakeoverView) SetOnEnrich(fn func(project, ticketID string) error) { v.onEnrich = fn }
@@ -111,9 +119,9 @@ func (v *TakeoverView) showDetail(idx int) {
 	var d detailText
 	d.title(tview.Escape(b.TicketID))
 	d.para(i18n.T("tui.detail.takeover.desc"))
-	d.field(i18n.T("tui.detail.project"), tview.Escape(b.Project))
-	d.field(i18n.T("tui.detail.from"), tview.Escape(b.TransferredFrom))
-	d.field(i18n.T("tui.detail.to"), tview.Escape(b.TransferredTo))
+	d.field(i18n.T("tui.detail.project"), tview.Escape(v.shown.ProjectLabel(b.Project)))
+	d.field(i18n.T("tui.detail.from"), tview.Escape(v.shown.Member(b.TransferredFrom)))
+	d.field(i18n.T("tui.detail.to"), tview.Escape(v.shown.Member(b.TransferredTo)))
 	if !b.TransferDate.IsZero() {
 		d.field(i18n.T("tui.detail.date"), textfmt.DateTime(b.TransferDate))
 	}
@@ -186,7 +194,12 @@ func (v *TakeoverView) refresh() {
 	if read == nil {
 		read = readTakeover
 	}
-	fetch := func(ctx context.Context) (takeoverData, error) { return read(ctx, repo) }
+	names := v.names
+	fetch := func(ctx context.Context) (takeoverData, error) {
+		d, err := read(ctx, repo)
+		d.names = names.Read(ctx, repo)
+		return d, err
+	}
 	syncLoad(v.app, shellContext(v.shell), &v.loads, repo, v.shell, fetch, func(d takeoverData, err error) {
 		v.renderBriefs(d, err)
 	})
@@ -220,12 +233,12 @@ func (v *TakeoverView) renderBriefs(d takeoverData, err error) {
 		v.list.AddItem("  "+stateText(stateEmpty, i18n.T("tui.takeover.no_briefs")), i18n.T("tui.takeover.no_briefs_desc"), 0, nil)
 		return
 	}
-	v.briefs = d.briefs
+	v.briefs, v.shown = d.briefs, d.names
 
 	for _, b := range d.briefs {
 		v.list.AddItem(
-			fmt.Sprintf("  %s  %s → %s", tview.Escape(b.TicketID), tview.Escape(b.TransferredFrom), tview.Escape(b.TransferredTo)),
-			fmt.Sprintf("    %s · %s · %s", textfmt.Date(b.TransferDate), tview.Escape(b.Project), tview.Escape(b.Reason)),
+			fmt.Sprintf("  %s  %s → %s", tview.Escape(b.TicketID), tview.Escape(d.names.Member(b.TransferredFrom)), tview.Escape(d.names.Member(b.TransferredTo))),
+			fmt.Sprintf("    %s · %s · %s", textfmt.Date(b.TransferDate), tview.Escape(d.names.ProjectLabel(b.Project)), tview.Escape(b.Reason)),
 			0, nil,
 		)
 	}
@@ -267,7 +280,7 @@ func (v *TakeoverView) enrichBrief() {
 	if v.shell == nil || v.onEnrich == nil {
 		return
 	}
-	enrich := v.onEnrich
+	enrich, ctx := v.onEnrich, v.shell.Context()
 
 	v.shell.ShowToastMsg(i18n.Tf("tui.takeover.enriching", b.TicketID), true)
 
@@ -276,7 +289,7 @@ func (v *TakeoverView) enrichBrief() {
 		if app == nil {
 			return // no event loop (tests)
 		}
-		app.QueueUpdateDraw(func() {
+		queueIfLive(ctx, app, func() {
 			if v.app == nil {
 				return // unmounted meanwhile
 			}

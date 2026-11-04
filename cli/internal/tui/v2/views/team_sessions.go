@@ -25,7 +25,10 @@ type TeamMemberSession struct {
 	Member, MemberID string
 	Ticket, Title    string
 	Project          string
-	Session          string
+	// ProjectName is how the project is shown (its name, or its ID marked as
+	// unknown); empty: the ID.
+	ProjectName string
+	Session     string
 	// Status is the status of the claim.
 	Status string
 	// Since is when the member took the ticket.
@@ -100,7 +103,11 @@ func (s TeamMemberSession) detail() string {
 	}
 	field(i18n.T("tui.tm.others.field.ticket"), s.Ticket)
 	field(i18n.T("tui.tm.others.field.title"), s.Title)
-	field(i18n.T("tui.tm.others.field.project"), s.Project)
+	project := s.ProjectName
+	if project == "" {
+		project = s.Project
+	}
+	field(i18n.T("tui.tm.others.field.project"), project)
 	field(i18n.T("tui.tm.others.field.session"), s.Session)
 	field(i18n.T("tui.tm.others.field.status"), s.Status)
 	if !s.Since.IsZero() {
