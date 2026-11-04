@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -224,4 +225,22 @@ func TestLaunchFormTitleNamesTheWorkflowByItsLabel(t *testing.T) {
 
 	v = NewLaunchFormView(LaunchFormConfig{WorkflowID: "libre", Spec: parseSpec(t, libreTestSpec), Lang: "fr"})
 	assert.Equal(t, "Lancer · libre", v.Title(), "no label: the ID")
+}
+
+// A workflow that cannot be launched on what the form was given is not a
+// failure to load: the recap says why and what to launch instead, as a
+// warning, and a real error still reads « Impossible de charger ».
+func TestRecapSaysWhyAWorkflowIsNotOffered(t *testing.T) {
+	frLocale(t)
+	v := NewLaunchFormView(launchCfg(t))
+	v.recapErr = NotOfferedError("#623 est une référence GitLab, pas un ticket Beads")
+	text := v.recapText()
+	assert.Contains(t, text, "#623 est une référence GitLab")
+	assert.NotContains(t, text, "Impossible de charger")
+
+	v.recapErr = errors.New("bundle illisible")
+	text = v.recapText()
+	assert.Contains(t, text, "Impossible de charger : bundle illisible")
+	assert.True(t, errors.Is(NotOfferedError("x"), ErrNotOffered))
+	assert.False(t, errors.Is(errors.New("x"), ErrNotOffered))
 }

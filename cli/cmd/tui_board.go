@@ -42,6 +42,17 @@ func buildBoardQuickActions(a *app.App) *views.BoardQuickActions {
 			}
 			openLaunchForm(a, boardLaunchRequest(workflowID, ticket, tuiLaunchRequest{Prefill: map[string]string{input: request}}))
 		},
+		Workflow: func(id string) (views.TicketWorkflow, bool) {
+			if tuiStartWiring == nil {
+				return views.TicketWorkflow{}, false
+			}
+			return tuiStartWiring.workflow(activeScope(), id)
+		},
+		Source:                func(ticket views.TicketContext) (views.CardSource, string) { return boardCardSource(a, ticket) },
+		CanImport:             func(ticket views.TicketContext) bool { return boardCanImport(a, ticket) },
+		LaunchCard:            func(l views.CardLaunch, ticket views.TicketContext) { boardLaunchCard(a, l, ticket) },
+		ActiveSession:         boardActiveSession,
+		Instruct:              boardInstruct,
 		ResolveProjectByDirID: buildResolveProjectByDirID(a),
 		FetchDescription: func(projectPath, ticketID string) string {
 			detail, err := beads.Show(projectPath, ticketID)

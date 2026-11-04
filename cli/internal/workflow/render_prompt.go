@@ -15,6 +15,18 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitlabapi"
 )
 
+// GitLabRefForBeadsError is a GitLab issue or merge request given to an input
+// that takes a Beads id: the workflow cannot read it. Clients show their own
+// explanation of it (the launch form says what to do instead).
+type GitLabRefForBeadsError struct {
+	// Input is the input, Value what it was given, Kind « issue » or « merge request ».
+	Input, Value, Kind string
+}
+
+func (e *GitLabRefForBeadsError) Error() string {
+	return fmt.Sprintf("input %q: %q is a GitLab %s, not a Beads id (Beads ids look like proj-a1b): name it in the request of a workflow that takes one (spec, quick), the session reads it with the GitLab MCP server", e.Input, e.Value, e.Kind)
+}
+
 // reBeadsID is the accepted shape of a Beads ticket id (bd-12, proj-a1b.3).
 var reBeadsID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
@@ -285,7 +297,7 @@ func typedInput(name string, in Input, v any) (any, error) {
 		for _, id := range ids {
 			if !reBeadsID.MatchString(id) {
 				if ref, ok := gitlabapi.ParseRef(id); ok {
-					return nil, fmt.Errorf("input %q: %q is a GitLab %s, not a Beads id (Beads ids look like proj-a1b): name it in the request of a workflow that takes one (spec, quick), the session reads it with the GitLab MCP server", name, id, map[gitlabapi.RefKind]string{gitlabapi.RefIssue: "issue", gitlabapi.RefMR: "merge request"}[ref.Kind])
+					return nil, &GitLabRefForBeadsError{Input: name, Value: id, Kind: map[gitlabapi.RefKind]string{gitlabapi.RefIssue: "issue", gitlabapi.RefMR: "merge request"}[ref.Kind]}
 				}
 				return nil, fmt.Errorf("input %q: invalid Beads id %q", name, id)
 			}

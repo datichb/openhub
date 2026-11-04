@@ -56,6 +56,10 @@ type tuiLaunchRequest struct {
 	// omnibar (« feature → implement-spec (avec tickets) »); "" = resolved
 	// from the inputs given, like oh run.
 	AliasTarget string
+	// Card is the card of the team board whose work the launch starts: its
+	// claim goes in progress once the session runs, within the limit of work
+	// in progress (nil: the launch claims nothing for a card).
+	Card *tuiCardClaim
 }
 
 // openLaunchForm resolves the workflow and the project off the event loop,
@@ -165,7 +169,8 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 	opts := func(c views.LaunchChoices) launch.Options {
 		return launch.Options{Workflow: sp.ID, Project: project, Agent: c.Agent, Inputs: c.Inputs, Tickets: c.Tickets, Mode: c.Mode,
 			Runtime: c.Runtime, Location: c.Location, Attach: c.Attach, ParentSessionID: req.Parent, OneSession: c.OneSession, Draft: req.Draft,
-			Dirty: runsvc.DirtyPolicy(c.Dirty), OnExisting: runsvc.OnExisting(c.OnExisting), DiscardBaseChanges: c.DiscardBaseChanges}
+			Dirty: runsvc.DirtyPolicy(c.Dirty), OnExisting: runsvc.OnExisting(c.OnExisting), DiscardBaseChanges: c.DiscardBaseChanges,
+			NoClaim: cardNoClaim(req.Card)}
 	}
 	cfg.Recap = func(ctx context.Context, c views.LaunchChoices) (*views.LaunchRecap, error) {
 		p, err := runs.get(ctx, a, opts(c))
@@ -197,9 +202,21 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		}
 		announceConfigChanges(runs) // changed since the recap that was on screen
 		runs.reset()                // a plan starts once
+		if req.Card != nil {
+			// Before anything starts: the work on the card goes past the limit
+			// of tickets in progress, or it does not.
+			if err := cardLaunchRoom(ctx, a, project, req.Card); err != nil {
+				return tuiLaunchError(err)
+			}
+		}
 		// Image build output, shown by the form while launching.
 		p.Plan.Request.Base.Progress = cfg.Progress.Line
 		results, err := startRun(ctx, a, p, tuiLaunchUI())
+		if err == nil && req.Card != nil && len(results) > 0 && results[0].SessionID != "" {
+			if note := claimCardAtLaunch(ctx, a, project, req.Card, results[0].SessionID); note != "" {
+				tuiLaunchUI().Notify(note, launcher.LevelInfo)
+			}
+		}
 		if tuiStartWiring != nil {
 			tuiStartWiring.invalidate() // recents
 		}
@@ -242,6 +259,15 @@ func launchFormConfig(ctx context.Context, a *app.App, project *domain.Project, 
 		return nil
 	}
 	return cfg, nil
+}
+
+// cardNoClaim is the Beads ticket of a launch that the card covers: the
+// session does not claim it, the card is the claim.
+func cardNoClaim(card *tuiCardClaim) []string {
+	if card == nil || card.Imported == "" {
+		return nil
+	}
+	return []string{card.Imported}
 }
 
 // preferLocation moves the option of loc first (the form default).
@@ -496,10 +522,14 @@ func tuiLaunchError(err error) error {
 	}
 	msg := localizeError(err)
 	var pe *ProviderCredentialError
+	var gitlabRef *workflow.GitLabRefForBeadsError
 	var apiErr *api.APIError
 	var te *runsvc.TransferError
 	if errors.As(err, &pe) || (errors.As(err, &apiErr) && apiErr.Path == "/grants" && apiErr.Status == 422) {
 		return views.ProviderCredentialsError(msg)
+	}
+	if errors.As(err, &gitlabRef) {
+		return views.NotOfferedError(i18n.Tf("v53f.launch.gitlab_for_beads", gitlabRef.Input, gitlabRef.Value))
 	}
 	if errors.As(err, &te) {
 		return views.TransferFailedError(i18n.Tf("cmd.run.existing.transfer_failed", te.SessionID, localizeError(te.Err)))

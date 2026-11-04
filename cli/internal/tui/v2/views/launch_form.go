@@ -109,6 +109,20 @@ func (e providerCredentialsError) Is(target error) bool { return target == ErrPr
 // ErrProviderCredentials.
 func ProviderCredentialsError(msg string) error { return providerCredentialsError{msg: msg} }
 
+// ErrNotOffered marks a recap error that is no failure: the workflow cannot be
+// launched on what the form was given, and the message says why and what to
+// launch instead. The recap shows it as a warning, not as « Impossible de
+// charger ».
+var ErrNotOffered = errors.New("workflow not offered for this input")
+
+type notOfferedError struct{ msg string }
+
+func (e notOfferedError) Error() string        { return e.msg }
+func (e notOfferedError) Is(target error) bool { return target == ErrNotOffered }
+
+// NotOfferedError is an error with message msg that matches ErrNotOffered.
+func NotOfferedError(msg string) error { return notOfferedError{msg: msg} }
+
 const (
 	launchStepInputs = iota
 	launchStepOptions
@@ -541,7 +555,10 @@ func (v *LaunchFormView) recapText() string {
 	case v.recap == nil && v.recapErr == nil:
 		b.WriteString(stateText(stateLoading, "⠋ "+i18n.T("tui.launch.preparing")) + "\n")
 	}
-	if v.recapErr != nil {
+	switch {
+	case errors.Is(v.recapErr, ErrNotOffered):
+		b.WriteString(theme.Paint(theme.WarningHex, theme.SymWarning+" "+tview.Escape(v.recapErr.Error())) + "\n")
+	case v.recapErr != nil:
 		b.WriteString(stateText(stateError, v.recapErr.Error()) + "\n")
 	}
 	if v.launchErr != nil {
