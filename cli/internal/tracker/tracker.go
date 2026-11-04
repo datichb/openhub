@@ -77,7 +77,8 @@ type ListOpts struct {
 
 // ListUnassignedOpts filters for ListUnassignedIssues.
 type ListUnassignedOpts struct {
-	// Labels restricts results to issues matching ALL of these labels.
+	// Labels restricts results to issues carrying ANY of these labels (an
+	// OR, an issue found by several labels once).
 	// Empty = no label filter (all unassigned open issues).
 	Labels []string
 	// UpdatedAfter filters to issues updated after this time (zero = no filter).
@@ -88,7 +89,8 @@ type ListUnassignedOpts struct {
 
 // ListByLabelsOpts filters for ListIssuesByLabels.
 type ListByLabelsOpts struct {
-	// Labels restricts results to issues matching ALL of these labels.
+	// Labels restricts results to issues carrying ANY of these labels (an
+	// OR, an issue found by several labels once).
 	Labels []string
 	// UpdatedAfter filters to issues updated after this time (zero = no filter).
 	UpdatedAfter time.Time
@@ -105,12 +107,14 @@ type Tracker interface {
 	// ListAssignedIssues returns open issues assigned to the given username.
 	ListAssignedIssues(ctx context.Context, projectID string, opts ListOpts) ([]IssueState, error)
 
-	// ListUnassignedIssues returns open issues that have no assignee.
+	// ListUnassignedIssues returns open issues that have no assignee (and, when
+	// opts.Labels is set, carry any of those labels).
 	// Used by the pool-claim feature to surface claimable tickets on the board.
 	ListUnassignedIssues(ctx context.Context, projectID string, opts ListUnassignedOpts) ([]IssueState, error)
 
-	// ListIssuesByLabels returns open issues matching ALL of the given labels,
-	// regardless of assignee. Used by autopoolUnassigned when UnassignedLabels
+	// ListIssuesByLabels returns open issues carrying ANY of the given labels
+	// (an OR; an issue found by several labels is returned once), regardless
+	// of assignee. Used by autopoolUnassigned when UnassignedLabels
 	// is configured, to fetch all matching tickets (assigned or not) so they
 	// appear on the team board.
 	ListIssuesByLabels(ctx context.Context, projectID string, opts ListByLabelsOpts) ([]IssueState, error)

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -100,40 +101,86 @@ func (c *gitLabClient) ListUnassignedIssues(ctx context.Context, projectID strin
 	q := url.Values{}
 	q.Set("state", "opened")
 	q.Set("assignee_id", "0") // GitLab: 0 = no assignee
-	if len(opts.Labels) > 0 {
-		q.Set("labels", strings.Join(opts.Labels, ","))
-	}
-	if !opts.UpdatedAfter.IsZero() {
-		q.Set("updated_after", opts.UpdatedAfter.UTC().Format(time.RFC3339))
-	}
-	perPage := 20
-	if opts.MaxResults > 0 && opts.MaxResults < perPage {
-		perPage = opts.MaxResults
-	}
-	q.Set("per_page", strconv.Itoa(perPage))
-
-	basePath := fmt.Sprintf("/api/v4/projects/%s/issues?%s", url.PathEscape(projectID), q.Encode())
-	return c.paginatedListIssues(ctx, basePath, opts.MaxResults)
+	return c.listIssuesWithAnyLabel(ctx, projectID, q, opts.Labels, opts.UpdatedAfter, opts.MaxResults)
 }
 
 func (c *gitLabClient) ListIssuesByLabels(ctx context.Context, projectID string, opts ListByLabelsOpts) ([]IssueState, error) {
 	q := url.Values{}
 	q.Set("state", "opened")
-	if len(opts.Labels) > 0 {
-		q.Set("labels", strings.Join(opts.Labels, ","))
-	}
 	// No assignee filter — fetch all open issues with the given labels.
-	if !opts.UpdatedAfter.IsZero() {
-		q.Set("updated_after", opts.UpdatedAfter.UTC().Format(time.RFC3339))
+	return c.listIssuesWithAnyLabel(ctx, projectID, q, opts.Labels, opts.UpdatedAfter, opts.MaxResults)
+}
+
+// listIssuesWithAnyLabel lists the issues of the project that match q and
+// carry ANY of the labels (all of them when there is none). The labels filter
+// of GitLab is an AND (labels=a,b needs both), so there is one request per
+// label; an issue found by several labels is counted once (by IID). With
+// several labels the issues are the most recently updated first; at most
+// maxResults are returned (0 = no cap).
+func (c *gitLabClient) listIssuesWithAnyLabel(ctx context.Context, projectID string, q url.Values, labels []string, updatedAfter time.Time, maxResults int) ([]IssueState, error) {
+	if !updatedAfter.IsZero() {
+		q.Set("updated_after", updatedAfter.UTC().Format(time.RFC3339))
 	}
 	perPage := 20
-	if opts.MaxResults > 0 && opts.MaxResults < perPage {
-		perPage = opts.MaxResults
+	if maxResults > 0 && maxResults < perPage {
+		perPage = maxResults
 	}
 	q.Set("per_page", strconv.Itoa(perPage))
 
-	basePath := fmt.Sprintf("/api/v4/projects/%s/issues?%s", url.PathEscape(projectID), q.Encode())
-	return c.paginatedListIssues(ctx, basePath, opts.MaxResults)
+	labels = distinctLabels(labels)
+	if len(labels) == 0 {
+		return c.paginatedListIssues(ctx, c.issuesPath(projectID, q), maxResults)
+	}
+	var merged []IssueState
+	seen := map[int]bool{}
+	for _, label := range labels {
+		lq := cloneValues(q)
+		lq.Set("labels", label)
+		found, err := c.paginatedListIssues(ctx, c.issuesPath(projectID, lq), maxResults)
+		if err != nil {
+			return nil, err
+		}
+		for _, is := range found {
+			if !seen[is.IID] {
+				seen[is.IID] = true
+				merged = append(merged, is)
+			}
+		}
+	}
+	if len(labels) > 1 {
+		sort.SliceStable(merged, func(i, j int) bool { return merged[i].UpdatedAt.After(merged[j].UpdatedAt) })
+	}
+	if maxResults > 0 && len(merged) > maxResults {
+		merged = merged[:maxResults]
+	}
+	return merged, nil
+}
+
+func (c *gitLabClient) issuesPath(projectID string, q url.Values) string {
+	return fmt.Sprintf("/api/v4/projects/%s/issues?%s", url.PathEscape(projectID), q.Encode())
+}
+
+func cloneValues(q url.Values) url.Values {
+	out := make(url.Values, len(q))
+	for k, v := range q {
+		out[k] = append([]string(nil), v...)
+	}
+	return out
+}
+
+// distinctLabels is the labels without blanks and repetitions, in order.
+func distinctLabels(labels []string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, l := range labels {
+		l = strings.TrimSpace(l)
+		if l == "" || seen[l] {
+			continue
+		}
+		seen[l] = true
+		out = append(out, l)
+	}
+	return out
 }
 
 func (c *gitLabClient) AssignIssue(ctx context.Context, projectID string, iid int, username string) error {

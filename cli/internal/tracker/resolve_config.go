@@ -81,7 +81,7 @@ type EffectiveTrackerConfig struct {
 	// AutoPlanUnassigned controls whether unassigned tracker issues are fetched
 	// and shown as claimable pool tickets on the team board.
 	AutoPlanUnassigned bool
-	// UnassignedLabels restricts which unassigned issues are fetched (AND filter).
+	// UnassignedLabels restricts which unassigned issues are fetched (an OR: any of them).
 	UnassignedLabels []string
 	// MaxUnassignedIssues caps the number of unassigned issues fetched per project.
 	MaxUnassignedIssues int

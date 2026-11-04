@@ -584,8 +584,10 @@ type TrackerConfig struct {
 	// creates "pool" claims (ClaimedBy="") so they appear on the team board
 	// as claimable tickets. Members can claim them with the 'c' key.
 	AutoPlanUnassigned bool `toml:"auto_plan_unassigned"`
-	// UnassignedLabels restricts which unassigned issues are fetched.
-	// Only issues matching ALL of these labels are imported.
+	// UnassignedLabels restricts which issues are fetched for the pool.
+	// Issues carrying ANY of these labels are imported (an OR: one request per
+	// label, the issues found by several labels counted once). Until oh 5.3
+	// this was an AND (all the labels at once).
 	// Empty = all unassigned open issues (no label filter).
 	UnassignedLabels []string `toml:"unassigned_labels,omitempty"`
 	// MaxUnassignedIssues caps the number of unassigned issues fetched per project.

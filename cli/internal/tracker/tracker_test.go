@@ -396,11 +396,14 @@ func TestGitLab_DiscoverProject(t *testing.T) {
 }
 
 func TestGitLab_ListIssuesByLabels(t *testing.T) {
+	issueAt := func(iid int, updated string) map[string]any {
+		return map[string]any{"iid": iid, "state": "opened", "title": "issue", "labels": []string{"x"}, "updated_at": updated}
+	}
 	issue := func(iid int, title string) map[string]any {
 		return map[string]any{"iid": iid, "state": "opened", "title": title, "labels": []string{"backend", "ready"}, "updated_at": "2026-07-01T10:00:00Z"}
 	}
 
-	t.Run("the query carries the state and the labels", func(t *testing.T) {
+	t.Run("the query carries the state and the label", func(t *testing.T) {
 		var query url.Values
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodGet || !strings.HasPrefix(r.URL.Path, "/api/v4/projects/myproject/issues") {
@@ -413,12 +416,91 @@ func TestGitLab_ListIssuesByLabels(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		issues, err := newClient(t, tracker.TypeGitLab, srv.URL, false).ListIssuesByLabels(context.Background(), "myproject",
-			tracker.ListByLabelsOpts{Labels: []string{"backend", "ready"}})
+			tracker.ListByLabelsOpts{Labels: []string{"backend"}})
 		require.NoError(t, err)
 		require.Len(t, issues, 2, "issues")
 		assert.Equal(t, []int{1, 2}, []int{issues[0].IID, issues[1].IID}, "issue IIDs")
 		assert.Equal(t, "opened", query.Get("state"), "query state")
-		assert.Equal(t, "backend,ready", query.Get("labels"), "query labels")
+		assert.Equal(t, "backend", query.Get("labels"), "query labels")
+	})
+
+	// GitLab's labels filter is an AND (labels=a,b needs both): the OR is one
+	// request per label, the issues found by several labels counted once.
+	t.Run("several labels are an OR: one request per label, deduplicated", func(t *testing.T) {
+		var asked []string
+		byLabel := map[string][]map[string]any{
+			"backend": {issueAt(1, "2026-07-01T10:00:00Z"), issueAt(2, "2026-07-03T10:00:00Z")},
+			"ready":   {issueAt(2, "2026-07-03T10:00:00Z"), issueAt(3, "2026-07-02T10:00:00Z")},
+			"empty":   {},
+		}
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			label := r.URL.Query().Get("labels")
+			asked = append(asked, label)
+			assert.NotContains(t, label, ",", "never both labels in one request")
+			assert.Equal(t, "opened", r.URL.Query().Get("state"))
+			_ = json.NewEncoder(w).Encode(byLabel[label])
+		}))
+		t.Cleanup(srv.Close)
+
+		issues, err := newClient(t, tracker.TypeGitLab, srv.URL, false).ListIssuesByLabels(context.Background(), "myproject",
+			tracker.ListByLabelsOpts{Labels: []string{"backend", "ready", "empty", "backend", " "}})
+		require.NoError(t, err)
+		assert.Equal(t, []string{"backend", "ready", "empty"}, asked, "one request per distinct label, in order")
+		var iids []int
+		for _, is := range issues {
+			iids = append(iids, is.IID)
+		}
+		assert.Equal(t, []int{2, 3, 1}, iids, "issue 2 once, the most recently updated first")
+	})
+
+	t.Run("MaxResults caps the merged issues", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Query().Get("labels") == "a" {
+				_ = json.NewEncoder(w).Encode([]map[string]any{issueAt(1, "2026-07-01T10:00:00Z"), issueAt(2, "2026-07-02T10:00:00Z")})
+				return
+			}
+			_ = json.NewEncoder(w).Encode([]map[string]any{issueAt(3, "2026-07-05T10:00:00Z"), issueAt(4, "2026-07-04T10:00:00Z")})
+		}))
+		t.Cleanup(srv.Close)
+
+		issues, err := newClient(t, tracker.TypeGitLab, srv.URL, false).ListIssuesByLabels(context.Background(), "myproject",
+			tracker.ListByLabelsOpts{Labels: []string{"a", "b"}, MaxResults: 3})
+		require.NoError(t, err)
+		require.Len(t, issues, 3)
+		assert.Equal(t, 3, issues[0].IID)
+	})
+
+	t.Run("a label that fails fails the list", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Query().Get("labels") == "bad" {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			_ = json.NewEncoder(w).Encode([]map[string]any{issueAt(1, "2026-07-01T10:00:00Z")})
+		}))
+		t.Cleanup(srv.Close)
+
+		_, err := newClient(t, tracker.TypeGitLab, srv.URL, false).ListIssuesByLabels(context.Background(), "myproject",
+			tracker.ListByLabelsOpts{Labels: []string{"good", "bad"}})
+		require.Error(t, err)
+	})
+
+	t.Run("the unassigned list is an OR too and keeps its assignee filter", func(t *testing.T) {
+		var queries []url.Values
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			queries = append(queries, r.URL.Query())
+			_ = json.NewEncoder(w).Encode([]map[string]any{issueAt(len(queries), "2026-07-01T10:00:00Z")})
+		}))
+		t.Cleanup(srv.Close)
+
+		issues, err := newClient(t, tracker.TypeGitLab, srv.URL, false).ListUnassignedIssues(context.Background(), "myproject",
+			tracker.ListUnassignedOpts{Labels: []string{"a", "b"}})
+		require.NoError(t, err)
+		assert.Len(t, issues, 2)
+		require.Len(t, queries, 2)
+		for _, q := range queries {
+			assert.Equal(t, "0", q.Get("assignee_id"))
+		}
 	})
 
 	t.Run("MaxResults stops across the pages", func(t *testing.T) {
