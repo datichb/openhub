@@ -632,18 +632,19 @@ write_enabled = false        # écritures tracker (labels, assignation)
 | `auto_plan_assigned` | bool | `false` | Toute issue ouverte assignée à un membre arrive sur le board sous forme de claim, dans la colonne que son statut désigne, **sans plafond par membre** (une issue déjà en cours sur le tracker arrive en cours) |
 | `max_in_progress_per_member` | int | `5` | **Limite de travail en cours** : le nombre maximal de tickets sur lesquels un membre travaille en même temps. Elle compte ses claims en cours (les colonnes `active` du board, `in_progress` par défaut), ceux en revue (statut `review` ou label `review` / `ready-for-review`) ou en validation exceptés. `0` = sans limite. Un membre qui l'a atteinte ne peut plus en prendre ni en démarrer un de plus : `oh team claim` (aussi la reprise d'un claim expiré et `oh team claim transfer` vers soi), la touche de prise, une carte passée en cours ou transférée à soi sur le board d'équipe, une session lancée sur des tickets. oh refuse en donnant le compte et cette clé. La synchro du tracker n'est jamais bornée par elle. Un membre peut fixer sa propre limite dans `hub.toml` (`oh config set tracker.max_in_progress_per_member 3`), qui l'emporte sur celle de l'équipe. **Remplace `max_auto_plan_per_member`** (dépréciée : encore lue quand cette clé est absente, signalée par `oh doctor` ; elle ne borne plus rien de ce que la synchro crée) |
 | `auto_plan_unassigned` | bool | `false` | Claims de pool (à prendre avec `c`) pour les issues non assignées |
-| `unassigned_labels` | liste | `[]` | Labels exigés pour les issues non assignées |
-| `max_unassigned_issues` | int | `20` | Plafond d'issues non assignées par projet |
+| `unassigned_labels` | liste | `[]` | Labels de la réserve : une issue qui porte **l'un quelconque** d'entre eux est importée (un OU : une requête par label, une issue trouvée par plusieurs labels comptée une fois ; **un ET jusqu'à oh 5.3**). Le premier passage, et le premier après un changement de cette liste, balaie la réserve en entier, vieilles issues comprises ; les suivants ne regardent que ce qui a été mis à jour. Vide = toutes les issues non assignées |
+| `max_unassigned_issues` | int | `20` | Nombre maximal de claims de réserve qu'une synchro crée par projet (les issues qui ont déjà un claim ne comptent pas) |
 | `push_labels` | bool | `false` | Renvoyer les labels de claim vers le tracker (`push_labels_enforced` pour l'imposer) |
 | `write_enabled` | bool | `false` | Autoriser les écritures du tracker |
-| `status_mapping` | map | `{}` | Statut du tracker → statut de claim |
-| `label_status_mapping` | map | `{}` | Label → statut de claim (le premier label trouvé gagne) |
+| `status_mapping` | map | `{}` | Statut du tracker → statut de claim (valeurs acceptées : voir les notes ci-dessous) |
+| `label_status_mapping` | map | `{}` | Label → statut de claim. Quand une issue porte plusieurs labels rattachés, celui dont le statut vient **en premier parmi les colonnes du board** l'emporte, puis le premier label dans l'ordre alphabétique (casse ignorée) : ni l'ordre des labels sur l'issue ni celui de ce tableau ne comptent |
 | `ticket_patterns`, `[tracker.projects]` | map | `{}` | Ancien format par projet (déprécié, encore lu) |
 
 **Notes :**
 
 - Jira : les issues fermées sont détectées via `statusCategory.key == "done"`.
-- Statuts de claim valides : `planned`, `in_progress`, `review`, `validation`, `blocked`, `done`.
+- Statuts de claim valides : `planned`, `in_progress`, `review`, `validation`, `blocked`, `done` (les ID des colonnes quand `[board]` déclare les siennes). Sans colonnes propres, le board est `planned` (TODO), `in_progress`, `review`, `validation`, `done`, `blocked`, dans cet ordre, qui est aussi l'ordre de priorité des labels.
+- **`todo` n'est pas un statut de claim**, sauf si `[board]` déclare une colonne de cet ID : la colonne initiale d'un board sans colonnes propres est `planned`. Une valeur de `status_mapping` ou de `label_status_mapping` qui n'est pas un statut du board est traitée ainsi. `todo`, ou l'ID d'une colonne, est **lu** comme le statut de la colonne initiale (`planned`), avec un avertissement dans le journal et dans `oh doctor`, qui réécrit le fichier avec `--fix`. Toute autre valeur (faute de frappe, colonne qui n'existe plus) est **ignorée** par la synchro, qui le dit dans son résumé. **Enregistrer** la configuration d'équipe (`oh team config`, la TUI) est **refusé** tant qu'une telle valeur s'y trouve, avec son nom et les statuts valides. L'assistant de `oh team config` écrit `planned`, ou l'ID de la colonne initiale quand le board déclare ses colonnes.
 - `hub.toml` `[tracker]` permet à un membre de désactiver localement `enabled`, `auto_sync`, `push_labels`, `auto_plan_assigned`, etc., et de régler sa propre clé de jeton (`tracker_token_key` + `tracker_token_url`, qui passent ensemble).
 
 ### Le serveur de chaque jeton GitLab
