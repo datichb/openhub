@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mattn/go-runewidth"
+
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -103,20 +105,20 @@ func showQuickActionModal(shell ShellAccess, ticket TicketContext, qa *BoardQuic
 		shell.ShowToastMsg(i18n.T("tui.launch.board_none"), false)
 		return
 	}
+	// The title is whole: the window is as wide as it needs, and the shell
+	// ellipsizes it on a screen too narrow.
 	title := i18n.Tf("tui.launch.board_title", ticket.ID)
 	if ticket.Title != "" {
-		t := ticket.Title
-		if r := []rune(t); len(r) > 40 {
-			t = string(r[:37]) + "…"
-		}
-		title += " · " + t
+		title += " · " + ticket.Title
 	}
+	suffix := "  " + i18n.Tf("tui.launch.board_request", ref)
+	rows := newWorkflowRows(append(append([]TicketWorkflow{}, wfs...), reqs...))
 	opts := make([]SelectOption, 0, len(wfs)+len(reqs))
-	for _, w := range wfs {
-		opts = append(opts, SelectOption{Label: ticketWorkflowLabel(w), Value: w.ID})
+	for i, w := range wfs {
+		opts = append(opts, SelectOption{Label: rows.label(i), Value: w.ID})
 	}
-	for _, w := range reqs {
-		opts = append(opts, SelectOption{Label: ticketWorkflowLabel(w) + "  " + i18n.Tf("tui.launch.board_request", ref), Value: requestPrefix + w.ID})
+	for i, w := range reqs {
+		opts = append(opts, SelectOption{Label: rows.label(len(wfs)+i) + suffix, Value: requestPrefix + w.ID})
 	}
 	shell.ShowSelectModal(title, opts, "", func(id string) {
 		if wfID, ok := strings.CutPrefix(id, requestPrefix); ok {
@@ -131,17 +133,33 @@ func showQuickActionModal(shell ShellAccess, ticket TicketContext, qa *BoardQuic
 	})
 }
 
-// ticketWorkflowLabel renders « ★ ticket  Implémenter  write ⌂ ▣ ».
-func ticketWorkflowLabel(w TicketWorkflow) string {
+// workflowRows lays the workflows of a menu out in columns: « ★ ticket
+// Implémenter  write ⌂ ▣ ». The columns are as wide as their longest cell,
+// nothing is cut: the window takes the width of the longest row.
+type workflowRows struct {
+	workflows       []TicketWorkflow
+	idW, labelW, rW int
+}
+
+func newWorkflowRows(ws []TicketWorkflow) workflowRows {
+	r := workflowRows{workflows: ws}
+	for _, w := range ws {
+		r.idW = max(r.idW, runewidth.StringWidth(w.ID))
+		r.labelW = max(r.labelW, runewidth.StringWidth(w.Label))
+		r.rW = max(r.rW, runewidth.StringWidth(w.Risk))
+	}
+	return r
+}
+
+// label is the row of the i-th workflow.
+func (r workflowRows) label(i int) string {
+	w := r.workflows[i]
 	star := "  "
 	if w.Pinned {
 		star = theme.IconPinned + " "
 	}
-	label := w.Label
-	if r := []rune(label); len(r) > 34 {
-		label = string(r[:33]) + "…"
-	}
-	return strings.TrimRight(fmt.Sprintf("%s%-16s %-34s %-7s %s", star, w.ID, label, w.Risk, runtimeIcons(w.Runtimes)), " ")
+	row := star + runewidth.FillRight(w.ID, r.idW) + " " + runewidth.FillRight(w.Label, r.labelW) + " " + runewidth.FillRight(w.Risk, r.rW) + " " + runtimeIcons(w.Runtimes)
+	return strings.TrimRight(row, " ")
 }
 
 // ticketContextCommands are the omnibar commands of a selected ticket: one

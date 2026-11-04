@@ -127,23 +127,25 @@ func TestBoardMenuOfTheHubWorkflows(t *testing.T) {
 	}
 }
 
-// The workflows with a title of their own in the menu show it, in both languages,
-// and it fits the column; the others keep their description.
+// Every workflow that the menu of a card offers, whether it takes a ticket or
+// a request, shows a short title of its own in both languages, not its
+// description (a sentence of a hundred characters).
 func TestBoardMenuLabels(t *testing.T) {
 	ts := testTUIStart()
 	ts.catalog = hubCatalog(t)
 	for _, lang := range []string{"fr", "en"} {
 		prev := i18n.Locale()
 		i18n.SetLocale(lang)
-		labels := map[string]string{}
-		for _, w := range ts.requestWorkflows(views.StartScope{}) {
-			labels[w.ID] = w.Label
+		labels, own := map[string]string{}, map[string]string{}
+		for _, w := range append(ts.ticketWorkflows(views.StartScope{}), ts.requestWorkflows(views.StartScope{})...) {
+			labels[w.ID], own[w.ID] = w.Label, i18n.T("tui.board.label."+w.ID)
 		}
 		i18n.SetLocale(prev)
-		for _, id := range []string{"spike", "incident"} {
-			assert.NotEmpty(t, labels[id], "%s %s", lang, id)
-			assert.LessOrEqual(t, len([]rune(labels[id])), 34, "%s %s: the column of the menu is 34 wide: %q", lang, id, labels[id])
-			assert.Less(t, len([]rune(labels[id])), 40, "%s %s: a title, not the description: %q", lang, id, labels[id])
+		require.NotEmpty(t, labels)
+		for id, label := range labels {
+			assert.NotEmpty(t, label, "%s %s", lang, id)
+			assert.Equal(t, own[id], label, "%s %s: a title of its own, not the description", lang, id)
+			assert.LessOrEqual(t, len([]rune(label)), 40, "%s %s: a title, not a sentence: %q", lang, id, label)
 		}
 		assert.Contains(t, labels["spike"], "spike")
 	}

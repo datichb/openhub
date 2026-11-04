@@ -109,26 +109,41 @@ func (f *inlineForm) register(meta *formFieldMeta) {
 	f.metas = append(f.metas, meta)
 }
 
-// addHint adds the hint of a field under it: 2 lines if it is longer than
-// 50 characters, else 1.
+// addHint adds the hint of a field under it, on as many lines as the width of
+// the form needs.
 func (f *inlineForm) addHint(field *views.FormField) {
 	if field.Hint == "" {
 		return
 	}
-	lines := 1
-	if len("  "+field.Hint) > 50 {
-		lines = 2
+	f.form.AddTextView("", "  "+field.Hint, 0, f.hintLines(field), true, false)
+}
+
+// hintLines is the number of lines that the hint of a field takes in the form.
+func (f *inlineForm) hintLines(field *views.FormField) int {
+	if field.Hint == "" {
+		return 0
 	}
-	f.form.AddTextView("", "  "+field.Hint, 0, lines, true, false)
+	width := f.hintWidth()
+	return max((tview.TaggedStringWidth("  "+field.Hint)+width-1)/width, 1)
+}
+
+// hintWidth is the width that a hint has under a field: the form inside the
+// border and its padding, less the column of the labels.
+func (f *inlineForm) hintWidth() int {
+	labels := 0
+	for _, field := range f.cfg.Fields {
+		labels = max(labels, tview.TaggedStringWidth(field.Label))
+	}
+	return max(f.width()-2-2-(labels+1), 10)
 }
 
 // readOnlyInput is the field that shows the choice of a select: it takes no
-// typing.
-func readOnlyInput(label, text string, width int) *tview.InputField {
+// typing. Like the other fields it fills the width of the form.
+func readOnlyInput(label, text string) *tview.InputField {
 	inp := tview.NewInputField().
 		SetLabel(label).
 		SetText(text).
-		SetFieldWidth(width).
+		SetFieldWidth(0).
 		SetAcceptanceFunc(func(string, rune) bool { return false })
 	inp.SetBackgroundColor(theme.BgModal)
 	inp.SetFieldBackgroundColor(theme.BgModalField)
@@ -146,7 +161,7 @@ func (f *inlineForm) addSelect(field *views.FormField) {
 		}
 	}
 	f.values[field.Key] = field.Default
-	inp := readOnlyInput(field.Label, selectLabel(field, idx), 24)
+	inp := readOnlyInput(field.Label, selectLabel(field, idx))
 	f.form.AddFormItem(inp)
 	f.register(&formFieldMeta{field: field, inputField: inp, selectIdx: idx})
 	f.addHint(field)
@@ -156,7 +171,7 @@ func (f *inlineForm) addMultiSelect(field *views.FormField) {
 	if field.DefaultMulti != nil {
 		f.multi[field.Key] = append([]string{}, field.DefaultMulti...)
 	}
-	inp := readOnlyInput(field.Label, multiSummary(f.multi[field.Key], field.Options), 30)
+	inp := readOnlyInput(field.Label, multiSummary(f.multi[field.Key], field.Options))
 	f.form.AddFormItem(inp)
 	f.register(&formFieldMeta{field: field, inputField: inp})
 	f.addHint(field)
@@ -165,7 +180,7 @@ func (f *inlineForm) addMultiSelect(field *views.FormField) {
 func (f *inlineForm) addText(field *views.FormField) {
 	f.values[field.Key] = field.Default
 	var check *tview.TextView
-	f.form.AddInputField(field.Label, field.Default, 40, nil,
+	f.form.AddInputField(field.Label, field.Default, 0, nil,
 		func(text string) {
 			f.values[field.Key] = text
 			if check != nil {
@@ -183,7 +198,7 @@ func (f *inlineForm) addText(field *views.FormField) {
 
 func (f *inlineForm) addPassword(field *views.FormField) {
 	f.values[field.Key] = field.Default
-	f.form.AddPasswordField(field.Label, field.Default, 40, '*',
+	f.form.AddPasswordField(field.Label, field.Default, 0, '*',
 		func(text string) { f.values[field.Key] = text })
 	f.register(&formFieldMeta{field: field})
 	f.addHint(field)
@@ -366,7 +381,7 @@ func (f *inlineForm) buildFrame() *tview.Flex {
 	applyRoundedCorners(frame, theme.ActiveMode.Accent, theme.BgModal)
 
 	pad := strings.Repeat(" ", theme.ModalTitlePad)
-	frame.SetTitle(fmt.Sprintf("%s%s%s", pad, f.cfg.Title, pad))
+	frame.SetTitle(fmt.Sprintf("%s%s%s", pad, fitTitle(f.cfg.Title, f.size()), pad))
 	frame.SetTitleColor(theme.ActiveMode.Accent)
 
 	frame.AddItem(f.form, 0, 1, true)
@@ -405,16 +420,35 @@ func formHints() *tview.TextView {
 	return hints
 }
 
+// widthHint asks for a share of the screen, wide enough for the title.
+func (f *inlineForm) widthHint() modalSizeHint {
+	return modalSizeHint{WidthPct: theme.ModalWidthPct, FrameWidth: frameWidth(f.cfg.Title, "")}
+}
+
+// width is the width of the form, border included.
+func (f *inlineForm) width() int {
+	termW, _ := f.s.termSize()
+	return computeWidth(f.widthHint(), termW)
+}
+
+// size is the size of the form: wide as widthHint says, high enough for the
+// visible fields.
+func (f *inlineForm) size() modalSize {
+	hint := f.widthHint()
+	hint.FieldCount = f.visibleRows()
+	return f.s.computeModalSize(hint)
+}
+
 // show puts the frame over the content, sized for the visible fields.
 func (f *inlineForm) show(frame *tview.Flex) {
-	size := f.s.computeModalSize(modalSizeHint{FieldCount: f.visibleRows(), FixedWidth: theme.ModalMaxWidth})
+	size := f.size()
 	grid := f.s.overlayGrid(frame, size.cols, size.rows, f.win.backdrop(), nil)
 	f.s.pages.AddPage(f.win.page, grid, true, true)
 	f.s.app.SetFocus(f.form)
 }
 
 // visibleRows counts the rows of the fields shown, with the room for the
-// message under the fields that have a check.
+// message under the fields that have a check and for the lines of a hint.
 func (f *inlineForm) visibleRows() int {
 	rows := 0
 	for _, field := range f.cfg.Fields {
@@ -423,6 +457,7 @@ func (f *inlineForm) visibleRows() int {
 			if field.Validate != nil {
 				rows++
 			}
+			rows += f.hintLines(&field)
 		}
 	}
 	return rows
