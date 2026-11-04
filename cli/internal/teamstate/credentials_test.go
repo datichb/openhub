@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
 
 func TestIsAuthError(t *testing.T) {
@@ -54,13 +55,17 @@ func TestIsHTTPS(t *testing.T) {
 }
 
 func TestAuthErrorMessage(t *testing.T) {
-	t.Parallel()
+	i18ntest.Set(t, "en")
 	remote := "https://gitlab.octo.tools/org/team-state.git"
 	msg := authErrorMessage(remote)
 	assert.Contains(t, msg, remote, "names the remote")
 	assert.Contains(t, msg, "oauth2", "mentions the GitLab oauth2 username")
 	assert.Contains(t, msg, "token", "mentions the token")
-	assert.Contains(t, msg, "team configure", "tells how to reconfigure")
+	assert.Contains(t, msg, "Access", "tells where to set the access up again")
+
+	ssh := authErrorMessage("git@gitlab.octo.tools:org/team-state.git")
+	assert.Contains(t, ssh, "ssh-add", "an SSH remote is about the key, not a token")
+	assert.NotContains(t, ssh, "oauth2")
 }
 
 // The HTTPS steps of the wizards asked a token for a repository that

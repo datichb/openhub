@@ -2,12 +2,15 @@ package teamstate
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
 // ── Auth detection ────────────────────────────────────────────────────────────
@@ -33,6 +36,47 @@ func isAuthError(err error) bool {
 		"remote: invalid username or password",
 	}
 	for _, phrase := range authPhrases {
+		if strings.Contains(msg, phrase) {
+			return true
+		}
+	}
+	return false
+}
+
+// sshAuthPhrases are what ssh and the git servers say when the key is not
+// accepted (the HTTPS ones are in isAuthError).
+var sshAuthPhrases = []string{
+	"permission denied (publickey",
+	"permission denied, please try again",
+	"you don't have permission to access it",
+	"returned error: 401",
+	"returned error: 403",
+}
+
+// AuthError is a failure of the access to the repository, worded for the
+// user (authErrorMessage); Cause is what git said.
+type AuthError struct {
+	Message string
+	Cause   error
+}
+
+func (e *AuthError) Error() string { return e.Message }
+func (e *AuthError) Unwrap() error { return e.Cause }
+
+// IsAuthError reports whether err is a failure of the access to the
+// repository, not of the network or of the repository itself: HTTPS
+// credentials refused or missing, SSH key not accepted. The wizards offer to
+// set the access up when it is true.
+func IsAuthError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var authErr *AuthError
+	if errors.As(err, &authErr) || isAuthError(err) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	for _, phrase := range sshAuthPhrases {
 		if strings.Contains(msg, phrase) {
 			return true
 		}
@@ -96,38 +140,57 @@ func ConfigureCredential(ctx context.Context, remote, username, password string)
 }
 
 // authErrorMessage returns a user-facing error message for an authentication
-// failure, with actionable remediation steps.
+// failure, with actionable remediation steps: the token for an HTTPS remote,
+// the key of the agent for an SSH one.
 func authErrorMessage(remote string) string {
-	return fmt.Sprintf(
-		"Authentification échouée pour %s.\n"+
-			"Vérifiez que :\n"+
-			"  • Le token est valide et non expiré\n"+
-			"  • Le token a les permissions read_repository et write_repository\n"+
-			"  • Le username est correct (GitLab : 'oauth2', GitHub : votre username)\n"+
-			"Reconfigurer : omnibar → 'team configure' → fournir un nouveau token",
-		remote,
-	)
+	if IsHTTPS(remote) {
+		return i18n.Tf("v532w.auth.https", remote)
+	}
+	return i18n.Tf("v532w.auth.ssh", remote)
 }
 
-// remoteProbeTimeout bounds RemoteAccessible.
+// remoteProbeTimeout bounds the probe of a remote.
 const remoteProbeTimeout = 10 * time.Second
 
-// RemoteAccessible reports whether remote answers a read with what git
-// already has (credential helper, SSH agent, netrc, a public repository):
-// `git ls-remote` with every prompt disabled. It is how the HTTPS steps of the
-// wizards know that no token has to be asked.
-func RemoteAccessible(ctx context.Context, remote string) bool {
+// ProbeRemote reads remote the way a clone would, without writing anything
+// (`git ls-remote` with every prompt disabled): with what git already has
+// (credential helper, SSH agent, netrc, a public repository) and the token oh
+// holds for it (SetCredentialSource). It returns nil when the repository
+// answers, otherwise the error of git (IsAuthError tells an access problem
+// from the rest).
+func ProbeRemote(ctx context.Context, remote string) error {
+	return probeRemote(ctx, remote, nil)
+}
+
+// ProbeRemoteAs is ProbeRemote with the credentials given instead of the ones
+// oh holds: a token is checked before it is kept.
+func ProbeRemoteAs(ctx context.Context, remote string, creds GitCredentials) error {
+	return probeRemote(ctx, remote, &creds)
+}
+
+func probeRemote(ctx context.Context, remote string, creds *GitCredentials) error {
 	if strings.TrimSpace(remote) == "" {
-		return false
+		return errors.New("no repository")
 	}
 	pctx, cancel := context.WithTimeout(ctx, remoteProbeTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(pctx, "git", "ls-remote", "--", remote, "HEAD")
-	cmd.Env = append(os.Environ(),
-		"GIT_TERMINAL_PROMPT=0",
-		"GIT_SSH_COMMAND=ssh -o BatchMode=yes -o ConnectTimeout=5",
-		"GIT_HTTP_LOW_SPEED_LIMIT=1000",
-		"GIT_HTTP_LOW_SPEED_TIME=8",
-	)
-	return cmd.Run() == nil
+	cmd, cleanup := gitCommand(pctx, remote, "", creds, "-o StrictHostKeyChecking=accept-new -o ConnectTimeout=5",
+		[]string{"GIT_HTTP_LOW_SPEED_LIMIT=1000", "GIT_HTTP_LOW_SPEED_TIME=8"},
+		"ls-remote", "--", remote, "HEAD")
+	defer cleanup()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		if pctx.Err() != nil && ctx.Err() == nil {
+			return fmt.Errorf("git ls-remote: no answer from %s in %s", remote, remoteProbeTimeout)
+		}
+		return fmt.Errorf("git ls-remote: %s: %w", strings.TrimSpace(string(out)), err)
+	}
+	return nil
+}
+
+// RemoteAccessible reports whether remote answers a read with what git
+// already has and the token oh holds for it (ProbeRemote). It is how the
+// HTTPS steps of the wizards know that no token has to be asked.
+func RemoteAccessible(ctx context.Context, remote string) bool {
+	return ProbeRemote(ctx, remote) == nil
 }
