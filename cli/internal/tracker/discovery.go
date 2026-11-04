@@ -61,7 +61,7 @@ var heuristicRules = []mappingRule{
 			"merge request", "pull request", "revue",
 		},
 		columnID: "review",
-		role:     teamstate.ColumnRoleActive,
+		role:     teamstate.ColumnRoleReview,
 	},
 	{
 		patterns: []string{
@@ -213,13 +213,19 @@ func SuggestNewColumns(info *DiscoveryInfo, existing []teamstate.BoardColumnConf
 		hasInitial = hasInitial || c.Role == teamstate.ColumnRoleInitial
 	}
 
+	// Nor a second review column when one has the role (whatever its ID).
+	hasReview := false
+	for _, c := range existing {
+		hasReview = hasReview || c.Role == teamstate.ColumnRoleReview
+	}
+
 	// Find heuristic-matched items whose target column doesn't exist.
 	suggested := make(map[string]teamstate.BoardColumnConfig)
 	for _, label := range info.Labels {
-		proposeColumn(label.Name, existingIDs, hasInitial, suggested)
+		proposeColumn(label.Name, existingIDs, hasInitial, hasReview, suggested)
 	}
 	for _, status := range info.Statuses {
-		proposeColumn(status.Name, existingIDs, hasInitial, suggested)
+		proposeColumn(status.Name, existingIDs, hasInitial, hasReview, suggested)
 	}
 
 	var result []teamstate.BoardColumnConfig
@@ -265,6 +271,17 @@ func buildColumnLookup(boardColumns []teamstate.BoardColumnConfig) columnLookup 
 		}
 		if _, ok := roleToCol[role]; !ok {
 			roleToCol[role] = c.ID
+		}
+	}
+	// A team whose board predates the review role has no column of that role:
+	// its review column is the one of the review status, else (as before the
+	// role existed) the first active column.
+	if _, ok := roleToCol[teamstate.ColumnRoleReview]; !ok {
+		switch {
+		case board.ColumnByID(teamstate.ClaimStatusReview) != nil:
+			roleToCol[teamstate.ColumnRoleReview] = teamstate.ClaimStatusReview
+		case roleToCol[teamstate.ColumnRoleActive] != "":
+			roleToCol[teamstate.ColumnRoleReview] = roleToCol[teamstate.ColumnRoleActive]
 		}
 	}
 	// Map heuristic columnIDs to board columns via roles.
@@ -347,12 +364,12 @@ func matchStatus(status StatusInfo, lookup columnLookup) (SuggestedMapping, bool
 	return SuggestedMapping{}, false
 }
 
-func proposeColumn(name string, existingIDs map[string]bool, hasInitial bool, suggested map[string]teamstate.BoardColumnConfig) {
+func proposeColumn(name string, existingIDs map[string]bool, hasInitial, hasReview bool, suggested map[string]teamstate.BoardColumnConfig) {
 	lower := strings.ToLower(strings.TrimSpace(name))
 	for _, rule := range heuristicRules {
 		for _, p := range rule.patterns {
 			if strings.Contains(lower, p) {
-				if rule.role == teamstate.ColumnRoleInitial && hasInitial {
+				if (rule.role == teamstate.ColumnRoleInitial && hasInitial) || (rule.role == teamstate.ColumnRoleReview && hasReview) {
 					return
 				}
 				if !existingIDs[rule.columnID] && suggested[rule.columnID].ID == "" {

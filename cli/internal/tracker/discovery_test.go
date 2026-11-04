@@ -196,7 +196,9 @@ func TestSuggestColumnRole(t *testing.T) {
 		{"Backlog", teamstate.ColumnRoleInitial},
 		{"IN PROGRESS", teamstate.ColumnRoleActive},
 		{"DEV DOING", teamstate.ColumnRoleActive},
-		{"REVIEW", teamstate.ColumnRoleActive},
+		{"REVIEW", teamstate.ColumnRoleReview},
+		{"Code review", teamstate.ColumnRoleReview},
+		{"Dev to review", teamstate.ColumnRoleReview},
 		{"TESTING", teamstate.ColumnRoleActive},
 		{"QA", teamstate.ColumnRoleActive},
 		{"TO MEP", teamstate.ColumnRoleActive},
@@ -378,4 +380,59 @@ func TestSuggestNewColumnsProposesNoSecondInitialColumn(t *testing.T) {
 		{ID: "end", Name: "END", Role: teamstate.ColumnRoleTerminal},
 	}
 	assert.Empty(t, SuggestNewColumns(info, existing))
+}
+
+// A column of review is proposed with the role review (not active), once: a
+// board that already has a column of that role, whatever its ID, gets none.
+func TestSuggestNewColumnsProposesTheReviewRole(t *testing.T) {
+	info := &DiscoveryInfo{Labels: []LabelInfo{{Name: "DEV TO REVIEW"}, {Name: "Code Review"}}}
+	own := []teamstate.BoardColumnConfig{
+		{ID: "backlog", Name: "B", Role: teamstate.ColumnRoleInitial},
+		{ID: "dev", Name: "D", Role: teamstate.ColumnRoleActive},
+		{ID: "shipped", Name: "S", Role: teamstate.ColumnRoleTerminal},
+	}
+	suggested := SuggestNewColumns(info, own)
+	if len(suggested) != 1 || suggested[0].ID != "review" || suggested[0].Role != teamstate.ColumnRoleReview {
+		t.Fatalf("want one review column with the role review, got %+v", suggested)
+	}
+
+	withReview := append(append([]teamstate.BoardColumnConfig{}, own...), teamstate.BoardColumnConfig{ID: "mr", Name: "MR", Role: teamstate.ColumnRoleReview})
+	if got := SuggestNewColumns(info, withReview); len(got) != 0 {
+		t.Fatalf("a board with a review column gets no other: %+v", got)
+	}
+	// The default board keeps its review column as it is (active): nothing proposed.
+	if got := SuggestNewColumns(info, teamstate.DefaultBoardConfig().Columns); len(got) != 0 {
+		t.Fatalf("the default board has its review column: %+v", got)
+	}
+}
+
+// The mappings of review labels go to the column of the review role; a board
+// that has none (it predates the role) gets the column of the review status,
+// else the first active column, as before.
+func TestSuggestMappingsOfReviewLabelsFollowTheReviewRole(t *testing.T) {
+	info := &DiscoveryInfo{Labels: []LabelInfo{{Name: "DEV TO REVIEW"}}}
+	target := func(cols []teamstate.BoardColumnConfig) string {
+		got := SuggestMappings(info, TypeGitLab, cols)
+		if len(got) != 1 {
+			t.Fatalf("want one mapping, got %+v", got)
+		}
+		return got[0].ColumnID
+	}
+	base := []teamstate.BoardColumnConfig{
+		{ID: "backlog", Name: "B", Role: teamstate.ColumnRoleInitial},
+		{ID: "dev", Name: "D", Role: teamstate.ColumnRoleActive},
+		{ID: "shipped", Name: "S", Role: teamstate.ColumnRoleTerminal},
+	}
+	if got := target(append(append([]teamstate.BoardColumnConfig{}, base...), teamstate.BoardColumnConfig{ID: "mr", Name: "MR", Role: teamstate.ColumnRoleReview})); got != "mr" {
+		t.Errorf("the column of the review role: got %q", got)
+	}
+	if got := target(teamstate.DefaultBoardConfig().Columns); got != "review" {
+		t.Errorf("the default columns (review is active there): got %q", got)
+	}
+	if got := target(base); got != "dev" {
+		t.Errorf("no review column at all: the first active one, as before the role, got %q", got)
+	}
+	if got := target(nil); got != "review" {
+		t.Errorf("no columns: the review status, got %q", got)
+	}
 }

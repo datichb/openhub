@@ -226,7 +226,7 @@ func TestColumnEditorAddsAColumnAfterTheCurrentOne(t *testing.T) {
 	assert.Equal(t, []string{"todo", "code_review", "in_progress", "review", "validation", "done", "blocked"}, e.names())
 	added := (*e.columns)[1]
 	assert.Equal(t, "Code Review", added.Name)
-	assert.Equal(t, "active", added.Role, "the role is suggested from the name (active when nothing matches)")
+	assert.Equal(t, "review", added.Role, "the role is suggested from the name (active when nothing matches)")
 	assert.Equal(t, 2, e.list.GetCurrentItem(), "the cursor is on the new column")
 	assert.Equal(t, i18n.Tf("tui.team.columns.column_added", "Code Review"), e.ui.lastToast())
 }
