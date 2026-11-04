@@ -41,12 +41,12 @@ func updateHubConfigOffLoop(a *app.App, fn func(*config.Config) error) error {
 	return nil
 }
 
-// teamConfigWriter is called on the event loop: it resolves the team of the
-// active project (it reads the Config) and gives the function that writes the
-// team config to its team-state, which the view runs off the loop.
+// teamConfigWriter is called on the event loop: it resolves the team the views
+// work on, the same as they do (it reads the Config), and gives the function
+// that writes the team config to its team-state, which the view runs off the
+// loop.
 func teamConfigWriter(a *app.App) views.TeamConfigWriter {
-	project, _ := resolveActiveProject(a)
-	tc := resolvedTeamConfig(a, project)
+	tc := makeResolveTeamFunc(a)()
 	return func(ctx context.Context, cfg *teamstate.TeamConfig) error {
 		if !tc.Enabled {
 			return errors.New(i18n.T("tui.views.team_not_configured"))

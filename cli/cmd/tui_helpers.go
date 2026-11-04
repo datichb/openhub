@@ -7,9 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
@@ -63,16 +65,58 @@ func projectAtCwd(projects []domain.Project) *domain.Project {
 	return nil
 }
 
+// pickedTeam is the team the user opened from the list of teams in the hub
+// (empty: none). The views of the team work on it, whatever the default team
+// or the active project says; it is ignored once the team no longer exists.
+var pickedTeam struct {
+	mu sync.Mutex
+	id string
+}
+
+// pickTeam records the team opened from the list of teams. In team mode the
+// team of the mode is the one that counts: the choice becomes the active team
+// of the shell.
+func pickTeam(a *app.App, id string) {
+	if tuiShell != nil && tuiShell.Mode() == views.ModeTeam {
+		if t := a.Config.FindTeam(id); t != nil {
+			tuiShell.SetActiveTeam(&views.ActiveTeam{ID: t.ID, Name: t.DisplayName()})
+		}
+		return
+	}
+	pickedTeam.mu.Lock()
+	pickedTeam.id = id
+	pickedTeam.mu.Unlock()
+}
+
+// pickedTeamID is the team opened from the list of teams ("" when none).
+func pickedTeamID() string {
+	pickedTeam.mu.Lock()
+	defer pickedTeam.mu.Unlock()
+	return pickedTeam.id
+}
+
+// teamResolution is what the views know of the team t of the hub.
+func teamResolution(t *config.TeamConfig) views.TeamResolution {
+	return views.TeamResolution{Enabled: t.Enabled && !t.Solo, StateRepo: t.StateRepo, StatePath: t.StatePath, MemberID: t.MemberID,
+		GitLabURL: t.GitLabURL, Solo: t.Solo, TeamID: t.ID}
+}
+
 // makeResolveTeamFunc returns a ResolveTeamFunc for use in team views.
-// It resolves the effective team config for the currently active project
-// (project-level override → hub fallback) each time it is called.
+// It resolves the team each time it is called: the team chosen in the TUI
+// (team mode, or opened from the list of teams) wins, then the effective team
+// of the active project (project-level override → hub fallback).
 func makeResolveTeamFunc(a *app.App) views.ResolveTeamFunc {
 	return func() views.TeamResolution {
 		// Team mode: the team chosen in the TUI wins.
 		if tuiShell != nil && tuiShell.Mode() == views.ModeTeam && tuiShell.ActiveTeam() != nil {
 			if t := a.Config.FindTeam(tuiShell.ActiveTeam().ID); t != nil {
-				return views.TeamResolution{Enabled: t.Enabled && !t.Solo, StateRepo: t.StateRepo, StatePath: t.StatePath, MemberID: t.MemberID,
-					GitLabURL: t.GitLabURL, Solo: t.Solo, TeamID: t.ID}
+				return teamResolution(t)
+			}
+		}
+		// Hub: the team opened from the list of teams.
+		if id := pickedTeamID(); id != "" {
+			if t := a.Config.FindTeam(id); t != nil {
+				return teamResolution(t)
 			}
 		}
 		project, _ := resolveActiveProject(a)

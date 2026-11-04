@@ -20,9 +20,3 @@ func focusIf(app *tview.Application, owned bool, p tview.Primitive) {
 		app.SetFocus(p)
 	}
 }
-
-// focusIfOwned gives the focus to p when it is the view's to give. Use
-// ownsFocus and focusIf when the content is rebuilt in between.
-func focusIfOwned(app *tview.Application, content *tview.Flex, p tview.Primitive) {
-	focusIf(app, ownsFocus(app, content), p)
-}
