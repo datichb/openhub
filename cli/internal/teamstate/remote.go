@@ -56,11 +56,43 @@ func originURL(path string) (string, bool) {
 			inOrigin = strings.EqualFold(strings.Join(strings.Fields(line), " "), `[remote "origin"]`)
 		case inOrigin && strings.HasPrefix(line, "url"):
 			if k, v, ok := strings.Cut(line, "="); ok && strings.TrimSpace(k) == "url" {
-				return strings.TrimSpace(v), true
+				return gitConfigValue(v), true
 			}
 		}
 	}
 	return "", false
+}
+
+// gitConfigValue decodes a value as git writes it in a config file: quoted
+// parts, backslash escapes (a Windows path is written C:\\Users\\…) and an
+// inline comment (# or ;) outside quotes.
+func gitConfigValue(raw string) string {
+	var b strings.Builder
+	quoted := false
+	for i := 0; i < len(raw); i++ {
+		c := raw[i]
+		switch {
+		case c == '\\' && i+1 < len(raw):
+			i++
+			switch raw[i] {
+			case 'n':
+				b.WriteByte('\n')
+			case 't':
+				b.WriteByte('\t')
+			case 'b':
+				b.WriteByte('\b')
+			default:
+				b.WriteByte(raw[i])
+			}
+		case c == '"':
+			quoted = !quoted
+		case (c == '#' || c == ';') && !quoted:
+			return strings.TrimSpace(b.String())
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return strings.TrimSpace(b.String())
 }
 
 // SameRemote reports whether a and b designate the same repository: same host

@@ -292,3 +292,19 @@ func TestProbeRemoteAsChecksATokenBeforeItIsKept(t *testing.T) {
 	assert.True(t, IsAuthError(err), "%v", err)
 	assert.Empty(t, left())
 }
+
+// git writes the URL of a local path with its backslashes escaped (a Windows
+// path is C:\\Users\\…): originURL reads the value git means, not its escaping.
+func TestGitConfigValueDecodesWhatGitWrites(t *testing.T) {
+	for raw, want := range map[string]string{
+		` https://gitlab.example.com/acme/state.git`: "https://gitlab.example.com/acme/state.git",
+		` C:\\Users\\me\\state.git`:                  `C:\Users\me\state.git`,
+		` "/path with space/state.git"`:              "/path with space/state.git",
+		` /srv/state.git # the team`:                 "/srv/state.git",
+		` "/srv/a#b.git"`:                            "/srv/a#b.git",
+	} {
+		if got := gitConfigValue(raw); got != want {
+			t.Errorf("gitConfigValue(%q) = %q, want %q", raw, got, want)
+		}
+	}
+}
