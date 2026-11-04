@@ -3139,10 +3139,10 @@
   "cmd.init.wizard_processing_team": "Connexion à l'équipe...",
   "cmd.init.wizard_team_connected": "Connectée",
   "cmd.init.wizard_team_skipped": "Ignorée",
-  "cmd.init.wizard_team_cred_gitlab_hint": "Ce token sera utilisé pour l'accès au dépôt\net la vérification de votre identité GitLab.",
+  "cmd.init.wizard_team_cred_gitlab_hint": "Ce token ne sert qu'à git, pour le dépôt.\nL'API GitLab (vérification d'identité, tracker) a son propre token,\ndemandé à une étape suivante.",
   "cmd.init.wizard_step_rejoin_repo": "Dépôt d'équipe",
   "cmd.init.wizard_step_rejoin_gitlab_token": "Token GitLab",
-  "cmd.init.wizard_rejoin_gitlab_hint": "Token GitLab requis pour vérifier votre identité. Vide = ignorer.",
+  "cmd.init.wizard_rejoin_gitlab_hint": "Token d'API GitLab requis pour vérifier votre identité (scope api, ou read_api et read_user). Vide = ignorer.",
   "cmd.init.wizard_rejoin_gitlab_token_label": "Token d'accès personnel GitLab",
   "cmd.init.wizard_rejoin_token_choice": "Token GitLab",
   "cmd.init.wizard_rejoin_token_reuse": "Réutiliser le token existant (%s)",
@@ -5991,7 +5991,6 @@
   "cmd.team_rejoin_core.member_not_found_in_team_state": "membre %q introuvable dans le dépôt team-state",
   "cmd.team_rejoin_core.writing_hub_toml": "écriture de hub.toml : %w",
   "cmd.team_rejoin_core.creating_gitlab_client": "création du client GitLab : %w",
-  "cmd.team_rejoin_core.gitlab_authentication_failed": "authentification GitLab échouée : %w",
   "cmd.team_rejoin_core.listing_members": "liste des membres : %w",
   "cmd.team_rejoin_core.database_not_initialized": "base de données non initialisée",
   "cmd.team_rejoin_core.retro_tagging_sessions": "marquage rétroactif des sessions : %w",
@@ -6412,5 +6411,6 @@
   "v532m.handle.label": "Handle GitLab",
   "v532m.handle.hint": "Votre fiche n'a pas de handle GitLab. Le donner permet à oh de vérifier que votre token est bien le vôtre. Facultatif : vide, la fiche ne change pas.",
   "v532m.rejoin.empty_repo": "Ce dépôt est vide : l'équipe n'a pas encore été créée. Faites-la créer par son responsable (« Créer une équipe »), ou créez-la vous-même, puis rejoignez-la.",
-  "v532m.rejoin.no_team_state": "Ce dépôt ne contient pas d'équipe oh (pas de members.toml). Vérifiez l'URL, ou créez l'équipe avec « Créer une équipe »."
+  "v532m.rejoin.no_team_state": "Ce dépôt ne contient pas d'équipe oh (pas de members.toml). Vérifiez l'URL, ou créez l'équipe avec « Créer une équipe ».",
+  "v533c.identity.unverified": "Identité non vérifiée : GitLab n'a pas répondu à GET /user avec ce token (%v). Pour la vérifier, le token doit avoir le scope api, ou read_api et read_user. Vous avez rejoint l'équipe malgré tout."
 }

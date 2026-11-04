@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -121,6 +122,16 @@ type Claim struct {
 	// (e.g. "In Progress", "Code Review"). Stored for auditability and
 	// to detect status changes on the tracker side.
 	TrackerStatus string `toml:"tracker_status,omitempty"`
+	// TrackerState is the state of the issue ("open" or "closed") and
+	// TrackerLabels the labels of the issue, both as the tracker sync saw them
+	// at its last pass. They are what the next pass compares the issue with:
+	// the tracker moves the status of the claim only when the state or a
+	// label attached to a column changed, and removes from the claim only the
+	// labels it saw on the issue and that left it. A claim without
+	// TrackerState was never seen by a sync of 5.3.3 or later; the sync only
+	// records what it sees, without touching the status.
+	TrackerState  string   `toml:"tracker_state,omitempty"`
+	TrackerLabels []string `toml:"tracker_labels,omitempty"`
 	// Labels is an open-ended list of tags applied to the ticket.
 	// Well-known values: see Label* constants above.
 	// The tracker sync also mirrors GitLab/Jira labels here.
@@ -721,6 +732,43 @@ func (r *Repo) UpdateClaimMetadata(ctx context.Context, project, ticketID, title
 		msg := fmt.Sprintf("metadata: %s/%s", project, ticketID)
 		slog.Info("teamstate.claim.metadata", "project", project, "ticket", ticketID)
 		return r.commitAndPush(ctx, msg, relPath)
+	})
+}
+
+// SetClaimTrackerMirror records on a claim the state ("open"/"closed") and the
+// labels of the issue as the tracker sync saw them (TrackerState,
+// TrackerLabels; the labels are stored sorted). No-op when they are already
+// what is recorded. Returns ErrClaimNotFound if the claim does not exist.
+func (r *Repo) SetClaimTrackerMirror(ctx context.Context, project, ticketID, state string, labels []string) error {
+	if _, err := SafeName(project); err != nil {
+		return fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(ticketID); err != nil {
+		return fmt.Errorf("invalid ticket ID: %w", err)
+	}
+	labels = slices.Clone(labels)
+	slices.Sort(labels)
+	labels = slices.Compact(labels)
+	return r.withWriteLock(ctx, func(ctx context.Context) error {
+		c, err := r.getClaim(project, ticketID)
+		if err != nil {
+			return err
+		}
+		if c.TrackerState == state && slices.Equal(c.TrackerLabels, labels) {
+			return nil
+		}
+		c.TrackerState = state
+		c.TrackerLabels = labels
+
+		data, err := marshalClaim(c)
+		if err != nil {
+			return fmt.Errorf("marshaling claim: %w", err)
+		}
+		if err := os.WriteFile(r.claimFilePath(project, ticketID), data, 0o644); err != nil {
+			return fmt.Errorf("writing claim: %w", err)
+		}
+		msg := fmt.Sprintf("tracker-mirror: %s/%s", project, ticketID)
+		return r.commitAndPush(ctx, msg, r.claimRelPath(project, ticketID))
 	})
 }
 

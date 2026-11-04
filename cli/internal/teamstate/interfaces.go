@@ -89,6 +89,9 @@ type ClaimTrackerSync interface {
 	// changing the claim status. Used by the tracker sync engine.
 	UpdateClaimMetadata(ctx context.Context, project, ticketID, title, description, trackerStatus string) error
 	SetClaimExternalIID(ctx context.Context, project, ticketID string, iid int) error
+	// SetClaimTrackerMirror records the state and labels of the issue seen at
+	// this pass, what the next pass compares the issue with.
+	SetClaimTrackerMirror(ctx context.Context, project, ticketID, state string, labels []string) error
 }
 
 // ClaimCleaner releases the done claims past their retention.

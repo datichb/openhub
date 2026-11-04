@@ -25,14 +25,25 @@ Introduire un package `cli/internal/tracker/` qui :
 1. Définit une interface `Tracker` avec des implémentations pour GitLab et Jira
 2. Réutilise les credentials MCP existants (`[mcp.gitlab]` / `[mcp.jira]` dans `hub.toml`) — aucun nouveau stockage de credentials
 3. Exécute un moteur de réconciliation (`Engine.Run()`) qui :
-   - **Direction pull (tracker → claims)** : issue fermée → claim `done` ; issue rouverte → claim `in_progress` ; labels du tracker reflétés sur le claim
-   - **Direction push (claims → tracker, opt-in)** : labels hub (`agent-reviewed`, `hub:done`) poussés vers l'issue si `push_labels = true` et `write_enabled` est défini sur le serveur MCP
+   - **Direction pull (tracker → claims)** : issue fermée → claim `done` ; issue rouverte → claim `in_progress` ; labels du tracker reflétés sur le claim. Le statut n'est réécrit **que si l'issue a changé depuis le passage précédent** (voir l'amendement 5.3.3)
+   - **Direction push (claims → tracker, opt-in)** : labels hub (`agent-reviewed`, `hub:done`) poussés vers l'issue si `push_labels = true` et `write_enabled` est défini sur le serveur MCP ; depuis la 5.3.3, le statut du hub l'est aussi, sous la forme du label rattaché à sa colonne
    - **Auto-plan** : issues assignées à des membres de l'équipe sans claim → claim créé automatiquement dans la colonne que son statut désigne, sans plafond par membre (le membre est borné par la limite de travail en cours `max_in_progress_per_member`, vérifiée là où un ticket est pris ou démarré, jamais par la synchro ; elle remplace l'ancienne `max_auto_plan_per_member`)
 4. Utilise `~/.oh/sync-state.json` (local, absent du git team-state) pour stocker `last_sync_at` par projet — transmis comme `updated_after` aux APIs des trackers pour des récupérations incrémentales
 5. Effectue un seul `CommitAndPush` par cycle de synchronisation (commit groupé) pour minimiser les conditions de concurrence
 6. Est déclenché : à l'ouverture de la vue équipe (si `auto_sync = true`), sur la touche `r`, et via la commande CLI `oh team sync-tracker`
 
 Jira utilise `statusCategory.key` (`"done"` = fermé) plutôt que les noms d'état des issues — cela fonctionne universellement pour les workflows personnalisés.
+
+## Amendement 5.3.3 : le tracker ne réécrit que ce qui a changé
+
+Le texte ci-dessus laissait lire la synchro comme « le statut du claim = le statut mappé de l'issue, à chaque passage ». Sur GitLab, une issue ouverte sans label de statut donne toujours `in_progress` : une carte passée en review, validation, bloqué ou fait dans le hub (board, `oh mr create`, verdict, fin de session) y revenait à la synchro suivante de n'importe quel membre. Aucune direction ne repoussait le statut du hub vers le tracker. Les labels posés par le hub (`session-ended`, `review`, `ready-for-review`) étaient aussi retirés, car tout ce qui n'était pas `agent-reviewed`, `needs-human-review` ou `hub:done` passait pour un miroir du tracker.
+
+- Chaque claim garde l'état de l'issue (`tracker_state`) et ses labels (`tracker_labels`) vus au dernier passage. Le statut du claim n'est réécrit par le mapping que si l'état, le nom de statut ou les labels rattachés à une colonne (`label_status_mapping`) ont changé depuis ; la règle « bloqué d'abord, puis le plus avancé » choisit alors le statut. Un claim sans cette mémoire est mémorisé au premier passage sans rien écraser, sauf une issue fermée dont le claim n'est pas terminal (et une réouverture d'un claim terminal que le claim savait fermée).
+- Un label n'est retiré d'un claim que s'il était sur l'issue au passage précédent et n'y est plus.
+- Avec `push_labels` (et `write_enabled`), quand le statut du hub diffère de celui de l'issue sans que l'issue ait changé, le label rattaché à la colonne du claim est posé et les labels rattachés à d'autres colonnes sont retirés. Sans label rattaché à la colonne, rien n'est poussé. Sans `push_labels`, rien n'est écrit dans le tracker.
+- Une synchro dont la poussée vers le team-state échoue renvoie l'erreur et n'enregistre pas `sync-state.json`.
+
+Les champs sont facultatifs dans le TOML d'un claim : un `oh` plus ancien les ignore, un claim d'avant 5.3.3 se lit sans eux.
 
 ## Alternatives Considérées
 

@@ -40,7 +40,7 @@ func TestTeamGitTokenIsKeptInTheKeychainOfOh(t *testing.T) {
 	store := a.Secrets.(*mockSecretStore).secrets
 	assert.Equal(t, "glpat-abc", store["openhub.git.gitlab.example.com/org/team-state.token"])
 	assert.Equal(t, "oauth2", store["openhub.git.gitlab.example.com/org/team-state.user"], "oauth2 by default")
-	assert.Equal(t, "glpat-abc", store[config.TeamGitLabTokenKey("team-state")], "on GitLab the team's API token is the same")
+	assert.NotContains(t, store, config.TeamGitLabTokenKey("team-state"), "the git token is not the API token of the team")
 
 	got := teamGitCreds.source(ctx, remote)
 	assert.Equal(t, teamstate.GitCredentials{Username: "oauth2", Token: "glpat-abc"}, got)

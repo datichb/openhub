@@ -17,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -520,18 +521,17 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 		},
 	})
 
-	// ── Rejoin step 4b: GitLab token for SSH repos (conditional) ──
-	// When the repo uses HTTPS, the token was already stored in the keychain
-	// by the access step. This step only appears for SSH repos (or an HTTPS one
-	// that needed no token) where the member has a gitlab_username and
-	// identity verification is needed.
+	// ── Rejoin step 4b: GitLab API token (conditional) ──
+	// The token of the access step is the git one (read_repository,
+	// write_repository): the GitLab API refuses it. This step asks the API
+	// token (identity check, tracker) whatever the repo URL, when the member
+	// has a gitlab_username; it can be skipped.
 	steps = append(steps, views.WizardStep{
 		ID:    "rejoin_gitlab_token",
 		Label: i18n.T("cmd.init.wizard_step_rejoin_gitlab_token"),
 		SkipIf: func() bool {
 			return state.Skipped || state.Mode != "rejoin" ||
-				selectedMemberGitLabUsername(state) == "" ||
-				(teamstate.IsHTTPS(state.Repo) && state.access(a).TokenStored) // the access step already stored the token
+				selectedMemberGitLabUsername(state) == ""
 		},
 		Validate: func() string {
 			if state.TokenChoiceIdx == 0 {
@@ -634,6 +634,10 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 
 			// Store identity mismatch for the next conditional step.
 			state.IdentityMismatch = result.IdentityMismatch
+			if result.IdentityUnverified != nil && tuiShell != nil {
+				warning := result.IdentityUnverified.Error()
+				queueOnShell(tuiShell, func() { tuiShell.ShowToast(warning, shell.ToastWarning) })
+			}
 
 			state.Configured = true
 			state.TeamID = result.TeamID

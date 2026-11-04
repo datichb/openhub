@@ -55,7 +55,13 @@ The wizard follows the same order for "Create" and "Rejoin", in `oh init` and in
      (`openhub.git.<host>/<repo>.token`, see [config](../reference/config.en.md#known-keys)).
      `oh` hands it to git through a one-shot `GIT_ASKPASS` for every operation of the team-state
      (clone, pull, push, probe, daemon); it is never in a URL, on a command line or in git's
-     `credential.helper`. A token that is refused is not kept.
+     `credential.helper`. A token that is refused is not kept. It is a **git** token (scopes
+     `read_repository` and `write_repository`): it is **never copied** to the GitLab API token.
+     The latter (identity check, tracker: `api` scope, or `read_api` + `read_user`) has its own
+     key (`openhub.team.<team>.gitlab.token`) and its own "GitLab token" step in "Rejoin", asked
+     for an HTTPS repository too; it can be skipped. When GitLab refuses `GET /api/v4/user` with
+     the token (403 for lack of scope, 401, GitLab unreachable), "Rejoin" still succeeds, with
+     the warning "Identity not verified".
    - **SSH**: the message gives git's answer and recalls `ssh-add`; "Retry" probes again.
 4. **Identity**: "Create" asks your card (ID, display name, optional GitLab handle, role).
    "Rejoin" lists the members ("Team members (N)"): you pick your card, or **"+ I am not in the
@@ -468,7 +474,10 @@ oh team sync-tracker   # sync claims with external tracker (GitLab/Jira)
 Pulls issue states from the tracker and updates claim statuses:
 - Closed issue → claim transitioned to `done`
 - Reopened issue → claim transitioned back to `in_progress`
-- Labels are mirrored
+- **The tracker rewrites a status only when the issue changed since the previous pass**: its state (open/closed), its status name (Jira) or the labels attached to a column (`label_status_mapping`). An issue that stays open without a status label does not bring back a card you moved to review, validation, blocked or done on the board (nor after `oh mr create`, a verdict or the end of a session). Each claim keeps the state and labels of the issue seen at the last pass (`tracker_state`, `tracker_labels`); a claim no sync of 5.3.3 has seen is only remembered at its first pass (nothing is overwritten, except a closed issue whose claim is not terminal)
+- With `push_labels = true` (and `write_enabled`), the status of the hub is **pushed back** to the tracker: the label attached to the column of the claim is put on the issue and the labels attached to other columns are taken off. Without `push_labels` nothing is written to the tracker; a column with no attached label is not pushed
+- Labels are mirrored: a tracker label is added to the claim, and is removed from it only if it was on the issue at the previous pass and no longer is. The labels the hub puts (`session-ended`, `review`, `ready-for-review`, `agent-reviewed`…) stay
+- When the push to the team-state fails, the command fails with the error and the local sync state is not recorded
 - With `auto_plan_assigned = true`, every open issue assigned to a member comes onto the board as a claim, in the column its status maps to, with no cap per member
 - With `auto_plan_unassigned = true`, the issues that carry **any** of the `unassigned_labels` come onto the board as pool claims (to take with `c`), or as claims of the member they are assigned to. The pool is first scanned in full over as many runs as it needs, each creating at most `max_unassigned_issues` claims (a pool of 70 with the default 20 takes four runs); then the runs only look at what was updated. Changing `unassigned_labels` scans it in full again. A claim you released stays released during the scan
 - The column of an issue comes from `label_status_mapping`, then `status_mapping`. With several mapped labels, a blocked column always wins, otherwise the most advanced column (the furthest in the order of the board), then the alphabetical order of the labels: an issue "Blocked" + "Ready to dev" is blocked, and one that still has an old "Ready to dev" next to "Dev doing" stays in progress. A value that is not a status of the board (`todo` on a board without a todo column) is read as the status of the initial column; `oh doctor` names it and `--fix` rewrites it (see [`[tracker]`](../reference/config.en.md#tracker-section))
