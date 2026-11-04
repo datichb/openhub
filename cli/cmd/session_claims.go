@@ -290,7 +290,7 @@ func cardClaimsOfSession(ctx context.Context, repo teamstate.ClaimReader, s doma
 func cardFactsFromBeads(projectPath string) ticketLookup {
 	return func(id string) (ticketFacts, error) {
 		if strings.Trim(id, "0123456789") != "" || beads.Available() != nil || !beads.IsInitialized(projectPath) {
-			return ticketFacts{}, nil
+			return ticketFacts{}, nil //nolint:nilerr // no Beads here, or not a number: nothing is known of the card
 		}
 		linked, err := beads.FindByExternalRef(projectPath, beads.BuildExternalRef(beads.ProviderGitLab, id))
 		if err != nil {
