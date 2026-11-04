@@ -258,11 +258,25 @@ oh worktree list           # List all active worktrees
 
 `oh gc --dry-run` shows what oh can free (session bundles, server data, folders of stopped sessions, worktrees oh created, temporary folders, orphan servers, old history); `oh gc` removes it after a confirmation. The daemon does it every 24 h once a first `oh gc` was run (`oh doctor` › "Clean-up" reminds you). See [`oh gc`](../reference/cli-infra.en.md#oh-gc).
 
+### Crash
+
+When oh crashes (message "internal error (panic)"), it writes a report `~/.oh/run/crash-<timestamp>.log` with the version, the panic value and the stack, and the message gives its path:
+
+```
+Crash report written to ~/.oh/run/crash-20261104T093012.481Z.log — please attach this file to the bug report.
+```
+
+- **Attach this file** to your [report](#getting-help): the stack tells where the program crashed.
+- The report exists too when the crash comes from a background task (reading a stream, loading a view, a daemon task, a checkpoint verification): oh then keeps running, and the TUI message or the log gives the path of the file.
+- oh keeps the **20 latest** reports; the file is readable by you only (the stack can hold values).
+- If oh cannot write to `~/.oh/run/` (permissions, full disk), the stack is printed in the terminal: copy it into the report.
+
 ### Logs
 
 | Log | Location |
 |---|---|
 | `ohd` daemon | `~/.oh/run/ohd.log` |
+| Crash report | `~/.oh/run/crash-<timestamp>.log` (the latest 20) |
 | Server of a session group | `~/.oh/servers/<group>/data/oh-server.log` |
 
 Logs are bounded: above 20 MB a log is shifted to `<file>.1` (older copies to `.2`, `.3`; three kept). `ohd.log` is rotated when the daemon starts, a server log when its server starts; while they run, the daemon copies then empties the logs that grew too large every 10 minutes.
