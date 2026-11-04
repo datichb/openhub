@@ -13,8 +13,8 @@ adding agents and skills, and the PR process.
 
 | Tool | Version | Installation |
 |------|---------|-------------|
-| Go | 1.26.4+ | [go.dev/dl](https://go.dev/dl/) |
-| golangci-lint | 2.1+ | `brew install golangci-lint` or [docs](https://golangci-lint.run/welcome/install/) |
+| Go | 1.26.4+ (the CI and the releases use `go1.26.10`, the `toolchain` line of `cli/go.mod`) | [go.dev/dl](https://go.dev/dl/) |
+| golangci-lint | 2.14 (the version of the CI) | `brew install golangci-lint` or [docs](https://golangci-lint.run/welcome/install/) |
 | git | 2.5+ | System-provided |
 
 ### Local setup
@@ -188,6 +188,8 @@ make vet            # go vet ./...
 make fmt            # gofmt -s -w .
 ```
 
+The CI runs golangci-lint 2.14 with the `go1.26.10` toolchain. If your local Go is older than the `toolchain` line of `cli/go.mod`, force it: `GOTOOLCHAIN=go1.26.10 golangci-lint run ./...`.
+
 **One golangci-lint cache per worktree.** golangci-lint keeps one cache for every directory
 (`~/Library/Caches/golangci-lint` on macOS). With several worktrees of the repository linted in
 parallel, that shared cache can return results of another tree or block on its lock. Give each
@@ -242,6 +244,7 @@ The binary embeds agents, skills, and permissions via `go:embed` (`internal/hubc
 - **Help of the commands** in the locales only: the text of a command and of an option is under `cmd.<command path>.short|long|flags.<name>` in `fr.json` and `en.json`, and the code leaves it out of the definition (`TestHelpIsNotInTheCode` refuses a literal; a text written there never appeared and went out of step with the locale). `TestNoOrphanHelpKeys` refuses a help key whose command or option is gone.
 - **Output of the commands** to the writers of the command (`cmd.OutOrStdout()`, `cmd.ErrOrStderr()`, `a.IO.Out`), never `os.Stdout` or `fmt.Print*`: tables, JSON (`--json`) and status messages go through `internal/cliout` (`cliout.Table`, `cliout.JSON`, `cliout.Success`, `Warn`, `Info`, `Error`). `internal/archtest` refuses a new use of the standard streams in `cmd/` outside the short list of its exceptions (a subprocess given the terminal, the size of the terminal, the logger).
 - **Errors** wrapped with their context (`fmt.Errorf("creating project %s: %w", id, err)`), tested with `errors.Is` / `errors.As`.
+- **Goroutines and timers go through `internal/safego`**, never bare: every goroutine (`safego.Go`; `safego.Supervise` for a loop the process needs), every `time.AfterFunc` (`safego.AfterFunc`), and the launchers that recover nothing by themselves, `errgroup.Group.Go` (`g.Go(safego.WrapErr(fn))`: the panic comes back as an error that the caller of `Wait` handles) and `sync.WaitGroup.Go` (`wg.Go(safego.Wrap(fn))`). A recovered panic is logged and writes a crash report (`~/.oh/run/crash-*.log`) instead of ending oh; code that recovers a panic by hand calls `safego.LogRecovered` to keep its stack. `internal/archtest` (`goroutines_test.go`) refuses a bare `go` statement, a `time.AfterFunc` and a `Go` with no `safego` call in all of `cmd/` and `internal/` (except `internal/safego`, the launchers themselves).
 - **Tests** in the same package, with `testify` (`require` for preconditions), table-driven cases, `t.TempDir()` and `t.Helper()` helpers. A test that starts processes (git, bd, servers) waits for them to end before its directory is cleaned up; the tests that push to bare repositories turn git's automatic maintenance off (`internal/gitutil/gittest`).
 
 ---

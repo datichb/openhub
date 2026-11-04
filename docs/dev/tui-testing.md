@@ -75,6 +75,20 @@ onLoop(app, func() { assert.Nil(t, v.HandleKey(runeKey('d'))) })
 - `onLoop(app, fn)` runs `fn` on the loop and returns when it is done: everything that touches a widget (calling `HandleKey`, reading `List.GetCurrentItem`, mounting) goes through it. A field of the view that the loop writes is read the same way, or the test has a data race.
 - Never call `QueueUpdate` or `QueueUpdateDraw` from inside a callback already on the loop (it blocks the loop for good).
 
+## Pattern — Mouse sweep
+
+`TestSessionsViewMouseSweep` (`internal/tui/v2/shell/sessions_mouse_test.go`) mounts the Sessions view in the real shell, over a simulation screen, and sweeps the mouse over the screen in each state of the view (every kind of session, each tab, with the cards, forms, modals and the palette opened over it). On each cell of its grid it sends the clicks of the three buttons (consecutive left clicks make the double and triple clicks), a drag to the opposite corner and the wheel. A panic of the event loop fails the test with its stack: it is the test that guards the nil-pointer crash a click used to cause.
+
+- **In the suite, a reduced grid**: every 12th column of every 5th row (every 6th of every 3rd for the scenarios marked `fine`, steps doubled under `-race`), and the scenarios marked `extra` are skipped.
+- **The full sweep** covers every cell with every action in every state (several minutes). Run it after a change to the mouse handling of the shell, the views or the widgets:
+
+```bash
+cd cli && go test ./internal/tui/v2/shell/ -run TestSessionsViewMouseSweep -args -mouse-full
+```
+
+- **Reading the simulated screen goes through the loop.** The loop draws into the simulation screen, so reading it from the test goroutine is a data race: `panicSim.text()` reads it inside `loopSafe`, on the event loop (the same rule as `onLoop`). A scenario waits for what it expects on screen (`want:`) with `require.Eventually` and `p.text()`, and prints the screen when it fails.
+- A new state of the Sessions view (a window, a tab, a card) gets a row in the scenario table, so that the sweep covers it.
+
 ## Pattern — Asynchronous tests
 
 A read off the loop (`load`, `syncLoad`) or a write (`persist`) ends later than the call that started it. The test waits for the result, not for a duration:
