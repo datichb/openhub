@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -78,7 +77,7 @@ func runTUI(l tuiLaunch) error {
 	// The team clones read before the shell is up warn through toasts, not
 	// through a line above the TUI.
 	holdNoticesForTUI()
-	defer releaseHeldNotices(func(text string) { cliout.Warn(os.Stderr, text) })
+	defer releaseHeldNotices(func(text string) { cliout.Warn(a.IO.ErrOut, text) })
 
 	// Resolve initial project if requested
 	var initialProject *views.ActiveProject
