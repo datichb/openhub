@@ -631,8 +631,14 @@ type TrackerConfig struct {
 	// LabelStatusMapping maps tracker labels (case-insensitive keys) to claim
 	// statuses. This is especially useful for GitLab which only has "opened"/"closed"
 	// states — the real workflow status is carried by labels.
-	// Order matters: the FIRST matching label wins (priority by config order).
-	// Valid statuses: planned, in_progress, review, validation, blocked, done
+	// When an issue carries several mapped labels, the one whose status comes
+	// first among the columns of the board wins, then the first label in
+	// alphabetical order (case ignored): neither the order of the labels of
+	// the issue nor the order of this table counts.
+	// Valid statuses: planned, in_progress, review, validation, blocked, done,
+	// or the ID of a column of the board when it declares its own columns. The
+	// ID "todo" is not a status unless the board declares that column: it is
+	// read as the status of the initial column (see BoardConfig.ResolveStatus).
 	// Example: {"Bloqué" = "blocked", "DEV DOING" = "in_progress", "TO REVIEW" = "review"}
 	LabelStatusMapping map[string]string `toml:"label_status_mapping,omitempty"`
 }

@@ -245,6 +245,9 @@ func (e *Engine) reconcileAll(ctx context.Context, result *SyncResult) (fatal, a
 		}
 	}
 	slog.Debug("tracker.sync.members", "count", len(members))
+	for _, issue := range e.cfg.MappingIssues(e.boardCfg) {
+		result.Warnings = append(result.Warnings, SyncWarning{Message: issue.Text()})
+	}
 	e.unknown = map[string]string{}
 	defer func() {
 		if w := e.unknownAssigneesWarning(members); w != nil {
@@ -981,85 +984,110 @@ func (e *Engine) autopoolUnassigned(
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-// matchLabelMapping checks if any of the issue's labels match the labelStatusMapping.
-// Returns the mapped status and true if found, or ("", false) if no match.
-func matchLabelMapping(issue *IssueState, labelStatusMapping map[string]string) (string, bool) {
+// matchLabelMapping looks for the status the labels of the issue map to.
+// Returns the status and true if one does, or ("", false) if none does.
+//
+// When several labels of the issue are mapped, the winner does not depend on
+// the order of the labels of the issue (the tracker's) nor on the order of the
+// map (random): it is the label whose status comes first among the columns of
+// the board, then the first in alphabetical order (case ignored). A value that
+// stands for no status of the board is left out, so that it never hides
+// another label. A value like "todo" that stands for the initial column is
+// read as the status of that column (see BoardConfig.ResolveStatus).
+func matchLabelMapping(issue *IssueState, labelStatusMapping map[string]string, boardCfg teamstate.BoardConfig) (string, bool) {
 	if len(labelStatusMapping) == 0 || len(issue.Labels) == 0 {
 		return "", false
 	}
-	lowerMap := make(map[string]string, len(labelStatusMapping))
-	for k, v := range labelStatusMapping {
-		lowerMap[strings.ToLower(k)] = v
+	// Keys that differ by case only: the first in alphabetical order, so that
+	// the answer is the same at every run.
+	keys := make([]string, 0, len(labelStatusMapping))
+	for k := range labelStatusMapping {
+		keys = append(keys, k)
 	}
-	for _, label := range issue.Labels {
-		if v, ok := lowerMap[strings.ToLower(label)]; ok {
-			return v, true
+	sort.Strings(keys)
+	lowerMap := make(map[string]string, len(keys))
+	for _, k := range keys {
+		if _, dup := lowerMap[strings.ToLower(k)]; !dup {
+			lowerMap[strings.ToLower(k)] = labelStatusMapping[k]
 		}
 	}
-	return "", false
+
+	var (
+		best     string
+		bestRank int
+		bestName string
+		found    bool
+	)
+	for _, label := range issue.Labels {
+		v, ok := lowerMap[strings.ToLower(label)]
+		if !ok {
+			continue
+		}
+		status, _, valid := boardCfg.ResolveStatus(v)
+		if !valid {
+			continue
+		}
+		rank, name := boardCfg.StatusRank(status), strings.ToLower(label)
+		if !found || rank < bestRank || (rank == bestRank && name < bestName) {
+			best, bestRank, bestName, found = status, rank, name, true
+		}
+	}
+	return best, found
 }
 
 // matchStatusNameMapping checks if the issue's status name matches the statusMapping.
-// Returns the mapped status and true if found, or ("", false) if no match.
-func matchStatusNameMapping(issue *IssueState, statusMapping map[string]string) (string, bool) {
+// Returns the mapped status and true if found and standing for a status of the
+// board, or ("", false) otherwise.
+func matchStatusNameMapping(issue *IssueState, statusMapping map[string]string, boardCfg teamstate.BoardConfig) (string, bool) {
 	if len(statusMapping) == 0 || issue.StatusName == "" {
 		return "", false
 	}
 	nameLower := strings.ToLower(issue.StatusName)
-	for k, v := range statusMapping {
+	keys := make([]string, 0, len(statusMapping))
+	for k := range statusMapping {
 		if strings.ToLower(k) == nameLower {
-			return v, true
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if status, _, ok := boardCfg.ResolveStatus(statusMapping[k]); ok {
+			return status, true
 		}
 	}
 	return "", false
 }
 
-// MapTrackerStatus maps a tracker issue's status to a claim status using the
-// configured mappings. Falls back to category-based mapping when no match.
-//
-// Resolution order:
-//  1. LabelStatusMapping[label] — first matching label wins (order matters)
-//  2. StatusMapping[issue.StatusName] (case-insensitive)
-//  3. Category fallback: Jira statusCategory / GitLab state
-//     - "done" / "closed" → ClaimStatusDone
-//     - "new" → ClaimStatusPlanned
-//     - "indeterminate" / "opened" → ClaimStatusInProgress
+// MapTrackerStatus maps a tracker issue's status to a claim status on the
+// default board; see MapTrackerStatusWithBoard.
 func MapTrackerStatus(issue *IssueState, statusMapping, labelStatusMapping map[string]string) string {
-	if v, ok := matchLabelMapping(issue, labelStatusMapping); ok {
-		if teamstate.IsValidStatus(v) {
-			return v
-		}
-	}
-	if v, ok := matchStatusNameMapping(issue, statusMapping); ok {
-		if teamstate.IsValidStatus(v) {
-			return v
-		}
-	}
-	// Category fallback
-	switch strings.ToLower(issue.StatusCategory) {
-	case "done", "closed":
-		return teamstate.ClaimStatusDone
-	case "new":
-		return teamstate.ClaimStatusPlanned
-	default:
-		return teamstate.ClaimStatusInProgress
-	}
+	return MapTrackerStatusWithBoard(issue, statusMapping, labelStatusMapping, teamstate.BoardConfig{})
 }
 
-// MapTrackerStatusWithBoard is like MapTrackerStatus but uses the BoardConfig
-// for category fallback resolution. This ensures custom column IDs are used
-// instead of hardcoded defaults when the team has configured custom columns.
+// MapTrackerStatusWithBoard maps a tracker issue's status to a claim status
+// using the configured mappings and the BoardConfig, so that the custom
+// column IDs are used instead of the hardcoded defaults when the team has
+// configured columns.
+//
+// Resolution order:
+//  1. LabelStatusMapping: when several labels of the issue are mapped, the one
+//     whose status comes first among the columns of the board wins, then the
+//     first in alphabetical order (see matchLabelMapping)
+//  2. StatusMapping[issue.StatusName] (case-insensitive)
+//  3. Category fallback: Jira statusCategory / GitLab state
+//     - "done" / "closed" → the terminal status
+//     - "new" → the initial status
+//     - "indeterminate" / "opened" → the status of work in progress
+//
+// A mapped value that is not a status of the board ("todo" for the initial
+// column) is read as the status it stands for; one that stands for nothing is
+// ignored (the engine warns of it, see reconcileAll).
 func MapTrackerStatusWithBoard(issue *IssueState, statusMapping, labelStatusMapping map[string]string, boardCfg teamstate.BoardConfig) string {
-	validFn := func(s string) bool { return boardCfg.IsValidStatus(s) || teamstate.IsValidStatus(s) }
-	if v, ok := matchLabelMapping(issue, labelStatusMapping); ok {
-		if validFn(v) {
-			return v
-		}
+	if v, ok := matchLabelMapping(issue, labelStatusMapping, boardCfg); ok {
+		return v
 	}
-	if v, ok := matchStatusNameMapping(issue, statusMapping); ok {
-		if validFn(v) {
-			return v
-		}
+	if v, ok := matchStatusNameMapping(issue, statusMapping, boardCfg); ok {
+		return v
 	}
 	// Category fallback using board config
 	if boardCfg.HasCustomColumns() {
