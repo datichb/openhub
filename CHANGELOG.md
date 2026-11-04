@@ -9,6 +9,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+## [5.3.3] — 2026-11-04
+
+Version corrective issue d'un audit complet du mode équipe : elle corrige les défauts qui pouvaient **perdre ou abîmer des données d'équipe**. `oh team config status` ne supprime plus les collègues de `members.toml` ; une modification de `config.toml` ne remplace plus celle d'un collègue (conflit signalé) et un fichier illisible n'est plus effacé ; une équipe sans `state_path` ne lance plus git dans le dossier courant ; deux dépôts de même nom ne se remplacent plus ; la synchro du tracker n'écrase plus les statuts et labels posés dans le hub ; le token git n'écrase plus le token d'API GitLab. Ruptures légères (synchro, `oh team config`, chemin des nouveaux clones) décrites dans la [migration 5.3.2 → 5.3.3](docs/guides/migration-v5.fr.md#depuis-la-532-vers-la-533) ; pas de migration de la base.
+
 ### Fixed
 
 - **Équipe sans `state_path` : plus aucune commande git dans le dossier courant.** Vide, `state_path` (que la documentation présente comme normal) valait selon l'endroit le dossier où `oh` est lancé (TUI : `s` de la vue Équipes, Ctrl+S du détail d'équipe, `NewRepo(remote, "")` testait le `.git` du dossier courant et prenait son verrou), `~/.oh/team-state` (CLI, services, MCP) ou `~/.oh/team-states/<hôte>/<nom>` (documentation). Pull, et commit/push de `config.toml` sur l'origine du projet, étaient possibles. `hub.toml` est maintenant normalisé **à la lecture**, par une seule fonction (`config.ResolveStatePath` : vide → le chemin du clone, `~` développé, chemin relatif sous `~/.oh`) ; tous les replis sur `~/.oh/team-state` et ceux de la TUI sont supprimés, et un dépôt d'équipe créé sans dossier (`teamstate.NewRepo(remote, "")`) refuse toute opération (`ErrNoStatePath`) au lieu de viser le dossier courant. Le chemin est écrit dans `hub.toml` à la prochaine écriture du fichier ; la lecture n'écrit rien.
