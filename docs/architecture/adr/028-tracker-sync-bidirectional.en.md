@@ -25,14 +25,25 @@ Introduce a `cli/internal/tracker/` package that:
 1. Defines a `Tracker` interface with implementations for GitLab and Jira
 2. Reuses existing MCP credentials (`[mcp.gitlab]` / `[mcp.jira]` in `hub.toml`) — no new credential storage
 3. Runs a reconciliation engine (`Engine.Run()`) that:
-   - **Pull direction (tracker → claims)**: closed issue → claim `done`; reopened issue → claim `in_progress`; tracker labels mirrored onto claim
-   - **Push direction (claims → tracker, opt-in)**: hub labels (`agent-reviewed`, `hub:done`) pushed to issue if `push_labels = true` and `write_enabled` is set on the MCP server
+   - **Pull direction (tracker → claims)**: closed issue → claim `done`; reopened issue → claim `in_progress`; tracker labels mirrored onto claim. The status is rewritten **only if the issue changed since the previous pass** (see the 5.3.3 amendment)
+   - **Push direction (claims → tracker, opt-in)**: hub labels (`agent-reviewed`, `hub:done`) pushed to issue if `push_labels = true` and `write_enabled` is set on the MCP server; since 5.3.3 the status of the hub is pushed too, as the label attached to its column
    - **Auto-plan**: issues assigned to team members without a claim → claim created automatically in the column its status maps to, with no cap per member (the member is bounded by the work-in-progress limit `max_in_progress_per_member`, checked where a ticket is taken or started, never by the sync; it replaces the former `max_auto_plan_per_member`)
 4. Uses `~/.oh/sync-state.json` (local, not in team-state git) to store `last_sync_at` per project — passed as `updated_after` to tracker APIs for incremental fetches
 5. Performs a single `CommitAndPush` per sync run (batch commit) to minimize race conditions
 6. Is triggered: on team view open (if `auto_sync = true`), on `r` key, and via `oh team sync-tracker` CLI command
 
 Jira uses `statusCategory.key` (`"done"` = closed) instead of issue state names — this works universally across custom workflows.
+
+## Amendment 5.3.3: the tracker only rewrites what changed
+
+The text above could be read as "the status of the claim = the mapped status of the issue, at every pass". On GitLab an open issue without a status label always gives `in_progress`: a card moved to review, validation, blocked or done in the hub (board, `oh mr create`, verdict, end of session) went back to it at the next sync of any member. No direction pushed the status of the hub to the tracker. The labels the hub puts (`session-ended`, `review`, `ready-for-review`) were removed as well, since everything but `agent-reviewed`, `needs-human-review` or `hub:done` passed for a mirror of the tracker.
+
+- Each claim keeps the state of the issue (`tracker_state`) and its labels (`tracker_labels`) as seen at the last pass. The status of the claim is rewritten by the mapping only if the state, the status name or the labels attached to a column (`label_status_mapping`) changed since; the rule "blocked first, then the most advanced" then picks the status. A claim without this memory is remembered at its first pass without overwriting anything, except a closed issue whose claim is not terminal (and the reopening of a terminal claim that the claim knew closed).
+- A label is removed from a claim only if it was on the issue at the previous pass and no longer is.
+- With `push_labels` (and `write_enabled`), when the status of the hub differs from the issue's without the issue having changed, the label attached to the column of the claim is put and the labels attached to other columns are removed. A column with no attached label pushes nothing. Without `push_labels`, nothing is written to the tracker.
+- A sync whose push to the team-state fails returns the error and does not record `sync-state.json`.
+
+The fields are optional in the TOML of a claim: an older `oh` ignores them, a claim from before 5.3.3 reads without them.
 
 ## Alternatives Considered
 

@@ -55,7 +55,14 @@ dans la palette (`team init`, `team rejoin`) :
      (`openhub.git.<hôte>/<dépôt>.token`, voir [config](../reference/config.fr.md#clés-connues)).
      `oh` le fournit à git par un `GIT_ASKPASS` à usage unique pour toutes les opérations du
      team-state (clone, pull, push, sonde, démon) ; il n'est jamais dans une URL, une ligne de
-     commande ni le `credential.helper` de git. Un token refusé n'est pas gardé.
+     commande ni le `credential.helper` de git. Un token refusé n'est pas gardé. C'est un token
+     **git** (scopes `read_repository` et `write_repository`) : il n'est **jamais copié** vers le
+     token de l'API GitLab. Ce dernier (vérification d'identité, tracker : scope `api`, ou
+     `read_api` + `read_user`) a sa propre clé (`openhub.team.<équipe>.gitlab.token`) et sa propre
+     étape « Token GitLab » dans « Rejoindre », demandée aussi pour un dépôt HTTPS ; elle peut être
+     ignorée. Si GitLab refuse `GET /api/v4/user` avec le token (403 faute de scope, 401, GitLab
+     injoignable), « Rejoindre » aboutit quand même, avec l'avertissement « Identité non
+     vérifiée ».
    - **SSH** : le message donne la réponse de git et rappelle `ssh-add` ; « Réessayer » sonde de nouveau.
 4. **Identité** : « Créer » demande votre fiche (identifiant, nom affiché, handle GitLab facultatif,
    rôle). « Rejoindre » liste les membres (« Membres de l'équipe (N) ») : vous choisissez votre
@@ -477,7 +484,10 @@ oh team sync-tracker   # sync les claims avec le tracker externe (GitLab/Jira)
 La commande tire les états des issues depuis le tracker et met à jour les statuts des claims :
 - Issue fermée → claim passé en `done`
 - Issue réouverte → claim repassé en `in_progress`
-- Les labels sont mirrorés
+- **Le tracker ne réécrit un statut que si l'issue a changé depuis le passage précédent** : son état (ouverte/fermée), son nom de statut (Jira) ou les labels rattachés à une colonne (`label_status_mapping`). Une issue qui reste ouverte sans label de statut ne ramène pas une carte que vous avez passée en review, en validation, en bloqué ou en fait sur le board (ni après `oh mr create`, un verdict ou la fin d'une session). Chaque claim garde l'état et les labels de l'issue vus au dernier passage (`tracker_state`, `tracker_labels`) ; un claim qu'aucune synchro de 5.3.3 n'a vu est seulement mémorisé au premier passage (rien n'est écrasé, sauf une issue fermée dont le claim n'est pas terminal)
+- Avec `push_labels = true` (et `write_enabled`), le statut du hub est **repoussé** vers le tracker : le label rattaché à la colonne du claim est posé sur l'issue et les labels rattachés à d'autres colonnes en sont retirés. Sans `push_labels`, rien n'est écrit dans le tracker ; une colonne sans label rattaché n'est pas repoussée
+- Les labels sont mirrorés : un label du tracker est ajouté au claim, et n'en est retiré que s'il était sur l'issue au passage précédent et n'y est plus. Les labels posés par le hub (`session-ended`, `review`, `ready-for-review`, `agent-reviewed`…) restent
+- Si la poussée vers le team-state échoue, la commande échoue avec l'erreur et l'état local de synchro n'est pas enregistré
 - Avec `auto_plan_assigned = true`, toute issue ouverte assignée à un membre arrive sur le board sous forme de claim, dans la colonne que son statut désigne, sans plafond par membre
 - Avec `auto_plan_unassigned = true`, les issues qui portent **l'un quelconque** des `unassigned_labels` arrivent sur le board comme claims de réserve (à prendre avec `c`), ou comme claims du membre auquel elles sont assignées. La réserve est d'abord balayée en entier, en autant de passages qu'il faut, chacun créant au plus `max_unassigned_issues` claims (une réserve de 70 avec les 20 par défaut demande quatre passages) ; ensuite les passages ne regardent que ce qui a été mis à jour. Changer `unassigned_labels` la balaie de nouveau en entier. Un claim que vous avez libéré reste libéré pendant le balayage
 - La colonne d'une issue vient de `label_status_mapping`, puis de `status_mapping`. Avec plusieurs labels rattachés, une colonne bloquée l'emporte toujours, sinon la colonne la plus avancée (la plus loin dans l'ordre du board), puis l'ordre alphabétique des labels : une issue « Bloqué » + « READY TO DEV » est bloquée, et celle qui garde un vieux « READY TO DEV » à côté de « DEV DOING » reste en cours. Une valeur qui n'est pas un statut du board (`todo` sur un board sans colonne todo) est lue comme le statut de la colonne initiale ; `oh doctor` la nomme et `--fix` la réécrit (voir [`[tracker]`](../reference/config.fr.md#section-tracker))
