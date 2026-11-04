@@ -9,7 +9,7 @@
 2. **Single interaction point** — The omnibar handles all command discovery and execution
 3. **Minimal chrome** — No permanent header, sidebar, or status bar
 4. **Contextual hints** — The omnibar displays relevant shortcuts for the active view
-5. **Predictable** — Esc=close toasts, then back (input-capturing views — launch form, wizards — get Esc first, toasts stay); Enter and letters=the focused list or field; Ctrl+P or /=command; Ctrl+Q=quit (key contract, v5.0 N19: overlays and palette → reserved keys Esc/Ctrl+P/Ctrl+T/?/F1/Ctrl+Q → view → focused widget → shell fallbacks; destructive actions go through `ShellAccess.Confirm`)
+5. **Predictable** — Esc=close the window on top (windows stack up to three deep; with or without a button; the focus goes back to where the window was opened from), then toasts, then back (input-capturing views — launch form, wizards — get Esc first, toasts stay); Enter and letters=the focused list or field; Ctrl+P or /=command; Ctrl+Q=quit (key contract: windows and palette → reserved keys Esc/Ctrl+P/Ctrl+T/?/F1/Ctrl+Q → view → focused widget → shell fallbacks; destructive actions go through `ShellAccess.Confirm`)
 6. **Immediate feedback** — Every action produces a toast notification
 
 ## Unified Palette (Catppuccin Mocha)
