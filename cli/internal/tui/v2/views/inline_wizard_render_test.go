@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -188,11 +189,17 @@ func TestInlineWizardRenderStepProcessingOnly(t *testing.T) {
 
 // The step header counts the visible steps in the classic layout only.
 func TestInlineWizardRenderStepHeader(t *testing.T) {
+	i18ntest.Set(t, "en")
 	v := mountWizard(t, InlineWizardConfig{ID: "wizard.render.header", Steps: []WizardStep{formStep("Alpha"), formStep("Beta")}})
-	assert.Contains(t, v.stepHeader.GetText(true), "1/2 — Alpha")
+	assert.Contains(t, v.stepHeader.GetText(true), "Step 1/2 — Alpha")
+	assert.NotContains(t, v.stepHeader.GetText(true), "◆", "the counter is written out: no diamond stuck to the number")
 	v.advanceAfterDone(v.cfg.Steps[0])
 	v.renderStep(v.currentStep)
-	assert.Contains(t, v.stepHeader.GetText(true), "2/2 — Beta")
+	assert.Contains(t, v.stepHeader.GetText(true), "Step 2/2 — Beta")
+
+	i18ntest.Set(t, "fr")
+	v.renderStep(v.currentStep)
+	assert.Contains(t, v.stepHeader.GetText(true), "Étape 2/2 — Beta")
 
 	g := mountWizard(t, InlineWizardConfig{
 		ID:     "wizard.render.header.grouped",

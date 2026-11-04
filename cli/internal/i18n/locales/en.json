@@ -6409,5 +6409,6 @@
   "v532w.solo.question": "Solo space for this project",
   "v532w.solo.yes": "Yes, create a solo space",
   "v532w.solo.no": "No, later (oh team init --solo)",
-  "v532w.access.https_hint": "Personal token (GitLab: read_repository and write_repository scopes). It is checked, kept in the keychain of oh and handed to git for every operation of the team."
+  "v532w.access.https_hint": "Personal token (GitLab: read_repository and write_repository scopes). It is checked, kept in the keychain of oh and handed to git for every operation of the team.",
+  "v532m.wizard.step_counter": "Step %d/%d — %s"
 }

@@ -320,7 +320,7 @@ func (w *InlineWizardView) initStepStates() bool {
 
 // newSharedWidgets builds the widgets both layouts use.
 func (w *InlineWizardView) newSharedWidgets() {
-	// Step header ("◆ 2/5 — Label")
+	// Step header ("Étape 2/5 — Label")
 	w.stepHeader = tview.NewTextView().SetDynamicColors(true)
 	w.stepHeader.SetBackgroundColor(theme.BgPanel)
 
