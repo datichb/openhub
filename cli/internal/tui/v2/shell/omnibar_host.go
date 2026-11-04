@@ -1,6 +1,9 @@
 package shell
 
 import (
+	"strings"
+
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -133,6 +136,17 @@ func (s *Shell) SetSessionsBadge(badge string, alert bool) {
 // changed: a tab, the batch).
 func (s *Shell) RefreshHints() {
 	if cur := s.router.Current(); cur != nil {
-		s.omnibar.SetHints(cur.StatusHints())
+		s.omnibar.SetHints(s.hintsOf(cur))
 	}
+}
+
+// hintsOf is the hints line of v. A view above the root always shows how to
+// go back: the shell adds the key unless the view names it already (Esc,
+// Échap), so no view has to remember it.
+func (s *Shell) hintsOf(v views.View) string {
+	hints := v.StatusHints()
+	if s.router.StackDepth() <= 1 || strings.Contains(hints, "Esc") || strings.Contains(hints, keys.Back.Keys()) {
+		return hints
+	}
+	return keys.Hints(hints, keys.Back.Hint())
 }

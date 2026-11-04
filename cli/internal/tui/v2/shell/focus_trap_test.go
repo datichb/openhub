@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -108,4 +109,28 @@ func TestPaletteWithFocusEscClosesItOnly(t *testing.T) {
 	s.key(tcell.KeyEscape, 0, tcell.ModNone)
 	assert.False(t, s.omnibarActive())
 	assert.Equal(t, 2, s.depth())
+}
+
+// hintView is a view with the hints given.
+type hintView struct {
+	keyView
+	hints string
+}
+
+func (v *hintView) StatusHints() string { return v.hints }
+
+// The shell adds the way back to the hints of a view above the root, once.
+func TestHintsOfAViewAboveTheRootShowTheWayBack(t *testing.T) {
+	s := newKeyShell(t, &keyView{id: "home", focusList: true})
+	var plain, named, root string
+	s.loop(func() {
+		root = s.hintsOf(&hintView{hints: "a b"})
+		s.PushView(&hintView{keyView: keyView{id: "p1"}, hints: "a b"})
+		plain = s.hintsOf(&hintView{hints: "a b"})
+		named = s.hintsOf(&hintView{hints: "a b · Esc retour"})
+	})
+	assert.Equal(t, "a b", root, "the root is left as it is")
+	assert.Contains(t, plain, "a b")
+	assert.Contains(t, plain, keys.Back.Hint(), "the way back is added")
+	assert.Equal(t, "a b · Esc retour", named, "a view that names it keeps its text")
 }

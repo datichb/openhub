@@ -230,7 +230,7 @@ func (s *Shell) initRouter(vs []views.View) {
 		// Defensive: ensure theme matches active mode on every navigation.
 		// This catches any code path that navigates without calling SetMode.
 		theme.SetActiveMode(string(s.activeMode))
-		s.omnibar.SetHints(v.StatusHints())
+		s.omnibar.SetHints(s.hintsOf(v))
 		s.updateModeBar(v)
 
 		// Manage omnibar visibility based on the new view: views that
