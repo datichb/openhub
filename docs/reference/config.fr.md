@@ -672,7 +672,7 @@ Disposition des colonnes du board d'équipe. Sans cette section : 6 colonnes (TO
 |------|----------|
 | `initial` | Colonne d'entrée : les nouveaux tickets arrivent ici (claims de pool, option `--planned`) |
 | `active` | Travail en cours : compté dans les badges et résumés |
-| `review` | Attente de review : compté comme `active` dans les badges et résumés, mais ses claims ne comptent pas dans `max_in_progress_per_member` ; le menu `a` d'une carte y propose la review de la branche du claim. Plusieurs colonnes peuvent l'avoir ; sans colonne de ce rôle, la colonne d'identifiant `review` en tient lieu |
+| `review` | Attente de review : compté comme `active` dans les badges et résumés, mais ses claims ne comptent pas dans `max_in_progress_per_member` ; le menu `a` d'une carte y propose la review de la branche du claim. Plusieurs colonnes peuvent l'avoir ; sans colonne de ce rôle, la colonne d'identifiant `review` en tient lieu. Une colonne de ce rôle est « en revue » (ses claims n'expirent pas, `oh doctor` signale une revue qui traîne, la fin de session les garde), quel que soit son ID |
 | `terminal` | Fin : déclenche le nettoyage des claims terminés |
 | `blocked` | Blocage : compté à part dans les résumés |
 
@@ -696,7 +696,7 @@ columns = [
 | `columns[].color` | string | selon le rôle | `orange`, `blue`, `gray`, `cyan`, `green`, `red`, `purple`, `yellow` |
 | `columns[].role` | string | `"active"` | `initial`, `active`, `review`, `terminal`, `blocked` |
 
-> **Astuce :** la commande `Discover Tracker` (omnibar ou touche `T` dans la config d'équipe) configure les colonnes depuis les labels du tracker. Les colonnes se modifient aussi à la main dans l'éditeur de la TUI (accueil de l'équipe → *Colonnes du board* : `n` ajouter, `e` renommer, `d` supprimer après confirmation, `o` rôle, `K` / `J` ordre, `m` rattachements, `Ctrl+S` enregistrer ; voir [l'éditeur](tui.fr.md#éditeur-de-colonnes-du-board)). Sans `[board]`, les claims `"planned"` existants vont dans la première colonne.
+> **Astuce :** la commande `Discover Tracker` (omnibar ou touche `T` dans la config d'équipe) configure les colonnes depuis les labels du tracker (une colonne de revue reçoit le rôle `review`). Les colonnes se modifient aussi à la main dans l'éditeur de la TUI (accueil de l'équipe → *Colonnes du board* : `n` ajouter, `e` renommer, `d` supprimer après confirmation, `o` rôle, `K` / `J` ordre, `m` rattachements, `Ctrl+S` enregistrer ; voir [l'éditeur](tui.fr.md#éditeur-de-colonnes-du-board)). Sans `[board]`, les claims `"planned"` existants vont dans la première colonne.
 
 ### Section `[mcp.<service>]`
 

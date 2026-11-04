@@ -15,7 +15,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/runsvc"
-	"github.com/datichb/openhub/cli/internal/services/launch"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -70,15 +69,6 @@ func TestCardLaunchRequest(t *testing.T) {
 	assert.Equal(t, map[string]string{"mr": "https://gl/-/merge_requests/3"}, req.Prefill)
 	req = cardLaunchRequest(views.CardLaunch{Workflow: "review"}, ticket)
 	assert.Nil(t, req.Prefill)
-}
-
-// The ticket the issue was imported as is not claimed by the session: the
-// card is the claim.
-func TestCardNoClaim(t *testing.T) {
-	assert.Nil(t, cardNoClaim(nil))
-	assert.Nil(t, cardNoClaim(&tuiCardClaim{Ticket: "623"}))
-	assert.Equal(t, []string{"bt-1"}, cardNoClaim(&tuiCardClaim{Ticket: "623", Imported: "bt-1"}))
-	assert.Equal(t, []string{"bt-1"}, (launch.Options{NoClaim: cardNoClaim(&tuiCardClaim{Imported: "bt-1"})}).NoClaim)
 }
 
 // A GitLab reference given to the input of a Beads id is explained in the
@@ -192,13 +182,13 @@ func TestClaimCardAtLaunch(t *testing.T) {
 	project := teamProject(claimsProject)
 	a.Projects = &mockProjectStore{projects: []domain.Project{project}}
 
-	note := claimCardAtLaunch(t.Context(), a, &project, &tuiCardClaim{Ticket: "700", Imported: "bt-1"}, "ses_7")
+	note := claimCardAtLaunch(t.Context(), a, &project, &tuiCardClaim{Ticket: "700"}, "ses_7")
 	assert.NotEmpty(t, note)
 	c := claimsOnDisk(t, repo, "700")
 	assert.Equal(t, "ses_7", c.Session)
 	assert.Equal(t, teamstate.ClaimStatusInProgress, c.Status)
 	_, err := repo.GetClaim(t.Context(), claimsProject, "bt-1")
-	assert.ErrorIs(t, err, teamstate.ErrClaimNotFound, "the imported Beads ticket is not claimed: the card is")
+	assert.ErrorIs(t, err, teamstate.ErrClaimNotFound, "nothing but the card is claimed")
 
 	assert.Empty(t, claimCardAtLaunch(t.Context(), a, nil, &tuiCardClaim{Ticket: "701"}, "ses_8"))
 }

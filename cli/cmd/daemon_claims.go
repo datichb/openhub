@@ -131,7 +131,8 @@ func heartbeatOf(ctx context.Context, repo teamstate.ConfigReader) time.Duration
 }
 
 // openSessions are the sessions that still hold their claims: not over (a
-// sleeping session can be resumed).
+// sleeping session can be resumed). One without tickets may hold the claim of
+// the card of the board it was launched on (sessionRefs).
 func (b *claimsBeater) openSessions(ctx context.Context) []domain.Session {
 	if b.a == nil || b.a.Sessions == nil {
 		return nil
@@ -146,7 +147,7 @@ func (b *claimsBeater) openSessions(ctx context.Context) []domain.Session {
 		case domain.RunCompleted, domain.RunFailed, domain.RunStopped:
 			return true
 		}
-		return len(s.Tickets) == 0
+		return false
 	})
 }
 
@@ -187,6 +188,39 @@ func (t *claimsTeam) refsOf(open []domain.Session, cfg teamstate.ClaimConfig, no
 	return refs
 }
 
+// sessionRefs are the claims of the member that name an open session of the
+// team without that session having them among its tickets: the claim of the
+// card of the board a launch started the work on (the session is recorded on
+// it). Read from the clone, off the network.
+func (t *claimsTeam) sessionRefs(ctx context.Context, open []domain.Session, cfg teamstate.ClaimConfig, now time.Time, have []teamstate.ClaimRef) []teamstate.ClaimRef {
+	bySession := map[string]string{} // session → project
+	for _, s := range open {
+		if t.projects[s.ProjectID] && (s.MemberID == nil || *s.MemberID == t.member) && renewable(s, cfg, now) {
+			bySession[s.ID] = s.ProjectID
+		}
+	}
+	if len(bySession) == 0 {
+		return nil
+	}
+	claims, err := t.repo.ListClaims(ctx, "")
+	if err != nil {
+		slog.Debug("ohd: claims heartbeat: claims unreadable", "error", err)
+		return nil
+	}
+	var refs []teamstate.ClaimRef
+	for i := range claims {
+		c := &claims[i]
+		if c.ClaimedBy != t.member || c.Session == "" || bySession[c.Session] != c.Project {
+			continue
+		}
+		ref := teamstate.ClaimRef{Project: c.Project, TicketID: c.TicketID}
+		if !slices.Contains(have, ref) {
+			refs = append(refs, ref)
+		}
+	}
+	return refs
+}
+
 // beat is Options.OnClaimsHeartbeat: for each team repository, renew the
 // leases of the claims of the open sessions and empty the queue; a team
 // without heartbeat (or not due yet) only has its queue emptied. A remote
@@ -211,8 +245,12 @@ func (b *claimsBeater) beat(ctx context.Context) error {
 		refs := t.refsOf(open, claimCfg, now)
 		every := claimCfg.HeartbeatInterval()
 		key := t.repo.Path()
+		isDue := b.due(key, every, now)
+		if isDue {
+			refs = append(refs, t.sessionRefs(ctx, open, claimCfg, now, refs)...)
+		}
 		var err error
-		if len(refs) > 0 && b.due(key, every, now) {
+		if len(refs) > 0 && isDue {
 			b.last[key] = now
 			_, err = t.repo.Heartbeat(bctx, refs, t.member, "", now)
 		} else {

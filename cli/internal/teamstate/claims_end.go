@@ -42,6 +42,10 @@ type ClaimEndFacts struct {
 	// is a terminal status of the board.
 	ClaimStatus   string
 	ClaimTerminal bool
+	// ClaimInReview: the claim is in a column of role review of the board
+	// (Claim.InReviewOn), whatever its ID; the status review and the
+	// labels are read from ClaimStatus and Labels.
+	ClaimInReview bool
 	// Labels are the labels of the ticket and of the claim.
 	Labels []string
 	// WaitingCheckpoint is the checkpoint of the session waiting for a
@@ -97,7 +101,7 @@ type ClaimEndDecision struct {
 //     retention cleans it up);
 //  2. the ticket is closed: the claim moves to the terminal status;
 //  3. the ticket or the claim is in review (label review or
-//     ready-for-review, or claim status review): kept;
+//     ready-for-review, claim status review or a column of role review): kept;
 //  4. a checkpoint waits for a decision: kept and marked session-ended;
 //  5. the commit checkpoint was put off while the session left work (or
 //     while that cannot be told): kept and marked session-ended;
@@ -111,7 +115,7 @@ func DecideClaimEnd(f ClaimEndFacts) ClaimEndDecision {
 		return ClaimEndDecision{ClaimEndKeep, ClaimEndAlreadyTerminal}
 	case f.Closed:
 		return ClaimEndDecision{ClaimEndComplete, ClaimEndTicketClosed}
-	case f.ClaimStatus == ClaimStatusReview || hasReviewLabel(f.Labels):
+	case f.ClaimStatus == ClaimStatusReview || f.ClaimInReview || hasReviewLabel(f.Labels):
 		return ClaimEndDecision{ClaimEndKeep, ClaimEndInReview}
 	case f.WaitingCheckpoint != "":
 		return ClaimEndDecision{ClaimEndKeepMarked, ClaimEndCheckpointWaiting}

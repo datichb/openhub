@@ -6374,11 +6374,14 @@
   "v53f.card.branch_unknown_note": "branche inconnue : modifications récentes",
   "v53f.card.imported": "Issue %[1]s importée en ticket Beads %[2]s",
   "v53f.card.import_reused": "Issue %[1]s déjà liée au ticket Beads %[2]s",
-  "v53f.card.import_failed": "Import de l'issue %[1]s en Beads impossible : %[2]s",
+  "v53f.card.import_failed": "Import de l'issue %[1]s en Beads impossible, le lancement n'a pas eu lieu : %[2]s",
   "v53f.card.no_project": "projet de la carte introuvable",
   "v53f.card.no_beads": "Beads n'est pas initialisé dans ce projet",
   "v53f.card.claim_failed": "Session lancée, mais la carte %[1]s n'est pas passée en cours : %[2]s",
   "v53f.card.instruct_sent": "Consigne envoyée à la session de %[1]s (%[2]s)",
   "v53f.card.instruct_failed": "Consigne non envoyée : %v",
-  "v53f.launch.gitlab_for_beads": "%[2]s est une référence GitLab, pas un ticket Beads : ce workflow ne peut pas la lire (entrée « %[1]s »). Sur le board, « Implémenter le ticket » importe l'issue en Beads ; sinon lancez spec ou quick avec la référence comme demande."
+  "v53f.launch.gitlab_for_beads": "%[2]s est une référence GitLab, pas un ticket Beads : ce workflow ne peut pas la lire (entrée « %[1]s »). Sur le board, « Implémenter le ticket » importe l'issue en Beads ; sinon lancez spec ou quick avec la référence comme demande.",
+  "v53f.card.import_row_label": "Ticket Beads",
+  "v53f.card.import_row_linked": "%[1]s est le ticket %[2]s",
+  "v53f.card.import_row_new": "%[1]s sera importée en ticket Beads au lancement (repérée par %[2]s)"
 }

@@ -388,10 +388,10 @@ On the team board, `a` offers the actions of the column the card is in. The colu
 “Do the ticket” depends on the source of the card:
 
 - **Beads ticket**: `ticket` on its id;
-- **GitLab issue**: when Beads is initialised in the project, the issue is **imported as a Beads ticket** (linked by `external_ref = gitlab-<iid>`; a second time, the ticket already linked is reused, not a second one) and `ticket` is launched on that id. Without Beads in the project, `quick` takes the issue as its request. A workflow that takes a Beads id never receives `#<iid>`;
+- **GitLab issue**: when Beads is initialised in the project, the issue is **imported as a Beads ticket** (linked by `external_ref = gitlab-<iid>`) and `ticket` is launched on that id. The import happens **when the launch is confirmed** in the form (the recap says “will be imported as a Beads ticket when launched”): cancelling leaves nothing, an import that fails stops the launch, and a second launch reuses the ticket already linked, not a second one. Without Beads in the project, `quick` takes the issue as its request. A workflow that takes a Beads id never receives `#<iid>`;
 - **ticket of another tracker** (a Jira key…): `quick`, with the key as the request.
 
-Launching “Do the ticket” puts the claim of the card **in progress** once the session has started (the claim is taken if it is in the pool or does not exist) and respects `max_in_progress_per_member`: past it, the launch is refused before anything is created. Frame, Review and Review feedback do not touch the claim.
+Launching “Do the ticket” puts the claim of the card **in progress** once the session has started (the claim is taken if it is in the pool or does not exist) and respects `max_in_progress_per_member`: past it, the launch is refused before anything is created. Frame, Review and Review feedback do not touch the claim. When the session ends, the claim of the card is settled like the claims of the tickets of the session (ticket closed: done; in review: kept; checkpoint waiting or put off with work left: kept and marked `session-ended`; otherwise: released); for an imported issue, “closed” and “in review” are read on the linked Beads ticket.
 
 An unavailable action stays in the list, dimmed, with the reason (“`spec` is not offered in this project”, “the claim has no merge request URL”, “no session is running on this ticket”); choosing it shows the reason. In the command bar, `run <workflow>` follows the same menu. A column without a role (a board built by hand) keeps the menu of the other boards.
 

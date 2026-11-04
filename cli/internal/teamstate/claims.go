@@ -508,7 +508,7 @@ func (r *Repo) UpdateClaimStatus(ctx context.Context, project, ticketID, newStat
 			return fmt.Errorf("%w: cannot transition from %q to %q", ErrInvalidTransition, c.Status, newStatus)
 		}
 
-		wasInReview := c.InReview()
+		wasInReview := r.inReview(c)
 		c.Status = newStatus
 		c.LastActivity = InstantOf(time.Now())
 		r.leaveReview(c, wasInReview, time.Now().UTC())
@@ -599,7 +599,7 @@ func (r *Repo) RemoveClaimLabel(ctx context.Context, project, ticketID, label st
 			return nil // idempotent
 		}
 
-		wasInReview := c.InReview()
+		wasInReview := r.inReview(c)
 		c.Labels = filtered
 		c.LastActivity = InstantOf(time.Now())
 		r.leaveReview(c, wasInReview, time.Now().UTC())
@@ -648,7 +648,7 @@ func (r *Repo) UpdateClaimStatusFromTracker(ctx context.Context, project, ticket
 			return nil // no-op
 		}
 
-		wasInReview := c.InReview()
+		wasInReview := r.inReview(c)
 		c.Status = newStatus
 		c.LastActivity = InstantOf(time.Now())
 		r.leaveReview(c, wasInReview, time.Now().UTC())
@@ -941,7 +941,7 @@ func (r *Repo) updateClaimStatusLocal(project, ticketID, newStatus string) (stri
 		if !IsValidBoardTransition(c.Status, newStatus) {
 			return fmt.Errorf("%w: cannot transition from %q to %q", ErrInvalidTransition, c.Status, newStatus)
 		}
-		wasInReview := c.InReview()
+		wasInReview := r.inReview(c)
 		c.Status = newStatus
 		r.leaveReview(c, wasInReview, time.Now().UTC())
 		return nil

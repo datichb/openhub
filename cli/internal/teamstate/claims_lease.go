@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -82,12 +83,41 @@ func (c *Claim) InReview() bool {
 	return c.Status == ClaimStatusReview || hasReviewLabel(c.Labels)
 }
 
-// ReviewStale reports whether the claim has been in review (InReview) for
+// InReviewOn is InReview on a board whose columns have their own review
+// column: a claim in a column of role review (BoardConfig.ReviewStatuses),
+// whatever its ID, waits for a review too. Every caller that knows the board
+// asks this one; InReview alone only knows the status review and the labels.
+func (c *Claim) InReviewOn(board BoardConfig) bool {
+	return c.InReview() || slices.Contains(board.ReviewStatuses(), c.Status)
+}
+
+// boardOf is the board of cfg (the default one without a config).
+func boardOf(cfg *TeamConfig) BoardConfig {
+	if cfg == nil {
+		return BoardConfig{}
+	}
+	return cfg.Board
+}
+
+// inReview is InReviewOn with the board of the repo (the default one when
+// the config cannot be read).
+func (r *Repo) inReview(c *Claim) bool {
+	if c.InReview() {
+		return true
+	}
+	cfg, err := r.loadConfig()
+	if err != nil {
+		return false
+	}
+	return c.InReviewOn(cfg.Board)
+}
+
+// ReviewStale reports whether the claim has been in review (InReviewOn) for
 // longer than the stale_days of cfg (nil cfg: the default), counted from its
 // last activity or, without one, from claimed_at. It does not make the claim
 // expired: the doctor only tells the owner it has been waiting for long.
 func (c *Claim) ReviewStale(now time.Time, cfg *TeamConfig) bool {
-	if !c.InReview() {
+	if !c.InReviewOn(boardOf(cfg)) {
 		return false
 	}
 	staleDays := 0
@@ -103,7 +133,7 @@ func (c *Claim) ReviewStale(now time.Time, cfg *TeamConfig) bool {
 // (no owner) is judged like the others. A claim in review (InReview) is
 // never expired.
 func (c *Claim) IsExpired(now time.Time, cfg *TeamConfig) bool {
-	if c.InReview() {
+	if c.InReviewOn(boardOf(cfg)) {
 		return false
 	}
 	if end := c.LeaseUntil.Time(); !end.IsZero() {
@@ -141,7 +171,7 @@ func (c *Claim) HasLease(cfg *TeamConfig) bool {
 	if cfg == nil {
 		cfg = &TeamConfig{}
 	}
-	return !c.InReview() && leaseApplies(c, cfg)
+	return !c.InReviewOn(cfg.Board) && leaseApplies(c, cfg)
 }
 
 // leaseApplies reports whether a claim carries a lease: it needs an owner
@@ -180,7 +210,7 @@ func leaseEndFor(now time.Time, cfg *TeamConfig, session string) Instant {
 // renewed and may have run out long ago, and the claim would be taken over
 // the moment the review ends. A lease still valid is kept.
 func renewLeaseAfterReview(c *Claim, cfg *TeamConfig, wasInReview bool, now time.Time) {
-	if !wasInReview || c.InReview() || !leaseApplies(c, cfg) {
+	if !wasInReview || c.InReviewOn(cfg.Board) || !leaseApplies(c, cfg) {
 		return
 	}
 	if end := c.LeaseUntil.Time(); !end.IsZero() && end.After(now) {
