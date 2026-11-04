@@ -370,13 +370,15 @@ oh team activity --member alice  # filtrer par membre
 
 Par défaut, le board affiche 6 colonnes : **TODO** · **IN PROGRESS** · **REVIEW** · **VALIDATION** · **DONE** · **BLOCKED**. Les colonnes et les rattachements des labels du tracker se modifient dans l'éditeur de la TUI, depuis l'accueil de l'équipe (*Colonnes du board*) ou avec `C` sur le board d'équipe (`n` ajouter, `e` renommer, `d` supprimer après confirmation, `o` rôle, `K` / `J` ordre, `m` rattachements, où `v` déplace un label ou un statut vers une autre colonne, `Ctrl+S` enregistrer) : voir [l'éditeur de colonnes](../reference/tui.fr.md#éditeur-de-colonnes-du-board). Au retour de l'éditeur, le board relit ses tickets avec les nouvelles colonnes.
 
+Le **rôle** d'une colonne décide de ce que `a` propose sur ses cartes : `initial` (cadrer, faire le ticket), la première colonne `active` (faire le ticket, consigne à la session en cours), `review` (review de la branche du claim, retours de review de sa MR), les autres (détail, statut, transfert). Le rôle `review` est nouveau : donnez-le à la colonne où le travail attend une review. Une équipe qui ne l'a pas posé garde le comportement attendu, car la colonne d'identifiant `review` (celle du board par défaut) en tient lieu ; une colonne `review` ne compte pas dans `max_in_progress_per_member`. Voir [`[board]`](../reference/config.fr.md#section-board).
+
 Raccourcis clavier dans le board (et les autres vues d'équipe) :
 
 | Touche | Action |
 |--------|--------|
 | `h` / `l`, `j` / `k` | Colonnes, cartes |
 | `Entrée` | Détail du ticket |
-| `a` | Workflows qui peuvent démarrer sur la carte |
+| `a` | Actions de la colonne de la carte : cadrer, faire le ticket, review, consigne à la session… (voir [le menu `a`](../reference/tui.fr.md#le-menu-a-dune-carte)) |
 | `[` / `]` | Passer d'un projet à l'autre |
 | `/` | Filtrer : texte, **Mes tickets**, **Non assignés** (la réserve, à prendre avec `c`), assigné, label, effacer les filtres |
 | `c` | Prendre le ticket (refusé à `max_in_progress_per_member`) |

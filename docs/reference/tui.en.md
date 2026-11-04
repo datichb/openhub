@@ -372,7 +372,30 @@ Command `doctor`. `f` fix the selected check (like `oh doctor --fix`, with a pre
 | View | Keys |
 |------|------|
 | Project board | `h` / `l` columns, `Enter` detail, `a` actions (launch a workflow on the ticket), `L` link to the tracker, `i` initialise Beads |
-| Team board | `h` / `l` columns, `[` / `]` projects (the tabs show the project name, sorted by name; an ID that no local project knows shows as "(unknown project)"), `Enter` detail, `a` actions (workflows taking a ticket; on a GitLab issue, also the workflows taking a free request, with `#<iid>`), `/` filter (menu: text, **My tickets**, **Unassigned** — the pool, to take with `c` —, assignee, label, clear), `c` claim (refused at `max_in_progress_per_member`), `L` release (confirmed), `t` transfer, `s` status, `C` edit the columns of the board (the editor below) |
+| Team board | `h` / `l` columns, `[` / `]` projects (the tabs show the project name, sorted by name; an ID that no local project knows shows as "(unknown project)"), `Enter` detail, `a` actions (the menu follows the column of the card: see [the `a` menu of a card](#the-a-menu-of-a-card)), `/` filter (menu: text, **My tickets**, **Unassigned** — the pool, to take with `c` —, assignee, label, clear), `c` claim (refused at `max_in_progress_per_member`), `L` release (confirmed), `t` transfer, `s` status, `C` edit the columns of the board (the editor below). `c`, `L`, `t` and `s` act on the project of the card, not on the active project, and answer again after `Esc` in the list of `t` or `s` |
+
+#### The `a` menu of a card
+
+On the team board, `a` offers the actions of the column the card is in. The column is known by its **role** (`initial`, `active`, `review`…), not by its name.
+
+| Column (role) | Actions of `a` |
+|---|---|
+| todo (`initial`) | **Frame** (`spec`, with the issue `#<iid>` or the Beads id as the request) · **Do the ticket** (`ticket`) |
+| first `active` column (in progress) | **Do the ticket** · **Instruction** to the running session, when the claim names one that is not finished |
+| `review` | **Review** (`review`, on the branch of the claim) · **Review feedback** (`review-feedback`, with the MR of the claim: only when the claim has an `mr_url`) |
+| the others (validation, blocked, done…) | Detail · status · transfer |
+
+“Do the ticket” depends on the source of the card:
+
+- **Beads ticket**: `ticket` on its id;
+- **GitLab issue**: when Beads is initialised in the project, the issue is **imported as a Beads ticket** (linked by `external_ref = gitlab-<iid>`; a second time, the ticket already linked is reused, not a second one) and `ticket` is launched on that id. Without Beads in the project, `quick` takes the issue as its request. A workflow that takes a Beads id never receives `#<iid>`;
+- **ticket of another tracker** (a Jira key…): `quick`, with the key as the request.
+
+Launching “Do the ticket” puts the claim of the card **in progress** once the session has started (the claim is taken if it is in the pool or does not exist) and respects `max_in_progress_per_member`: past it, the launch is refused before anything is created. Frame, Review and Review feedback do not touch the claim.
+
+An unavailable action stays in the list, dimmed, with the reason (“`spec` is not offered in this project”, “the claim has no merge request URL”, “no session is running on this ticket”); choosing it shows the reason. In the command bar, `run <workflow>` follows the same menu. A column without a role (a board built by hand) keeps the menu of the other boards.
+
+The launch form of a workflow that takes a Beads id, given `#<iid>`, says why it does not read it and what to launch instead, rather than “Could not load”.
 
 ### Board columns editor
 
@@ -386,7 +409,7 @@ List of the columns:
 | `n` | add a column after the one under the cursor (the name is asked; the id is derived from it, the role is suggested from the name) |
 | `e` / `Enter` | rename the column (its id does not change) |
 | `d` | delete the column, **after a confirmation** (the focus is on « Cancel »); the labels and statuses that lead to it go with it, and the confirmation gives their number. Two columns at least stay: below that, a message refuses without asking |
-| `o` | change the role: `initial` → `active` → `terminal` → `blocked` |
+| `o` | change the role: `initial` → `active` → `review` → `terminal` → `blocked` |
 | `K` / `J` | move the column up / down |
 | `m` | open the mappings of the column (when the team has a tracker) |
 | `Ctrl+S` | save: at least two columns, one of them `terminal`, else a message says what is missing |

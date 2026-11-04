@@ -369,13 +369,15 @@ oh team activity --member alice  # filter by member
 
 By default the board displays 6 columns: **TODO** · **IN PROGRESS** · **REVIEW** · **VALIDATION** · **DONE** · **BLOCKED**. The columns and the mapping of the tracker labels are edited in the TUI editor, from the team home (*Board Columns*) or with `C` on the team board (`n` add, `e` rename, `d` delete after a confirmation, `o` role, `K` / `J` order, `m` mappings, in which `v` moves a label or a status to another column, `Ctrl+S` save): see [the columns editor](../reference/tui.en.md#board-columns-editor). Back from the editor, the board reads its tickets again with the new columns.
 
+The **role** of a column decides what `a` offers on its cards: `initial` (frame, do the ticket), the first `active` column (do the ticket, instruct the running session), `review` (review of the claim's branch, review feedback of its MR), the others (detail, status, transfer). The `review` role is new: give it to the column where work waits for a review. A team that has not set it keeps the expected behaviour, because the column whose id is `review` (the one of the default board) stands in; a `review` column does not count towards `max_in_progress_per_member`. See [`[board]`](../reference/config.en.md#board-section).
+
 Keyboard shortcuts in the board (and other team views):
 
 | Key | Action |
 |-----|--------|
 | `h` / `l`, `j` / `k` | Columns, cards |
 | `Enter` | Detail of the ticket |
-| `a` | Workflows that can start on the card |
+| `a` | Actions of the column of the card: frame, do the ticket, review, instruct the session… (see [the `a` menu](../reference/tui.en.md#the-a-menu-of-a-card)) |
 | `[` / `]` | Move between the projects |
 | `/` | Filter: text, **My tickets**, **Unassigned** (the pool, to take with `c`), assignee, label, clear the filters |
 | `c` | Take the ticket (refused at `max_in_progress_per_member`) |
