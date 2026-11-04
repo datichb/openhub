@@ -41,6 +41,7 @@
 ./internal/gateway/fakebd
 ./internal/gc
 ./internal/gitlabapi
+./internal/gitremote
 ./internal/gitutil/gittest
 ./internal/glyph
 ./internal/hostnet
