@@ -72,7 +72,9 @@ brew install opencode    # ou voir https://opencode.ai
 opencode --version                     # doit afficher 2.x
 ```
 
-opencode V1 n'est plus pris en charge : oh refuse de lancer une session avec un message clair. Voir [Migrer vers oh v5](migration-v5.fr.md).
+La formule Homebrew d'oh dépend d'`opencode` (homebrew-core) et l'installe ; `install.sh` et `go install` non. opencode V1 n'est plus pris en charge : oh refuse de lancer une session avec un message clair. Voir [Migrer vers oh v5](migration-v5.fr.md).
+
+Si `anomalyco/tap/opencode` (opencode 1.x) est installé, il entre en conflit avec celui de homebrew-core : désinstallez-le (`brew uninstall opencode`), puis `brew install opencode`. Voir le [dépannage](troubleshooting.fr.md#installation-et-opencode).
 
 ## Configuration initiale : `oh init`
 

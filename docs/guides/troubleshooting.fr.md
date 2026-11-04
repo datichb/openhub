@@ -62,6 +62,24 @@ Si la base de données est corrompue, `oh repair` va :
 
 ## Erreurs courantes
 
+### Installation et opencode
+
+**`brew upgrade openhub` demande `brew uninstall opencode`**
+
+Le paquet `anomalyco/tap/opencode` (opencode 1.x, que oh 5 refuse) est installé : il entre en conflit avec l'`opencode` de homebrew-core (opencode V2), dont la formule d'oh dépend. Désinstallez la version du tap, puis installez celle de homebrew-core :
+```bash
+brew uninstall opencode            # la version d'anomalyco/tap
+brew install opencode              # homebrew-core : opencode V2
+brew upgrade openhub
+opencode --version                 # doit afficher 2.x
+```
+
+**oh refuse de lancer une session : opencode V1**
+
+Installez opencode V2 (`brew install opencode`, ou voir https://opencode.ai). Avec `install.sh` ou `go install`, opencode n'est pas installé avec oh. `oh doctor` vérifie la version.
+
+---
+
 ### Fournisseur et authentification
 
 **Aucun identifiant trouvé**

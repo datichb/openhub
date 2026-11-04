@@ -62,6 +62,24 @@ If the database is corrupt, `oh repair` will:
 
 ## Common Errors
 
+### Installation and opencode
+
+**`brew upgrade openhub` asks for `brew uninstall opencode`**
+
+The `anomalyco/tap/opencode` package (opencode 1.x, which oh 5 refuses) is installed: it conflicts with the `opencode` of homebrew-core (opencode V2), on which the oh formula depends. Uninstall the tap version, then install the homebrew-core one:
+```bash
+brew uninstall opencode            # the version from anomalyco/tap
+brew install opencode              # homebrew-core: opencode V2
+brew upgrade openhub
+opencode --version                 # must print 2.x
+```
+
+**oh refuses to launch a session: opencode V1**
+
+Install opencode V2 (`brew install opencode`, or see https://opencode.ai). With `install.sh` or `go install`, opencode is not installed along with oh. `oh doctor` checks the version.
+
+---
+
 ### Provider and Authentication
 
 **No credentials found**
