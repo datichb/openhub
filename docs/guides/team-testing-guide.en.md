@@ -921,7 +921,7 @@ Legend:
    │  │  AUTO-PLAN:                              │  │
    │  │  If auto_plan_assigned enabled:          │  │
    │  │  • Fetch issues assigned per member      │  │
-   │  │  • Create "planned" claim if absent      │  │
+   │  │  • Create claim (its column) if absent   │  │
    │  │  • Every assigned issue comes in         │  │
    │  └──────────────────────────────────────────┘  │
    └───────────────────────┬────────────────────────┘
@@ -964,7 +964,7 @@ Legend:
 | 3 | Successful sync | Summary with counters |
 | 4 | Issue closed on tracker | Claim changes to `done` |
 | 5 | Issue reopened | Claim changes to `in_progress` |
-| 6 | `auto_plan_assigned` | New `planned` claims created |
+| 6 | `auto_plan_assigned` | New claims created, in the column of their status |
 | 7 | `push_labels` | Labels visible on GitLab/Jira |
 | 8 | `max_in_progress_per_member` | Every assigned issue comes onto the board; taking or starting a ticket past the limit is refused |
 | 9 | Project mappings | Only configured projects synchronized |

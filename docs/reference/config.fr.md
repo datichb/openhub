@@ -71,6 +71,11 @@ enabled = false
 enabled = false
 token_key = "openhub.mcp.gslides.token"
 
+[mcp.linear]
+enabled = false
+token_key = "openhub.mcp.linear.token"   # nom de la clé dans le trousseau (PAS la clé API)
+write_enabled = false              # création et mise à jour d'issues (lecture seule sinon)
+
 [worktree]
 auto_cleanup = true                # oh gc supprime périodiquement les worktrees créés par oh (propres, poussés, inutilisés)
 base_branch = ""                   # vide = détection auto (main/master)
@@ -97,6 +102,7 @@ notify = "on"                      # notifications système : on | off
 [execution]
 runtime = ""                       # local | container ; vide = défaut du workflow
 engine = "auto"                    # auto | colima | podman | docker
+colima_profile = ""                # profil Colima du moteur colima ; vide = $COLIMA_PROFILE, sinon default
 keep_images = 2                    # images conservées par projet et par rôle
 tool_version = ""                  # version de l'outil (opencode) des images ; vide = celle de la machine
 strict_isolation = false           # masquer aussi la config personnelle d'opencode en local
@@ -148,6 +154,7 @@ Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`
 | | `notify` | `on` | Notifications système du démon (décision en attente, fin de tour) |
 | `[execution]` | `runtime` | vide | Environnement préféré (Réglages › Exécution), utilisé si le workflow l'autorise |
 | | `engine` | `auto` | Moteur de conteneurs |
+| | `colima_profile` | vide | Profil Colima (`string`) utilisé par le moteur `colima` : oh interroge `colima status --profile <profil>`, cherche le socket Docker de ce profil et nomme `colima start --profile <profil>` quand la VM est arrêtée. Vide = la variable `COLIMA_PROFILE` si elle est définie, sinon `default`. Un nom de lettres, chiffres, `.`, `_` et `-`, commençant par une lettre ou un chiffre ; `oh config set execution.colima_profile work` (`default` revient au défaut) |
 | | `keep_images` | `2` | Images conservées par projet et par rôle (base, dev) |
 | | `tool_version` | vide | Version d'opencode des images ; si elle diffère du client de la machine, le lancement en conteneur est refusé |
 | | `strict_isolation` | `false` | Masque aussi la configuration personnelle d'opencode (`XDG_CONFIG_HOME`) des serveurs locaux ; `Attest` refuse alors tout plugin que le paquet n'apporte pas, et tout plugin que le paquet déclare mais que le serveur ne fait pas tourner (sans cette option : avertissement seulement) ; refuse aussi un paquet Linux d'opencode (images de conteneur) dont la version n'a pas d'intégrité épinglée dans oh (sans cette option : avertissement) |
@@ -162,6 +169,10 @@ Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`
 | | `projects` | — | Projet oh → nom de cible |
 | `[limits]` | `max_active_sessions`, `session_budget_usd`, `daily_budget_usd`, `memory_mb`, `models` | non définies | Restrictions I6 du hub (`oh budget set`) |
 | `[deploy]` | `instruction_files` | `[]` | Fichiers du projet ajoutés aux instructions des agents du paquet |
+| `[mcp.linear]` | `enabled` | `false` | Active le serveur MCP Linear (issues, cycles, projets, API GraphQL de Linear) dans les paquets de session. Écrit à la main dans `hub.toml` : `oh mcp setup` et `oh config set` ne connaissent pas Linear ([guide](../guides/linear-integration.fr.md)) |
+| | `token_key` | `openhub.mcp.linear.token` (si vide) | Nom de la clé du trousseau qui porte la clé API personnelle Linear, jamais la clé elle-même (`oh secrets set --global openhub.mcp.linear.token`). Une variable `LINEAR_API_KEY` déjà définie passe avant la clé du trousseau |
+| | `write_enabled` | `false` | Ajoute les outils d'écriture `create_issue` et `update_issue` au serveur (opt-in, `LINEAR_WRITE_ENABLED` dans le serveur) ; sans lui, lecture seule |
+| | `url`, `trusted_url` | vides | Sans effet pour Linear : le serveur appelle toujours `https://api.linear.app/graphql` |
 | `[websearch]` | `enabled` | `false` | Permissions WebSearch / WebFetch |
 | `[beads]` | `zero_impact` | `ask` | Fichiers écrits par `bd init` hors de `.beads/` à l'enregistrement d'un projet ou à l'initialisation de Beads : `ask` (liste puis confirmation ; sans terminal, rien), `auto` (sans question ; fichiers de réglages non suivis laissés), `off` (rien). Le commit de `bd init` n'est annulé qu'après confirmation dans un terminal (`ask`) ou avec `--yes`, jamais en `auto` ([Premiers pas](../guides/getting-started.fr.md)) |
 | `[gc]` | `enabled` | `true` | Nettoyage périodique par le démon (`oh gc` fonctionne toujours) |
@@ -596,7 +607,7 @@ tracker_project = "group/app"   # projet GitLab (ID ou chemin) ou clé Jira
 ticket_pattern = "APP-(\\d+)"   # regex à un groupe de capture → IID externe
 auto_sync = true             # synchroniser à l'ouverture des vues d'équipe
 sync_interval_minutes = 5    # intervalle quand le board est ouvert
-auto_plan_assigned = true    # claims "planned" pour les issues assignées
+auto_plan_assigned = true    # les issues assignées arrivent sur le board, dans la colonne de leur statut
 max_in_progress_per_member = 5   # tickets en cours par membre (0 = sans limite)
 auto_plan_unassigned = false # claims de pool pour les issues non assignées
 push_labels = false          # renvoyer les labels vers le tracker
