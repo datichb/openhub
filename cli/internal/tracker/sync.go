@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -552,19 +553,26 @@ func (e *Engine) reconcileProject(
 			pr.Warnings = append(pr.Warnings, fmt.Sprintf("ticket %s: metadata update failed: %v", c.TicketID, err))
 		}
 
-		// Status sync: use configurable mapping.
+		// Status sync: the tracker moves the status of the claim only when the
+		// issue changed since the previous pass (see statusFromTracker).
 		mappedStatus := MapTrackerStatusWithBoard(issue, e.cfg.StatusMapping, e.cfg.LabelStatusMapping, e.boardCfg)
-		if mappedStatus != c.Status {
+		hubStatus := c.Status
+		verdict := e.statusFromTracker(c, issue)
+		if verdict == issueChanged && mappedStatus != c.Status {
 			slog.Debug("tracker.reconcile.transition", "ticket", c.TicketID, "from", c.Status, "to", mappedStatus, "tracker_status", issue.StatusName)
 			if err := e.repo.UpdateClaimStatusFromTracker(ctx, hubProjectID, c.TicketID, mappedStatus); err == nil {
 				pr.ClaimsUpdated++
+				hubStatus = mappedStatus
 			} else {
 				slog.Warn("tracker.reconcile.status_failed", "ticket", c.TicketID, "error", err)
 				pr.Warnings = append(pr.Warnings, fmt.Sprintf("ticket %s: status update failed: %v", c.TicketID, err))
 			}
 		}
 
-		// Label sync: mirror tracker labels onto the claim.
+		// Label sync: mirror tracker labels onto the claim. A label leaves the
+		// claim only when it was on the issue at the previous pass and is no
+		// longer: the others (session-ended, review, ready-for-review...) were
+		// put there by the hub.
 		trackerLabelSet := labelSet(issue.Labels)
 		for _, l := range issue.Labels {
 			if !hasLabel(c.Labels, l) {
@@ -574,10 +582,8 @@ func (e *Engine) reconcileProject(
 				}
 			}
 		}
-		for _, l := range c.Labels {
-			// Remove claim labels that were deleted on the tracker side
-			// (only those that originated from the tracker, not hub-specific ones).
-			if isTrackerMirroredLabel(l) && !trackerLabelSet[l] {
+		for _, l := range c.TrackerLabels {
+			if isTrackerMirroredLabel(l) && !trackerLabelSet[l] && hasLabel(c.Labels, l) {
 				if err := e.repo.RemoveClaimLabel(ctx, hubProjectID, c.TicketID, l); err != nil {
 					slog.Warn("tracker.reconcile.label_failed", "ticket", c.TicketID, "label", l, "error", err)
 					pr.Warnings = append(pr.Warnings, fmt.Sprintf("ticket %s: remove label %q failed: %v", c.TicketID, l, err))
@@ -595,13 +601,37 @@ func (e *Engine) reconcileProject(
 		e.noteUnknownAssignees(issue.Assignees, memberByGitLab)
 
 		// ── Push direction: claims → tracker ─────────────────────────────────
+		seenLabels := issue.Labels
 		if e.cfg.PushLabels {
 			labelsToAdd := hubLabelsToSync(c.Labels, issue.Labels)
 			if len(labelsToAdd) > 0 {
 				if err := e.tracker.AddLabels(ctx, trackerProjectID, iid, labelsToAdd); err == nil {
 					pr.LabelsPushed += len(labelsToAdd)
+					seenLabels = append(slices.Clone(seenLabels), labelsToAdd...)
 				}
 			}
+			if verdict == issueUnchanged {
+				var added, removed []string
+				seenLabels, added, removed = e.pushStatusLabel(ctx, trackerProjectID, iid, issue, hubStatus, mappedStatus, seenLabels, &pr)
+				// The claim carries what the issue now carries: the pass
+				// recorded the labels after the push, so the next one would not
+				// see the labels taken off.
+				for _, l := range added {
+					if err := e.repo.AddClaimLabel(ctx, hubProjectID, c.TicketID, l); err != nil {
+						slog.Warn("tracker.reconcile.label_failed", "ticket", c.TicketID, "label", l, "error", err)
+					}
+				}
+				for _, l := range removed {
+					if err := e.repo.RemoveClaimLabel(ctx, hubProjectID, c.TicketID, l); err != nil {
+						slog.Warn("tracker.reconcile.label_failed", "ticket", c.TicketID, "label", l, "error", err)
+					}
+				}
+			}
+		}
+
+		// What this pass saw of the issue, for the next one.
+		if err := e.repo.SetClaimTrackerMirror(ctx, hubProjectID, c.TicketID, issueState(issue), seenLabels); err != nil {
+			slog.Warn("tracker.reconcile.mirror_failed", "ticket", c.TicketID, "error", err)
 		}
 	}
 
@@ -710,6 +740,8 @@ func (e *Engine) recoverOrphans(
 			Title:         issue.Title,
 			Description:   truncDesc,
 			TrackerStatus: issue.StatusName,
+			TrackerState:  issueState(issue),
+			TrackerLabels: issue.Labels,
 			Labels:        issue.Labels,
 			ExternalIID:   orphan.ExternalIID,
 		}
@@ -807,6 +839,8 @@ func (e *Engine) autoplan(
 				Title:         issue.Title,
 				Description:   TruncateDescription(issue.Description),
 				TrackerStatus: issue.StatusName,
+				TrackerState:  issueState(&issue),
+				TrackerLabels: issue.Labels,
 				ExternalIID:   issue.IID,
 			})
 			claimedTickets[ticketID] = true
@@ -868,6 +902,8 @@ func (e *Engine) poolClaim(issue IssueState, ticketID, hubProjectID string, memb
 		Title:         issue.Title,
 		Description:   TruncateDescription(issue.Description),
 		TrackerStatus: issue.StatusName,
+		TrackerState:  issueState(&issue),
+		TrackerLabels: issue.Labels,
 		ExternalIID:   issue.IID,
 		Labels:        issue.Labels,
 	}
@@ -1243,6 +1279,183 @@ func ticketIDFromIssue(issue IssueState, _ string) string {
 	return strconv.Itoa(issue.IID)
 }
 
+// issueState is the state of the issue as the claim records it: "open" or
+// "closed".
+func issueState(issue *IssueState) string {
+	if issue.IsClosed() {
+		return "closed"
+	}
+	return "open"
+}
+
+// issueVerdict says what the sync learns from an issue about the status of its
+// claim.
+type issueVerdict int
+
+const (
+	// issueUnchanged: the state and the labels attached to a column are those
+	// of the previous pass. The status of the claim is the hub's.
+	issueUnchanged issueVerdict = iota
+	// issueChanged: the issue moved (or closed, or reopened) since the previous
+	// pass; the mapping of the tracker gives the status.
+	issueChanged
+	// issueUnseen: no previous pass to compare with, and no event. The pass
+	// only records what it sees.
+	issueUnseen
+)
+
+// statusFromTracker compares the issue with what the previous pass recorded
+// on the claim (TrackerState, TrackerStatus, TrackerLabels). The tracker gives
+// a status to the claim only when the issue changed: its state, its status
+// name or the labels attached to a column of the board (label_status_mapping).
+// An issue that stays open without a label of status must not take back, at
+// every pass, a card moved on the board, an MR, a verdict or the end of a
+// session.
+//
+// A claim no pass of 5.3.3 or later has seen has nothing to be compared with:
+// the pass records the issue and leaves the status, except for the two events
+// the claim itself tells: an issue closed while the claim is not in a terminal
+// column, and an issue the claim had recorded as closed (GitLab) and that is
+// open again while the claim is terminal.
+func (e *Engine) statusFromTracker(c *teamstate.Claim, issue *IssueState) issueVerdict {
+	terminal := slices.Contains(e.boardCfg.TerminalStatuses(), c.Status)
+	if c.TrackerState == "" {
+		switch {
+		case issue.IsClosed() && !terminal:
+			return issueChanged
+		case !issue.IsClosed() && terminal && strings.EqualFold(c.TrackerStatus, "closed"):
+			return issueChanged
+		}
+		return issueUnseen
+	}
+	if c.TrackerState != issueState(issue) ||
+		(c.TrackerStatus != "" && issue.StatusName != "" && c.TrackerStatus != issue.StatusName) ||
+		e.mappedLabelsKey(c.TrackerLabels) != e.mappedLabelsKey(issue.Labels) {
+		return issueChanged
+	}
+	return issueUnchanged
+}
+
+// mappedLabelsKey identifies, among labels, the ones label_status_mapping
+// attaches to a status of the board (case ignored): the same key, the same
+// labels attached to a column.
+func (e *Engine) mappedLabelsKey(labels []string) string {
+	var mapped []string
+	for _, l := range labels {
+		if _, ok := e.statusOfLabel(l); ok {
+			mapped = append(mapped, strings.ToLower(l))
+		}
+	}
+	sort.Strings(mapped)
+	return strings.Join(slices.Compact(mapped), "\x00")
+}
+
+// statusOfLabel is the status of the board a label is attached to by
+// label_status_mapping (case ignored), when it is attached to one.
+func (e *Engine) statusOfLabel(label string) (string, bool) {
+	keys := make([]string, 0, len(e.cfg.LabelStatusMapping))
+	for k := range e.cfg.LabelStatusMapping {
+		if strings.EqualFold(k, label) {
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if status, _, ok := e.boardCfg.ResolveStatus(e.cfg.LabelStatusMapping[k]); ok {
+			return e.canonStatus(status), true
+		}
+	}
+	return "", false
+}
+
+// canonStatus is the status as the board names it: the legacy "planned" is
+// the initial column.
+func (e *Engine) canonStatus(status string) string {
+	if status == teamstate.ClaimStatusPlanned {
+		return e.boardCfg.InitialStatus()
+	}
+	return status
+}
+
+// pushStatusLabel pushes the status of the hub to the tracker as the label
+// attached to its column (push_labels), when the issue says another one: the
+// label is added and the labels attached to other columns are removed, so that
+// the mapping gives the status of the hub back. Without a label attached to
+// the column, nothing is pushed. It returns the labels the issue now has, the
+// ones it added and the ones it removed.
+func (e *Engine) pushStatusLabel(
+	ctx context.Context,
+	trackerProjectID string, iid int,
+	issue *IssueState, hubStatus, mappedStatus string, labels []string,
+	pr *ProjectSyncResult,
+) (now, added, removed []string) {
+	hub := e.canonStatus(hubStatus)
+	if hub == e.canonStatus(mappedStatus) {
+		return labels, nil, nil
+	}
+	var target string
+	keys := make([]string, 0, len(e.cfg.LabelStatusMapping))
+	for k := range e.cfg.LabelStatusMapping {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		li, lj := strings.ToLower(keys[i]), strings.ToLower(keys[j])
+		return li < lj || (li == lj && keys[i] < keys[j])
+	})
+	for _, k := range keys {
+		if st, ok := e.statusOfLabel(k); ok && st == hub {
+			if target == "" {
+				target = k
+			}
+			if slices.ContainsFunc(labels, func(l string) bool { return strings.EqualFold(l, k) }) {
+				target = k
+				break
+			}
+		}
+	}
+	if target == "" {
+		slog.Debug("tracker.push.no_status_label", "issue", issue.IID, "status", hub)
+		return labels, nil, nil
+	}
+	var toAdd, toRemove []string
+	if !slices.ContainsFunc(labels, func(l string) bool { return strings.EqualFold(l, target) }) {
+		toAdd = append(toAdd, target)
+	}
+	for _, l := range labels {
+		if st, ok := e.statusOfLabel(l); ok && st != hub {
+			toRemove = append(toRemove, l)
+		}
+	}
+	if len(toAdd) == 0 && len(toRemove) == 0 {
+		return labels, nil, nil
+	}
+	warn := func(verb string, err error) {
+		slog.Warn("tracker.push.status_label_failed", "issue", iid, "verb", verb, "error", err)
+		if !errors.Is(err, ErrWriteDisabled) {
+			pr.Warnings = append(pr.Warnings, fmt.Sprintf("issue %d: %s status label failed: %v", iid, verb, err))
+		}
+	}
+	out := slices.Clone(labels)
+	if len(toAdd) > 0 {
+		if err := e.tracker.AddLabels(ctx, trackerProjectID, iid, toAdd); err != nil {
+			warn("add", err)
+			return labels, nil, nil
+		}
+		pr.LabelsPushed += len(toAdd)
+		out = append(out, toAdd...)
+		added = toAdd
+	}
+	if len(toRemove) > 0 {
+		if err := e.tracker.RemoveLabels(ctx, trackerProjectID, iid, toRemove); err != nil {
+			warn("remove", err)
+			return out, added, nil
+		}
+		out = slices.DeleteFunc(out, func(l string) bool { return slices.Contains(toRemove, l) })
+		removed = toRemove
+	}
+	return out, added, removed
+}
+
 func labelSet(labels []string) map[string]bool {
 	m := make(map[string]bool, len(labels))
 	for _, l := range labels {
@@ -1260,8 +1473,10 @@ func hasLabel(labels []string, target string) bool {
 	return false
 }
 
-// isTrackerMirroredLabel returns true for labels that were mirrored from the
-// external tracker (i.e. not hub-specific ones like "agent-reviewed").
+// isTrackerMirroredLabel returns false for the labels the hub owns
+// ("agent-reviewed", "needs-human-review", "hub:done"): a tracker that does
+// not carry them does not take them off the claim. For the others, only a label
+// the sync saw on the issue (TrackerLabels) can be taken off when it leaves it.
 func isTrackerMirroredLabel(l string) bool {
 	switch l {
 	case teamstate.LabelAgentReviewed,

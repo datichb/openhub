@@ -236,9 +236,11 @@ func TestPoolOfAnAnonymisedRealConfig(t *testing.T) {
 	)
 	f.seedSyncState(t)
 	// The project was synced before: it already has a claim (ticket 106 of
-	// alice), so the run is not "the first sync" of the project.
+	// alice), so the run is not "the first sync" of the project. The claim
+	// remembers the issue as the previous pass saw it, without the label
+	// 'Testing' it has since.
 	_, err := f.repo.CreateClaim(t.Context(), teamstate.Claim{TicketID: "106", Project: "p", ClaimedBy: "alice",
-		Status: teamstate.ClaimStatusInProgress, ExternalIID: 106})
+		Status: teamstate.ClaimStatusInProgress, ExternalIID: 106, TrackerState: "open", TrackerStatus: "opened"})
 	require.NoError(t, err)
 
 	res := f.run(t)
