@@ -1,0 +1,111 @@
+package shell
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"sync"
+	"testing"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/tracker"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
+)
+
+// journey wires the real list of teams and the real team detail the way the
+// host does: the team opened from the list is the one the detail resolves.
+type journey struct {
+	*simShell
+	mu     sync.Mutex
+	picked string
+	solos  map[string]views.TeamResolution
+}
+
+func newJourney(t *testing.T, ids ...string) *journey {
+	t.Helper()
+	j := &journey{solos: map[string]views.TeamResolution{}}
+	hub := &config.Config{}
+	for _, id := range ids {
+		dir := t.TempDir() + "/state"
+		_, err := teamstate.InitSolo(context.Background(), dir, teamstate.Member{ID: "alice"})
+		require.NoError(t, err)
+		hub.Teams = append(hub.Teams, config.TeamConfig{ID: id, Name: "Team " + id, Enabled: true, Solo: true, MemberID: "alice", StatePath: dir})
+		j.solos[id] = views.TeamResolution{Enabled: true, Solo: true, TeamID: id, StatePath: dir, MemberID: "alice"}
+	}
+	var sh *simShell
+	teams := views.NewTeamsView(views.TeamsViewDeps{
+		Config:       hub,
+		OnNavigate:   func(id string) { sh.NavigateTo(id) },
+		OnSelectTeam: func(id string) { j.mu.Lock(); j.picked = id; j.mu.Unlock() },
+	})
+	detail := views.NewTeamDetailView(views.TeamDetailViewConfig{
+		GetMCPConfig:          func() config.MCPConfig { return config.MCPConfig{} },
+		GetTrackerLocalConfig: func() config.TrackerLocalConfig { return config.TrackerLocalConfig{} },
+		GetSecrets:            func() tracker.SecretGetter { return nil },
+		GetHubConfig:          func() *config.Config { return hub },
+		ResolveTeam: func() views.TeamResolution {
+			j.mu.Lock()
+			defer j.mu.Unlock()
+			return j.solos[j.picked]
+		},
+	})
+	sh = runSimShell(t, 120, 40, Config{ProjectName: "test", HomeViewID: "home",
+		Views: []views.View{&keyView{id: "home", focusList: true}, &keyView{id: "settings", focusList: true}, teams, detail}})
+	j.simShell = sh
+	sh.loop(func() { sh.NavigateHome("home", views.ModeHub) })
+	return j
+}
+
+func (j *journey) pickedID() string {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	return j.picked
+}
+
+func (j *journey) esc(t *testing.T, wantDepth int, step string) {
+	t.Helper()
+	j.key(tcell.KeyEscape, 0, tcell.ModNone)
+	assert.Equal(t, wantDepth, j.depth(), step)
+	assert.Equal(t, 0, j.toastCount(), "no toast after %s", step)
+}
+
+// Home → Configuration → Teams → detail: Esc goes back one level at every
+// step, with 0, 1 and 2 teams, and a detail left unedited shows no toast.
+func TestEscWalksBackHomeConfigurationTeamsDetail(t *testing.T) {
+	for _, ids := range [][]string{{}, {"alpha"}, {"alpha", "beta"}} {
+		t.Run(fmt.Sprintf("%d teams", len(ids)), func(t *testing.T) {
+			j := newJourney(t, ids...)
+			j.loop(func() { j.NavigateTo("settings") })
+			j.loop(func() { j.NavigateTo("teams") })
+			require.Equal(t, 3, j.depth())
+
+			screen := j.screenText()
+			if len(ids) == 0 {
+				assert.Contains(t, strings.ToLower(screen), "no team", "the empty list says so")
+				j.key(tcell.KeyEnter, 0, tcell.ModNone)
+				assert.Equal(t, 3, j.depth(), "nothing to open")
+				j.loop(func() { j.NavigateTo("team.detail") }) // from the palette
+				assert.Contains(t, j.screenText(), "No team to configure")
+				assert.Contains(t, j.screenText(), "Esc", "the way back is shown")
+				j.esc(t, 3, "the empty detail")
+			} else {
+				j.key(tcell.KeyDown, 0, tcell.ModNone)
+				j.key(tcell.KeyEnter, 0, tcell.ModNone)
+				require.Equal(t, 4, j.depth(), "the team opens")
+				want := ids[len(ids)-1] // Down moves to the second team when there is one
+				assert.Equal(t, want, j.pickedID(), "the team chosen in the list is the one opened")
+				require.Eventually(t, func() bool { return strings.Contains(j.screenText(), "· "+want) }, 3e9, 20e6,
+					"the detail shows the chosen team")
+				assert.Contains(t, j.screenText(), "Esc", "the way back is shown")
+				j.esc(t, 3, "the detail")
+			}
+			j.esc(t, 2, "the teams")
+			j.esc(t, 1, "the configuration")
+		})
+	}
+}

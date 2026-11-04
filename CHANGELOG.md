@@ -9,6 +9,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed
+
+- **TUI : plus de piège clavier après un chargement en arrière-plan (« Échap ne marche plus »).** Sur l'accueil, `Entrée` sur « Configuration » puis une 2ᵉ `Entrée` (ou `/`, `?`) pendant le chargement ouvrait la palette ou l'aide ; la vue qui finissait de charger prenait alors le focus, la palette restait active sans focus, et dans la vue Équipes plus rien ne répondait (`Échap`, `Ctrl+P`, `Ctrl+T`, `?`), seul `Ctrl+Q` sortait. Le shell rend maintenant le focus à la palette ou à la fenêtre du dessus avant de livrer la touche : `Échap` la ferme toujours, puis revient d'une vue. Les vues qui chargent hors de la boucle (Configuration, Équipe, Modèles, Fournisseur, MCP, Secrets, Projets, Config projet, Modèles d'équipe) ne prennent le focus que s'il est le leur (rien ne l'a, ou il est dans leur contenu).
+- **TUI : le détail d'équipe n'affiche plus un toast rouge « modifications non publiées » à chaque sortie.** Les indicateurs de modification et la pile d'annulation n'étaient pas remis à zéro à l'ouverture : le toast restait pendant 10 s et l'`Échap` suivant servait à le fermer au lieu de revenir. Ils repartent maintenant de zéro à chaque ouverture, ainsi que la configuration lue.
+- **TUI : le détail d'équipe affiche et édite l'équipe choisie dans la liste.** `Entrée` sur une équipe de la liste Équipes ouvrait le détail de l'équipe par défaut du hub ; avec plusieurs équipes et aucune par défaut, le formulaire était vide et `Ctrl+S` échouait toujours (`r` ne faisait rien, une équipe solo n'était pas reconnue). L'équipe ouverte est celle que le détail (et ses sous-pages MCP et Modèles) lit et enregistre, et son identifiant figure dans le titre. Sans équipe à afficher, le détail dit « Aucune équipe à configurer », `Ctrl+S` est sans effet et `Échap` revient ; une liste d'équipes vide propose `n` pour en ajouter une.
+- **TUI : « Échap revenir » dans la ligne d'aide de toutes les vues au-dessus de la racine** (Configuration, Équipes, détail d'équipe, MCP et Modèles d'équipe, Modèles, Fournisseur, MCP, Workflows, Notifications…). Le shell l'ajoute lui-même quand la vue ne le dit pas déjà, au lieu que chaque vue doive y penser.
+
 ## [5.3.1] — 2026-11-04
 
 Version corrective de la 5.3.0 : les boards ne ramènent plus en haut de la colonne à chaque rafraîchissement, et les valeurs `todo` migrées ne donnent plus qu'une ligne d'avertissement par équipe, avec la commande à lancer ([`oh doctor --fix`](docs/reference/cli-infra.fr.md#oh-doctor)). Aucune rupture, aucune migration.

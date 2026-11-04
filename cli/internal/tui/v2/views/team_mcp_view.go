@@ -124,6 +124,7 @@ func (v *TeamMCPView) Mount(content *tview.Flex, app *tview.Application) {
 	// Pull the team-state, read its config off the event loop, then build the
 	// list on it.
 	v.open(func() {
+		owned := ownsFocus(app, content)
 		v.list = widgets.NewSectionedList()
 		v.list.SetApp(app)
 		v.page = newListPage(v.Title(), v.list)
@@ -140,7 +141,7 @@ func (v *TeamMCPView) Mount(content *tview.Flex, app *tview.Application) {
 		v.renderFields()
 
 		v.page.Mount(content)
-		app.SetFocus(v.list)
+		focusIf(app, owned, v.list)
 	})
 }
 

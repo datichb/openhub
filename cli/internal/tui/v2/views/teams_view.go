@@ -29,6 +29,7 @@ type TeamsView struct {
 	onSync     func(teamID string)
 	onUpdate   func(fn func(*config.Config) error) error
 	onNavigate func(viewID string)
+	onSelect   func(teamID string)
 	undoStack  *widgets.UndoStack[[]config.TeamConfig]
 
 	// memberNames: the display name of the member of each team, by team ID,
@@ -47,6 +48,10 @@ type TeamsViewDeps struct {
 	// config up to date with the result.
 	OnUpdate   func(fn func(*config.Config) error) error
 	OnNavigate func(viewID string) // Called to navigate to another view
+	// OnSelectTeam tells the host which team the user opened from the list,
+	// right before OnNavigate("team.detail"): the views of the team then work
+	// on that team (the default team of the hub otherwise).
+	OnSelectTeam func(teamID string)
 	// MemberNames gives the display name of the member of each team (team ID →
 	// name) from the team-states. It reads files: called off the event loop.
 	// Nil: the member IDs.
@@ -63,6 +68,7 @@ func NewTeamsView(deps TeamsViewDeps) *TeamsView {
 		onSync:     deps.OnSync,
 		onUpdate:   deps.OnUpdate,
 		onNavigate: deps.OnNavigate,
+		onSelect:   deps.OnSelectTeam,
 		undoStack:  widgets.NewUndoStack[[]config.TeamConfig](10),
 
 		memberNames: deps.MemberNames,
@@ -314,7 +320,10 @@ func (v *TeamsView) handleSelect(index int, item widgets.SectionItem) {
 	if !ok || teamID == "" {
 		return
 	}
-	// Navigate to team detail view
+	// The detail shows the team chosen here, not the default one.
+	if v.onSelect != nil {
+		v.onSelect(teamID)
+	}
 	if v.onNavigate != nil {
 		v.onNavigate("team.detail")
 	}

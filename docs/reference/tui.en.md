@@ -49,7 +49,7 @@ The mode bar shows the sessions badge **`● N ◐ M`** (N sessions working, M d
 | `Ctrl+Q` / `Ctrl+C` | Quit (when sessions work: finish the step then sleep, background, or stop) |
 | `Enter` | Action of the selected list, button or field; palette only when nothing uses it |
 
-**Key order**: windows (forms, confirmations) and the palette get every key; then the global keys; then the keys of the view; then the selected list or field. Typing a letter « anywhere » does not open the palette.
+**Key order**: windows (forms, confirmations) and the palette get every key; then the global keys; then the keys of the view; then the selected list or field. Typing a letter « anywhere » does not open the palette. If a view that finishes loading in the background takes the focus while the palette or a window is open, that layer gets it back at the next key: `Esc` always closes it. A view that is not the root shows `Esc back` in its hints line (added by the TUI when the view does not already say it).
 
 **Windows**: a window opened while another one is shown stacks over it, up to three levels (the backdrop gets darker each time). `Esc` closes the top one, with or without a button, and gives control back to the one under it; closing a window also closes the ones over it. The focus goes back to where the window was opened from: the button of the window under it, or the component of the view that had it. A question asked from a card ("Decide", "Refuse", "Override"…) opens over the card: "Cancel" or `Esc` gives the card back as it was, answering closes the question and the card with it. A required field left empty (instruction, reason) is refused without closing the window: what was typed stays, with a warning. `Tab` and `Shift+Tab` do not close an input. **Width**: a choice list (the `a` menu of a card, a status, a workflow…) is as wide as its longest line, from 40 columns up to the screen less 4; its title counts too. Nothing is cut, except on a screen too narrow, where the line or the title ends with « … ». Inputs and forms take 70 % of the screen, between 72 and 120 columns (never more than the screen less 4), and their fields stretch with them; the hints under the fields wrap to the width.
 
@@ -438,8 +438,8 @@ The tracker discovery wizard (`Discover Tracker`) uses the same editor for its c
 | Provider | `Space` default, `Enter` / `e` modify, `s` set up, `d` clear the configuration and the key of the keychain (confirmed) |
 | MCP (hub, project, team) | `Space` enable, `Enter` modify, `t` token or test, `m` write mode (hub view), `Ctrl+S` save (team), `u` undo, `T` approve the URL imposed by the team (hub view; confirmed, see [`oh mcp trust`](cli-mcp.en.md#oh-mcp-trust)) |
 | Secrets | `Enter` / `e` modify, `n` create, `d` delete (confirmed) |
-| Teams | `Enter` open, `n` create, `d` delete (confirmed), `s` sync, `u` undo |
-| Team detail | `Space` toggle, `Enter` modify, `Ctrl+S` save, `s` sync, `t` test, `u` undo, `T` discover the tracker, `K` provider key of the team |
+| Teams | `Enter` open, `n` create, `d` delete (confirmed), `s` sync, `u` undo. With no team: « No team », `n` to add one |
+| Team detail | the team opened in the list (else the default team; « No team to configure » and a `Ctrl+S` with no effect when there is none): `Space` toggle, `Enter` modify, `Ctrl+S` save, `s` sync, `t` test, `u` undo, `T` discover the tracker, `K` provider key of the team |
 | Patterns | `Enter` see, `n` create, `y` validate, `d` delete (confirmed) |
 | Policies | `Enter` detail, `n` create, `t` template, `e` edit, `d` delete (confirmed), `c` check |
 | Status, Activity, Metrics | `c` check the conventions · `t` / `s` / `0` today, week, all (Activity) · `7` / `3` / `0` period, `Tab` usage by agent |

@@ -220,12 +220,13 @@ func TestProjectConfigViewLoadAndRemount(t *testing.T) {
 func TestTeamDetailLoadAndRemount(t *testing.T) {
 	frLocale(t)
 	shared := seedHome(t)
+	_, tc := soloState(t)
 	var calls atomic.Int32
 	first, release := make(chan struct{}), make(chan struct{})
 	v := NewTeamDetailView(TeamDetailViewConfig{
 		GetMCPConfig:          func() config.MCPConfig { return shared.MCP },
 		GetTrackerLocalConfig: func() config.TrackerLocalConfig { return shared.Tracker },
-		ResolveTeam:           func() TeamResolution { return TeamResolution{} },
+		ResolveTeam:           func() TeamResolution { return tc },
 		GetMember: func(context.Context, string) *teamstate.Member {
 			if calls.Add(1) == 1 {
 				close(first)

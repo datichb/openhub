@@ -148,7 +148,8 @@ func buildTeamsView(a *app.App) views.View {
 				})
 			})
 		},
-		OnUpdate: func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
+		OnUpdate:     func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
+		OnSelectTeam: func(teamID string) { pickTeam(a, teamID) },
 		OnNavigate: func(viewID string) {
 			if tuiShell != nil {
 				tuiShell.NavigateTo(viewID)

@@ -113,7 +113,10 @@ type TeamDetailView struct {
 	fields     []configField
 	dirtyTeam  bool
 	dirtyLocal bool
-	badge      saveBadge
+	// noTeam is true when no team (nor solo space) could be resolved: the
+	// view shows an empty state and nothing can be edited or saved.
+	noTeam bool
+	badge  saveBadge
 	// saving is true while a save runs off the event loop; saveAgain, that an
 	// edit asked for another one meanwhile.
 	saving, saveAgain bool
@@ -141,6 +144,9 @@ func (v *TeamDetailView) ID() string             { return "team.detail" }
 func (v *TeamDetailView) Title() string          { return i18n.T("tui.team.detail") }
 
 func (v *TeamDetailView) StatusHints() string {
+	if v.noTeam {
+		return keys.Back.Hint()
+	}
 	if v.solo() {
 		return keys.Hints(keys.Navigate.Hint(), keys.Open.HintAs(i18n.T("tui.hints.edit")),
 			keys.Save.Hint(), cfgUndoKey.Hint())
@@ -158,10 +164,26 @@ func (v *TeamDetailView) StatusHints() string {
 func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 
+	// Nothing carries over from a previous visit (another team, an edit left
+	// unpublished): a stale flag would show « unpublished changes » on every
+	// exit and eat the next Esc.
+	v.dirtyTeam, v.dirtyLocal = false, false
+	v.undoStack.Clear()
+	v.teamCfg, v.member, v.fields = nil, teamstate.Member{}, nil
+	var team TeamResolution
+	if v.cfg.ResolveTeam != nil {
+		team = v.cfg.ResolveTeam()
+	}
+	v.noTeam = !team.hasState()
+	title := v.Title()
+	if team.TeamID != "" {
+		title += " · " + team.TeamID
+	}
+
 	v.list = widgets.NewSectionedList()
 	v.list.SetApp(app)
-	v.page = widgets.NewListDetailPage(v.Title(), i18n.T("tui.catalog.detail"))
-	v.badge.attach(v.page, v.Title())
+	v.page = widgets.NewListDetailPage(title, i18n.T("tui.catalog.detail"))
+	v.badge.attach(v.page, title)
 	v.page.SetMain(v.list)
 
 	v.list.SetItemSelectedFunc(func(_ int, item widgets.SectionItem) {
@@ -171,6 +193,12 @@ func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 		showFieldItemDetail(v.page, v.fields, item, v.extraKeys()...)
 	})
 
+	if v.noTeam {
+		v.page.Mount(content)
+		v.showNoTeam()
+		return
+	}
+
 	// Pull the team-state, read it off the event loop, then show the fields.
 	v.page.Mount(content)
 	v.page.SetDetail(stateText(stateLoading, ""))
@@ -178,6 +206,16 @@ func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 		v.buildFields()
 		v.renderFields()
 	})
+}
+
+// showNoTeam is the state of a view with no team to show.
+func (v *TeamDetailView) showNoTeam() {
+	v.list.SetItems([]widgets.SectionItem{{MainText: stateText(stateEmpty, i18n.T("v532k.team_detail.empty"))}})
+	var d detailText
+	d.title(i18n.T("v532k.team_detail.empty"))
+	d.para(i18n.T("v532k.team_detail.empty_hint"))
+	d.keys(keys.Pairs(keys.Back)...)
+	v.page.SetDetail(d.String())
 }
 
 // extraKeys are the page keys listed in the detail pane.
@@ -209,7 +247,7 @@ func (v *TeamDetailView) Unmount() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
-	if v.list == nil {
+	if v.list == nil || v.noTeam {
 		return event
 	}
 	switch {
@@ -253,8 +291,7 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 // reload pulls the team-state and reloads the fields; unsaved changes are
 // dropped (r asks first, confirmDiscard).
 func (v *TeamDetailView) reload() {
-	tc := v.cfg.ResolveTeam()
-	if !tc.Enabled {
+	if v.noTeam || !v.cfg.ResolveTeam().hasState() {
 		return
 	}
 	v.open(func() {
@@ -722,7 +759,7 @@ type TeamConfigWriter func(ctx context.Context, cfg *teamstate.TeamConfig) error
 // edits made meanwhile wait for the next one). What the write needs from the
 // view and the app is taken here, on the loop.
 func (v *TeamDetailView) save() {
-	if v.shell == nil {
+	if v.shell == nil || v.noTeam {
 		return
 	}
 	if v.saving {

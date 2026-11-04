@@ -16,7 +16,8 @@ import (
 //  1. urgency: Ctrl+Q / Ctrl+C (quit), Esc clearing a text selection;
 //  2. the palette, the overlays (modals, forms) and the views that capture
 //     input (forms, wizards) receive every other key, Esc included (it
-//     does not close the toasts there);
+//     does not close the toasts there); a palette or a window that lost the
+//     focus to a view behind it (a load that ended) gets it back first;
 //  3. reserved keys, never redefined by a view: Esc (closes the toasts
 //     shown, then goes back), Ctrl+P, Ctrl+T, ? and F1;
 //  4. the active view (HandleKey);
@@ -33,7 +34,7 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 	}
 	// The palette and the windows take the keys they are given.
 	if s.omnibar.IsActive() || s.hasOverlay() {
-		return event
+		return s.layerKey(event)
 	}
 	// F1 opens the help in every view, forms and editors included.
 	if event.Key() == tcell.KeyF1 {
@@ -74,6 +75,35 @@ func (s *Shell) globalKeyHandler(event *tcell.EventKey) *tcell.EventKey {
 		return event
 	}
 	return s.fallbackKey(event, focus)
+}
+
+// layerKey hands a key to the palette or to the window on top. When the
+// focus is not there (a view finished loading in the background and took
+// it), the layer gets it back before the key is delivered: tview looks for
+// the focused widget from the root at that moment. Without this the layer
+// stays on the screen unreachable, and Esc does nothing.
+func (s *Shell) layerKey(event *tcell.EventKey) *tcell.EventKey {
+	if target := s.lostLayerFocus(); target != nil {
+		s.app.SetFocus(target)
+	}
+	return event
+}
+
+// lostLayerFocus returns the widget to give the focus back to when the
+// palette or the window on top lost it to the content of the view (nil: the
+// focus is fine).
+func (s *Shell) lostLayerFocus() tview.Primitive {
+	if f := s.app.GetFocus(); f != nil && !s.content.HasFocus() {
+		return nil
+	}
+	if s.hasOverlay() {
+		for d := len(windowPages) - 1; d >= 0; d-- {
+			if s.pages.HasPage(windowPages[d]) {
+				return s.pages.GetPage(windowPages[d])
+			}
+		}
+	}
+	return s.omnibar.input
 }
 
 // urgentKey is the first layer: quitting, the « terminal too small » screen

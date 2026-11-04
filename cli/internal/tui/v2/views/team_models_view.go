@@ -126,6 +126,7 @@ func (v *TeamModelsView) Mount(content *tview.Flex, app *tview.Application) {
 // buildList creates the SectionedList widget and mounts it in place of the
 // loading placeholder.
 func (v *TeamModelsView) buildList(content *tview.Flex, app *tview.Application) {
+	owned := ownsFocus(app, content)
 	v.list = widgets.NewSectionedList()
 	v.list.SetApp(app)
 	v.page = newListPage(v.Title(), v.list)
@@ -138,7 +139,7 @@ func (v *TeamModelsView) buildList(content *tview.Flex, app *tview.Application) 
 
 	v.renderList()
 	v.page.Mount(content)
-	app.SetFocus(v.list)
+	focusIf(app, owned, v.list)
 }
 
 func (v *TeamModelsView) Unmount() {
