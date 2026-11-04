@@ -33,7 +33,7 @@ The mode bar shows the sessions badge **`● N ◐ M`** (N sessions working, M d
 
 **Landings.** The three landings draw their name in the banner as it was typed (a team « Core » is not « CORE »; the Hub draws the logo « OPENHUB »).
 
-- **Hub**: under the banner, the tool line `opencode v2.0.25 · adapter opencode-v2 ✔` (the tool and the adapter that launch the sessions). The System section lists Configuration, Metrics, Doctor, Secrets, **Notifications** and the **Brick catalogue**.
+- **Hub**: under the banner, the tool line `opencode v2.2.5 · adapter opencode-v2 ✔` (the tool and the adapter that launch the sessions). The System section lists Configuration, Metrics, Doctor, Secrets, **Notifications** and the **Brick catalogue**.
 - **Project**: the header gives the path and the branch, the tool line and the execution environments with their state, `execution: ⌂ local ✔  ▣ container · colima ✔  ☁ remote ✗` (read when the landing opens, not on the event loop).
 - **Team**: besides *Team sessions*, the section **Sessions of the other members** lists, from the claims of the team-state, who works on which ticket (member, ticket, session, since when; `●` the claim is alive, `○` its lease is past). It is **read only**: `Enter` opens a window with the details and a single button *Close*; a session runs on the machine of its member, oh does not act on it.
 

@@ -71,7 +71,7 @@ func readJSON(projectPath string, into any, args ...string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	cmd := BdCommand(ctx, append(append([]string{"-C", projectPath, "--readonly"}, args...), "--json")...)
-	cmd.Dir = projectPath // bd orphans reads the git log of its working directory, not of -C (bd 1.3.1)
+	cmd.Dir = projectPath // bd orphans reads the git log of its working directory, not of -C (bd 1.3.3)
 	data, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {

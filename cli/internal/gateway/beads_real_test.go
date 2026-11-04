@@ -21,7 +21,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
-// Contract with the real bd (1.3.1 when the table was generated): the
+// Contract with the real bd (1.3.3 when the table was generated): the
 // proofs of the v5 audit (S-07, S-08) run through the gateway and change
 // nothing; the canonical arguments are read by bd as the gateway read them.
 func TestRealBeadsArgsContract(t *testing.T) {

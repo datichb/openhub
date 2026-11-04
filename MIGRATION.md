@@ -4,7 +4,7 @@ oh 5.0 est une version majeure : opencode V2 devient obligatoire, chaque session
 
 **À retenir avant de commencer**
 
-- Installez **opencode V2** (2.0.0 au minimum, **2.0.25** recommandée) : sans lui, `oh run` refuse de démarrer.
+- Installez **opencode V2** (2.0.0 au minimum, **2.2.5** recommandée) : sans lui, `oh run` refuse de démarrer.
 - Faites `oh export` avant la mise à jour, puis lancez `oh doctor`.
 - **`SSH_AUTH_SOCK` et `GH_TOKEN` ne passent plus aux agents** : autorisez-les avec `execution.env_allow` si vos agents en ont besoin.
 - `hub.toml` est lu **strictement** (`"true"` n'est plus un booléen) et `./hub.toml` n'est plus lu.
@@ -41,7 +41,7 @@ La 5.2 change le sens d'un réglage du mode équipe et ajoute un refus (deux rup
 | Prérequis | Valeur | Vérification |
 |---|---|---|
 | oh de départ | 4.2.0 (les autres 4.x se migrent de la même façon) | `oh version` |
-| opencode | **V2** : minimum **2.0.0**, maximum 2.99.99, **recommandée 2.0.25** (la version testée par la CI) | `opencode --version`, puis `oh doctor` (ligne « opencode ») |
+| opencode | **V2** : minimum **2.0.0**, maximum 2.99.99, **recommandée 2.2.5** (la version testée par la CI) | `opencode --version`, puis `oh doctor` (ligne « opencode ») |
 | Plateforme | macOS ou Linux. Windows : sessions locales seulement (pas de conteneur, pas de mode distant, pas d'arrière-plan pour le démon, `oh upgrade oh` non pris en charge) | |
 
 opencode V1 n'est plus pris en charge, sans repli. Avec une version hors de la plage (trop ancienne, ou au-delà de 2.99.99), `oh run` refuse de démarrer et affiche :
@@ -53,7 +53,7 @@ Installez une version prise en charge de opencode, puis lancez oh doctor. Guide 
 
 Sans opencode du tout : `opencode est introuvable : oh v5 en demande une version prise en charge.` (suivi du même conseil). `oh doctor` affiche la ligne **opencode** en ✗ avec le même texte.
 
-Une version de la plage mais **non épinglée** dans oh (autre que 2.0.20 et 2.0.25) fonctionne, mais `oh doctor` l'avertit : les images de conteneur téléchargeraient opencode sans empreinte vérifiée, et `execution.strict_isolation = true` la refuse. Voir [SECURITY.fr.md](SECURITY.fr.md#chaîne-dapprovisionnement).
+Une version de la plage mais **non épinglée** dans oh (autre que 2.0.20, 2.0.25 et 2.2.5) fonctionne, mais `oh doctor` l'avertit : les images de conteneur téléchargeraient opencode sans empreinte vérifiée, et `execution.strict_isolation = true` la refuse. Voir [SECURITY.fr.md](SECURITY.fr.md#chaîne-dapprovisionnement).
 
 ## Les étapes, dans l'ordre
 
@@ -84,10 +84,10 @@ Chaque ligne donne ce qui change pour un utilisateur de la 4.2.0 et ce qu'il fau
 
 | Changement | À faire |
 |---|---|
-| **opencode V2 obligatoire** (2.0.0 à 2.99.99, recommandée 2.0.25) ; en 4.2.0 la plage était 1.15.0 à 1.99.99. Plus de repli sur V1 | Installer opencode V2 (étape 2) |
+| **opencode V2 obligatoire** (2.0.0 à 2.99.99, recommandée 2.2.5) ; en 4.2.0 la plage était 1.15.0 à 1.99.99. Plus de repli sur V1 | Installer opencode V2 (étape 2) |
 | `oh upgrade opencode`, l'installation gérée dans `~/.oh/bin` et les clés `[opencode] version`, `channel`, `auto_update`, `install_dir` de `hub.toml` sont **supprimés** (`oh upgrade` n'a plus que `oh`) | Mettre opencode à jour avec son outil ; ces clés sont ignorées, puis perdues au prochain enregistrement de `hub.toml` |
 | `oh plugin` (`install`, `list`, `remove`, `status`), la vue Plugins et les plugins globaux d'opencode V1 (dont RTK) sont **supprimés** : « unknown command », code 2 | Déclarer les plugins dans le workflow (`plugins:`), voir [Workflows livrés](docs/reference/workflows.fr.md#plugins-et-code-mode) |
-| Empreinte des paquets Linux d'opencode **épinglée** pour 2.0.20 et 2.0.25 ; autre version : avertissement (`oh doctor`), refus avec `execution.strict_isolation` (images de conteneur) | Préférer une version épinglée, ou accepter l'avertissement |
+| Empreinte des paquets Linux d'opencode **épinglée** pour 2.0.20, 2.0.25 et 2.2.5 ; autre version : avertissement (`oh doctor`), refus avec `execution.strict_isolation` (images de conteneur) | Préférer une version épinglée, ou accepter l'avertissement |
 | `oh upgrade oh` ne rétrograde plus sans demande explicite ; la signature Cosign est vérifiée si `cosign` est installé (`OH_REQUIRE_SIGNATURE=1` pour l'exiger) ; `install.sh` refuse sans outil de somme de contrôle | Rien (information) |
 
 ### Commandes et options

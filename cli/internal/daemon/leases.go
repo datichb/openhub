@@ -9,7 +9,7 @@ import (
 )
 
 // Beads leases of local sessions. A claim (bd update --claim) carries a
-// lease that bd 1.3.1 lets expire after 5 minutes; `bd reclaim` then gives
+// lease that bd 1.3.3 lets expire after 5 minutes; `bd reclaim` then gives
 // the ticket back to the pool, while the session still works on it. The
 // daemon refreshes (bd heartbeat) the leases of the tickets each open
 // session claimed through the gateway, or that its workflow state lists as

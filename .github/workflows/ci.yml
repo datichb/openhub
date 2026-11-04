@@ -93,8 +93,8 @@ jobs:
       - name: Install bd (pinned version, checksum verified)
         if: runner.os == 'Linux'
         env:
-          BD_VERSION: "1.3.1"
-          BD_SHA256_LINUX_AMD64: "3219443a9734b89b93fb16ee8d65844759fa1b3cd3cf139c606b7353cfb0715c"
+          BD_VERSION: "1.3.3"
+          BD_SHA256_LINUX_AMD64: "10a7aebfd50549c33c43d185e3870bbd82b4f900b2a5e3129369ee6e2b0fb2e5"
         run: |
           archive="$RUNNER_TEMP/beads-$BD_VERSION.tar.gz"
           bin="$RUNNER_TEMP/bd-bin"
@@ -171,9 +171,9 @@ jobs:
       # https://registry.npmjs.org/@opencode/cli-darwin-arm64/-/cli-darwin-arm64-<version>.tgz
       # (and darwin-x64), check it against the `dist.integrity` (sha512) the
       # registry publishes for the version, then record its `shasum -a 256`.
-      OPENCODE_VERSION: "2.0.25"
-      OPENCODE_SHA256_DARWIN_ARM64: "1b3bc78066ad05acb4242c4c15ba6056accb7dccc3909100d5141161ac2179e1"
-      OPENCODE_SHA256_DARWIN_X64: "c0fca95b7b3c7e60159ce2873955837646411de87872c6c4b64bd6d16f766656"
+      OPENCODE_VERSION: "2.2.5"
+      OPENCODE_SHA256_DARWIN_ARM64: "dfd827de3281b4c3ca2b0bfc8f4beb103fa660c419d148a1a515c4344f9e9c02"
+      OPENCODE_SHA256_DARWIN_X64: "304f4666e7e37eac338de258f763b7f5b8987ab1bde2341dc1a613a8205c0010"
     defaults:
       run:
         shell: bash

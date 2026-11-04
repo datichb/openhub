@@ -83,7 +83,7 @@ function agentBody(dir: string | undefined, id: string): string | null {
 }
 
 // match is the wildcard of the tool permission rules (same semantics as
-// opencode 2.0.20 util/wildcard.ts): whole value, '*' any run, '?' one
+// opencode util/wildcard.ts, unchanged between 2.0.20 and 2.2.5): whole value, '*' any run, '?' one
 // character, a trailing " *" also matches the bare command.
 function match(input: string, pattern: string): boolean {
   const normalized = input.replaceAll("\\", "/")

@@ -62,6 +62,15 @@ func TestParseCombinedShorts(t *testing.T) {
 	assert.Equal(t, []string{"pr-1"}, c.Args)
 }
 
+// bd 1.3.3 added --force to `bd rules compact`: the table generated from it
+// accepts the option (it was refused with the table of bd 1.3.1).
+func TestParseRulesCompactForce(t *testing.T) {
+	c, err := Parse([]string{"rules", "compact", "--force", "--dry-run"})
+	require.NoError(t, err)
+	assert.True(t, c.Bool("force"))
+	assert.True(t, c.Bool("dry-run"))
+}
+
 func TestParseErrors(t *testing.T) {
 	for _, argv := range [][]string{
 		{"--DB=/x", "list"},

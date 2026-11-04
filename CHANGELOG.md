@@ -9,6 +9,12 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed
+
+- **opencode 2.2.5 est la version recommandée** (la 2.0.25 jusque-là), celle que la CI installe et contre laquelle les tests d'intégration sans modèle ont été relancés. La plage supportée ne bouge pas (2.0.0 à 2.99.99), et `compatibility.json` gagne l'entrée `5.3`. L'empreinte sha512 des quatre paquets Linux de la 2.2.5 est épinglée (`pinned_integrity.json`) avec la 2.0.20 et la 2.0.25 : les images de conteneur et `execution.strict_isolation` l'acceptent sans avertissement. Les agents natifs (`build`, `explore`, `general`, `plan`) sont les mêmes qu'en 2.0.20. `MIGRATION.md`, `SECURITY*`, les guides (migration, conteneur, tutoriel), la référence de la TUI et la liste de contrôle de release suivent.
+- **bd 1.3.3 est la version attendue** (la 1.3.1 jusque-là). La table des commandes et options de la passerelle Beads est régénérée contre elle : une seule différence, `bd rules compact` accepte désormais `--force` (la passerelle le refusait avec la table de la 1.3.1). Le schéma des enregistrements (`bd schema`) est inchangé. `oh doctor` ne signale plus d'écart de version avec la 1.3.3 installée, et la CI installe la 1.3.3 (empreinte SHA-256 vérifiée). Un test vérifie que `BD_VERSION` de `ci.yml` est la version de la table.
+- **`--readonly` de bd 1.3.3 refuse plus d'écritures qu'en 1.3.1** : `config set`, `backup` (`init`, `sync`, `remove`, `restore`) et `import` sont maintenant refusés par bd lui-même sur une lecture ; `hooks install` passe encore. La passerelle les refusait déjà derrière sa liste blanche : la deuxième protection est plus complète (`SECURITY*`).
+
 ## [5.2.1] — 2026-11-04
 
 Version corrective de la 5.2.0, issue de la recette et d'un audit de la TUI : plus de plantage au clic, fenêtres qui s'empilent et rendent le focus, contrôles d'[`oh doctor`](docs/reference/cli-infra.fr.md#oh-doctor) qui disent ce qu'ils n'ont pas pu lire, noms à la place des identifiants. Le workflow `spec` devient plus exigeant sur les questions et les risques ([guide](docs/guides/spec-workflow.fr.md)). Aucune rupture, aucune migration.
