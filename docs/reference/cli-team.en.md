@@ -95,6 +95,12 @@ Wizard configuring the shared MCP services (GitLab, Jira…) and the tracker syn
 
 For *Tracker sync*, the wizard asks where the tracker token is: the keychain key (`tracker_token_key`) and, for GitLab, the server it is valid for (`tracker_token_url`, empty = the tracker's server). **It no longer fills in the key by itself**: a key left empty stays empty, and the wizard says what is read then (GitLab: `openhub.tracker.gitlab.token` for the tracker's server; Jira: nothing). At local level the personal declaration replaces the team's (key and server together; `-` clears), and, if the team repository is reached through an SSH alias, the real GitLab of the repository (`gitlab_url`).
 
+**Questions are answered in a terminal.** `Enter` keeps the value proposed in brackets, which is the current value (a team on Jira stays on Jira); `-` clears a text value; an answer that is not understood is said and the question asked again. For the settings of this machine (`tracker.enabled`, `auto_sync`, `push_labels`), the **“inherit — team: …”** choice removes the key from `hub.toml`; as long as it is not chosen, nothing is written there. For the MCP recommendations of the team, “no recommendation” leaves `enabled` absent. A limit that is not an integer ≥ 0 is reported and the limit stays. Without a terminal (standard input redirected) the command refuses to ask the questions: change a single setting with `oh config set`. If the input closes (Ctrl+D) before the end, **nothing is written**. Answers are read on the input of the application and never guessed.
+
+**Writes are safe.** The settings of `hub.toml` go through the same path as `oh config set` (lock, backup, typed values: a keychain key made of digits stays text). The team configuration is written **on top of the latest version** of `config.toml`: what a colleague changed meanwhile elsewhere in the file is kept; if the same setting was changed on both sides, nothing is overwritten, the command says so and can simply be run again. An unreadable `config.toml` stops the wizard with the cause (`oh doctor`) instead of starting from an empty configuration.
+
+**`oh team config status` only reads**: it writes neither the team-state nor `hub.toml`. It no longer offers to delete or merge “orphan members” (colleagues are not in your local config, so all of them were taken for orphans).
+
 ```bash
 oh team config
 oh team config status
