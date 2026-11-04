@@ -406,3 +406,37 @@ La 5.3.2 reprend la 5.3.1, jamais publiée. Elle corrige surtout la création et
 Le formulaire est le même dans tous les parcours : ID, nom affiché, handle GitLab (facultatif, unique dans l'équipe), rôle (`lead` pour qui crée l'équipe, `dev` pour qui la rejoint), mode `semi-auto`. Un identifiant ou un handle déjà porté par un collègue est **refusé** ; avant, « Créer » écrasait sa fiche et `oh team init` l'ignorait. Si c'est bien votre fiche, « C'est moi » la rattache sans rien écraser (seuls les champs vides sont complétés). « Rejoindre une équipe » dans la palette permet maintenant de créer sa fiche, et `n` dans la vue Équipes lance cet assistant. Un dépôt d'équipe vide (projet GitLab neuf) est accepté par « Créer ».
 
 **À faire** : rien, sauf pour un script qui réutilisait l'identifiant d'un autre membre : il échoue désormais.
+
+## Depuis la 5.3.2 vers la 5.3.3
+
+La 5.3.3 corrige des défauts du mode équipe qui pouvaient perdre ou abîmer des données. La base de données ne change pas. Sans mode équipe, rien à faire.
+
+**1. La synchro du tracker suit les changements de l'issue, pas son état à chaque passage**
+
+| En 5.3.2 | Depuis la 5.3.3 |
+|---|---|
+| Une issue ouverte sans label de statut donnait `in_progress` à chaque passage, chez n'importe quel membre : une réservation passée en review, validation ou done dans le hub y revenait | Le statut n'est réécrit que si l'état de l'issue, son statut ou ses labels rattachés à une colonne ont changé depuis le passage précédent (mémorisés sur la réservation : `tracker_state`, `tracker_labels`). Une issue fermée passe en terminal, une issue rouverte repasse en travail |
+| Les labels posés par le hub (`session-ended`, `review`…) étaient retirés à chaque synchro | Seuls les labels retirés côté tracker sont retirés côté hub |
+| Rien n'était repoussé vers le tracker | Avec `push_labels`, le label de la colonne du statut du hub est posé sur l'issue et les autres labels de statut retirés |
+
+Au premier passage après la mise à jour, une réservation existante n'est pas déplacée : oh mémorise l'issue. Une synchro dont la poussée vers le team-state échoue est maintenant une erreur, et `sync-state.json` n'est pas écrit.
+
+**À faire** : rien.
+
+**2. Token git et token d'API GitLab séparés**
+
+Le token git saisi à l'étape Accès (`read_repository`, `write_repository`) n'est plus copié vers `openhub.team.<équipe>.gitlab.token`. « Rejoindre » propose de nouveau l'étape « Token GitLab » (on peut la passer), et une identité que GitLab ne confirme pas (`GET /user` refusé ou injoignable) devient un avertissement au lieu de bloquer. Une copie faite par une 5.3.x reste en place.
+
+**À faire** : pour le tracker et la vérification d'identité, un token d'API `api` (ou `read_api` + `read_user`).
+
+**3. `config.toml` de l'équipe et `oh team config`**
+
+Une modification de `config.toml` (TUI, assistants, `oh team config`) est appliquée sur la dernière version du fichier : si un collègue a changé le même réglage entre-temps, rien n'est écrasé et oh propose de recharger. Un `config.toml` illisible n'est plus affiché comme vide : l'enregistrement est refusé. `oh team config` garde la valeur actuelle sur Entrée, propose « hériter » pour retirer un réglage local, et refuse sans terminal. `oh team config status` n'écrit plus rien : il ne supprime plus les collègues de `members.toml`.
+
+**À faire** : un script qui pilotait `oh team config` par l'entrée standard échoue ; réglez les clés dans `config.toml` (équipe) ou avec `oh config set` (machine).
+
+**4. Chemins et identifiants d'équipe**
+
+Une équipe sans `state_path` prend maintenant le chemin de son clone à la lecture de `hub.toml` (l'ancien clone du bon dépôt s'il existe) : plus aucune commande git n'est lancée dans le dossier courant. Les nouveaux clones vont dans `~/.oh/team-states/<hôte>/<groupe>/<dépôt>`. Deux dépôts de même nom (`acme/team-state`, `beta/team-state`) coexistent : le second reçoit l'identifiant `beta-team-state`. Un identifiant choisi avec `--id` n'est plus réécrit, et une équipe n'en remplace jamais une autre. Aucun clone n'est déplacé ni cloné de nouveau.
+
+**À faire** : rien ; si un script supposait que l'identifiant d'une équipe est le nom du dépôt, lire `oh teams list`.

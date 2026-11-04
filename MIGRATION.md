@@ -47,6 +47,17 @@ La 5.3 change quatre comportements du mode équipe, dont deux ruptures (`unassig
 | Plusieurs labels rattachés sur une issue : une colonne **bloquée** l'emporte toujours, sinon la colonne **la plus avancée**, puis l'ordre alphabétique. Au premier passage, les claims existants suivent leurs labels | Pour qu'une colonne passe avant les autres, donnez-lui le rôle `blocked`, ou placez-la plus loin dans le board |
 | **Rupture** : le menu `a` d'une carte du board d'équipe suit sa colonne (todo : *Cadrer et écrire la spec*, *Implémenter le ticket* ; en cours : *Implémenter le ticket*, *Donner une consigne à la session en cours* ; review : *Review de code*, *Traiter les retours de review* ; autres : détail, statut, transfert). Sur une issue GitLab, *Implémenter le ticket* importe l'issue en ticket Beads à la confirmation du lancement, puis lance `ticket` (sinon `quick`). Nouveau rôle de colonne `review`, facultatif | Pour un autre workflow sur une carte : la barre de commandes ou l'accueil. Le rôle `review` n'est pas obligatoire : sans lui, la colonne d'identifiant `review` en tient lieu |
 
+## Vous venez de la 5.3.2 : ce que la 5.3.3 change
+
+La 5.3.3 corrige des défauts qui pouvaient perdre ou abîmer des données d'équipe. Aucune migration de fichiers ni de la base ; sans mode équipe, rien à faire. Détail : [guide de migration, « Depuis la 5.3.2 vers la 5.3.3 »](docs/guides/migration-v5.fr.md#depuis-la-532-vers-la-533).
+
+| Changé en 5.3.3 | À faire |
+|---|---|
+| La synchro du tracker ne réécrit le statut d'une réservation que si l'issue a changé (état, statut ou labels rattachés) ; au premier passage, une réservation existante n'est pas déplacée. Avec `push_labels`, le statut du hub est repoussé en label | Rien. Un statut posé dans le hub (review, validation, done) n'est plus perdu |
+| Le token git de l'étape Accès n'est plus copié vers le token d'API GitLab (`openhub.team.<équipe>.gitlab.token`) ; « Rejoindre » propose de nouveau l'étape « Token GitLab », et une identité non vérifiable est un avertissement | Rien ; pour le tracker, un token d'API `api` (ou `read_api` + `read_user`) |
+| `oh team config` : Entrée garde la valeur actuelle, « hériter » retire le réglage local, la commande refuse sans terminal ; `oh team config status` n'écrit plus rien | Un script qui pilotait `oh team config` par l'entrée standard échoue : réglez les clés dans `config.toml` ou avec `oh config set` |
+| Nouveaux clones : `~/.oh/team-states/<hôte>/<groupe>/<dépôt>` ; deux dépôts de même nom reçoivent deux identifiants (`<groupe>-<dépôt>` pour le second). Un `state_path` vide prend le chemin du clone, l'ancien clone du bon dépôt est réutilisé | Rien. Si un script supposait que l'identifiant d'une équipe est le nom du dépôt : `oh teams list` |
+
 ## Vous venez de la 5.3.0 : ce que la 5.3.2 change
 
 La 5.3.2 (qui reprend la 5.3.1, jamais publiée) corrige la création et l'adhésion à une équipe. Deux ruptures légères, aucune migration de fichiers ni de la base. Sans mode équipe, rien à faire. Détail : [guide de migration, « Depuis la 5.3 vers la 5.3.2 »](docs/guides/migration-v5.fr.md#depuis-la-53-vers-la-532).

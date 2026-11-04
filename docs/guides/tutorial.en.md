@@ -59,7 +59,7 @@ opencode --version
 Expected output:
 
 ```
-oh 5.3.2
+oh 5.3.3
   commit:  42375cfa
   built:   2026-11-04T07:58:12Z
   go:      go1.26.10

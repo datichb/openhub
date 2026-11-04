@@ -406,3 +406,37 @@ The new column role `review` is optional: without it, the column whose ID is `re
 The form is the same in every path: ID, display name, GitLab handle (optional, unique in the team), role (`lead` for whoever creates the team, `dev` for whoever joins it), mode `semi-auto`. An ID or a handle already held by a colleague is **refused**; before, "Create" overwrote their card and `oh team init` ignored it. If it is your card, "That's me" attaches it without overwriting anything (only empty fields are filled). "Rejoin a team" in the palette can now create your card, and `n` in the Teams view launches that wizard. An empty team repository (new GitLab project) is accepted by "Create".
 
 **To do**: nothing, except for a script that reused the ID of another member: it now fails.
+
+## From 5.3.2 to 5.3.3
+
+5.3.3 fixes team mode defects that could lose or damage data. The database does not change. Without team mode, nothing to do.
+
+**1. The tracker sync follows the changes of the issue, not its state at each run**
+
+| In 5.3.2 | Since 5.3.3 |
+|---|---|
+| An open issue without a status label gave `in_progress` at each run, for any member: a claim moved to review, validation or done in the hub went back | The status is rewritten only if the state of the issue, its status or its labels mapped to a column changed since the previous run (remembered on the claim: `tracker_state`, `tracker_labels`). A closed issue moves to terminal, a reopened one back to work |
+| The labels set by the hub (`session-ended`, `review`…) were removed at each sync | Only the labels removed on the tracker side are removed on the hub side |
+| Nothing was pushed to the tracker | With `push_labels`, the label of the column of the hub status is set on the issue and the other status labels removed |
+
+On the first run after the update, an existing claim is not moved: oh remembers the issue. A sync whose push to the team-state fails is now an error, and `sync-state.json` is not written.
+
+**To do**: nothing.
+
+**2. Git token and GitLab API token kept apart**
+
+The git token entered at the Access step (`read_repository`, `write_repository`) is no longer copied to `openhub.team.<team>.gitlab.token`. "Rejoin" offers the "GitLab token" step again (it can be skipped), and an identity GitLab does not confirm (`GET /user` refused or unreachable) becomes a warning instead of blocking. A copy made by a 5.3.x stays in place.
+
+**To do**: for the tracker and the identity check, an API token with `api` (or `read_api` + `read_user`).
+
+**3. The team `config.toml` and `oh team config`**
+
+A change of `config.toml` (TUI, wizards, `oh team config`) is applied on the latest version of the file: if a colleague changed the same setting meanwhile, nothing is overwritten and oh offers to reload. An unreadable `config.toml` is no longer shown as empty: saving is refused. `oh team config` keeps the current value on Enter, offers "inherit" to remove a local setting, and refuses without a terminal. `oh team config status` writes nothing any more: it no longer removes colleagues from `members.toml`.
+
+**To do**: a script that drove `oh team config` through the standard input fails; set the keys in `config.toml` (team) or with `oh config set` (machine).
+
+**4. Team paths and IDs**
+
+A team without `state_path` now gets the path of its clone when `hub.toml` is read (the old clone of the right repository if it exists): no git command runs in the current folder any more. New clones go to `~/.oh/team-states/<host>/<group>/<repository>`. Two repositories with the same name (`acme/team-state`, `beta/team-state`) coexist: the second gets the ID `beta-team-state`. An ID chosen with `--id` is no longer rewritten, and a team never replaces another one. No clone is moved or cloned again.
+
+**To do**: nothing; if a script assumed the ID of a team is the name of its repository, read `oh teams list`.
