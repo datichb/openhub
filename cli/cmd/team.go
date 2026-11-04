@@ -146,8 +146,8 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 
 	// Determine local path
 	statePath = a.Config.ActiveTeam().StatePath
-	if statePath == "" {
-		statePath = config.DefaultTeamStatePath()
+	if statePath == "" && a.Config.ActiveTeam().StateRepo != "" {
+		statePath = config.DefaultTeamStatePath() // a team configured without a folder: the former default
 	}
 
 	// If already configured in hub.toml, clone/pull immediately (skip Step 0)
@@ -317,9 +317,14 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 				)
 			}
 
-			// Clone or pull the repo
+			// Clone or pull the repo: in the folder every team assistant uses for
+			// this repository
+			statePath = teamService(a).StatePathFor(stateRepo)
 			repo = teamstate.NewRepo(stateRepo, statePath)
 			if repo.IsCloned() {
+				if err := repo.CheckRemote(); err != nil {
+					return err
+				}
 				if err := repo.Pull(ctx); err != nil {
 					// Non-fatal: continue with potentially stale local state.
 					slog.Debug("team.pull.skipped", "error", err)

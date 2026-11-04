@@ -65,7 +65,7 @@ func (s *Service) Init(ctx context.Context, p InitParams) (InitResult, error) {
 	var res InitResult
 	statePath := p.StatePath
 	if statePath == "" {
-		statePath = config.DefaultTeamStatePath()
+		statePath = s.StatePathFor(p.StateRepo)
 	}
 	repo := teamstate.NewRepo(p.StateRepo, statePath)
 
@@ -103,6 +103,25 @@ func (s *Service) Init(ctx context.Context, p InitParams) (InitResult, error) {
 		return res, &InitError{Step: StepWriteConfig, Err: err}
 	}
 	return res, nil
+}
+
+// StatePathFor is where the clone of the team-state stateRepo lives: the one
+// path of every team assistant. A team of hub.toml that already has this
+// repository keeps its folder (the former ~/.oh/team-state included: a team
+// configured before 5.3.2 is neither cloned a second time nor moved);
+// otherwise config.TeamStatePath(stateRepo), ~/.oh/team-states/<host>/<name>.
+// A folder that holds the clone of another repository is refused by
+// teamstate.Repo.EnsureReady, never reused.
+func (s *Service) StatePathFor(stateRepo string) string {
+	if s.Config != nil {
+		teams := append(append([]config.TeamConfig{}, s.Config.Teams...), s.Config.Team)
+		for _, t := range teams {
+			if t.StatePath != "" && teamstate.SameRemote(t.StateRepo, stateRepo) {
+				return t.StatePath
+			}
+		}
+	}
+	return config.TeamStatePath(stateRepo)
 }
 
 // SaveTeam writes the team of stateRepo in hub.toml (enabled, its ID is the

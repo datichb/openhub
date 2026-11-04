@@ -178,3 +178,58 @@ func TestInitStructureCommitFailureIsAWarning(t *testing.T) {
 	assert.FileExists(t, filepath.Join(statePath, "catalog", "agents", ".gitkeep"), "the folders exist locally")
 	assert.Contains(t, reload(t), config.RepoNameFromRemote(bare), "hub.toml is written")
 }
+
+// One path for the clone of a team-state: the one Rejoindre uses
+// (~/.oh/team-states/<host>/<name>), not ~/.oh/team-state; a team configured
+// before keeps its own folder.
+func TestInitClonesUnderTheTeamStatesFolder(t *testing.T) {
+	configtest.Home(t)
+	bare, _ := gittest.BareClone(t)
+	cfg := &config.Config{}
+	require.NoError(t, config.Save(cfg))
+	svc := New(cfg, nil, nil)
+
+	mustInit(t, svc, InitParams{StateRepo: bare, MemberID: "dave", DisplayName: "Dave", Role: "dev"})
+
+	want := config.TeamStatePath(bare)
+	assert.Contains(t, want, "team-states", "the folder Rejoindre and the tracker setup use")
+	assert.True(t, teamstate.NewRepo(bare, want).IsCloned(), "cloned there")
+	assert.NoDirExists(t, config.DefaultTeamStatePath(), "not in the former ~/.oh/team-state")
+	assert.Equal(t, want, reload(t)[config.RepoNameFromRemote(bare)].StatePath, "hub.toml points there")
+}
+
+func TestStatePathForKeepsTheFolderOfAConfiguredTeam(t *testing.T) {
+	configtest.Home(t)
+	old := config.DefaultTeamStatePath()
+	cfg := &config.Config{Teams: []config.TeamConfig{
+		{ID: "acme", Enabled: true, StateRepo: "https://gitlab.example.com/acme/state.git", StatePath: old},
+		{ID: "solo", Enabled: true, Solo: true, StatePath: "/solo"},
+	}}
+	svc := New(cfg, nil, nil)
+
+	assert.Equal(t, old, svc.StatePathFor("https://gitlab.example.com/acme/state"), "the team of that repository, written another way")
+	assert.Equal(t, old, svc.StatePathFor("git@gitlab.example.com:acme/state.git"), "over SSH")
+	assert.Equal(t, config.TeamStatePath("https://gitlab.example.com/other/state.git"),
+		svc.StatePathFor("https://gitlab.example.com/other/state.git"), "another repository: its own folder")
+	assert.Equal(t, config.TeamStatePath("x"), New(nil, nil, nil).StatePathFor("x"), "no configuration")
+}
+
+// A folder that holds the clone of another repository is not reused.
+func TestInitRefusesAFolderThatHoldsAnotherRepository(t *testing.T) {
+	configtest.Home(t)
+	bare, clone := gittest.BareClone(t)
+	other, _ := gittest.BareClone(t)
+	cfg := &config.Config{}
+	require.NoError(t, config.Save(cfg))
+
+	_, err := New(cfg, nil, nil).Init(t.Context(), InitParams{StateRepo: other, StatePath: clone, MemberID: "dave", Role: "dev"})
+
+	var initErr *InitError
+	require.ErrorAs(t, err, &initErr)
+	assert.Equal(t, StepClone, initErr.Step)
+	var mismatch *teamstate.RemoteMismatchError
+	require.ErrorAs(t, err, &mismatch)
+	assert.Equal(t, bare, mismatch.Have)
+	assert.Empty(t, reload(t), "nothing is written to hub.toml")
+	assert.False(t, teamstate.NewRepo(bare, clone).HasMember(t.Context(), "dave"), "no member was added to the clone of the other repository")
+}
