@@ -9,6 +9,17 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added
+
+- **Menu `a` d'une carte : un titre court pour chaque workflow proposé** (`tui.board.label.<workflow>`, en français et en anglais) : `ticket`, `brief-enrich`, `implement-spec`, `triage`, `spec`, `quick`, `libre`, `infra-change`, `debug`, `review` et `review-feedback` rejoignent `spike` et `incident`. Sans titre propre, le menu affichait la description du workflow, une phrase de cent caractères.
+
+### Fixed
+
+- **TUI : les listes de choix ne coupent plus leurs lignes.** La fenêtre prend la largeur de sa ligne la plus longue (titre et aide compris), de 40 colonnes à l'écran moins 4, au lieu de 60 % de l'écran quel que soit le contenu. Sur un écran trop étroit, la ligne et le titre finissent par « … » au lieu d'être coupés net. Vaut pour toutes les listes : menu des cartes, choix d'un statut, d'un workflow, d'un modèle, sélections multiples et listes ouvertes depuis un formulaire.
+- **TUI : le menu `a` d'une carte aligne ses colonnes sur la cellule la plus longue.** Le titre du workflow n'est plus coupé à 34 caractères (colonnes fixes) ni le titre de la carte à 40.
+- **TUI : les saisies et les formulaires suivent la largeur de l'écran.** Ils prenaient 72 colonnes quel que soit l'écran, avec des champs de 24 à 40 ; ils prennent maintenant 70 % de l'écran, entre 72 et 120 colonnes, les champs s'étirent avec la fenêtre et les aides sous les champs passent à la ligne selon la largeur. La hauteur d'un formulaire compte aussi les lignes des aides, qui cachaient le champ suivant.
+- **TUI : plus de fond noir sous les textes des listes de choix.** `tview.NewList` fixe le fond de ses textes sur celui des panneaux (#1e1e2e) : chaque libellé s'affichait sur un fond plus sombre que celui de la fenêtre (#313244). Les champs de saisie et les cases, volontairement plus sombres (effet « en creux »), ne changent pas.
+
 ## [5.2.1] — 2026-11-04
 
 Version corrective de la 5.2.0, issue de la recette et d'un audit de la TUI : plus de plantage au clic, fenêtres qui s'empilent et rendent le focus, contrôles d'[`oh doctor`](docs/reference/cli-infra.fr.md#oh-doctor) qui disent ce qu'ils n'ont pas pu lire, noms à la place des identifiants. Le workflow `spec` devient plus exigeant sur les questions et les risques ([guide](docs/guides/spec-workflow.fr.md)). Aucune rupture, aucune migration.
