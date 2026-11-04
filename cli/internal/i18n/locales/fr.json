@@ -6412,5 +6412,7 @@
   "v532m.handle.label": "Handle GitLab",
   "v532m.handle.hint": "Votre fiche n'a pas de handle GitLab. Le donner permet à oh de vérifier que votre token est bien le vôtre. Facultatif : vide, la fiche ne change pas.",
   "v532m.rejoin.empty_repo": "Ce dépôt est vide : l'équipe n'a pas encore été créée. Faites-la créer par son responsable (« Créer une équipe »), ou créez-la vous-même, puis rejoignez-la.",
-  "v532m.rejoin.no_team_state": "Ce dépôt ne contient pas d'équipe oh (pas de members.toml). Vérifiez l'URL, ou créez l'équipe avec « Créer une équipe »."
+  "v532m.rejoin.no_team_state": "Ce dépôt ne contient pas d'équipe oh (pas de members.toml). Vérifiez l'URL, ou créez l'équipe avec « Créer une équipe ».",
+  "v533a.teams.duplicate_id": "L'identifiant %[1]s est déjà celui d'une autre équipe (%[2]s) : choisissez-en un autre.",
+  "v533a.teams.duplicate_repo": "Ce dépôt est déjà configuré : équipe %[1]s."
 }

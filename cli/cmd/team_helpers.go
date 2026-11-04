@@ -244,8 +244,7 @@ func buildTrackerSetupSteps(a **app.App, state *initWizardTeamState, modes ...st
 				form := tview.NewForm()
 
 				// Load team-state config to check if a tracker is already configured.
-				statePath := config.TeamStatePath(state.Repo)
-				repo := teamstate.NewRepo(state.Repo, statePath)
+				repo := teamstate.NewRepo(state.Repo, teamStatePathFor(*a, state.Repo))
 				trackerConfigured := false
 				if teamCfg, err := repo.LoadConfig(state.Ctx); err == nil && teamCfg.Tracker.Type != "" {
 					trackerConfigured = true
@@ -419,7 +418,7 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 				}
 				state.StructureWarning = warn
 				state.Configured = true
-				state.TeamID = config.RepoNameFromRemote(state.Repo)
+				state.TeamID = teamIDFor(*a, state.Repo)
 
 				// Bring the shared config up to date so subsequent steps see the team
 				if reloadErr := refreshSharedConfig(*a); reloadErr != nil {
@@ -475,7 +474,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			BackSkip:     true,
 			ErrorActions: state.access(a).ErrorActions,
 			OnDone: func() error {
-				repo, members, stale, err := listTeamMembers(state.Ctx, state.Repo, "")
+				repo, members, stale, err := listTeamMembers(state.Ctx, state.Repo, teamStatePathFor(*a, state.Repo))
 				if err != nil {
 					return err
 				}
@@ -543,7 +542,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			return ""
 		},
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			teamID := config.RepoNameFromRemote(state.Repo)
+			teamID := teamIDFor(*a, state.Repo)
 			source := gitlabTokenSourceAt(state.Ctx, *a, teamID, state.Repo, state.GitLabURL)
 
 			// Build dropdown options: placeholder + [reuse if available] + new + skip
@@ -583,7 +582,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 		},
 		OnDone: func() error {
 			if state.TokenChoice == "new" && state.GitLabToken != "" && (*a).Secrets != nil {
-				teamID := config.RepoNameFromRemote(state.Repo)
+				teamID := teamIDFor(*a, state.Repo)
 				return (*a).Secrets.Set(state.Ctx, config.TeamGitLabTokenKey(teamID), state.GitLabToken)
 			}
 			return nil
@@ -737,14 +736,13 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 			}
 			// "verify" — store the PAT and re-validate
 			if state.MismatchPAT != "" && (*a).Secrets != nil {
-				teamID := config.RepoNameFromRemote(state.Repo)
+				teamID := teamIDFor(*a, state.Repo)
 				if err := (*a).Secrets.Set(state.Ctx, config.TeamGitLabTokenKey(teamID), state.MismatchPAT); err != nil {
 					return fmt.Errorf(i18n.T("cmd.team_helpers.storing_token"), err)
 				}
 			}
 			// Re-run identity validation with the new token
-			statePath := config.TeamStatePath(state.Repo)
-			repo := teamstate.NewRepo(state.Repo, statePath)
+			repo := teamstate.NewRepo(state.Repo, teamStatePathFor(*a, state.Repo))
 			member, err := repo.GetMember(state.Ctx, state.MemberID)
 			if err != nil {
 				return fmt.Errorf(i18n.T("cmd.team_helpers.member_lookup"), err)

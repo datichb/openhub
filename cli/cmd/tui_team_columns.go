@@ -7,7 +7,6 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 
-	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -156,9 +155,6 @@ func actionBoardColumnConfig(afterSave func()) {
 	}
 
 	statePath := activeTeam.StatePath
-	if statePath == "" {
-		statePath = config.TeamStatePath(activeTeam.StateRepo)
-	}
 	repo := teamstate.NewRepo(activeTeam.StateRepo, statePath)
 	if !repo.IsCloned() {
 		tuiShell.ShowToast(i18n.T("tui.team.board_config.not_cloned"), shell.ToastError)

@@ -97,7 +97,7 @@ func pickedTeamID() string {
 
 // teamResolution is what the views know of the team t of the hub.
 func teamResolution(t *config.TeamConfig) views.TeamResolution {
-	return views.TeamResolution{Enabled: t.Enabled && !t.Solo, StateRepo: t.StateRepo, StatePath: t.StatePath, MemberID: t.MemberID,
+	return views.TeamResolution{Enabled: t.Enabled && !t.Solo, StateRepo: t.StateRepo, StatePath: config.ResolveStatePath(t.StateRepo, t.StatePath), MemberID: t.MemberID,
 		GitLabURL: t.GitLabURL, Solo: t.Solo, TeamID: t.ID}
 }
 

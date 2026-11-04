@@ -34,8 +34,10 @@ type TeamResolution struct {
 	TeamID string
 }
 
-// hasState reports whether a team-state can be read (team or solo space).
-func (r TeamResolution) hasState() bool { return r.Enabled || r.Solo }
+// hasState reports whether a team-state can be read (team or solo space): it
+// has a local folder. A team without one is not read, never from the working
+// directory.
+func (r TeamResolution) hasState() bool { return (r.Enabled || r.Solo) && r.StatePath != "" }
 
 // ResolveTeamFunc is a callback that views call to obtain the effective team
 // configuration for the currently active project. The implementation lives in

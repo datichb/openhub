@@ -117,7 +117,7 @@ func saveTeamGitToken(ctx context.Context, a *app.App, remote, user, token strin
 	}
 	teamGitCreds.forget(remote)
 	if teamstate.IsGitLabHost(remote) {
-		teamID := config.RepoNameFromRemote(remote)
+		teamID := teamIDFor(a, remote)
 		if err := a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), token); err != nil {
 			slog.Warn("failed to store GitLab token in keychain", "err", err)
 		}

@@ -143,30 +143,31 @@ func (s *Service) MemberIDOf(stateRepo string) string {
 
 // StatePathFor is where the clone of the team-state stateRepo lives: the one
 // path of every team assistant. A team of hub.toml that already has this
-// repository keeps its folder (the former ~/.oh/team-state included: a team
-// configured before 5.3.2 is neither cloned a second time nor moved);
-// otherwise config.TeamStatePath(stateRepo), ~/.oh/team-states/<host>/<name>.
-// A folder that holds the clone of another repository is refused by
-// teamstate.Repo.EnsureReady, never reused.
+// repository keeps its folder (a team configured before is neither cloned a
+// second time nor moved); otherwise config.TeamStatePath(stateRepo),
+// ~/.oh/team-states/<host>/<path of the repository> (an existing clone of this
+// repository at a former location is kept). A folder that holds the clone of
+// another repository is refused by teamstate.Repo.EnsureReady, never reused.
 func (s *Service) StatePathFor(stateRepo string) string {
 	if s.Config != nil {
 		teams := append(append([]config.TeamConfig{}, s.Config.Teams...), s.Config.Team)
 		for _, t := range teams {
-			if t.StatePath != "" && teamstate.SameRemote(t.StateRepo, stateRepo) {
-				return t.StatePath
+			if teamstate.SameRemote(t.StateRepo, stateRepo) {
+				return config.ResolveStatePath(t.StateRepo, t.StatePath)
 			}
 		}
 	}
 	return config.TeamStatePath(stateRepo)
 }
 
-// SaveTeam writes the team of stateRepo in hub.toml (enabled, its ID is the
-// name of the repository) and clears the legacy [team] section. gitlabURL is
+// SaveTeam writes the team of stateRepo in hub.toml (enabled) and clears the
+// legacy [team] section. The team already configured for this repository keeps
+// its ID; a new one gets the name of the repository, or another ID when the
+// team of a different repository already has it (config.Config.TeamIDFor). gitlabURL is
 // the GitLab of the repository when its remote is an SSH alias; empty keeps
 // the one already declared for the same repository.
 func (s *Service) SaveTeam(stateRepo, statePath, memberID, gitlabURL string) error {
 	team := config.TeamConfig{
-		ID:        config.RepoNameFromRemote(stateRepo),
 		Enabled:   true,
 		StateRepo: stateRepo,
 		StatePath: statePath,

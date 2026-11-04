@@ -6412,5 +6412,7 @@
   "v532m.handle.label": "GitLab handle",
   "v532m.handle.hint": "Your card has no GitLab handle. Giving it lets oh check that your token is yours. Optional: left empty, the card does not change.",
   "v532m.rejoin.empty_repo": "This repository is empty: the team has not been created yet. Have its lead create it (\"Create a team\"), or create it yourself, then join it.",
-  "v532m.rejoin.no_team_state": "This repository holds no oh team (no members.toml). Check the URL, or create the team with \"Create a team\"."
+  "v532m.rejoin.no_team_state": "This repository holds no oh team (no members.toml). Check the URL, or create the team with \"Create a team\".",
+  "v533a.teams.duplicate_id": "The ID %[1]s is already the one of another team (%[2]s): choose another ID.",
+  "v533a.teams.duplicate_repo": "This repository is already configured: team %[1]s."
 }

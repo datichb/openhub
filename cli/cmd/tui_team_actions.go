@@ -14,7 +14,6 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/app"
-	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
@@ -65,7 +64,7 @@ func actionTeamInit() {
 	// Pre-fill from existing hub.toml if already configured
 	if at := a.Config.ActiveTeam(); at.StateRepo != "" {
 		stateRepo = at.StateRepo
-		statePath = firstNonEmpty(at.StatePath, config.DefaultTeamStatePath())
+		statePath = at.StatePath
 		repo = teamstate.NewRepo(stateRepo, statePath)
 		if repo.IsCloned() {
 			_ = repo.Pull(ctx)
@@ -142,7 +141,7 @@ func actionTeamInit() {
 				return errors.New(
 					i18n.Tf("tui.team.clone_exists", existing.Path, existing.Source))
 			}
-			statePath = config.TeamStatePath(stateRepo)
+			statePath = teamStatePathFor(a, stateRepo)
 			repo = teamstate.NewRepo(stateRepo, statePath)
 			if repo.IsCloned() {
 				if err := repo.CheckRemote(); err != nil {
@@ -189,11 +188,7 @@ func actionTeamInit() {
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
 
-			sp := statePath
-			if sp == "" {
-				sp = config.TeamStatePath(stateRepo)
-			}
-			repo := teamstate.NewRepo(stateRepo, sp)
+			repo := teamstate.NewRepo(stateRepo, statePath)
 			trackerConfigured := false
 			if teamCfg, err := repo.LoadConfig(ctx); err == nil && teamCfg.Tracker.Type != "" {
 				trackerConfigured = true

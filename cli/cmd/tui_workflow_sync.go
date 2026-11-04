@@ -76,9 +76,6 @@ func teamByStatePath(cfg *config.Config, path string) *config.TeamConfig {
 	for i := range cfg.Teams {
 		t := &cfg.Teams[i]
 		p := t.StatePath
-		if p == "" {
-			p = config.DefaultTeamStatePath()
-		}
 		if t.Enabled && filepath.Clean(p) == want {
 			return t
 		}

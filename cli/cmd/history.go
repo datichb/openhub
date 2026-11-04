@@ -11,7 +11,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/cliout"
-	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -144,9 +143,6 @@ func runHistoryTeam(ctx context.Context, limit int) error {
 	}
 
 	statePath := activeTeam.StatePath
-	if statePath == "" {
-		statePath = config.TeamStatePath(activeTeam.StateRepo)
-	}
 	repo := teamstate.NewRepo(activeTeam.StateRepo, statePath)
 	if !repo.IsCloned() {
 		return errors.New(i18n.T("cmd.history.team_state_repository_not_cloned_run"))

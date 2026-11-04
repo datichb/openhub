@@ -191,9 +191,6 @@ func getTeamRepoSafe(a *app.App) teamAPIRepo {
 		return nil
 	}
 	statePath := tc.StatePath
-	if statePath == "" {
-		statePath = config.DefaultTeamStatePath()
-	}
 	repo := teamstate.NewRepo(tc.StateRepo, statePath)
 	if !repo.IsCloned() {
 		return nil

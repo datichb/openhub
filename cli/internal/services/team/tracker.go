@@ -127,9 +127,6 @@ func (s *Service) loadTracker(ctx context.Context, project *domain.Project) (*tr
 		return nil, ErrTeamNotConfigured
 	}
 	statePath := tc.StatePath
-	if statePath == "" {
-		statePath = config.DefaultTeamStatePath()
-	}
 	repo := teamstate.NewRepo(tc.StateRepo, statePath)
 	if !repo.IsCloned() {
 		return nil, ErrNotCloned

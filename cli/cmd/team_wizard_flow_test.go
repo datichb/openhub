@@ -649,7 +649,7 @@ func TestRejoinCloneOfAnotherRemoteIsRefused(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Dir(want), 0o755))
 	require.NoError(t, os.Rename(clone, want))
 
-	_, _, _, err := listTeamMembers(t.Context(), other, "")
+	_, _, _, err := listTeamMembers(t.Context(), other, want)
 
 	var mismatch *teamstate.RemoteMismatchError
 	require.ErrorAs(t, err, &mismatch)

@@ -12,7 +12,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/cliout"
-	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gitlabapi"
 	"github.com/datichb/openhub/cli/internal/gitutil"
@@ -189,9 +188,6 @@ func isMainBranch(name string) bool {
 // dispatch a notification — all in a single git commit+push.
 func publishReviewToTeamState(ctx context.Context, a *app.App, projectID, ticket, branch, mrURL string) {
 	statePath := a.Config.ActiveTeam().StatePath
-	if statePath == "" {
-		statePath = config.DefaultTeamStatePath()
-	}
 	repo := teamstate.NewRepo(a.Config.ActiveTeam().StateRepo, statePath)
 	if !repo.IsCloned() {
 		return

@@ -171,16 +171,20 @@ func runTeamsAdd(cmd *cobra.Command, _ []string) error {
 		return errors.New(i18n.T("cmd.teams.add.member_id_required"))
 	}
 
-	// Auto-derive ID from repo if not provided
-	if id == "" {
-		id = config.RepoNameFromRemote(repo)
+	// Without --id, the ID is derived from the repo: its name, or another one
+	// when the team of a different repository already has it.
+	teamID := func(c *config.Config) string {
+		if id != "" {
+			return id
+		}
+		return c.TeamIDFor(repo)
 	}
 
 	// Check for duplicates, on the loaded config and again on the file at the
 	// time of the write
 	checkDuplicate := func(c *config.Config) error {
-		if existing := c.FindTeam(id); existing != nil {
-			return errors.New(i18n.Tf("cmd.teams.add.duplicate_id", id, existing.StateRepo))
+		if existing := c.FindTeam(teamID(c)); existing != nil {
+			return errors.New(i18n.Tf("cmd.teams.add.duplicate_id", teamID(c), existing.StateRepo))
 		}
 		if existing := c.FindTeamByRepo(repo); existing != nil {
 			return errors.New(i18n.Tf("cmd.teams.add.duplicate_repo", existing.ID))
@@ -193,11 +197,10 @@ func runTeamsAdd(cmd *cobra.Command, _ []string) error {
 
 	// Build the new team entry
 	newTeam := config.TeamConfig{
-		ID:        id,
 		Name:      name,
 		Enabled:   true,
 		StateRepo: repo,
-		StatePath: config.TeamStatePath(repo),
+		StatePath: teamStatePathFor(a, repo),
 		MemberID:  memberID,
 		GitLabURL: gitlabURL,
 	}
@@ -206,6 +209,7 @@ func runTeamsAdd(cmd *cobra.Command, _ []string) error {
 		if err := checkDuplicate(c); err != nil {
 			return err
 		}
+		newTeam.ID = teamID(c)
 		c.Teams = append(c.Teams, newTeam)
 		return nil
 	}); err != nil {

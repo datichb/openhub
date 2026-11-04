@@ -167,9 +167,6 @@ func teamRepoOf(t config.TeamConfig) workflowStateRepo {
 		return nil
 	}
 	path := t.StatePath
-	if path == "" {
-		path = config.DefaultTeamStatePath()
-	}
 	repo := teamstate.NewRepo(t.StateRepo, path)
 	if !repo.IsCloned() {
 		return nil
@@ -406,9 +403,6 @@ func projectTeamStateForMigration(ctx context.Context, a *app.App, project *doma
 	tc := config.ResolveTeamForProject(a.Config, project)
 	if tc.Enabled || tc.Solo {
 		path := tc.StatePath
-		if path == "" {
-			path = config.DefaultTeamStatePath()
-		}
 		repo := teamstate.NewRepo(tc.StateRepo, path)
 		if !repo.IsCloned() {
 			return nil, "", fmt.Errorf(i18n.T("cmd.workflow_migrate.team_state_not_cloned"), path)

@@ -362,12 +362,23 @@ func (v *TeamsView) handleAdd() {
 				v.shell.ShowToastMsg(i18n.T("tui.teams.fields_required"), false)
 				return
 			}
+			// A team of another repository is never replaced, nor is a repository
+			// configured twice.
+			if other := v.cfg.FindTeam(teamID); other != nil {
+				v.shell.ShowToastMsg(i18n.Tf("v533a.teams.duplicate_id", teamID, teamRepoLabel(*other)), false)
+				return
+			}
+			if other := v.cfg.FindTeamByRepo(repo); other != nil {
+				v.shell.ShowToastMsg(i18n.Tf("v533a.teams.duplicate_repo", other.ID), false)
+				return
+			}
 			v.undoStack.Push(copyTeams(v.cfg.Teams))
 			newTeam := config.TeamConfig{
 				ID:        teamID,
 				Name:      name,
 				Enabled:   true,
 				StateRepo: repo,
+				StatePath: config.ResolveStatePath(repo, ""),
 				MemberID:  memberID,
 			}
 			prevTeams := copyTeams(v.cfg.Teams)
