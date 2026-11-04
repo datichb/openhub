@@ -1,0 +1,50 @@
+# Shape of a real GitLab team config, anonymised: the assistant wrote 'todo'
+# (not a claim status) as the target of four labels, four labels are set as
+# unassigned_labels, and [board] is empty (no custom columns).
+
+[notification]
+enabled = false
+bot_name = 'OpenHub'
+destinations = []
+
+[takeover]
+stale_days = 3
+
+[claim]
+done_retention_days = 7
+
+[tracker]
+enabled = true
+type = 'gitlab'
+tracker_url = 'https://gitlab.example.com/'
+auto_sync = true
+sync_interval_minutes = 5
+auto_plan_assigned = true
+max_auto_plan_per_member = 5
+auto_plan_unassigned = true
+unassigned_labels = ['Design to do', 'Ready to dev', 'Todo', 'US to do']
+max_unassigned_issues = 20
+push_labels = false
+write_enabled = false
+tracker_project = 'group/subgroup/project'
+
+[tracker.label_status_mapping]
+'Blocked' = 'blocked'
+'Epic - release prep' = 'validation'
+Preprod = 'validation'
+'To release' = 'validation'
+Todo = 'todo'
+'Validation doing' = 'in_progress'
+'in progress' = 'in_progress'
+'Beta feedback' = 'validation'
+'Design to do' = 'todo'
+'Dev doing' = 'in_progress'
+'Ready to dev' = 'todo'
+Testing = 'validation'
+'To test' = 'validation'
+'US doing' = 'in_progress'
+'US to do' = 'todo'
+'US to review' = 'review'
+'Dev to review' = 'review'
+
+[board]

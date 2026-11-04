@@ -153,7 +153,8 @@ func (c *jiraClient) ListUnassignedIssues(ctx context.Context, projectID string,
 	// Build JQL query for unassigned issues.
 	jql := fmt.Sprintf(`project = %q AND assignee is EMPTY AND statusCategory != Done`, projectID)
 	if len(opts.Labels) > 0 {
-		// JQL label filter: labels in ("label1", "label2")
+		// JQL label filter: labels in ("label1", "label2") — `in` is an OR,
+		// like the GitLab client's one request per label.
 		quoted := make([]string, 0, len(opts.Labels))
 		for _, l := range opts.Labels {
 			quoted = append(quoted, fmt.Sprintf("%q", l))
@@ -195,6 +196,7 @@ func (c *jiraClient) ListIssuesByLabels(ctx context.Context, projectID string, o
 	// Build JQL query for issues matching labels, regardless of assignee.
 	jql := fmt.Sprintf(`project = %q AND statusCategory != Done`, projectID)
 	if len(opts.Labels) > 0 {
+		// `labels in (…)` is an OR: any of the labels.
 		quoted := make([]string, 0, len(opts.Labels))
 		for _, l := range opts.Labels {
 			quoted = append(quoted, fmt.Sprintf("%q", l))

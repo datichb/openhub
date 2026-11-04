@@ -399,6 +399,8 @@ La commande tire les états des issues depuis le tracker et met à jour les stat
 - Issue réouverte → claim repassé en `in_progress`
 - Les labels sont mirrorés
 - Avec `auto_plan_assigned = true`, toute issue ouverte assignée à un membre arrive sur le board sous forme de claim, dans la colonne que son statut désigne, sans plafond par membre
+- Avec `auto_plan_unassigned = true`, les issues qui portent **l'un quelconque** des `unassigned_labels` arrivent sur le board comme claims de réserve (à prendre avec `c`), ou comme claims du membre auquel elles sont assignées. Le premier passage balaie la réserve en entier ; les suivants ne regardent que ce qui a été mis à jour. Changer `unassigned_labels` la balaie de nouveau en entier. Au plus `max_unassigned_issues` claims sont créés par passage
+- La colonne d'une issue vient de `label_status_mapping`, puis de `status_mapping`. Avec plusieurs labels rattachés, celui dont le statut vient en premier parmi les colonnes du board l'emporte, puis l'ordre alphabétique des labels. Une valeur qui n'est pas un statut du board (`todo` sur un board sans colonne todo) est lue comme le statut de la colonne initiale ; `oh doctor` la nomme et `--fix` la réécrit (voir [`[tracker]`](../reference/config.fr.md#section-tracker))
 - Si des issues sont assignées à des noms qui ne sont ceux d'aucun membre alors que votre fiche n'a pas de `tracker_username`, le résumé de la synchro l'avertit et donne la commande (`oh team profile --tracker-username <nom>`)
 
 ### Gestion du wiki

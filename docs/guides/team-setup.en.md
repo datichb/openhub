@@ -398,6 +398,8 @@ Pulls issue states from the tracker and updates claim statuses:
 - Reopened issue → claim transitioned back to `in_progress`
 - Labels are mirrored
 - With `auto_plan_assigned = true`, every open issue assigned to a member comes onto the board as a claim, in the column its status maps to, with no cap per member
+- With `auto_plan_unassigned = true`, the issues that carry **any** of the `unassigned_labels` come onto the board as pool claims (to take with `c`), or as claims of the member they are assigned to. The first run scans the pool in full; the next ones only look at what was updated. Changing `unassigned_labels` scans it in full again. At most `max_unassigned_issues` claims are created per run
+- The column of an issue comes from `label_status_mapping`, then `status_mapping`. With several mapped labels the one whose status comes first among the columns of the board wins, then the alphabetical order of the labels. A value that is not a status of the board (`todo` on a board without a todo column) is read as the status of the initial column; `oh doctor` names it and `--fix` rewrites it (see [`[tracker]`](../reference/config.en.md#tracker-section))
 - If issues are assigned to names that belong to no member while your profile has no `tracker_username`, the sync summary warns you and gives the command (`oh team profile --tracker-username <name>`)
 
 ### Wiki management

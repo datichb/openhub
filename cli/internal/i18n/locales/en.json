@@ -6343,5 +6343,19 @@
   "a12.legend.cursor": "row under the cursor, start of an action",
   "a12.legend.selected": "chosen (single choice)",
   "a12.legend.selected-multi": "ticked (multiple choice)",
-  "a12.legend.unselected-multi": "not ticked (multiple choice)"
+  "a12.legend.unselected-multi": "not ticked (multiple choice)",
+  "v53d.mapping.issue_migrated": "[tracker.%[1]s] \"%[2]s\" = '%[3]s' is not a claim status: the value is read as '%[4]s' (the status of the initial column). Write '%[4]s'.",
+  "v53d.mapping.issue_unknown": "[tracker.%[1]s] \"%[2]s\" = '%[3]s' is the status of no column of the board: the mapping is ignored.",
+  "v53d.mapping.valid_statuses": "Valid statuses: %s.",
+  "v53d.doctor.mappings.name": "Tracker mappings (team)",
+  "v53d.doctor.mappings.found": "the team config.toml (%[1]s) has %[2]d tracker mapping(s) whose value is not a status of the board:",
+  "v53d.doctor.mappings.more": "… and %d more",
+  "v53d.doctor.mappings.fix_hint": "oh already reads them as the status they stand for; oh doctor --fix rewrites config.toml with those statuses (one commit, after confirmation).",
+  "v53d.doctor.mappings.manual_hint": "The values that stand for no column are ignored by the sync: correct them by hand in config.toml (the valid statuses are the columns of the board, and 'planned'). While they stay, saving the team configuration is refused.",
+  "v53d.doctor.mappings.unreadable": "config.toml unreadable, mappings not checked: %s",
+  "v53d.doctor.mappings.fix_plan": "%[1]d tracker mapping(s) to rewrite as a claim status, in %[2]d team(s):",
+  "v53d.doctor.mappings.fix_line": "[tracker.%[1]s] \"%[2]s\": '%[3]s' → '%[4]s'",
+  "v53d.doctor.mappings.fix_confirm": "Rewrite these mappings in the team config.toml (commit and push)?",
+  "v53d.doctor.mappings.fix_done": "%[1]d mapping(s) rewritten in %[2]s",
+  "v53d.doctor.mappings.fix_failed": "rewriting the mappings of %[1]s: %[2]v"
 }

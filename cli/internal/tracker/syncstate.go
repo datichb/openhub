@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/fsutil"
@@ -30,6 +33,13 @@ type SyncState struct {
 	// auto-plan does not filter on the update time: an issue assigned long ago
 	// and not touched since was never seen by the runs that did.
 	AutoPlanScanned map[string]time.Time `json:"autoplan_scanned,omitempty"`
+	// AutoPoolScanned maps "trackerType/projectID" to the first complete scan
+	// of the pool (the issues of unassigned_labels, or the unassigned issues),
+	// with the labels it was made for. Before it, the pool does not filter on
+	// the update time: an issue labelled long ago and not touched since was
+	// never seen by the runs that did. A change of unassigned_labels scans
+	// again.
+	AutoPoolScanned map[string]PoolScan `json:"autopool_scanned,omitempty"`
 	// LegacyAutoPlanHeld is what oh 5.1.0 wrote under "autoplan_held": the
 	// issues its per-member plan cap left off the board. They are not kept any
 	// more; reading the field only tells LoadSyncState that such issues exist,
@@ -37,6 +47,13 @@ type SyncState struct {
 	// them on the board (an incremental fetch would not see them, untouched
 	// since).
 	LegacyAutoPlanHeld json.RawMessage `json:"autoplan_held,omitempty"`
+}
+
+// PoolScan records the first complete scan of the pool of a project.
+type PoolScan struct {
+	At time.Time `json:"at"`
+	// Labels identifies the unassigned_labels the scan was made for.
+	Labels string `json:"labels,omitempty"`
 }
 
 // KnownTicket records the essential identifiers of a claimed ticket for orphan detection.
@@ -75,6 +92,9 @@ func LoadSyncState(stateDir string) (*SyncState, error) {
 	}
 	if s.AutoPlanScanned == nil || legacyHeldPresent(s.LegacyAutoPlanHeld) {
 		s.AutoPlanScanned = make(map[string]time.Time)
+	}
+	if s.AutoPoolScanned == nil {
+		s.AutoPoolScanned = make(map[string]PoolScan)
 	}
 	s.LegacyAutoPlanHeld = nil
 	return &s, nil
@@ -160,4 +180,33 @@ func (s *SyncState) MarkAutoPlanScanned(t Type, projectID string, at time.Time) 
 	if k := syncStateKey(t, projectID); s.AutoPlanScanned[k].IsZero() {
 		s.AutoPlanScanned[k] = at
 	}
+}
+
+// poolLabelsKey identifies a set of unassigned_labels: the same labels in any
+// order and case give the same key.
+func poolLabelsKey(labels []string) string {
+	lowered := make([]string, 0, len(labels))
+	for _, l := range labels {
+		if l = strings.ToLower(strings.TrimSpace(l)); l != "" {
+			lowered = append(lowered, l)
+		}
+	}
+	sort.Strings(lowered)
+	return strings.Join(slices.Compact(lowered), "\x00")
+}
+
+// AutoPoolScan reports whether the pool of (type, projectID) was scanned in
+// full for these unassigned_labels; MarkAutoPoolScanned records it.
+func (s *SyncState) AutoPoolScan(t Type, projectID string, labels []string) bool {
+	scan, ok := s.AutoPoolScanned[syncStateKey(t, projectID)]
+	return ok && !scan.At.IsZero() && scan.Labels == poolLabelsKey(labels)
+}
+
+// MarkAutoPoolScanned records the complete scan of the pool of (type,
+// projectID) for these unassigned_labels.
+func (s *SyncState) MarkAutoPoolScanned(t Type, projectID string, labels []string, at time.Time) {
+	if s.AutoPoolScanned == nil {
+		s.AutoPoolScanned = make(map[string]PoolScan)
+	}
+	s.AutoPoolScanned[syncStateKey(t, projectID)] = PoolScan{At: at, Labels: poolLabelsKey(labels)}
 }

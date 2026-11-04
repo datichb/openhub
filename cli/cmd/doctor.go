@@ -123,6 +123,9 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		if err := fixClaimsQueue(cmd); err != nil {
 			return err
 		}
+		if err := fixTrackerMappings(cmd); err != nil {
+			return err
+		}
 		if err := fixOrphanServers(cmd); err != nil {
 			return err
 		}

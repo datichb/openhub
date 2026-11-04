@@ -3,6 +3,9 @@ package tracker
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
@@ -25,7 +28,7 @@ func TestSuggestMappings_GitLabLabels(t *testing.T) {
 	mappings := SuggestMappings(info, TypeGitLab, nil)
 
 	expected := map[string]string{
-		"READY TO DEV":  "todo",
+		"READY TO DEV":  "planned", // the initial column of a board without columns: not "todo"
 		"DEV DOING":     "in_progress",
 		"DEV TO REVIEW": "review",
 		"TESTING":       "validation",
@@ -70,7 +73,7 @@ func TestSuggestMappings_JiraStatuses(t *testing.T) {
 	mappings := SuggestMappings(info, TypeJira, nil)
 
 	expected := map[string]string{
-		"To Do":       "todo",
+		"To Do":       "planned",
 		"In Progress": "in_progress",
 		"Code Review": "review",
 		"In QA":       "validation",
@@ -138,8 +141,8 @@ func TestSuggestMappings_CaseInsensitive(t *testing.T) {
 		t.Fatalf("expected 3 mappings, got %d", len(mappings))
 	}
 	for _, m := range mappings {
-		if m.ColumnID != "todo" {
-			t.Errorf("mapping %q: got column %q, want 'todo'", m.Source, m.ColumnID)
+		if m.ColumnID != "planned" {
+			t.Errorf("mapping %q: got column %q, want 'planned'", m.Source, m.ColumnID)
 		}
 	}
 }
@@ -275,4 +278,104 @@ func TestSuggestNewColumns(t *testing.T) {
 	if suggested[0].Role != teamstate.ColumnRoleActive {
 		t.Errorf("got role %q, want 'active'", suggested[0].Role)
 	}
+}
+
+// "todo" is the ID of the initial column of the default board, not a claim
+// status: a mapping to it on a board without columns was refused by the sync
+// in silence and read as in progress. Whatever the board, what the assistant
+// proposes is a status of that board.
+func TestSuggestMappingsAreStatusesOfTheBoard(t *testing.T) {
+	info := &DiscoveryInfo{
+		Labels: []LabelInfo{
+			{Name: "READY TO DEV"}, {Name: "Todo"}, {Name: "DEV DOING"}, {Name: "DEV TO REVIEW"},
+			{Name: "TESTING"}, {Name: "BLOQUÉ"}, {Name: "done"},
+		},
+		Statuses: []StatusInfo{
+			{Name: "To Do", Category: "new"}, {Name: "Odd", Category: "new"}, {Name: "Odd 2", Category: "indeterminate"}, {Name: "Odd 3", Category: "done"},
+		},
+	}
+	boards := map[string][]teamstate.BoardColumnConfig{
+		"no columns":          nil,
+		"the default columns": teamstate.DefaultBoardConfig().Columns,
+		"own columns":         {{ID: "backlog", Name: "B", Role: teamstate.ColumnRoleInitial}, {ID: "dev", Name: "D"}, {ID: "shipped", Name: "S", Role: teamstate.ColumnRoleTerminal}, {ID: "stuck", Name: "X", Role: teamstate.ColumnRoleBlocked}},
+		"no initial role":     {{ID: "first", Name: "F"}, {ID: "second", Name: "S"}, {ID: "end", Name: "E", Role: teamstate.ColumnRoleTerminal}},
+	}
+	for name, columns := range boards {
+		t.Run(name, func(t *testing.T) {
+			board := teamstate.BoardConfig{Columns: columns}
+			mappings := SuggestMappings(info, TypeJira, columns)
+			require.NotEmpty(t, mappings)
+			for _, m := range mappings {
+				_, migrated, ok := board.ResolveStatus(m.ColumnID)
+				assert.True(t, ok && !migrated, "%q → %q is a status of the board", m.Source, m.ColumnID)
+			}
+			// What the assistant writes is accepted when the config is saved.
+			tc := teamstate.TrackerConfig{LabelStatusMapping: map[string]string{}, StatusMapping: map[string]string{}}
+			for _, m := range mappings {
+				if m.Origin == "status" {
+					tc.StatusMapping[m.Source] = m.ColumnID
+				} else {
+					tc.LabelStatusMapping[m.Source] = m.ColumnID
+				}
+			}
+			assert.NoError(t, tc.ValidateMappings(board))
+		})
+	}
+}
+
+func TestSuggestMappingsInitialColumn(t *testing.T) {
+	info := &DiscoveryInfo{Labels: []LabelInfo{{Name: "READY TO DEV"}}}
+	cases := []struct {
+		name    string
+		columns []teamstate.BoardColumnConfig
+		want    string
+	}{
+		{"no columns: the claim status", nil, "planned"},
+		{"a todo column with the initial role", teamstate.DefaultBoardConfig().Columns, "todo"},
+		{"another initial column", []teamstate.BoardColumnConfig{{ID: "backlog", Name: "B", Role: teamstate.ColumnRoleInitial}, {ID: "end", Name: "E", Role: teamstate.ColumnRoleTerminal}}, "backlog"},
+		{"no initial column: the first", []teamstate.BoardColumnConfig{{ID: "first", Name: "F"}, {ID: "end", Name: "E", Role: teamstate.ColumnRoleTerminal}}, "first"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			m := SuggestMappings(info, TypeGitLab, c.columns)
+			require.Len(t, m, 1)
+			assert.Equal(t, c.want, m[0].ColumnID)
+		})
+	}
+}
+
+func TestSuggestPoolLabelsOfABoardWithoutColumns(t *testing.T) {
+	mappings := SuggestMappings(&DiscoveryInfo{Labels: []LabelInfo{{Name: "READY TO DEV"}, {Name: "DEV DOING"}}}, TypeGitLab, nil)
+	assert.Equal(t, []string{"READY TO DEV"}, SuggestPoolLabels(mappings, teamstate.BoardConfig{}), "the initial column is planned")
+	// Mappings of an older assistant (todo) on a board whose initial column is todo.
+	old := []SuggestedMapping{{Source: "Ready", ColumnID: "todo", Origin: "label"}, {Source: "Fresh", ColumnID: "planned", Origin: "label"}}
+	assert.Equal(t, []string{"Ready", "Fresh"}, SuggestPoolLabels(old, teamstate.DefaultBoardConfig()))
+}
+
+func TestRetainMappings(t *testing.T) {
+	board := teamstate.BoardConfig{Columns: []teamstate.BoardColumnConfig{
+		{ID: "backlog", Name: "B", Role: teamstate.ColumnRoleInitial},
+		{ID: "dev", Name: "D"},
+		{ID: "end", Name: "E", Role: teamstate.ColumnRoleTerminal},
+	}}
+	kept, dropped := RetainMappings([]SuggestedMapping{
+		{Source: "a", ColumnID: "todo"},
+		{Source: "b", ColumnID: "dev"},
+		{Source: "c", ColumnID: "validation"}, // a column the team left out
+	}, board)
+	require.Len(t, kept, 2)
+	assert.Equal(t, "backlog", kept[0].ColumnID, "todo is the initial column")
+	assert.Equal(t, "dev", kept[1].ColumnID)
+	require.Len(t, dropped, 1)
+	assert.Equal(t, "c", dropped[0].Source)
+}
+
+// A board with an initial column of its own gets no second one.
+func TestSuggestNewColumnsProposesNoSecondInitialColumn(t *testing.T) {
+	info := &DiscoveryInfo{Labels: []LabelInfo{{Name: "READY TO DEV"}}}
+	existing := []teamstate.BoardColumnConfig{
+		{ID: "backlog", Name: "BACKLOG", Role: teamstate.ColumnRoleInitial},
+		{ID: "end", Name: "END", Role: teamstate.ColumnRoleTerminal},
+	}
+	assert.Empty(t, SuggestNewColumns(info, existing))
 }

@@ -180,6 +180,7 @@ func actionBoardColumnConfig(afterSave func()) {
 	if statusMappings == nil {
 		statusMappings = make(map[string]string)
 	}
+	listUnderTheirColumns(columns, labelMappings, statusMappings)
 
 	var finalColumns []teamstate.BoardColumnConfig
 
@@ -203,6 +204,21 @@ func actionBoardColumnConfig(afterSave func()) {
 	tuiShell.PushView(wizard)
 }
 
+// listUnderTheirColumns gives the mappings the ID of their column: the editor
+// lists the labels under the column they are mapped to, by ID, and "planned",
+// the initial status of a board without columns of its own, is its initial
+// column.
+func listUnderTheirColumns(columns []teamstate.BoardColumnConfig, mappings ...map[string]string) {
+	initialID := teamstate.BoardConfig{Columns: columns}.InitialStatus()
+	for _, m := range mappings {
+		for k, v := range m {
+			if v == teamstate.ClaimStatusPlanned {
+				m[k] = initialID
+			}
+		}
+	}
+}
+
 // boardColumnsOf is a copy of the columns of the board of the team, or of the
 // default board when the team has none of its own.
 func boardColumnsOf(cfg *teamstate.TeamConfig) []teamstate.BoardColumnConfig {
@@ -222,6 +238,17 @@ type boardConfigStore interface {
 	teamstate.ConfigWriter
 }
 
+// applyBoardColumns sets the columns and the mappings of the editor in cfg. A
+// mapping to "todo" on a board that has no such column is the status of its
+// initial column; the others that are no status of the board are refused, with
+// their names, when the config is saved.
+func applyBoardColumns(cfg *teamstate.TeamConfig, columns []teamstate.BoardColumnConfig, labelMappings, statusMappings map[string]string) {
+	cfg.Board.Columns = columns
+	cfg.Tracker.LabelStatusMapping = labelMappings
+	cfg.Tracker.StatusMapping = statusMappings
+	cfg.Tracker.NormalizeMappings(cfg.Board)
+}
+
 // saveBoardColumns writes the columns and the mappings to the config of the
 // team-state, off the event loop, and says how it went; afterSave (nil: none)
 // is called on the event loop once they are written.
@@ -233,9 +260,7 @@ func saveBoardColumns(ctx context.Context, repo boardConfigStore, columns []team
 		})
 		return
 	}
-	freshCfg.Board.Columns = columns
-	freshCfg.Tracker.LabelStatusMapping = labelMappings
-	freshCfg.Tracker.StatusMapping = statusMappings
+	applyBoardColumns(freshCfg, columns, labelMappings, statusMappings)
 	if err := repo.SaveConfig(ctx, freshCfg); err != nil {
 		queueOnShell(tuiShell, func() {
 			tuiShell.ShowToast(i18n.T("tui.team.board_config.save_error")+err.Error(), shell.ToastError)

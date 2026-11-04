@@ -584,8 +584,10 @@ type TrackerConfig struct {
 	// creates "pool" claims (ClaimedBy="") so they appear on the team board
 	// as claimable tickets. Members can claim them with the 'c' key.
 	AutoPlanUnassigned bool `toml:"auto_plan_unassigned"`
-	// UnassignedLabels restricts which unassigned issues are fetched.
-	// Only issues matching ALL of these labels are imported.
+	// UnassignedLabels restricts which issues are fetched for the pool.
+	// Issues carrying ANY of these labels are imported (an OR: one request per
+	// label, the issues found by several labels counted once). Until oh 5.3
+	// this was an AND (all the labels at once).
 	// Empty = all unassigned open issues (no label filter).
 	UnassignedLabels []string `toml:"unassigned_labels,omitempty"`
 	// MaxUnassignedIssues caps the number of unassigned issues fetched per project.
@@ -631,8 +633,14 @@ type TrackerConfig struct {
 	// LabelStatusMapping maps tracker labels (case-insensitive keys) to claim
 	// statuses. This is especially useful for GitLab which only has "opened"/"closed"
 	// states — the real workflow status is carried by labels.
-	// Order matters: the FIRST matching label wins (priority by config order).
-	// Valid statuses: planned, in_progress, review, validation, blocked, done
+	// When an issue carries several mapped labels, the one whose status comes
+	// first among the columns of the board wins, then the first label in
+	// alphabetical order (case ignored): neither the order of the labels of
+	// the issue nor the order of this table counts.
+	// Valid statuses: planned, in_progress, review, validation, blocked, done,
+	// or the ID of a column of the board when it declares its own columns. The
+	// ID "todo" is not a status unless the board declares that column: it is
+	// read as the status of the initial column (see BoardConfig.ResolveStatus).
 	// Example: {"Bloqué" = "blocked", "DEV DOING" = "in_progress", "TO REVIEW" = "review"}
 	LabelStatusMapping map[string]string `toml:"label_status_mapping,omitempty"`
 }
@@ -694,8 +702,26 @@ func (r *Repo) LoadConfig(ctx context.Context) (*TeamConfig, error) {
 	return r.loadConfig()
 }
 
-// loadConfig is LoadConfig without the lock.
+// loadConfig is LoadConfig without the lock. The values of the tracker
+// mappings that stand for a status of the board but are not one ("todo" on a
+// board without a todo column) are read as the status they stand for, and a
+// warning says so, once; the file is rewritten by the next SaveConfig or by
+// oh doctor --fix. A value that stands for nothing is left as it is: the sync
+// ignores it, and says so.
 func (r *Repo) loadConfig() (*TeamConfig, error) {
+	cfg, err := r.readConfig()
+	if err != nil {
+		return nil, err
+	}
+	for _, issue := range cfg.Tracker.NormalizeMappings(cfg.Board) {
+		warnMappingOnce(r.path, issue)
+	}
+	return cfg, nil
+}
+
+// readConfig is the content of config.toml, with its defaults and bounds
+// applied and its mappings as they are written.
+func (r *Repo) readConfig() (*TeamConfig, error) {
 	path := filepath.Join(r.path, "config.toml")
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -768,6 +794,9 @@ func marshalConfig(cfg *TeamConfig) ([]byte, error) {
 // SaveConfig writes config.toml to the team-state repo.
 func (r *Repo) SaveConfig(ctx context.Context, cfg *TeamConfig) error {
 	if err := cfg.Claim.Validate(); err != nil {
+		return err
+	}
+	if err := cfg.Tracker.ValidateMappings(cfg.Board); err != nil {
 		return err
 	}
 	return r.withWriteLock(ctx, func(ctx context.Context) error {

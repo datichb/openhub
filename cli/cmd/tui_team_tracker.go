@@ -509,12 +509,14 @@ func actionTrackerDiscovery() {
 			// Board columns
 			cfg.Board.Columns = finalColumns
 
-			// Label/status mappings
+			// Label/status mappings: the claim status of the column, and only
+			// for the columns the team kept in its board.
+			mappings, _ := tracker.RetainMappings(suggestedMappings, cfg.Board)
 			if trackerType == "gitlab" {
 				if cfg.Tracker.LabelStatusMapping == nil {
 					cfg.Tracker.LabelStatusMapping = make(map[string]string)
 				}
-				for _, m := range suggestedMappings {
+				for _, m := range mappings {
 					cfg.Tracker.LabelStatusMapping[m.Source] = m.ColumnID
 				}
 			} else {
@@ -525,7 +527,7 @@ func actionTrackerDiscovery() {
 				if cfg.Tracker.LabelStatusMapping == nil {
 					cfg.Tracker.LabelStatusMapping = make(map[string]string)
 				}
-				for _, m := range suggestedMappings {
+				for _, m := range mappings {
 					if m.Origin == "status" {
 						cfg.Tracker.StatusMapping[m.Source] = m.ColumnID
 					} else {

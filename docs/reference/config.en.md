@@ -632,18 +632,19 @@ write_enabled = false        # tracker writes (labels, assignment)
 | `auto_plan_assigned` | bool | `false` | Every open issue assigned to a member comes onto the board as a claim, in the column its status maps to, **with no cap per member** (an issue already in progress on the tracker arrives in progress) |
 | `max_in_progress_per_member` | int | `5` | **Work-in-progress limit**: the most tickets one member works on at once. It counts their claims in progress (the `active` columns of the board, `in_progress` by default), those in review (`review` status or `review` / `ready-for-review` label) or in validation apart. `0` = no limit. A member who has reached it can no longer take or start one more: `oh team claim` (also the takeover of an expired claim and `oh team claim transfer` to oneself), the take key and a card moved to in progress or handed to oneself on the team board, a session launched on tickets. oh refuses with the count and this key. The tracker sync is never bound by it. A member can set their own limit in `hub.toml` (`oh config set tracker.max_in_progress_per_member 3`), which wins over the team's. **Replaces `max_auto_plan_per_member`** (deprecated: still read when this key is absent, announced by `oh doctor`; it no longer caps anything the sync creates) |
 | `auto_plan_unassigned` | bool | `false` | Pool claims (taken with `c`) for unassigned issues |
-| `unassigned_labels` | list | `[]` | Labels required on unassigned issues |
-| `max_unassigned_issues` | int | `20` | Cap on unassigned issues per project |
+| `unassigned_labels` | list | `[]` | Labels of the pool: an issue that carries **any** of them is imported (an OR: one request per label, an issue found by several labels counted once; **an AND until oh 5.3**). The first run, and the first one after this list changes, scans the pool in full, old issues included; the following ones only look at what was updated. Empty = every unassigned issue |
+| `max_unassigned_issues` | int | `20` | Most pool claims one sync creates per project (the issues that already have a claim do not count against it) |
 | `push_labels` | bool | `false` | Push claim labels back to the tracker (`push_labels_enforced` to enforce it) |
 | `write_enabled` | bool | `false` | Allow tracker writes |
-| `status_mapping` | map | `{}` | Tracker status → claim status |
-| `label_status_mapping` | map | `{}` | Label → claim status (the first matching label wins) |
+| `status_mapping` | map | `{}` | Tracker status → claim status (see the notes below for the accepted values) |
+| `label_status_mapping` | map | `{}` | Label → claim status. When an issue carries several mapped labels, the one whose status comes **first among the columns of the board** wins, then the first label in alphabetical order (case ignored): neither the order of the labels on the issue nor the order of this table counts |
 | `ticket_patterns`, `[tracker.projects]` | map | `{}` | Former per-project format (deprecated, still read) |
 
 **Notes:**
 
 - Jira: closed issues are detected via `statusCategory.key == "done"`.
-- Valid claim statuses: `planned`, `in_progress`, `review`, `validation`, `blocked`, `done`.
+- Valid claim statuses: `planned`, `in_progress`, `review`, `validation`, `blocked`, `done` (the IDs of the columns when `[board]` declares its own). Without columns of its own the board is `planned` (TODO), `in_progress`, `review`, `validation`, `done`, `blocked`, in that order, which is also the order of priority of the labels.
+- **`todo` is not a claim status** unless `[board]` declares a column with that ID: the initial column of a board without columns is `planned`. A value of `status_mapping` or `label_status_mapping` that is not a status of the board is treated as follows. `todo`, or the ID of a column, is **read** as the status of the initial column (`planned`), with a warning in the log and in `oh doctor`, which rewrites the file with `--fix`. Anything else (a typo, a column that no longer exists) is **ignored** by the sync, which says so in its summary. **Saving** the team config (`oh team config`, the TUI) is **refused** while such a value is there, with its name and the valid statuses. The `oh team config` assistant writes `planned`, or the ID of the initial column when the board declares its columns.
 - The `hub.toml` `[tracker]` section lets a member turn off `enabled`, `auto_sync`, `push_labels`, `auto_plan_assigned`, etc. locally, and set their own token key (`tracker_token_key` + `tracker_token_url`, which go together).
 
 ### The server of each GitLab token

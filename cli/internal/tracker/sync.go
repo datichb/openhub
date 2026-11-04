@@ -245,6 +245,9 @@ func (e *Engine) reconcileAll(ctx context.Context, result *SyncResult) (fatal, a
 		}
 	}
 	slog.Debug("tracker.sync.members", "count", len(members))
+	for _, issue := range e.cfg.MappingIssues(e.boardCfg) {
+		result.Warnings = append(result.Warnings, SyncWarning{Message: issue.Text()})
+	}
 	e.unknown = map[string]string{}
 	defer func() {
 		if w := e.unknownAssigneesWarning(members); w != nil {
@@ -846,18 +849,30 @@ func (e *Engine) autoplan(
 	return e.repo.CommitAndPush(ctx, msg, relPaths...)
 }
 
+// maxPoolWindow bounds the issues fetched for the pool in one run.
+const maxPoolWindow = 500
+
 // autopoolUnassigned creates claims for tracker issues so they appear on the
 // team board as claimable tickets.
 //
-// When UnassignedLabels is configured, it fetches ALL open issues matching those
-// labels (regardless of assignee) via ListIssuesByLabels. Issues assigned to a
-// known team member get ClaimedBy=member.ID; others become pool claims (ClaimedBy="").
+// When UnassignedLabels is configured, it fetches the open issues carrying ANY
+// of those labels (an OR: one request per label, an issue found by several
+// labels counted once), regardless of assignee, via ListIssuesByLabels. Issues
+// assigned to a known team member get ClaimedBy=member.ID; others become pool
+// claims (ClaimedBy="").
 //
 // When UnassignedLabels is empty, it falls back to the original behaviour:
 // fetching only issues with no assignee via ListUnassignedIssues (pool claims only).
 //
-// Respects MaxUnassignedIssues. Claims are created locally in batch and
-// committed in a single git operation.
+// The first complete scan of a project's pool (and the first one after
+// unassigned_labels changed) does not filter on the update time: an issue
+// labelled long ago and not touched since has never been seen by a run that
+// did. The runs that follow only fetch what was updated since the last sync.
+//
+// Respects MaxUnassignedIssues: at most that many claims are created by a run,
+// and the fetch is wide enough (that many plus the issues that already have a
+// claim) for the claimed ones not to hide the others. Claims are created
+// locally in batch and committed in a single git operation.
 func (e *Engine) autopoolUnassigned(
 	ctx context.Context,
 	hubProjectID, trackerProjectID string,
@@ -867,11 +882,14 @@ func (e *Engine) autopoolUnassigned(
 	firstSync bool,
 	pr *ProjectSyncResult,
 ) error {
+	fullScan := firstSync || !e.state.AutoPoolScan(trackerType, trackerProjectID, e.cfg.UnassignedLabels)
 	var lastSync time.Time
-	if !firstSync {
+	if !fullScan {
 		lastSync = e.state.LastSync(trackerType, trackerProjectID)
 	}
-	slog.Debug("tracker.autopool.start", "project", hubProjectID, "first_sync", firstSync, "has_labels", len(e.cfg.UnassignedLabels) > 0)
+	slog.Debug("tracker.autopool.start", "project", hubProjectID, "first_sync", firstSync, "full_scan", fullScan, "has_labels", len(e.cfg.UnassignedLabels) > 0)
+
+	window := min(e.cfg.MaxUnassignedIssues+len(claimedTickets), maxPoolWindow)
 
 	// Fetch issues: use ListIssuesByLabels (all assignees) when labels are
 	// configured, otherwise fall back to ListUnassignedIssues (no assignee only).
@@ -881,13 +899,13 @@ func (e *Engine) autopoolUnassigned(
 		issues, err = e.tracker.ListIssuesByLabels(ctx, trackerProjectID, ListByLabelsOpts{
 			Labels:       e.cfg.UnassignedLabels,
 			UpdatedAfter: lastSync,
-			MaxResults:   e.cfg.MaxUnassignedIssues,
+			MaxResults:   window,
 		})
 	} else {
 		issues, err = e.tracker.ListUnassignedIssues(ctx, trackerProjectID, ListUnassignedOpts{
 			Labels:       e.cfg.UnassignedLabels,
 			UpdatedAfter: lastSync,
-			MaxResults:   e.cfg.MaxUnassignedIssues,
+			MaxResults:   window,
 		})
 	}
 	if err != nil {
@@ -895,9 +913,16 @@ func (e *Engine) autopoolUnassigned(
 			return err
 		}
 		slog.Warn("tracker.autopool.fetch_error", "error", err)
-		return nil // skip on transient errors
+		return nil // skip on transient errors: the scan starts again
 	}
 	slog.Debug("tracker.autopool.fetched", "count", len(issues))
+
+	// The scan is complete once the fetch and the creation went through.
+	markScanned := func() {
+		if fullScan {
+			e.state.MarkAutoPoolScanned(trackerType, trackerProjectID, e.cfg.UnassignedLabels, time.Now().UTC())
+		}
+	}
 
 	// Collect claims to create, then batch commit.
 	type pendingClaim struct {
@@ -946,6 +971,7 @@ func (e *Engine) autopoolUnassigned(
 	}
 
 	if len(pending) == 0 {
+		markScanned()
 		return nil
 	}
 
@@ -955,6 +981,7 @@ func (e *Engine) autopoolUnassigned(
 	}
 
 	var relPaths []string
+	createFailed := false
 	for i := range pending {
 		relPath, err := e.repo.CreateClaimLocal(pending[i].claim)
 		if err != nil {
@@ -962,6 +989,7 @@ func (e *Engine) autopoolUnassigned(
 				continue
 			}
 			slog.Warn("tracker.autopool.create_failed", "ticket", pending[i].claim.TicketID, "error", err)
+			createFailed = true // the scan starts again
 			continue
 		}
 		relPaths = append(relPaths, relPath)
@@ -970,96 +998,130 @@ func (e *Engine) autopoolUnassigned(
 	}
 
 	if len(relPaths) == 0 {
+		if !createFailed {
+			markScanned()
+		}
 		return nil
 	}
 
 	msg := fmt.Sprintf("autopool: %d tickets for %s", len(relPaths), hubProjectID)
-	return e.repo.CommitAndPush(ctx, msg, relPaths...)
+	if err := e.repo.CommitAndPush(ctx, msg, relPaths...); err != nil {
+		return err
+	}
+	if !createFailed {
+		markScanned()
+	}
+	return nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-// matchLabelMapping checks if any of the issue's labels match the labelStatusMapping.
-// Returns the mapped status and true if found, or ("", false) if no match.
-func matchLabelMapping(issue *IssueState, labelStatusMapping map[string]string) (string, bool) {
+// matchLabelMapping looks for the status the labels of the issue map to.
+// Returns the status and true if one does, or ("", false) if none does.
+//
+// When several labels of the issue are mapped, the winner does not depend on
+// the order of the labels of the issue (the tracker's) nor on the order of the
+// map (random): it is the label whose status comes first among the columns of
+// the board, then the first in alphabetical order (case ignored). A value that
+// stands for no status of the board is left out, so that it never hides
+// another label. A value like "todo" that stands for the initial column is
+// read as the status of that column (see BoardConfig.ResolveStatus).
+func matchLabelMapping(issue *IssueState, labelStatusMapping map[string]string, boardCfg teamstate.BoardConfig) (string, bool) {
 	if len(labelStatusMapping) == 0 || len(issue.Labels) == 0 {
 		return "", false
 	}
-	lowerMap := make(map[string]string, len(labelStatusMapping))
-	for k, v := range labelStatusMapping {
-		lowerMap[strings.ToLower(k)] = v
+	// Keys that differ by case only: the first in alphabetical order, so that
+	// the answer is the same at every run.
+	keys := make([]string, 0, len(labelStatusMapping))
+	for k := range labelStatusMapping {
+		keys = append(keys, k)
 	}
-	for _, label := range issue.Labels {
-		if v, ok := lowerMap[strings.ToLower(label)]; ok {
-			return v, true
+	sort.Strings(keys)
+	lowerMap := make(map[string]string, len(keys))
+	for _, k := range keys {
+		if _, dup := lowerMap[strings.ToLower(k)]; !dup {
+			lowerMap[strings.ToLower(k)] = labelStatusMapping[k]
 		}
 	}
-	return "", false
+
+	var (
+		best     string
+		bestRank int
+		bestName string
+		found    bool
+	)
+	for _, label := range issue.Labels {
+		v, ok := lowerMap[strings.ToLower(label)]
+		if !ok {
+			continue
+		}
+		status, _, valid := boardCfg.ResolveStatus(v)
+		if !valid {
+			continue
+		}
+		rank, name := boardCfg.StatusRank(status), strings.ToLower(label)
+		if !found || rank < bestRank || (rank == bestRank && name < bestName) {
+			best, bestRank, bestName, found = status, rank, name, true
+		}
+	}
+	return best, found
 }
 
 // matchStatusNameMapping checks if the issue's status name matches the statusMapping.
-// Returns the mapped status and true if found, or ("", false) if no match.
-func matchStatusNameMapping(issue *IssueState, statusMapping map[string]string) (string, bool) {
+// Returns the mapped status and true if found and standing for a status of the
+// board, or ("", false) otherwise.
+func matchStatusNameMapping(issue *IssueState, statusMapping map[string]string, boardCfg teamstate.BoardConfig) (string, bool) {
 	if len(statusMapping) == 0 || issue.StatusName == "" {
 		return "", false
 	}
 	nameLower := strings.ToLower(issue.StatusName)
-	for k, v := range statusMapping {
+	keys := make([]string, 0, len(statusMapping))
+	for k := range statusMapping {
 		if strings.ToLower(k) == nameLower {
-			return v, true
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if status, _, ok := boardCfg.ResolveStatus(statusMapping[k]); ok {
+			return status, true
 		}
 	}
 	return "", false
 }
 
-// MapTrackerStatus maps a tracker issue's status to a claim status using the
-// configured mappings. Falls back to category-based mapping when no match.
-//
-// Resolution order:
-//  1. LabelStatusMapping[label] — first matching label wins (order matters)
-//  2. StatusMapping[issue.StatusName] (case-insensitive)
-//  3. Category fallback: Jira statusCategory / GitLab state
-//     - "done" / "closed" → ClaimStatusDone
-//     - "new" → ClaimStatusPlanned
-//     - "indeterminate" / "opened" → ClaimStatusInProgress
+// MapTrackerStatus maps a tracker issue's status to a claim status on the
+// default board; see MapTrackerStatusWithBoard.
 func MapTrackerStatus(issue *IssueState, statusMapping, labelStatusMapping map[string]string) string {
-	if v, ok := matchLabelMapping(issue, labelStatusMapping); ok {
-		if teamstate.IsValidStatus(v) {
-			return v
-		}
-	}
-	if v, ok := matchStatusNameMapping(issue, statusMapping); ok {
-		if teamstate.IsValidStatus(v) {
-			return v
-		}
-	}
-	// Category fallback
-	switch strings.ToLower(issue.StatusCategory) {
-	case "done", "closed":
-		return teamstate.ClaimStatusDone
-	case "new":
-		return teamstate.ClaimStatusPlanned
-	default:
-		return teamstate.ClaimStatusInProgress
-	}
+	return MapTrackerStatusWithBoard(issue, statusMapping, labelStatusMapping, teamstate.BoardConfig{})
 }
 
-// MapTrackerStatusWithBoard is like MapTrackerStatus but uses the BoardConfig
-// for category fallback resolution. This ensures custom column IDs are used
-// instead of hardcoded defaults when the team has configured custom columns.
+// MapTrackerStatusWithBoard maps a tracker issue's status to a claim status
+// using the configured mappings and the BoardConfig, so that the custom
+// column IDs are used instead of the hardcoded defaults when the team has
+// configured columns.
+//
+// Resolution order:
+//  1. LabelStatusMapping: when several labels of the issue are mapped, the one
+//     whose status comes first among the columns of the board wins, then the
+//     first in alphabetical order (see matchLabelMapping)
+//  2. StatusMapping[issue.StatusName] (case-insensitive)
+//  3. Category fallback: Jira statusCategory / GitLab state
+//     - "done" / "closed" → the terminal status
+//     - "new" → the initial status
+//     - "indeterminate" / "opened" → the status of work in progress
+//
+// A mapped value that is not a status of the board ("todo" for the initial
+// column) is read as the status it stands for; one that stands for nothing is
+// ignored (the engine warns of it, see reconcileAll).
 func MapTrackerStatusWithBoard(issue *IssueState, statusMapping, labelStatusMapping map[string]string, boardCfg teamstate.BoardConfig) string {
-	validFn := func(s string) bool { return boardCfg.IsValidStatus(s) || teamstate.IsValidStatus(s) }
-	if v, ok := matchLabelMapping(issue, labelStatusMapping); ok {
-		if validFn(v) {
-			return v
-		}
+	if v, ok := matchLabelMapping(issue, labelStatusMapping, boardCfg); ok {
+		return v
 	}
-	if v, ok := matchStatusNameMapping(issue, statusMapping); ok {
-		if validFn(v) {
-			return v
-		}
+	if v, ok := matchStatusNameMapping(issue, statusMapping, boardCfg); ok {
+		return v
 	}
 	// Category fallback using board config
 	if boardCfg.HasCustomColumns() {
