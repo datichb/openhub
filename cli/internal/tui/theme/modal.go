@@ -8,9 +8,14 @@ package theme
 const (
 	// ModalMinWidth is the smallest usable modal width.
 	ModalMinWidth = 40
-	// ModalMaxWidth is the maximum width for fixed-width modals (input, form).
-	// Proportional-width modals (select, scrollable) are capped by the terminal.
+	// ModalMaxWidth is the width of a form or an input on a standard screen: the
+	// floor of their proportional width (ModalWidthPct), not a cap.
 	ModalMaxWidth = 72
+	// ModalWidthPct is the share of the screen that a form or an input takes.
+	ModalWidthPct = 70
+	// ModalFormMaxWidth is the widest a form or an input gets, however wide the
+	// screen: the fields have nothing to gain beyond.
+	ModalFormMaxWidth = 120
 )
 
 // Modal height constraints.

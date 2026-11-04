@@ -3,7 +3,10 @@ package shell
 import (
 	"strings"
 
+	"github.com/rivo/tview"
+
 	"github.com/datichb/openhub/cli/internal/tui/theme"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -24,6 +27,19 @@ type modalSizeHint struct {
 	FieldCount   int // number of form fields (form modals)
 	HasButtons   bool
 	ButtonCount  int
+
+	// ContentWidth is the width of the widest row of the content (a list:
+	// its longest label), border and padding excluded. The window is as wide as
+	// the rows need, from ModalMinWidth to the width of the screen less 4: a
+	// row is only ellipsized on a screen too narrow for it.
+	ContentWidth int
+	// FrameWidth is the width that the title and the hints line need, border
+	// included. It widens a window sized by ContentWidth or WidthPct.
+	FrameWidth int
+	// WidthPct sizes the window as a share of the screen (forms and inputs),
+	// from ModalMaxWidth to ModalFormMaxWidth, then to the width of the screen
+	// less 4.
+	WidthPct int
 
 	// Fixed dimensions — set to override auto-sizing.
 	FixedWidth  int // >0 = fixed column count, 0 = auto
@@ -65,6 +81,17 @@ func computeWidth(hint modalSizeHint, termW int) int {
 		return clamp(hint.FixedWidth, theme.ModalMinWidth, termW-4)
 	}
 
+	// Rows: as wide as the widest row, plus the border and the padding
+	if hint.ContentWidth > 0 {
+		return fitWidth(max(hint.ContentWidth+modalChromeWidth, hint.FrameWidth), termW)
+	}
+
+	// Share of the screen, bounded: forms and inputs
+	if hint.WidthPct > 0 {
+		w := clamp(termW*hint.WidthPct/100, theme.ModalMaxWidth, theme.ModalFormMaxWidth)
+		return fitWidth(max(w, hint.FrameWidth), termW)
+	}
+
 	// Proportional — returns negative value for grid weight
 	if hint.ProportionalWidth < 0 {
 		return hint.ProportionalWidth
@@ -79,6 +106,40 @@ func computeWidth(hint modalSizeHint, termW int) int {
 		w = theme.ModalMinWidth
 	}
 	return w
+}
+
+// modalChromeWidth is what a window adds to its rows: the two borders and the
+// padding of each side.
+const modalChromeWidth = 2 + 2*theme.ModalContentPadX
+
+// fitWidth bounds a window width to [ModalMinWidth, termW-4]; the screen wins
+// when it is narrower than the minimum.
+func fitWidth(w, termW int) int {
+	w = max(w, theme.ModalMinWidth)
+	return max(min(w, termW-4), 1)
+}
+
+// frameWidth is the width that a window needs to show its title (padded) and
+// its hints line (indented by two), borders included.
+func frameWidth(title, hints string) int {
+	w := 0
+	if title != "" {
+		w = tview.TaggedStringWidth(title) + 2*theme.ModalTitlePad
+	}
+	if hints != "" {
+		w = max(w, tview.TaggedStringWidth(hints)+2)
+	}
+	return w + 2
+}
+
+// fitTitle ellipsizes a title that the border of the window is too narrow for
+// (a screen narrower than the title); a window sized in proportion is left
+// alone.
+func fitTitle(title string, size modalSize) string {
+	if w := size.cols[1]; w > 0 && title != "" {
+		return widgets.TruncateTagged(title, w-2-2*theme.ModalTitlePad)
+	}
+	return title
 }
 
 // ── Height computation ───────────────────────────────────────────────────────

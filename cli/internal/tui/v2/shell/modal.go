@@ -50,9 +50,10 @@ type modalConfig struct {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (s *Shell) showModal(cfg modalConfig) {
-	frame, focusables := s.buildModalFrame(cfg)
-
 	size := s.computeModalSize(cfg.Size)
+	cfg.Title = fitTitle(cfg.Title, size)
+
+	frame, focusables := s.buildModalFrame(cfg)
 
 	var dismiss func()
 	if cfg.LightDismiss {

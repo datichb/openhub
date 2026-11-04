@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -118,8 +119,13 @@ func (s *Shell) showInlineInput(title, currentValue string, masked bool, check f
 	frame.SetBorderColor(theme.ActiveMode.Accent)
 	applyRoundedCorners(frame, theme.ActiveMode.Accent, theme.BgModal)
 
+	// Content-aware sizing: a share of the screen, wide enough for the title
+	size := s.computeModalSize(modalSizeHint{
+		WidthPct: theme.ModalWidthPct, FrameWidth: frameWidth(title, i18n.T("tui.modal.hints.input")), FixedHeight: theme.ModalMinHeight,
+	})
+
 	pad := strings.Repeat(" ", theme.ModalTitlePad)
-	frame.SetTitle(fmt.Sprintf("%s%s%s", pad, title, pad))
+	frame.SetTitle(fmt.Sprintf("%s%s%s", pad, fitTitle(title, size), pad))
 	frame.SetTitleColor(theme.ActiveMode.Accent)
 
 	frame.AddItem(container, 0, 1, true)
@@ -132,8 +138,6 @@ func (s *Shell) showInlineInput(title, currentValue string, masked bool, check f
 	hints.SetBackgroundColor(theme.BgModal)
 	frame.AddItem(hints, 1, 0, false)
 
-	// Content-aware sizing
-	size := s.computeModalSize(modalSizeHint{FixedWidth: theme.ModalMaxWidth, FixedHeight: theme.ModalMinHeight})
 	grid := s.overlayGrid(frame, size.cols, size.rows, w.backdrop(), nil)
 
 	s.pages.AddPage(w.page, grid, true, true)
@@ -145,20 +149,54 @@ func (s *Shell) showInlineInput(title, currentValue string, masked bool, check f
 // as a window over a form
 // ─────────────────────────────────────────────────────────────────────────────
 
-// newOptionList is the list of an option window.
-func newOptionList() *tview.List {
-	list := tview.NewList()
+// newOptionList is the list of an option window, with the function that sets
+// its rows: the rows keep their full text and are ellipsized to the width of
+// the list when it is drawn (the window is as wide as the longest row, unless
+// the screen is narrower).
+func newOptionList() (list *tview.List, setRows func(rows []string)) {
+	list = tview.NewList()
 	styleSelectList(list)
 	list.SetBorderPadding(0, 0, theme.ModalContentPadX, theme.ModalContentPadX)
-	return list
+
+	var rows []string
+	fitted := -1 // width the rows were ellipsized to (-1: not yet)
+	list.SetDrawFunc(func(_ tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		inner := width - 2*theme.ModalContentPadX
+		if inner != fitted && len(rows) == list.GetItemCount() {
+			fitted = inner
+			for i, row := range rows {
+				list.SetItemText(i, widgets.TruncateTagged(row, inner), "")
+			}
+		}
+		return x + theme.ModalContentPadX, y, inner, height
+	})
+	setRows = func(texts []string) {
+		rows, fitted = texts, -1
+		list.Clear()
+		for _, row := range texts {
+			list.AddItem(row, "", 0, nil)
+		}
+	}
+	return list, setRows
 }
 
-// showList puts the list in a window, sized for the options.
-func (s *Shell) showList(w *window, title string, list *tview.List, optionCount int, hints string) {
+// rowsWidth is the width of the widest row.
+func rowsWidth(rows []string) (width int) {
+	for _, row := range rows {
+		width = max(width, tview.TaggedStringWidth(row))
+	}
+	return width
+}
+
+// showList puts the list in a window, as wide as its rows need.
+func (s *Shell) showList(w *window, title string, list *tview.List, rows []string, hints string) {
 	s.showModal(modalConfig{
-		Title:        title,
-		Content:      list,
-		Size:         modalSizeHint{OptionCount: optionCount + theme.ModalHintsHeight, ProportionalWidth: -3},
+		Title:   title,
+		Content: list,
+		Size: modalSizeHint{
+			OptionCount:  len(rows) + theme.ModalHintsHeight,
+			ContentWidth: rowsWidth(rows), FrameWidth: frameWidth(title, hints),
+		},
 		Hints:        hints,
 		LightDismiss: true,
 		Win:          w,
@@ -169,14 +207,16 @@ func (s *Shell) showList(w *window, title string, list *tview.List, optionCount 
 // showSelectList shows the options as a list: Enter picks the highlighted
 // one, a click too, Esc closes the list.
 func (s *Shell) showSelectList(w *window, title string, options []views.SelectOption, currentValue string, onConfirm func(string)) {
-	list := newOptionList()
+	list, setRows := newOptionList()
+	rows := make([]string, len(options))
 	currentIdx := 0
 	for i, opt := range options {
-		list.AddItem(opt.Label, "", 0, nil)
+		rows[i] = opt.Label
 		if opt.Value == currentValue {
 			currentIdx = i
 		}
 	}
+	setRows(rows)
 	list.SetCurrentItem(currentIdx)
 
 	confirm := func(idx int) {
@@ -196,12 +236,13 @@ func (s *Shell) showSelectList(w *window, title string, options []views.SelectOp
 
 	// Click on item = immediate selection (macOS Finder / lazygit convention).
 	s.listMouseSelect(list, w, confirm)
-	s.showList(w, title, list, len(options), i18n.T("tui.modal.hints.select"))
+	s.showList(w, title, list, rows, i18n.T("tui.modal.hints.select"))
 }
 
 // checkList is the state of a multi-select list.
 type checkList struct {
 	list    *tview.List
+	setRows func(rows []string)
 	options []views.SelectOption
 	checked []bool
 }
@@ -211,7 +252,8 @@ func newCheckList(options []views.SelectOption, selected []string) *checkList {
 	for _, v := range selected {
 		selectedSet[v] = true
 	}
-	c := &checkList{list: newOptionList(), options: options, checked: make([]bool, len(options))}
+	list, setRows := newOptionList()
+	c := &checkList{list: list, setRows: setRows, options: options, checked: make([]bool, len(options))}
 	for i, opt := range options {
 		c.checked[i] = selectedSet[opt.Value]
 	}
@@ -219,16 +261,20 @@ func newCheckList(options []views.SelectOption, selected []string) *checkList {
 	return c
 }
 
-func (c *checkList) render() {
-	c.list.Clear()
+// rows are the texts of the rows: the label of each option after its box.
+func (c *checkList) rows() []string {
+	rows := make([]string, len(c.options))
 	for i, opt := range c.options {
 		prefix := theme.SymUnselectedMulti + " "
 		if c.checked[i] {
 			prefix = theme.SymSelectedMulti + " "
 		}
-		c.list.AddItem(prefix+opt.Label, "", 0, nil)
+		rows[i] = prefix + opt.Label
 	}
+	return rows
 }
+
+func (c *checkList) render() { c.setRows(c.rows()) }
 
 func (c *checkList) toggle(idx int) {
 	if idx >= 0 && idx < len(c.checked) {
@@ -271,7 +317,7 @@ func (s *Shell) showCheckList(w *window, title string, options []views.SelectOpt
 
 	// Click on item = toggle its checked state (standard checkbox UX).
 	s.listMouseToggle(c.list, c.toggle)
-	s.showList(w, title, c.list, len(options), i18n.T("tui.modal.hints.multiselect"))
+	s.showList(w, title, c.list, c.rows(), i18n.T("tui.modal.hints.multiselect"))
 }
 
 // showSubSelect opens a list over a form. On confirmation or cancellation the
