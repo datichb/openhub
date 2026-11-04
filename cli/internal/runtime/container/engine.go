@@ -137,22 +137,26 @@ func (r ExecRunner) Stream(ctx context.Context, line func(string), name string, 
 	var tail []string
 	done := make(chan struct{})
 	safego.Go(func() {
+		// done is closed once the panic of the line callback, if any, has
+		// been logged (and its crash report written): Stream returns after.
 		defer close(done)
-		// Whatever happens (the line callback panics), the pipe is read to
-		// the end: the engine would block writing to it for ever.
-		defer func() { _, _ = io.Copy(io.Discard, pr) }()
-		sc := bufio.NewScanner(pr)
-		sc.Buffer(make([]byte, 64*1024), 1024*1024)
-		for sc.Scan() {
-			l := sc.Text()
-			if len(tail) == 10 {
-				tail = tail[1:]
+		safego.Wrap(func() {
+			// Whatever happens (the line callback panics), the pipe is read
+			// to the end: the engine would block writing to it for ever.
+			defer func() { _, _ = io.Copy(io.Discard, pr) }()
+			sc := bufio.NewScanner(pr)
+			sc.Buffer(make([]byte, 64*1024), 1024*1024)
+			for sc.Scan() {
+				l := sc.Text()
+				if len(tail) == 10 {
+					tail = tail[1:]
+				}
+				tail = append(tail, l)
+				if line != nil {
+					line(l)
+				}
 			}
-			tail = append(tail, l)
-			if line != nil {
-				line(l)
-			}
-		}
+		})()
 	})
 	err := cmd.Wait()
 	_ = pw.Close()
