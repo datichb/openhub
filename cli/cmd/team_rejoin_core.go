@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/url"
 	"strings"
@@ -317,36 +318,57 @@ func gitlabTeamTokenAt(ctx context.Context, a *app.App, teamID, repo, gitlabURL 
 }
 
 // rejoinRepo is the team-state a rejoin has cloned: its configuration, to ask
-// what the tracker needs, and its members, to add the one who joins.
+// what the tracker needs, and its members, to register the one who joins.
 type rejoinRepo interface {
 	teamstate.ConfigReader
 	teamstate.MemberWriter
+	teamstate.MemberJoiner
 }
 
 // listTeamMembers clones/pulls the team-state repo and returns the list of members.
 // Used by the rejoin wizard to display the member selection list.
-// The stale return value is true when the pull failed and local (possibly outdated) content was used.
-func listTeamMembers(ctx context.Context, stateRepo, statePath string) (rejoinRepo, []teamstate.Member, bool, error) {
+// stale is why the pull failed when the local (possibly outdated) content was
+// used; nil when the list is up to date. A repository nobody created the team
+// in (empty, or no members.toml) is an error that says so.
+func listTeamMembers(ctx context.Context, stateRepo, statePath string) (repo rejoinRepo, members []teamstate.Member, stale, err error) {
 	if statePath == "" {
 		statePath = config.TeamStatePath(stateRepo)
 	}
 
-	repo := teamstate.NewRepo(stateRepo, statePath)
-	var stale bool
-	if err := repo.EnsureReady(ctx); err != nil {
+	clone := teamstate.NewRepo(stateRepo, statePath)
+	if err := clone.EnsureReady(ctx); err != nil {
 		if !teamstate.IsPullWarning(err) {
-			return nil, nil, false, fmt.Errorf(i18n.T("cmd.team_rejoin_core.cloning_team_state"), err)
+			return nil, nil, nil, fmt.Errorf(i18n.T("cmd.team_rejoin_core.cloning_team_state"), err)
 		}
 		slog.Warn("team-state sync warning (using local content)", "error", err)
-		stale = true
+		stale = err
+	}
+	if !clone.HasCommits(ctx) {
+		return nil, nil, nil, errors.New(i18n.T("v532m.rejoin.empty_repo"))
 	}
 
-	members, err := repo.ListMembers(ctx)
+	members, err = clone.ListMembers(ctx)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil, nil, errors.New(i18n.T("v532m.rejoin.no_team_state"))
+	}
 	if err != nil {
-		return nil, nil, false, fmt.Errorf(i18n.T("cmd.team_rejoin_core.listing_members"), err)
+		return nil, nil, nil, fmt.Errorf(i18n.T("cmd.team_rejoin_core.listing_members"), err)
 	}
 
-	return repo, members, stale, nil
+	return clone, members, stale, nil
+}
+
+// staleCause is the line that tells why a list read from the clone may be out
+// of date ("" when it is up to date).
+func staleCause(stale error) string {
+	if stale == nil {
+		return ""
+	}
+	var pw *teamstate.PullWarning
+	if errors.As(stale, &pw) {
+		return gitCause(pw.Cause)
+	}
+	return gitCause(stale)
 }
 
 // retroTagSessions updates existing sessions and agent_events that have no member_id

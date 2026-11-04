@@ -123,6 +123,12 @@ type MemberWriter interface {
 	UpdateMember(ctx context.Context, m Member) error
 }
 
+// MemberJoiner registers the card of a person who joins the team without ever
+// replacing the card of a colleague (see JoinMode).
+type MemberJoiner interface {
+	JoinMember(ctx context.Context, m Member, mode JoinMode) (JoinResult, error)
+}
+
 // MemberPatcher changes one member in a transaction (the profile of the
 // member who works in the team, without rewriting the others).
 type MemberPatcher interface {
@@ -281,6 +287,7 @@ var (
 	_ WorkflowLayoutCommitter = (*Repo)(nil)
 	_ MemberReader            = (*Repo)(nil)
 	_ MemberPatcher           = (*Repo)(nil)
+	_ MemberJoiner            = (*Repo)(nil)
 	_ MemberWriter            = (*Repo)(nil)
 	_ EventReader             = (*Repo)(nil)
 	_ EventWriter             = (*Repo)(nil)

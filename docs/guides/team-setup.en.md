@@ -57,9 +57,21 @@ The wizard follows the same order for "Create" and "Rejoin", in `oh init` and in
      (clone, pull, push, probe, daemon); it is never in a URL, on a command line or in git's
      `credential.helper`. A token that is refused is not kept.
    - **SSH**: the message gives git's answer and recalls `ssh-add`; "Retry" probes again.
-4. **Identity**: your ID and name ("Create"), or the choice of the member ("Rejoin").
+4. **Identity**: "Create" asks your card (ID, display name, optional GitLab handle, role).
+   "Rejoin" lists the members ("Team members (N)"): you pick your card, or **"+ I am not in the
+   list: create my card"**, which opens the same form. See [Your member card](#your-member-card).
 5. **Clone** into `~/.oh/team-states/<host>/<repo>/` (or pull if already cloned), creation of the
    directory structure (if first member) and detection of duplicate clones.
+
+Every screen of a wizard carries its counter: "Step 2/5 — Identity".
+
+#### Empty repository
+
+A remote repository with no commit at all (a brand-new GitLab project) is valid for **"Create"**:
+there is nothing to pull, the structure and then the card are the first two commits, pushed with
+the branch (`push -u`). **"Rejoin"** on an empty repository says the team has not been created yet
+and what to do (create it, or have its lead create it); a repository that has commits but no
+`members.toml` gets a distinct message ("this repository holds no oh team").
 
 A folder that already holds the clone **of another repository** is never reused: the wizard
 says so (folder, repository found, repository asked for) and leaves the choice (delete the
@@ -87,7 +99,7 @@ The wizard automatically detects the repository state and adapts behavior:
 | Step | If repo is empty (1st member) | If repo already configured |
 |------|------------------------------|---------------------------|
 | **Global config** | Creates `config.toml` (stale_days, sessions) | Updates if changed |
-| **Identity** | Registration (6 fields) + commit-and-push | Update + commit-and-push |
+| **Identity** | Registration of your card + commit-and-push | Update of **your** card (the one in `hub.toml`) + commit-and-push |
 | **Notifications** | Mattermost webhook configuration | Updates if changed |
 | **Policies** | Multi-select of recommended policies | Merges with existing |
 
@@ -97,10 +109,34 @@ The wizard automatically detects the repository state and adapts behavior:
 |-------|-------------|---------|
 | Member ID | Unique key in members.toml | `benjamin` |
 | Display name | How your name appears in notifications | `Benjamin` |
-| GitLab username | For GitLab integration | `bdatiche` |
-| Mattermost username | For mentions in notifications | `benjamin.datiche` |
-| Tracker username | Your name on the tracker (`tracker_username`). **Required when the tracker is on another server than the team repository** (see below) | `benjamin.datiche` |
+| GitLab handle | Optional. For the GitLab integration and the check of your token; **unique in the team** | `bdatiche` |
 | Role | Your team role | `lead`, `dev`, or `reviewer` |
+| Mattermost username | For mentions in notifications (`oh team init` and "Initialize the team" only) | `benjamin.datiche` |
+| Tracker username | Your name on the tracker (`tracker_username`), same screens. **Required when the tracker is on another server than the team repository** (see below) | `benjamin.datiche` |
+
+#### Your member card
+
+Everyone creates **their own card** when joining: no lead validates it. The five paths ("Create" and
+"Rejoin" of `oh init`, `oh team init`, "Initialize the team" and "Rejoin a team" of the palette) ask
+the same form and write the same card. The defaults are aligned: the **creator** of the team is
+`lead` (as the member of a solo space is: the first one, who sets the team up); whoever **joins** is
+`dev` (the least power, one drop-down away from another role); the default mode of every new card is
+`semi-auto`.
+
+The card of a colleague is **never replaced**:
+
+- **ID already taken**: refused, with the name of the colleague who has it. In "Create", the error
+  screen offers **"That's me"**: the existing card is attached as it is to your `hub.toml`; its empty
+  fields (name, handle, role) are filled, the filled ones do not change. "Change my identity" goes back
+  to the form. In "Rejoin", picking your card in the list is that "That's me"; the form of a new card
+  refuses a taken ID and points to the list. Your own ID (the one `hub.toml` already has for this team,
+  on a reinstallation) stays accepted.
+- **GitLab handle already carried by another member**: refused (case and `@` ignored), whatever the ID.
+- Picking in "Rejoin" a card **with no handle** (made before the handle was asked) adds an optional
+  "GitLab handle" step that completes it; without a handle the identity check of the token is skipped.
+- The form of a new card starts from who you are in your other team (ID, name, handle), if any.
+- When the list of members comes from a clone that could not be updated (offline), a warning sits
+  above it: "The list may not be up to date: …".
 
 #### Your name on the tracker (`tracker_username`)
 

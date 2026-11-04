@@ -92,8 +92,8 @@ func (w *InlineWizardView) prepareStepArea(idx int, step WizardStep) {
 	// Step counter header — classic mode only (grouped mode uses sidebar)
 	if len(w.cfg.Groups) == 0 {
 		totalSteps, stepPos := w.countVisibleSteps(idx)
-		w.stepHeader.SetText(fmt.Sprintf("  %s%s %d/%d — %s[-]",
-			theme.ColorTagOf(theme.ActiveMode.Primary), theme.IconActive, stepPos, totalSteps, step.Label))
+		w.stepHeader.SetText(fmt.Sprintf("  %s%s[-]",
+			theme.ColorTagOf(theme.ActiveMode.Primary), i18n.Tf("v532m.wizard.step_counter", stepPos, totalSteps, step.Label)))
 	}
 
 	// Refresh sidebar in grouped mode

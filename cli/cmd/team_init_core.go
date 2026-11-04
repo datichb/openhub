@@ -21,6 +21,7 @@ type teamInitParams struct {
 	MattermostUsername string
 	TrackerUsername    string // name of the member on the tracker (empty = keep)
 	Role               string
+	Claim              bool   // « C'est moi »: attach the card that has this ID (see teamsvc.InitParams)
 	GitLabURL          string // GitLab of the repository when its remote is an SSH alias
 }
 
@@ -47,6 +48,8 @@ func teamInitError(err error) error {
 		return err
 	}
 	switch initErr.Step {
+	case teamsvc.StepJoinMember:
+		return joinRefusalError(initErr.Err, "v532m.join.id_taken_hint")
 	case teamsvc.StepClone:
 		return fmt.Errorf(i18n.T("cmd.team_init_core.cloning_team_state"), initErr.Err)
 	case teamsvc.StepStructure:

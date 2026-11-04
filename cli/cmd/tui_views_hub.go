@@ -150,6 +150,11 @@ func buildTeamsView(a *app.App) views.View {
 		},
 		OnUpdate:     func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
 		OnSelectTeam: func(teamID string) { pickTeam(a, teamID) },
+		// n joins a team with the assistant of « Rejoindre une équipe »: the
+		// repository, its access, the clone, the card of the member and the
+		// state_path in hub.toml (the form that only wrote hub.toml left a
+		// team with no clone, no card and no state_path)
+		OnAdd: actionTeamRejoin,
 		OnNavigate: func(viewID string) {
 			if tuiShell != nil {
 				tuiShell.NavigateTo(viewID)

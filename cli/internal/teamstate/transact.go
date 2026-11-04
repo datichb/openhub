@@ -268,11 +268,17 @@ func (r *Repo) commitTx(ctx context.Context, tx *Tx, files []string, msg string,
 	// Drop our commit whatever the reason: it is rebuilt or queued. Only
 	// the files of the transaction are put back (a hard reset would also
 	// throw away changes of the clone that are not ours).
-	if _, err := r.git(ctx, r.path, "reset", "-q", "--soft", "HEAD~1"); err != nil {
-		return true, false, fmt.Errorf("dropping the local commit after %v: %w", pushErr, err)
-	}
-	if _, err := r.git(ctx, r.path, append([]string{"reset", "-q", "HEAD", "--"}, files...)...); err != nil {
-		return true, false, fmt.Errorf("unstaging the dropped commit after %v: %w", pushErr, err)
+	if r.isRootCommit(ctx) {
+		if err := r.dropRootCommit(ctx); err != nil {
+			return true, false, fmt.Errorf("dropping the local commit after %v: %w", pushErr, err)
+		}
+	} else {
+		if _, err := r.git(ctx, r.path, "reset", "-q", "--soft", "HEAD~1"); err != nil {
+			return true, false, fmt.Errorf("dropping the local commit after %v: %w", pushErr, err)
+		}
+		if _, err := r.git(ctx, r.path, append([]string{"reset", "-q", "HEAD", "--"}, files...)...); err != nil {
+			return true, false, fmt.Errorf("unstaging the dropped commit after %v: %w", pushErr, err)
+		}
 	}
 	if !keep {
 		r.restore(ctx, tx)
@@ -284,6 +290,27 @@ func (r *Repo) commitTx(ctx context.Context, tx *Tx, files []string, msg string,
 		return true, false, classifyRemoteError(r.remote, pushErr)
 	}
 	return false, true, nil
+}
+
+// isRootCommit: the last commit has no parent, it is the first of an empty
+// repository.
+func (r *Repo) isRootCommit(ctx context.Context) bool {
+	_, err := r.git(ctx, r.path, "rev-parse", "--verify", "-q", "HEAD~1")
+	return err != nil
+}
+
+// dropRootCommit takes the first commit of an empty repository off: the branch
+// goes back to being unborn, and the index is deleted, since git refuses to
+// pull into an unborn branch whose index exists, even empty. The files stay in
+// the working tree.
+func (r *Repo) dropRootCommit(ctx context.Context) error {
+	if _, err := r.git(ctx, r.path, "update-ref", "-d", "HEAD"); err != nil {
+		return err
+	}
+	if err := os.Remove(filepath.Join(r.path, ".git", "index")); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 func (tx *Tx) files() []string {

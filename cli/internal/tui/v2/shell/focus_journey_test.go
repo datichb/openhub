@@ -109,3 +109,37 @@ func TestEscWalksBackHomeConfigurationTeamsDetail(t *testing.T) {
 		})
 	}
 }
+
+// n in the list of teams opens the assistant that joins a team (the host's
+// OnAdd), not a form that only writes hub.toml; leaving the assistant, the list
+// shows the team it added.
+func TestTeamsViewNOpensTheJoinAssistantAndTheListShowsTheNewTeam(t *testing.T) {
+	hub := &config.Config{}
+	var sh *simShell
+	joined := &keyView{id: "join", focusList: true}
+	teams := views.NewTeamsView(views.TeamsViewDeps{
+		Config: hub,
+		OnAdd: func() {
+			// what the assistant does when it ends: the team is in hub.toml
+			hub.Teams = append(hub.Teams, config.TeamConfig{ID: "acme-core", Name: "Acme core", Enabled: true,
+				StateRepo: "git@example.com:acme/core.git", StatePath: "/clones/acme-core", MemberID: "eve"})
+			sh.PushView(joined)
+		},
+	})
+	sh = runSimShell(t, 120, 40, Config{ProjectName: "test", HomeViewID: "home",
+		Views: []views.View{&keyView{id: "home", focusList: true}, &keyView{id: "settings", focusList: true}, teams, joined}})
+	sh.loop(func() { sh.NavigateHome("home", views.ModeHub) })
+	sh.loop(func() { sh.NavigateTo("settings") })
+	sh.loop(func() { sh.NavigateTo("teams") })
+	require.Equal(t, 3, sh.depth())
+	assert.Contains(t, strings.ToLower(sh.screenText()), "no team")
+
+	sh.key(tcell.KeyRune, 'n', tcell.ModNone)
+	require.Equal(t, 4, sh.depth(), "the assistant is open over the list of teams")
+	assert.Zero(t, sh.toastCount())
+
+	sh.key(tcell.KeyEscape, 0, tcell.ModNone)
+	require.Equal(t, 3, sh.depth(), "back to the list")
+	require.Eventually(t, func() bool { return strings.Contains(sh.screenText(), "acme-core") }, 3e9, 20e6,
+		"the team the assistant added is in the list")
+}

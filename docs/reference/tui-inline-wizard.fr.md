@@ -77,7 +77,7 @@ L'injection est automatique quand le wizard est pushé via `shell.PushView(v)`.
 ┌─────────────────────────────────────────────────────┐
 │ ● Dépôt ─── ◆ Config ─── ○ Identité ─── ○ Notifs  │  StepBar (1 ligne, fixe)
 ├─────────────────────────────────────────────────────┤
-│ ◆ 2/5 — Configuration globale                      │  Header step (2 lignes, fixe)
+│ Étape 2/5 — Configuration globale                  │  Header step (2 lignes, fixe)
 ├─────────────────────────────────────────────────────┤
 │                                                     │
 │ [Form / CustomView / Spinner]                       │  Contenu (extensible, weight=1)

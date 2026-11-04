@@ -438,7 +438,7 @@ L'assistant de découverte du tracker (`Discover Tracker`) utilise le même édi
 | Fournisseur | `Espace` par défaut, `Entrée` / `e` modifier, `s` configurer, `d` effacer la configuration et la clé du trousseau (confirmé) |
 | MCP (hub, projet, équipe) | `Espace` activer, `Entrée` modifier, `t` jeton ou test, `m` mode écriture (vue du hub), `Ctrl+S` enregistrer (équipe), `u` annuler, `T` approuver l'URL imposée par l'équipe (vue du hub ; confirmé, voir [`oh mcp trust`](cli-mcp.fr.md#oh-mcp-trust)) |
 | Secrets | `Entrée` / `e` modifier, `n` créer, `d` supprimer (confirmé) |
-| Équipes | `Entrée` ouvrir, `n` créer, `d` supprimer (confirmé), `s` synchroniser, `u` annuler. Sans équipe : « Aucune équipe », `n` pour en ajouter une |
+| Équipes | `Entrée` ouvrir, `n` ajouter une équipe (ouvre l'assistant « Rejoindre une équipe » : dépôt, accès, clone, votre fiche ; la liste montre l'équipe au retour), `d` supprimer (confirmé), `s` synchroniser, `u` annuler. Sans équipe : « Aucune équipe », `n` pour en ajouter une |
 | Détail d'équipe | l'équipe ouverte dans la liste (sinon l'équipe par défaut ; « Aucune équipe à configurer » et `Ctrl+S` sans effet quand il n'y en a pas) : `Espace` basculer, `Entrée` modifier, `Ctrl+S` enregistrer, `s` synchroniser, `t` tester, `u` annuler, `T` découvrir le tracker, `K` clé du fournisseur de l'équipe |
 | Patterns | `Entrée` voir, `n` créer, `y` valider, `d` supprimer (confirmé) |
 | Policies | `Entrée` détail, `n` créer, `t` modèle, `e` éditer, `d` supprimer (confirmé), `c` vérifier |

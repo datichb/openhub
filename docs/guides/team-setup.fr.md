@@ -57,9 +57,23 @@ dans la palette (`team init`, `team rejoin`) :
      team-state (clone, pull, push, sonde, démon) ; il n'est jamais dans une URL, une ligne de
      commande ni le `credential.helper` de git. Un token refusé n'est pas gardé.
    - **SSH** : le message donne la réponse de git et rappelle `ssh-add` ; « Réessayer » sonde de nouveau.
-4. **Identité** : votre identifiant et votre nom (« Créer »), ou le choix du membre (« Rejoindre »).
+4. **Identité** : « Créer » demande votre fiche (identifiant, nom affiché, handle GitLab facultatif,
+   rôle). « Rejoindre » liste les membres (« Membres de l'équipe (N) ») : vous choisissez votre
+   fiche, ou **« + Je ne suis pas dans la liste : créer ma fiche »**, qui ouvre le même formulaire.
+   Voir [Votre fiche de membre](#votre-fiche-de-membre).
 5. **Clone** dans `~/.oh/team-states/<hôte>/<dépôt>/` (ou pull si déjà cloné), création de la
    structure de répertoires (si premier membre) et détection des clones dupliqués.
+
+Chaque écran d'un assistant porte son compteur : « Étape 2/5 — Identité ».
+
+#### Dépôt vide
+
+Un dépôt distant sans aucun commit (un projet GitLab tout neuf) est un dépôt valide pour
+**« Créer »** : pas de pull à faire (il n'y a rien à tirer), la structure puis la fiche sont les
+deux premiers commits, poussés avec la branche (`push -u`). **« Rejoindre »** un dépôt vide dit
+que l'équipe n'a pas encore été créée, et ce qu'il faut faire (la créer, ou la faire créer par
+son responsable) ; un dépôt qui a des commits mais pas de `members.toml` reçoit un message
+distinct (« ce dépôt ne contient pas d'équipe oh »).
 
 Un dossier qui contient déjà le clone **d'un autre dépôt** n'est jamais réutilisé : l'assistant
 l'indique (dossier, dépôt trouvé, dépôt demandé) et laisse le choix (supprimer le dossier, ou
@@ -88,7 +102,7 @@ Le wizard détecte automatiquement l'état du repo et adapte le comportement :
 | Étape | Si repo vide (1er membre) | Si repo déjà configuré |
 |-------|---------------------------|------------------------|
 | **Config globale** | Création `config.toml` (stale_days, sessions) | Mise à jour si modifié |
-| **Identité** | Enregistrement (6 champs) + commit-and-push | Mise à jour + commit-and-push |
+| **Identité** | Enregistrement de votre fiche + commit-and-push | Mise à jour de **votre** fiche (celle de `hub.toml`) + commit-and-push |
 | **Notifications** | Configuration webhook Mattermost | Mise à jour si modifié |
 | **Policies** | Multi-select de policies recommandées | Merge avec existantes |
 
@@ -98,10 +112,39 @@ Le wizard détecte automatiquement l'état du repo et adapte le comportement :
 |-------|-------------|---------|
 | Identifiant | Clé unique dans members.toml | `benjamin` |
 | Nom d'affichage | Comment ton nom apparaît dans les notifications | `Benjamin` |
-| Username GitLab | Pour l'intégration GitLab | `bdatiche` |
-| Username Mattermost | Pour les mentions dans les notifications | `benjamin.datiche` |
-| Username tracker | Ton nom sur le tracker (`tracker_username`). **Indispensable quand le tracker est sur un autre serveur que le dépôt d'équipe** (voir ci-dessous) | `benjamin.datiche` |
+| Handle GitLab | Facultatif. Pour l'intégration GitLab et la vérification de votre token ; **unique dans l'équipe** | `bdatiche` |
 | Rôle | Ton rôle dans l'équipe | `lead`, `dev`, ou `reviewer` |
+| Username Mattermost | Pour les mentions dans les notifications (`oh team init` et « Initialiser l'équipe » seulement) | `benjamin.datiche` |
+| Username tracker | Ton nom sur le tracker (`tracker_username`), mêmes écrans. **Indispensable quand le tracker est sur un autre serveur que le dépôt d'équipe** (voir ci-dessous) | `benjamin.datiche` |
+
+#### Votre fiche de membre
+
+Chacun crée **sa propre fiche** en rejoignant : aucun responsable ne la valide. Les cinq parcours
+(« Créer » et « Rejoindre » de `oh init`, `oh team init`, « Initialiser l'équipe » et
+« Rejoindre une équipe » de la palette) posent le même formulaire et écrivent la même fiche. Les
+valeurs par défaut sont alignées : le **créateur** de l'équipe est `lead` (comme le membre d'un
+espace solo, il est le premier et règle l'équipe) ; qui **rejoint** est `dev` (le moins de
+pouvoir, changeable d'un cran dans la liste) ; le mode par défaut de toute nouvelle fiche est
+`semi-auto`.
+
+La fiche d'un collègue n'est **jamais remplacée** :
+
+- **Identifiant déjà pris** : refusé, avec le nom du collègue qui l'a. Dans « Créer », l'écran
+  d'erreur propose **« C'est moi »** : la fiche existante est rattachée telle quelle à votre
+  `hub.toml` ; ses champs vides (nom, handle, rôle) sont complétés, ceux qui sont remplis ne
+  changent pas. « Modifier mon identité » revient au formulaire. Dans « Rejoindre », choisir sa
+  fiche dans la liste est ce « C'est moi » ; le formulaire de nouvelle fiche refuse un identifiant
+  pris et renvoie à la liste. Votre propre identifiant (celui que `hub.toml` a déjà pour cette
+  équipe, à la réinstallation) reste accepté.
+- **Handle GitLab déjà porté par un autre membre** : refusé (casse et `@` ignorés), quel que soit
+  l'identifiant.
+- Choisir dans « Rejoindre » une fiche **sans handle** (faite avant que le handle soit demandé)
+  ajoute une étape facultative « Handle GitLab » qui la complète ; sans handle, la vérification
+  d'identité du token est sautée.
+- Le formulaire d'une nouvelle fiche repart de ce que vous êtes dans votre autre équipe
+  (identifiant, nom, handle), s'il y en a une.
+- Si la liste des membres vient d'un clone qui n'a pas pu être mis à jour (hors ligne), un
+  avertissement la surmonte : « La liste peut ne pas être à jour : … ».
 
 #### Ton nom sur le tracker (`tracker_username`)
 

@@ -84,6 +84,15 @@ func Commit(t testing.TB, dir, file, content, msg string) {
 	Run(t, dir, "commit", "-q", "-m", msg)
 }
 
+// EmptyBare creates a bare repository on main without any commit, as a git
+// server shows a project that nobody has pushed to, and returns its path.
+func EmptyBare(t testing.TB) string {
+	t.Helper()
+	bare := t.TempDir()
+	Run(t, bare, "init", "-q", "--bare", "-b", "main")
+	return bare
+}
+
 // BareClone creates a bare repository and a clone of it, both on main. The
 // clone has one commit (README.md) already pushed, and main tracks
 // origin/main: it is ready to commit and push.

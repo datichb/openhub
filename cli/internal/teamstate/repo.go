@@ -187,11 +187,47 @@ func (r *Repo) pull(ctx context.Context) error {
 	start := time.Now()
 	_, err := r.git(ctx, r.path, "pull", "--rebase", "--autostash")
 	if err != nil {
+		if r.nothingToPullYet(ctx) {
+			slog.Debug("teamstate.pull.empty_remote", "path", r.path)
+			return nil
+		}
 		slog.Warn("teamstate.pull.failed", "path", r.path, "duration", time.Since(start), "error", err)
 		return fmt.Errorf("pulling team-state: %w", err)
 	}
 	slog.Debug("teamstate.pull", "path", r.path, "duration", time.Since(start))
 	return nil
+}
+
+// nothingToPullYet: the clone of an empty remote (no commit on either side)
+// has nothing to pull, and git says it is an error. It is how a team-state
+// created on a new, empty repository gets its first commit.
+func (r *Repo) nothingToPullYet(ctx context.Context) bool {
+	if r.hasCommit(ctx) {
+		return false
+	}
+	return r.remoteHasNoBranch(ctx)
+}
+
+// remoteHasNoBranch reports a remote that answers and has no branch at all
+// (an empty repository). An error (network, access) is not "empty".
+func (r *Repo) remoteHasNoBranch(ctx context.Context) bool {
+	out, err := r.git(ctx, r.path, "ls-remote", "--heads", "origin")
+	return err == nil && strings.TrimSpace(out) == ""
+}
+
+// hasCommit reports whether the checked-out branch has a commit: a clone of
+// an empty repository has none.
+func (r *Repo) hasCommit(ctx context.Context) bool {
+	_, err := r.git(ctx, r.path, "rev-parse", "--verify", "-q", "HEAD")
+	return err == nil
+}
+
+// HasCommits reports whether the clone has at least one commit. A team-state
+// that nobody created yet lives in an empty repository: it has none.
+func (r *Repo) HasCommits(ctx context.Context) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.IsCloned() && r.hasCommit(ctx)
 }
 
 // Push pushes local commits to the remote.
@@ -220,6 +256,11 @@ func (r *Repo) push(ctx context.Context) error {
 	}
 	start := time.Now()
 	_, err := r.git(ctx, r.path, "push")
+	if err != nil && r.remoteHasNoBranch(ctx) {
+		// the first push of an empty repository: the branch has no upstream
+		// yet (the answer of git depends on the language, so it is not read)
+		_, err = r.git(ctx, r.path, "push", "-u", "origin", "HEAD")
+	}
 	if err != nil {
 		slog.Debug("teamstate.push.failed", "path", r.path, "duration", time.Since(start), "error", err)
 		return fmt.Errorf("pushing team-state: %w", err)
