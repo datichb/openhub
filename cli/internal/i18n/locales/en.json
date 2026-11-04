@@ -6420,5 +6420,6 @@
   "v533b.team_config.unreadable_detail": "Nothing is shown or saved: an empty configuration would overwrite the team's at the next save. Fix config.toml or restore the clone (oh doctor), then press r to read it again.",
   "v533b.team_config.save_refused": "Save refused — %s",
   "v533b.team_config.conflict_title": "Changed by a colleague meanwhile: reload?",
-  "v533b.team_config.conflict_detail": "A colleague changed the same settings since you read them (%s). Nothing was overwritten. Reloading the configuration drops your unsaved changes."
+  "v533b.team_config.conflict_detail": "A colleague changed the same settings since you read them (%s). Nothing was overwritten. Reloading the configuration drops your unsaved changes.",
+  "v533b.team_config.conflict_toast": "changed by a colleague meanwhile (%s): nothing was overwritten, open the screen again to read their version"
 }

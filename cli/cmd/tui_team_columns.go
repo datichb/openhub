@@ -172,6 +172,9 @@ func actionBoardColumnConfig(afterSave func()) {
 		return
 	}
 
+	// The config as read, before the editor changes the maps it shares with it:
+	// the save writes the difference on top of the latest version.
+	base := teamstate.CloneConfig(cfg)
 	columns := boardColumnsOf(cfg)
 
 	// Load label/status mappings for the integrated editor
@@ -199,7 +202,7 @@ func actionBoardColumnConfig(afterSave func()) {
 			}
 			// Save columns + mappings to team-state config
 			safego.Go(func() {
-				saveBoardColumns(ctx, repo, finalColumns, labelMappings, statusMappings, afterSave)
+				saveBoardColumns(ctx, repo, base, finalColumns, labelMappings, statusMappings, afterSave)
 			})
 		},
 	})
@@ -235,9 +238,8 @@ func boardColumnsOf(cfg *teamstate.TeamConfig) []teamstate.BoardColumnConfig {
 }
 
 // boardConfigStore is what saving the columns of the board asks of the
-// team-state: to read its configuration and write it back.
+// team-state: to write its configuration on top of the latest version.
 type boardConfigStore interface {
-	teamstate.ConfigReader
 	teamstate.ConfigWriter
 }
 
@@ -252,21 +254,18 @@ func applyBoardColumns(cfg *teamstate.TeamConfig, columns []teamstate.BoardColum
 	cfg.Tracker.NormalizeMappings(cfg.Board)
 }
 
-// saveBoardColumns writes the columns and the mappings to the config of the
-// team-state, off the event loop, and says how it went; afterSave (nil: none)
-// is called on the event loop once they are written.
-func saveBoardColumns(ctx context.Context, repo boardConfigStore, columns []teamstate.BoardColumnConfig, labelMappings, statusMappings map[string]string, afterSave func()) {
-	freshCfg, err := repo.LoadConfig(ctx)
-	if err != nil {
+// saveBoardColumns writes the columns and the mappings of the editor to the
+// config of the team-state, off the event loop, and says how it went; afterSave
+// (nil: none) is called on the event loop once they are written. base is the
+// config the editor started from: only what the editor changed is written, on
+// top of the latest config.toml, and a column list or a mapping that a
+// colleague changed meanwhile is not overwritten (the editor is opened again).
+func saveBoardColumns(ctx context.Context, repo boardConfigStore, base *teamstate.TeamConfig, columns []teamstate.BoardColumnConfig, labelMappings, statusMappings map[string]string, afterSave func()) {
+	edited := teamstate.CloneConfig(base)
+	applyBoardColumns(edited, columns, labelMappings, statusMappings)
+	if err := repo.UpdateConfigFrom(ctx, base, edited); err != nil {
 		queueOnShell(tuiShell, func() {
-			tuiShell.ShowToast(i18n.T("tui.team.board_config.error_prefix")+err.Error(), shell.ToastError)
-		})
-		return
-	}
-	applyBoardColumns(freshCfg, columns, labelMappings, statusMappings)
-	if err := repo.SaveConfig(ctx, freshCfg); err != nil {
-		queueOnShell(tuiShell, func() {
-			tuiShell.ShowToast(i18n.T("tui.team.board_config.save_error")+err.Error(), shell.ToastError)
+			tuiShell.ShowToast(i18n.T("tui.team.board_config.save_error")+configSaveErrorText(err), shell.ToastError)
 		})
 		return
 	}
@@ -279,4 +278,14 @@ func saveBoardColumns(ctx context.Context, repo boardConfigStore, columns []team
 			afterSave()
 		}
 	})
+}
+
+// configSaveErrorText is the reason a write of the team config failed. A
+// setting changed by a colleague meanwhile is said as such: nothing was
+// overwritten, the screen is opened again to read their version.
+func configSaveErrorText(err error) string {
+	if c, ok := teamstate.IsConfigConflict(err); ok {
+		return i18n.Tf("v533b.team_config.conflict_toast", strings.Join(c.Keys, ", "))
+	}
+	return err.Error()
 }

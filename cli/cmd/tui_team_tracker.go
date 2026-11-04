@@ -493,57 +493,19 @@ func actionTrackerDiscovery() {
 		},
 		OnDone: func() error {
 			// ── Save everything to team-state config ────────────
-			cfg, err := repo.LoadConfig(ctx)
-			if err != nil {
-				return fmt.Errorf("%s: %w", i18n.T("tui.team.sync.config_load_error"), err)
-			}
-
-			// Tracker connection settings
-			cfg.Tracker.Type = trackerType
-			cfg.Tracker.Enabled = true
-			if trackerURL != "" {
-				cfg.Tracker.TrackerURL = trackerURL
-			}
-			cfg.Tracker.TrackerProject = projectID
-
-			// Board columns
-			cfg.Board.Columns = finalColumns
-
-			// Label/status mappings: the claim status of the column, and only
-			// for the columns the team kept in its board.
-			mappings, _ := tracker.RetainMappings(suggestedMappings, cfg.Board)
-			if trackerType == "gitlab" {
-				if cfg.Tracker.LabelStatusMapping == nil {
-					cfg.Tracker.LabelStatusMapping = make(map[string]string)
-				}
-				for _, m := range mappings {
-					cfg.Tracker.LabelStatusMapping[m.Source] = m.ColumnID
-				}
-			} else {
-				// Jira: use both StatusMapping and LabelStatusMapping
-				if cfg.Tracker.StatusMapping == nil {
-					cfg.Tracker.StatusMapping = make(map[string]string)
-				}
-				if cfg.Tracker.LabelStatusMapping == nil {
-					cfg.Tracker.LabelStatusMapping = make(map[string]string)
-				}
-				for _, m := range mappings {
-					if m.Origin == "status" {
-						cfg.Tracker.StatusMapping[m.Source] = m.ColumnID
-					} else {
-						cfg.Tracker.LabelStatusMapping[m.Source] = m.ColumnID
-					}
-				}
-			}
-
-			// Pool labels
-			if len(selectedPool) > 0 {
-				cfg.Tracker.AutoPlanUnassigned = true
-				cfg.Tracker.UnassignedLabels = selectedPool
-			}
-
-			// Save config and commit
-			if err := repo.SaveConfig(ctx, cfg); err != nil {
+			// The patch runs on the config as the transaction read it (and
+			// again on the version of the remote if the push is refused):
+			// what the user chose here is set, what a colleague changed
+			// elsewhere in config.toml is kept.
+			var cfg *teamstate.TeamConfig
+			if err := repo.UpdateConfig(ctx, func(c *teamstate.TeamConfig) error {
+				applyDiscovery(c, discoveryResult{
+					trackerType: trackerType, trackerURL: trackerURL, projectID: projectID,
+					columns: finalColumns, mappings: suggestedMappings, pool: selectedPool,
+				})
+				cfg = teamstate.CloneConfig(c)
+				return nil
+			}); err != nil {
 				return fmt.Errorf("%s: %w", i18n.T("tui.team.board_config.save_error_label"), err)
 			}
 
@@ -584,9 +546,7 @@ func actionTrackerDiscovery() {
 				tomlPreview = strings.TrimSpace(string(raw))
 			}
 
-			return repo.CommitAndPush(ctx,
-				fmt.Sprintf("tracker: discovery config for %s (%s)", projectID, trackerType),
-				"config.toml")
+			return nil
 		},
 		InfoFields: func() []views.InfoField {
 			fields := []views.InfoField{
@@ -655,4 +615,56 @@ func formatSyncResultModal(r *views.SyncTrackerResult) string {
 		}
 	}
 	return sb.String()
+}
+
+// discoveryResult is what the discovery wizard of the tracker settled.
+type discoveryResult struct {
+	trackerType, trackerURL, projectID string
+	columns                            []teamstate.BoardColumnConfig
+	mappings                           []tracker.SuggestedMapping
+	pool                               []string
+}
+
+// applyDiscovery sets in cfg what the discovery settled: the connection of the
+// tracker, the columns of the board, the mappings of the kept columns and the
+// labels of the pool. The other settings of cfg stay as they are.
+func applyDiscovery(cfg *teamstate.TeamConfig, r discoveryResult) {
+	cfg.Tracker.Type = r.trackerType
+	cfg.Tracker.Enabled = true
+	if r.trackerURL != "" {
+		cfg.Tracker.TrackerURL = r.trackerURL
+	}
+	cfg.Tracker.TrackerProject = r.projectID
+
+	cfg.Board.Columns = r.columns
+
+	// Label/status mappings: the claim status of the column, and only for the
+	// columns the team kept in its board.
+	mappings, _ := tracker.RetainMappings(r.mappings, cfg.Board)
+	if cfg.Tracker.LabelStatusMapping == nil {
+		cfg.Tracker.LabelStatusMapping = make(map[string]string)
+	}
+	if r.trackerType == "gitlab" {
+		for _, m := range mappings {
+			cfg.Tracker.LabelStatusMapping[m.Source] = m.ColumnID
+		}
+	} else {
+		// Jira: use both StatusMapping and LabelStatusMapping
+		if cfg.Tracker.StatusMapping == nil {
+			cfg.Tracker.StatusMapping = make(map[string]string)
+		}
+		for _, m := range mappings {
+			if m.Origin == "status" {
+				cfg.Tracker.StatusMapping[m.Source] = m.ColumnID
+			} else {
+				cfg.Tracker.LabelStatusMapping[m.Source] = m.ColumnID
+			}
+		}
+	}
+
+	// Pool labels
+	if len(r.pool) > 0 {
+		cfg.Tracker.AutoPlanUnassigned = true
+		cfg.Tracker.UnassignedLabels = r.pool
+	}
 }
