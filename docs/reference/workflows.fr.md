@@ -201,6 +201,8 @@ Implémente les tickets d'une spec l'un après l'autre, dans une seule session (
 
 Aucune délégation avant `cp-plan`. Chaque ticket passe par son `cp-2` (commit, puis fermeture, avant le suivant). Tous les tickets traités, le `reviewer` fait une review adversariale de tous les commits de la session ; `cp-final` présente son verdict, les tickets et leurs commits, les points ouverts : l'utilisateur décide d'un tour de correction (un seul, repassé par `cp-2`) ou de s'arrêter.
 
+Quand une spec est donnée (entrée `spec`), l'orchestrateur n'en lit que deux sections, « Critères d'acceptation » et « Risques et cas limites », et signale à `cp-plan` chaque risque que ni un ticket ni un critère `CA-n` ne couvre, sans le couvrir lui-même ; une spec sans section « Risques et cas limites » est signalée aussi. Il en va de même en fan-out.
+
 Budget de pauses (CP-R2) en semi-auto : `cp-plan`, `cp-2`, `cp-final`, soit 3 pauses pour un budget de 3 (2 décisions, 1 action irréversible) ; la méthode `tdd` en ajoute une (`cp-seams`). Une feature de N tickets coûte donc N + 2 pauses (au lieu de N + 3 dans l'ancien `feature`). Mode par défaut : `semi-auto`. Exécution : locale ou en conteneur. Commandes Beads autorisées : `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Sorties : `branch` (déclarée), `tickets` (tickets fermés, relevés par oh).
 
 ### Fan-out (`fanout=true`, expérimental)
@@ -231,7 +233,7 @@ Découvre le projet et crée ou enrichit le wiki `docs/wiki/` (protocole `doc-wi
 | `refresh` | `bool` (défaut : non) | non | Re-découvrir le projet et proposer les mises à jour du wiki existant (validées une à une à la carte de `cp-wiki`), sans rien supprimer |
 | `focus` | `text` (4 000 caractères max) | non | Modules ou sujets à approfondir |
 
-L'onboarder n'écrit que dans `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md` : c'est une permission (toute autre écriture est refusée, `.gitignore` et `.git/` compris). Sans wiki, il crée les pages ; avec un wiki (`docs/wiki/index.md`), il n'en modifie aucune et propose chaque mise à jour avec `wiki_propose` (rien si le wiki est fidèle au code). Il passe ensuite `cp-wiki` (obligatoire, déverrouille le commit, `remote: defer`) : la carte montre ses propositions, l'utilisateur accepte, modifie ou refuse chacune, oh applique les acceptées ; puis l'onboarder commite en un commit `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md` (`writes: ["docs/wiki/**", ONBOARDING.md, CONVENTIONS.md]`), rien d'autre. Le push revient à l'utilisateur. Une pause en semi-auto (budget CP-R2 : une action irréversible). Sortie : `wiki`. Commandes Beads autorisées (lecture seule) : `show`, `list`, `search`, `query`.
+L'onboarder n'écrit que dans `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md` : c'est une permission (toute autre écriture est refusée, `.gitignore` et `.git/` compris). Sans wiki, il crée les pages ; avec un wiki (`docs/wiki/index.md`), il n'en modifie aucune et propose chaque mise à jour avec `wiki_propose` (rien si le wiki est fidèle au code). Sa phase 2 pose cinq questions au plus, classées par impact ; une question **bloquante** (sans sa réponse, le diagnostic ou le profil repose sur une supposition) ne compte pas dans ce plafond et se pose toujours. Il passe ensuite `cp-wiki` (obligatoire, déverrouille le commit, `remote: defer`) : la carte montre ses propositions, l'utilisateur accepte, modifie ou refuse chacune, oh applique les acceptées ; puis l'onboarder commite en un commit `docs/wiki/`, `ONBOARDING.md` et `CONVENTIONS.md` (`writes: ["docs/wiki/**", ONBOARDING.md, CONVENTIONS.md]`), rien d'autre. Le push revient à l'utilisateur. Une pause en semi-auto (budget CP-R2 : une action irréversible). Sortie : `wiki`. Commandes Beads autorisées (lecture seule) : `show`, `list`, `search`, `query`.
 
 ## `doc-sync`
 
@@ -334,6 +336,8 @@ Audit en lecture seule : l'`auditor` coordonne des `auditor-subagent`, un par do
 - `infra` : revue IaC (Terraform/OpenTofu, Kubernetes, Helm, ArgoCD), sécurité IaC, coût cloud, drift. L'`auditor-subagent` peut lancer des outils d'analyse statique (`tflint`, `tfsec`, `checkov`, `trivy config`, `kube-score`, `kubesec`, `helm lint`, `helm template`, `infracost`, `terraform fmt -check`, `terraform validate`, `terraform plan`), chacun demandé ; toute autre commande, modifications comprises, est refusée. L'application d'un changement relève d'`infra-change`.
 - `database` : rôles et privilèges, Row-Level Security, surfaces d'injection, chiffrement au repos et en transit, sauvegardes, sûreté des migrations, exposition des données sensibles. Lecture statique uniquement : les requêtes sur une base réelle sont fournies à l'utilisateur.
 
+Avec le protocole léger, le rapport garde toutes ses sections : celle où l'audit n'a rien trouvé s'écrit « Vérifié : rien à signaler » avec ce qui a été contrôlé (fichiers, règles, outils), et ce qui n'a pas pu l'être s'écrit « Non vérifié » avec la raison. Une section absente ne distingue donc plus un domaine sain d'un domaine non regardé.
+
 Sorties **relevées par oh** : `findings` (le dernier rapport déposé, `record: report`) et `type` (l'entrée du lancement, `record: input`). Suite proposée (`next:`) après un audit `security` qui a déposé son rapport : **`security-fix`**, qui lit les constats dans cette session (`oh run security-fix --parent <session>`), sans la lancer.
 
 ## `infra-change`
@@ -363,6 +367,8 @@ Diagnostic d'un bug ou d'un problème isolé par le `debugger` : rapport de diag
 | `issue` | `text` (8 000 caractères max) | non | Le problème observé ; vide : la session le demande |
 
 Le ticket de correction n'est créé qu'après `cp-ticket` (« Créer le ticket de correction », en pause dans tous les modes, déverrouille `create`) : le `debugger` y présente le diagnostic et le ticket, au lieu de demander la confirmation avec l'outil `question` (qu'il garde dans une session `libre`). Une correction faite dans la session se termine par `cp-commit` (obligatoire, en pause dans tous les modes, déverrouille `commit` et `close`). Sortie : `tickets`. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
+
+**Sans cause trouvée.** À la limite de 3 itérations, ou sur « Terminer », le `debugger` rend un rapport « Diagnostic non résolu » : hypothèses écartées avec leur preuve, hypothèses restantes avec ce qui manque pour les trancher, pistes à suivre. Il n'affirme aucune cause racine, ne présente rien comme diagnostiqué ni corrigé, et ne crée aucun ticket de correction.
 
 **Brouillons de session** (`debugger: { scratch: { readers: [developer] } }`, voir [`scratch`](workflow-schema.fr.md#scratch-brouillons-de-session)) : en phase de reproduction, le `debugger` écrit son test ou script de reproduction dans `~/.oh/sessions/<session>/scratch/debugger/` (chemin donné dans l'entrée `oh.scratch` de l'état de session), hors dépôt et supprimé avec la session ; il décrit ce test en texte dans le ticket de correction. Le `developer`, lecteur déclaré, peut lire ce brouillon dans la même session, sans le modifier, et en fait le test définitif du projet. Aucun agent d'une autre session n'y a accès.
 
@@ -434,7 +440,7 @@ Tranche une question technique dans un temps borné : recherche sourcée, protot
 
 Déroulé :
 
-1. **`cp-question`** : question fermée, critères vérifiables, durée. Aucune recherche ni prototype avant (le `developer` est verrouillé jusqu'à `cp-question`, `after:`).
+1. **`cp-question`** : question fermée, critères vérifiables, durée. Si la demande ne donne pas la durée, ou laisse un critère go/kill flou, le `pathfinder` les demande à l'utilisateur avant, en un seul envoi ; les questions bloquantes n'ont pas de plafond (le plafond de 1-2 questions du protocole ne vaut pas ici). Aucune recherche ni prototype avant (le `developer` est verrouillé jusqu'à `cp-question`, `after:`).
 2. **Recherche sourcée**, critère par critère : le dépôt d'abord, puis la documentation officielle (skill `research`) ; chaque fait cite `fichier:ligne` ou son URL.
 3. **Prototype jetable**, seulement si un critère ne se tranche qu'en exécutant du code : le `developer` écrit le plus petit programme qui répond, dans `.oh-spike/<slug>/` seulement, sans dépendance ajoutée, le lance, relève sa sortie, puis supprime `.oh-spike/`. Jamais de commit.
 4. **Décision** : `docs/wiki/decisions/<slug>.md` (`**Décision : go | clarify | kill**`, constats par critère avec leurs sources, prototype, suites). `go` : tous les critères tiennent ; `kill` : l'un ne tient pas ; `clarify` : l'un ne se tranche pas sans une décision ou une information de l'utilisateur.
@@ -483,7 +489,7 @@ Tri d'un lot de tickets Beads ou de constats : priorités, doublons, étiquettes
 | Entrée | Type | Obligatoire | Rôle |
 |---|---|---|---|
 | `tickets` | `beads-ids` | non | Les tickets à trier |
-| `query` | `string` (400 caractères max) | non | Un filtre `bd query` des tickets à trier ; sans tickets ni filtre : les tickets ouverts du projet, 30 au plus |
+| `query` | `string` (400 caractères max) | non | Un filtre `bd query` des tickets à trier ; sans tickets ni filtre : les tickets ouverts du projet, 30 au plus (voir ci-dessous) |
 | `findings` | `text` (16 000 caractères max) | non | Des constats (revue, audit, rétrospective…) : chacun est rattaché au ticket qui le couvre déjà (un commentaire) ou devient un ticket |
 
 | Checkpoint | manuel | semi-auto | auto |
@@ -496,6 +502,8 @@ Déroulé :
 2. **Tri** : priorité changée seulement si le ticket le justifie ; doublon seulement si les deux tickets décrivent le même problème au même endroit (on garde le plus complet), sinon un lien `related` ; étiquettes du projet seulement ; un ticket qui mêle des livrables indépendants reçoit un ticket enfant par livrable ; ni statut, ni assignation, ni description ne changent.
 3. **`cp-triage`** : le tableau des changements (ticket, champ, avant → après, raison), les tickets à créer, les inchangés. Avant son passage, oh refuse **toute écriture dans Beads** : création (`create`), et modification (`update` : `bd update`, `label add|remove`, `dep add|remove`, `comments add`, `duplicate`, `supersede`, `reopen`…), dans le shell comme dans la passerelle Beads. Un refus : rien n'est écrit.
 4. **Écritures** : exactement les lignes validées, une commande par ligne.
+
+Sans tickets ni filtre, le `planner` compte d'abord les tickets ouverts (`bd count`). Au-delà de 30, il le dit en tête de `cp-triage` (le lot est coupé), et le bilan de fin donne le nombre de tickets restés hors du lot avec un second lot proposé (leurs identifiants, ou un filtre `bd query`) : le backlog entier ne passe pas pour trié.
 
 Sorties **relevées par oh** à partir de ce que la passerelle Beads a vu : `updated` (les tickets modifiés, `record: updated`), `created` (les tickets créés) et `duplicates` (les doublons fermés, `record: closed`). Suite proposée : **`ticket`** sur les tickets créés. Budget de pauses en semi-auto : 1 pause (1 action irréversible), pour un budget de 3. Commandes Beads autorisées : `show`, `list`, `ready`, `search`, `query`, `count`, `children`, `lint`, `find-duplicates`, `label`, `dep`, `comments`, `create`, `update`, `duplicate`, `supersede`.
 

@@ -47,10 +47,17 @@ cd cli && go install .
 
 ### 2. opencode V2 (2.0.0 ou plus)
 
-oh n'installe plus opencode. Installez-le avec son propre outil :
+oh n'installe pas opencode lui-même. La formule Homebrew en dépend (`opencode` de homebrew-core, qui est opencode V2) : `brew install datichb/tap/openhub` l'apporte ; `install.sh` et `go install` non. Installez-le avec son propre outil :
 
 ```bash
 brew install opencode    # ou voir https://opencode.ai
+```
+
+**Vous avez `anomalyco/tap/opencode` ?** Cette formule est opencode 1.x, que oh 5 refuse, et elle entre en conflit avec l'opencode de homebrew-core : `brew upgrade openhub` demande alors `brew uninstall opencode`. Désinstallez la version du tap, puis installez celle de homebrew-core :
+
+```bash
+brew uninstall opencode  # la version d'anomalyco/tap
+brew install opencode    # homebrew-core : opencode V2
 ```
 
 opencode V1 n'est plus pris en charge : oh refuse de lancer une session, avec un message clair. `oh doctor` vérifie la version. Vous venez d'oh v4 : voir [Migrer vers oh v5](docs/guides/migration-v5.fr.md).

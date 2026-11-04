@@ -62,6 +62,24 @@ Si la base de données est corrompue, `oh repair` va :
 
 ## Erreurs courantes
 
+### Installation et opencode
+
+**`brew upgrade openhub` demande `brew uninstall opencode`**
+
+Le paquet `anomalyco/tap/opencode` (opencode 1.x, que oh 5 refuse) est installé : il entre en conflit avec l'`opencode` de homebrew-core (opencode V2), dont la formule d'oh dépend. Désinstallez la version du tap, puis installez celle de homebrew-core :
+```bash
+brew uninstall opencode            # la version d'anomalyco/tap
+brew install opencode              # homebrew-core : opencode V2
+brew upgrade openhub
+opencode --version                 # doit afficher 2.x
+```
+
+**oh refuse de lancer une session : opencode V1**
+
+Installez opencode V2 (`brew install opencode`, ou voir https://opencode.ai). Avec `install.sh` ou `go install`, opencode n'est pas installé avec oh. `oh doctor` vérifie la version.
+
+---
+
 ### Fournisseur et authentification
 
 **Aucun identifiant trouvé**
@@ -258,11 +276,25 @@ oh worktree list           # Lister tous les worktrees actifs
 
 `oh gc --dry-run` montre ce qu'oh peut libérer (paquets de session, données des serveurs, dossiers des sessions arrêtées, worktrees créés par oh, dossiers temporaires, serveurs orphelins, historique ancien) ; `oh gc` le supprime après confirmation. Le démon le fait toutes les 24 h une fois qu'un premier `oh gc` a été lancé (`oh doctor` › « Nettoyage » le rappelle). Voir [`oh gc`](../reference/cli-infra.fr.md#oh-gc).
 
+### Plantage
+
+Quand oh plante (message « erreur interne (panic) »), il écrit un rapport `~/.oh/run/crash-<horodatage>.log` avec la version, la valeur de la panique et la pile d'appels, et le message donne son chemin :
+
+```
+Rapport de plantage écrit dans ~/.oh/run/crash-20261104T093012.481Z.log — joignez ce fichier au signalement du bogue.
+```
+
+- **Joignez ce fichier** à votre [signalement](#obtenir-de-laide) : la pile dit où le programme a planté.
+- Le rapport existe aussi quand le plantage vient d'une tâche de fond (lecture d'un flux, chargement d'une vue, tâche du démon, vérification d'un checkpoint) : oh continue alors de tourner, et le message de la TUI ou le journal donne le chemin du fichier.
+- oh garde les **20 derniers** rapports ; le fichier n'est lisible que par vous (la pile peut contenir des valeurs).
+- Si oh ne peut pas écrire dans `~/.oh/run/` (droits, disque plein), la pile s'affiche dans le terminal : copiez-la dans le signalement.
+
 ### Journaux
 
 | Journal | Emplacement |
 |---|---|
 | Démon `ohd` | `~/.oh/run/ohd.log` |
+| Rapport de plantage | `~/.oh/run/crash-<horodatage>.log` (les 20 derniers) |
 | Serveur d'un groupe de sessions | `~/.oh/servers/<groupe>/data/oh-server.log` |
 
 Les journaux sont bornés : au-delà de 20 Mo, un journal est décalé en `<fichier>.1` (les copies plus anciennes en `.2`, `.3` ; trois gardées). `ohd.log` l'est au démarrage du démon, le journal d'un serveur à son démarrage ; pendant qu'ils tournent, le démon copie puis vide les journaux trop gros toutes les 10 minutes.

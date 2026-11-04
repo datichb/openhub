@@ -7,7 +7,7 @@
 ## Quick Start (code contributors)
 
 ```bash
-# Prerequisites: Go 1.26+, golangci-lint v2.1+
+# Prerequisites: Go 1.26.4+ (the CI uses go1.26.10), golangci-lint v2.14
 git clone https://github.com/datichb/openhub.git
 cd openhub/cli
 make deps          # go mod tidy + download

@@ -245,15 +245,6 @@ team configure
 This opens a modal with the three choices. The change is taken into account at the
 next session launch (bundle rebuilt) — no redeploy needed.
 
-**From the CLI** (non-interactive, coming in a future version):
-
-```bash
-# Planned — not yet implemented
-oh project configure --team inherit
-oh project configure --team disabled
-oh project configure --team custom --team-repo git@github.com:beta/other.git
-```
-
 ### Custom team: state path resolution
 
 For `custom` mode, `StatePath` is auto-derived from the remote URL if not set explicitly:

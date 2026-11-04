@@ -133,6 +133,8 @@ Widgets used (all existing in the design system):
 | **Back** | `Ctrl+B`, `Alt+←`, `PgUp` | Reset current → Pending, previous → Active, pop info |
 | **Quit / Skip** | `Esc` | « Quit the wizard? » question in place of the hints bar: **Quit** (`OnComplete(false, nil)` then pop), **Skip the step** (non-`Required` steps), **Continue** (default focus; `Esc` too). An open drop-down list closes first. No more double `Esc` |
 
+During a processing (the `OnDone` spinner), `Ctrl+B` and `Esc` do not act at once: they wait for the processing to end, and the hints bar shows "working… Ctrl+Q to quit". The recap also goes back with `Alt+←`.
+
 ---
 
 ## Creating a New Wizard

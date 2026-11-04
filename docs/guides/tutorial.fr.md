@@ -59,12 +59,12 @@ opencode --version
 Sortie attendue :
 
 ```
-oh 5.1.0
-  commit:  4fb125b4
-  built:   2026-10-06T20:00:33Z
+oh 5.2.1
+  commit:  42375cfa
+  built:   2026-11-04T07:58:12Z
   go:      go1.26.10
   os/arch: darwin/arm64
-2.0.20
+2.0.25
 ```
 
 opencode doit être en version 2.x : oh ne prend plus en charge opencode V1 (voir [Migrer vers oh v5](migration-v5.fr.md)).

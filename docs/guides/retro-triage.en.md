@@ -40,6 +40,8 @@ oh run triage                                   # the open tickets of the projec
 3. **`cp-triage`**: the table of every change (ticket, field, before → after, reason), the tickets to create and the unchanged ones. **Before you approve, oh refuses every write to Beads** (creation, priority, label, link, comment, duplicate), in the shell and in the Beads gateway. A refusal: nothing is written.
 4. Once approved, exactly the changes of the table, and only those.
 
+Without tickets or filter, the batch is 30 tickets at most, but the `planner` counts the open tickets (`bd count`): beyond 30, it announces the cut at the top of `cp-triage`, and the summary gives the number of tickets left out of the batch with a second batch proposed (their identifiers, or a `bd query` filter).
+
 One pause in semi-auto. oh records the changed, created and duplicate-closed tickets itself (outputs `updated`, `created`, `duplicates`), and proposes `ticket` on the created tickets.
 
 ## For a team layer

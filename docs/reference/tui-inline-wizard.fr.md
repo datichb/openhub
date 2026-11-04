@@ -134,6 +134,8 @@ Widgets utilisés (tous existants dans le design system) :
 | **Retour** | `Ctrl+B`, `Alt+←`, `PgUp` | Reset step actuel → Pending, précédent → Active, pop info |
 | **Quitter / Passer** | `Esc` | Question « Quitter l'assistant ? » à la place de la barre d'aide : **Quitter** (`OnComplete(false, nil)` puis pop), **Passer l'étape** (étapes non `Required`), **Continuer** (focus par défaut ; `Esc` aussi). Une liste déroulante ouverte se ferme d'abord. Plus de double `Esc` |
 
+Pendant un traitement (spinner de `OnDone`), `Ctrl+B` et `Esc` n'agissent pas tout de suite : ils attendent la fin du traitement, et la barre d'aide affiche « traitement… Ctrl+Q pour quitter ». Le récapitulatif revient aussi en arrière avec `Alt+←`.
+
 ---
 
 ## Créer un nouveau wizard

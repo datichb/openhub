@@ -72,7 +72,9 @@ brew install opencode    # or see https://opencode.ai
 opencode --version                     # must print 2.x
 ```
 
-opencode V1 is no longer supported: oh refuses to launch a session, with a clear message. See [Migrating to oh v5](migration-v5.en.md).
+The Homebrew formula of oh depends on `opencode` (homebrew-core) and installs it; `install.sh` and `go install` do not. opencode V1 is no longer supported: oh refuses to launch a session, with a clear message. See [Migrating to oh v5](migration-v5.en.md).
+
+If `anomalyco/tap/opencode` (opencode 1.x) is installed, it conflicts with the one of homebrew-core: uninstall it (`brew uninstall opencode`), then `brew install opencode`. See [troubleshooting](troubleshooting.en.md#installation-and-opencode).
 
 ## Initial setup: `oh init`
 

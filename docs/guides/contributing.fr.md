@@ -13,8 +13,8 @@ ajout d'agents et de skills, et processus de PR.
 
 | Outil | Version | Installation |
 |-------|---------|-------------|
-| Go | 1.26.4+ | [go.dev/dl](https://go.dev/dl/) |
-| golangci-lint | 2.1+ | `brew install golangci-lint` ou [docs](https://golangci-lint.run/welcome/install/) |
+| Go | 1.26.4+ (le CI et les releases utilisent `go1.26.10`, la ligne `toolchain` de `cli/go.mod`) | [go.dev/dl](https://go.dev/dl/) |
+| golangci-lint | 2.14 (version du CI) | `brew install golangci-lint` ou [docs](https://golangci-lint.run/welcome/install/) |
 | git | 2.5+ | Fourni par le système |
 
 ### Installation locale
@@ -189,6 +189,8 @@ make vet            # go vet ./...
 make fmt            # gofmt -s -w .
 ```
 
+Le CI lance golangci-lint 2.14 avec la toolchain `go1.26.10`. Si votre Go local est plus ancien que la ligne `toolchain` de `cli/go.mod`, imposez-la : `GOTOOLCHAIN=go1.26.10 golangci-lint run ./...`.
+
 **Cache de golangci-lint par worktree.** golangci-lint garde un cache commun à tous les
 dossiers (`~/Library/Caches/golangci-lint` sur macOS). Avec plusieurs worktrees du dépôt lancés
 en parallèle, ce cache partagé peut renvoyer des résultats d'un autre arbre ou se bloquer
@@ -243,6 +245,7 @@ Le binaire embarque les agents, skills et permissions via `go:embed` (`internal/
 - **Aide des commandes** dans les locales seulement : le texte d'une commande et d'une option est sous `cmd.<chemin de la commande>.short|long|flags.<nom>` dans `fr.json` et `en.json`, et le code ne l'écrit pas dans la définition (`TestHelpIsNotInTheCode` refuse un littéral ; un texte écrit là ne s'affichait jamais et s'écartait de la locale). `TestNoOrphanHelpKeys` refuse une clé d'aide dont la commande ou l'option n'existe plus.
 - **Sortie des commandes** vers les writers de la commande (`cmd.OutOrStdout()`, `cmd.ErrOrStderr()`, `a.IO.Out`), jamais `os.Stdout` ni `fmt.Print*` : tableaux, JSON (`--json`) et messages d'état passent par `internal/cliout` (`cliout.Table`, `cliout.JSON`, `cliout.Success`, `Warn`, `Info`, `Error`). `internal/archtest` refuse un nouvel usage des flux standard dans `cmd/` hors de la courte liste de ses exceptions (un sous-processus à qui l'on donne le terminal, la taille du terminal, le journal).
 - **Erreurs** enveloppées avec leur contexte (`fmt.Errorf("creating project %s: %w", id, err)`), testées par `errors.Is` / `errors.As`.
+- **Goroutines et minuteurs par `internal/safego`**, jamais nus : toute goroutine (`safego.Go` ; `safego.Supervise` pour une boucle dont le processus a besoin), tout `time.AfterFunc` (`safego.AfterFunc`), et les lanceurs qui ne rattrapent rien seuls, `errgroup.Group.Go` (`g.Go(safego.WrapErr(fn))`, la panique revient comme une erreur que l'appelant de `Wait` traite) et `sync.WaitGroup.Go` (`wg.Go(safego.Wrap(fn))`). Une panique rattrapée est journalisée et écrit un rapport de plantage (`~/.oh/run/crash-*.log`) au lieu d'arrêter oh ; une panique que le code rattrape à la main appelle `safego.LogRecovered` pour garder sa pile. `internal/archtest` (`goroutines_test.go`) refuse une instruction `go` nue, un `time.AfterFunc` et un `Go` sans appel à `safego` dans tout `cmd/` et tout `internal/` (sauf `internal/safego`, les lanceurs eux-mêmes).
 - **Tests** dans le même package, avec `testify` (`require` pour les préconditions), des cas en table, `t.TempDir()` et des helpers `t.Helper()`. Un test qui lance des processus (git, bd, serveurs) attend leur fin avant le nettoyage de son dossier ; les tests qui poussent vers des dépôts nus coupent la maintenance automatique de git (`internal/gitutil/gittest`).
 
 ---

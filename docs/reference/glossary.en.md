@@ -187,4 +187,4 @@ The declarative description of a use case (YAML `apiVersion: oh/v1`): entry agen
 
 ### Worktree
 
-A Git worktree used to isolate parallel AI sessions. Each worktree gets its own branch and working directory, allowing multiple agents to work simultaneously without conflicts. Managed via `oh worktree` or `oh run <workflow> --location new`. See [Worktree guide](../worktree.md).
+A Git worktree used to isolate parallel AI sessions. Each worktree gets its own branch and working directory, allowing multiple agents to work simultaneously without conflicts. Managed via `oh worktree` or `oh run <workflow> --location new`. See [`oh worktree`](cli-tools.en.md#git-worktree).

@@ -33,7 +33,7 @@ The mode bar shows the sessions badge **`● N ◐ M`** (N sessions working, M d
 
 **Landings.** The three landings draw their name in the banner as it was typed (a team « Core » is not « CORE »; the Hub draws the logo « OPENHUB »).
 
-- **Hub**: under the banner, the tool line `opencode v2.0.20 · adapter opencode-v2 ✔` (the tool and the adapter that launch the sessions). The System section lists Configuration, Metrics, Doctor, Secrets, **Notifications** and the **Brick catalogue**.
+- **Hub**: under the banner, the tool line `opencode v2.0.25 · adapter opencode-v2 ✔` (the tool and the adapter that launch the sessions). The System section lists Configuration, Metrics, Doctor, Secrets, **Notifications** and the **Brick catalogue**.
 - **Project**: the header gives the path and the branch, the tool line and the execution environments with their state, `execution: ⌂ local ✔  ▣ container · colima ✔  ☁ remote ✗` (read when the landing opens, not on the event loop).
 - **Team**: besides *Team sessions*, the section **Sessions of the other members** lists, from the claims of the team-state, who works on which ticket (member, ticket, session, since when; `●` the claim is alive, `○` its lease is past). It is **read only**: `Enter` opens a window with the details and a single button *Close*; a session runs on the machine of its member, oh does not act on it.
 
@@ -50,6 +50,8 @@ The mode bar shows the sessions badge **`● N ◐ M`** (N sessions working, M d
 | `Enter` | Action of the selected list, button or field; palette only when nothing uses it |
 
 **Key order**: windows (forms, confirmations) and the palette get every key; then the global keys; then the keys of the view; then the selected list or field. Typing a letter « anywhere » does not open the palette.
+
+**Windows**: a window opened while another one is shown stacks over it, up to three levels (the backdrop gets darker each time). `Esc` closes the top one, with or without a button, and gives control back to the one under it; closing a window also closes the ones over it. The focus goes back to where the window was opened from: the button of the window under it, or the component of the view that had it. A question asked from a card ("Decide", "Refuse", "Override"…) opens over the card: "Cancel" or `Esc` gives the card back as it was, answering closes the question and the card with it. A required field left empty (instruction, reason) is refused without closing the window: what was typed stays, with a warning. `Tab` and `Shift+Tab` do not close an input.
 
 **Views that keep the keys**: the launch form, the wizards, the workflow editor and the publication keep `Esc` (close, « Quit the wizard? ») and do not close the toasts; `F1` opens the help there. The tabs of the detail of a session and the batch validation also keep `Esc` (back to the detail, cancel the batch), but `?` and `Ctrl+P` stay available there, and the hints line shows the keys of the tab or of the batch.
 
@@ -95,7 +97,7 @@ A key has the same meaning in every view. A view may give a free letter to an ac
 | View | Before → now |
 |------|--------------|
 | Sessions | `D` → `d` delete · `c` → `R` resume · `g` → `R` recover a remote session · new: `B` batch validation |
-| Recap of an existing session (launch form) | `r` → `R` resume · `t` → `T` transfer |
+| Recap of an existing session (launch form) | `r` → `R` resume · `t` → `T` transfer · `k` → `K` replace, keeping the work |
 | Wiki proposals | `a` → `y` accept · `x` → `n` refuse |
 | Workflows | `D` → `c` compare · `x` → `d` delete a draft (`x` only archives published workflows) |
 | History of a workflow | `r` → `R` restore (`r` refreshes) |
@@ -251,7 +253,7 @@ Sections: **To handle** (sessions with waiting decisions, each followed by its d
 
 `p` refuses to relaunch a driver that runs (« already running »); an accepted relaunch writes the event « started again by the user » in the events of the fan-out (the daemon writes « by the daemon »); the log of the driver is `~/.oh/sessions/<id>/fanout.log`. `d` (after `cp-merge` or once the session stopped) shows what is deleted and kept, offers `--discard` (unmerged branches) to tick, then confirms; it is `oh fanout clean`.
 
-**Checkpoint card** (`Enter` on `⏸`): expected approver (`approver:`, « ⚠ out of approver » when your git identity is not one), **verification run by oh** (commands and state), evidence of the agent, changes (`+N −M · K file(s)`), last messages, timeline, reports. Buttons: **Decide**, **Full diff**, **Read rp-N** (one per report), **Wiki proposals (N): decide…** (when there are some), **Attach**.
+**Checkpoint card** (`Enter` on `⏸`): expected approver (`approver:`, « ⚠ out of approver » when your git identity is not one), **verification run by oh** (commands and state), evidence of the agent, changes (`+N −M · K file(s)`), last messages, timeline, reports. Buttons: **Decide**, **Full diff**, **Read rp-N** (one per report), **Wiki proposals (N): decide…** (when there are some), **Attach**. "Full diff" and "Read rp-N" open the reader over the card: `Esc` or a click outside closes it and gives the card back, on the button it came from; if the decision is settled elsewhere while you read, the card and the reader close together.
 
 | « Decide » form | Effect | Message |
 |-----------------|--------|---------|
@@ -370,7 +372,7 @@ Command `doctor`. `f` fix the selected check (like `oh doctor --fix`, with a pre
 | View | Keys |
 |------|------|
 | Project board | `h` / `l` columns, `Enter` detail, `a` actions (launch a workflow on the ticket), `L` link to the tracker, `i` initialise Beads |
-| Team board | `h` / `l` columns, `[` / `]` projects, `Enter` detail, `a` actions (workflows taking a ticket; on a GitLab issue, also the workflows taking a free request, with `#<iid>`), `/` filter (menu: text, **My tickets**, **Unassigned** — the pool, to take with `c` —, assignee, label, clear), `c` claim (refused at `max_in_progress_per_member`), `L` release (confirmed), `t` transfer, `s` status, `C` edit the columns of the board (the editor below) |
+| Team board | `h` / `l` columns, `[` / `]` projects (the tabs show the project name, sorted by name; an ID that no local project knows shows as "(unknown project)"), `Enter` detail, `a` actions (workflows taking a ticket; on a GitLab issue, also the workflows taking a free request, with `#<iid>`), `/` filter (menu: text, **My tickets**, **Unassigned** — the pool, to take with `c` —, assignee, label, clear), `c` claim (refused at `max_in_progress_per_member`), `L` release (confirmed), `t` transfer, `s` status, `C` edit the columns of the board (the editor below) |
 
 ### Board columns editor
 

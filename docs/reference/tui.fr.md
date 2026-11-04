@@ -33,7 +33,7 @@ La barre de mode affiche le badge des sessions **`● N ◐ M`** (N sessions qui
 
 **Accueils.** Les trois accueils dessinent leur nom dans la bannière tel qu'il a été saisi (une équipe « Core » n'est pas « CORE » ; le Hub dessine le logo « OPENHUB »).
 
-- **Hub** : sous la bannière, la ligne de l'outil `opencode v2.0.20 · adaptateur opencode-v2 ✔` (l'outil et l'adaptateur qui lancent les sessions). La section Système liste Configuration, Métriques, Doctor, Secrets, **Notifications** et le **Catalogue des briques**.
+- **Hub** : sous la bannière, la ligne de l'outil `opencode v2.0.25 · adaptateur opencode-v2 ✔` (l'outil et l'adaptateur qui lancent les sessions). La section Système liste Configuration, Métriques, Doctor, Secrets, **Notifications** et le **Catalogue des briques**.
 - **Projet** : l'en-tête donne le chemin et la branche, la ligne de l'outil et les environnements d'exécution avec leur état, `exécution : ⌂ local ✔  ▣ conteneur · colima ✔  ☁ distant ✗` (lus à l'ouverture de l'accueil, hors de la boucle d'événements).
 - **Équipe** : en plus des *Sessions de l'équipe*, la section **Sessions des autres membres** liste, d'après les claims du team-state, qui travaille sur quel ticket (membre, ticket, session, depuis quand ; `●` le claim est vivant, `○` son bail est dépassé). Elle est en **lecture seule** : `Entrée` ouvre une fenêtre de détail avec un seul bouton *Fermer* ; une session tourne sur la machine de son membre, oh n'agit pas dessus.
 
@@ -50,6 +50,8 @@ La barre de mode affiche le badge des sessions **`● N ◐ M`** (N sessions qui
 | `Entrée` | Action de la liste, du bouton ou du champ sélectionné ; palette seulement si rien ne l'utilise |
 
 **Ordre des touches** : les fenêtres (formulaires, confirmations) et la palette reçoivent toutes les touches ; puis viennent les touches globales ; puis les touches de la vue ; puis la liste ou le champ sélectionné. Taper une lettre « n'importe où » n'ouvre pas la palette.
+
+**Fenêtres** : une fenêtre ouverte alors qu'une autre est affichée s'empile dessus, jusqu'à trois niveaux (le fond est de plus en plus sombre). `Échap` ferme celle du dessus, avec ou sans bouton, et rend la main à celle du dessous ; fermer une fenêtre ferme aussi celles qui sont au-dessus. Le focus revient à l'endroit d'où la fenêtre a été ouverte : le bouton de la fenêtre du dessous, ou le composant de la vue qui l'avait. Une question posée depuis une carte (« Décider », « Refuser », « Passer outre »…) s'ouvre par-dessus la carte : « Annuler » ou `Échap` redonne la carte telle qu'elle était, répondre ferme la question et la carte avec elle. Un champ obligatoire laissé vide (consigne, motif) est refusé sans fermer la fenêtre : la saisie reste, avec un avertissement. `Tab` et `Maj+Tab` ne ferment pas une saisie.
 
 **Vues qui gardent les touches** : la fiche de lancement, les assistants, l'éditeur de workflow et la publication gardent `Échap` (fermer, « Quitter l'assistant ? ») et ne ferment pas les toasts ; `F1` y ouvre l'aide. Les onglets du détail d'une session et la validation par lot gardent aussi `Échap` (retour au détail, annuler le lot), mais `?` et `Ctrl+P` y restent disponibles, et la ligne d'aide montre les touches de l'onglet ou du lot.
 
@@ -95,7 +97,7 @@ Une touche a le même sens dans toutes les vues. Une vue peut donner une lettre 
 | Vue | Avant → maintenant |
 |-----|--------------------|
 | Sessions | `D` → `d` supprimer · `c` → `R` reprendre · `g` → `R` récupérer une session distante · nouveau : `B` valider en lot |
-| Récap d'une session existante (fiche de lancement) | `r` → `R` reprendre · `t` → `T` transférer |
+| Récap d'une session existante (fiche de lancement) | `r` → `R` reprendre · `t` → `T` transférer · `k` → `K` remplacer en gardant le travail |
 | Propositions wiki | `a` → `y` accepter · `x` → `n` refuser |
 | Workflows | `D` → `c` comparer · `x` → `d` supprimer un brouillon (`x` n'archive que les workflows publiés) |
 | Historique d'un workflow | `r` → `R` restaurer (`r` rafraîchit) |
@@ -251,7 +253,7 @@ Sections : **À traiter** (sessions avec des décisions en attente, chacune suiv
 
 `p` refuse de relancer un pilote qui tourne (« tourne déjà ») ; une relance acceptée écrit l'événement « started again by the user » dans les événements du fan-out (le démon écrit « by the daemon ») ; le journal du pilote est `~/.oh/sessions/<id>/fanout.log`. `d` (après `cp-merge` ou une fois la session arrêtée) montre ce qui sera supprimé et gardé, propose `--discard` (branches non mergées) à cocher, puis confirme ; c'est `oh fanout clean`.
 
-**Fiche de checkpoint** (`Entrée` sur `⏸`) : valideur attendu (`approver:`, « ⚠ hors valideur » si votre identité git n'en est pas), **vérification lancée par oh** (commandes et état), preuves de l'agent, changements (`+N −M · K fichier(s)`), derniers messages, frise, rapports. Boutons : **Décider**, **Diff complet**, **Lire rp-N** (un par rapport), **Propositions du wiki (N) : décider…** (s'il y en a), **Attacher**.
+**Fiche de checkpoint** (`Entrée` sur `⏸`) : valideur attendu (`approver:`, « ⚠ hors valideur » si votre identité git n'en est pas), **vérification lancée par oh** (commandes et état), preuves de l'agent, changements (`+N −M · K fichier(s)`), derniers messages, frise, rapports. Boutons : **Décider**, **Diff complet**, **Lire rp-N** (un par rapport), **Propositions du wiki (N) : décider…** (s'il y en a), **Attacher**. « Diff complet » et « Lire rp-N » ouvrent le lecteur par-dessus la carte : `Échap` ou un clic dehors le ferme et redonne la carte, sur le bouton d'où l'on venait ; si la décision est tranchée ailleurs pendant la lecture, la carte et le lecteur se ferment ensemble.
 
 | Formulaire « Décider » | Effet | Message |
 |------------------------|-------|---------|
@@ -370,7 +372,7 @@ Commande `doctor`. `f` corriger le contrôle sélectionné (comme `oh doctor --f
 | Vue | Touches |
 |-----|---------|
 | Board du projet | `h` / `l` colonnes, `Entrée` détail, `a` actions (lancer un workflow sur le ticket), `L` lier au tracker, `i` initialiser Beads |
-| Board d'équipe | `h` / `l` colonnes, `[` / `]` projets, `Entrée` détail, `a` actions (workflows à ticket ; sur une issue GitLab, aussi les workflows à demande libre avec `#<iid>`), `/` filtrer (menu : texte, **Mes tickets**, **Non assignés** — la réserve, à prendre avec `c` —, assigné, libellé, effacer), `c` prendre (refusé à `max_in_progress_per_member`), `L` libérer (confirmé), `t` transférer, `s` statut, `C` éditer les colonnes du board (l'éditeur ci-dessous) |
+| Board d'équipe | `h` / `l` colonnes, `[` / `]` projets (les onglets portent le nom du projet, triés par nom ; un ID qu'aucun projet local ne connaît s'affiche « (projet inconnu) »), `Entrée` détail, `a` actions (workflows à ticket ; sur une issue GitLab, aussi les workflows à demande libre avec `#<iid>`), `/` filtrer (menu : texte, **Mes tickets**, **Non assignés** — la réserve, à prendre avec `c` —, assigné, libellé, effacer), `c` prendre (refusé à `max_in_progress_per_member`), `L` libérer (confirmé), `t` transférer, `s` statut, `C` éditer les colonnes du board (l'éditeur ci-dessous) |
 
 ### Éditeur de colonnes du board
 

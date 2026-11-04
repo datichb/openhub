@@ -71,6 +71,9 @@ Plus rien n'est écrit dans le projet (`oh deploy` et `oh sync` sont des alias q
 | `internal/storage/` | Base SQLite (`oh.db`), trousseau système, chiffrement fichier |
 | `internal/adapters/opencodev2/deploycleanup/` | Nettoyage des restes des anciens déploiements (`oh migrate deploy-cleanup`) |
 | `internal/i18n/` | Internationalisation (FR + EN, fichiers locale JSON) |
+| `internal/safego/` | Lanceurs de goroutines, de minuteurs et de boucles qui rattrapent la panique : une panique est journalisée et laisse un rapport de plantage au lieu d'arrêter oh ; une garde d'architecture refuse les goroutines nues |
+| `internal/crashlog/` | Rapport de plantage `~/.oh/run/crash-<horodatage>.log` (version, panique, pile d'appels ; les 20 derniers sont gardés), écrit par `cmd` pour la goroutine principale et par `safego` pour les autres |
+| `internal/specdoc/` | Lecture et vérification des specs du wiki (`docs/wiki/specs/`) : glossaire, critères d'acceptation `CA-n`, découpage, avertissement sur la section « Risques et cas limites » ; ce qu'oh vérifie aux checkpoints du workflow `spec` |
 
 `internal/deploy`, `internal/opencode`, `internal/parallel`, `internal/sweep`, `internal/plugin` et `platform.SessionPlatform` ont été supprimés en v5 (remplacés par `internal/bricks`, `internal/bundle`, les adaptateurs et `internal/runsvc`).
 

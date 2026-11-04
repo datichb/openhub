@@ -50,6 +50,8 @@ The codes are defined in one place (`cli/cmd/exitcodes.go`). A script can test t
 
 `oh doctor` checks: a mandatory check (system, `git`, configuration, database, session tool, workflow integrity…) that fails gives `1`. An optional check that fails is shown as a warning and does not change the code.
 
+**Crash**: on an internal error (panic, code `1`), oh writes a report `~/.oh/run/crash-<timestamp>.log` (version, date, panic value, stack) and gives its path in its message: attach this file to the bug report. It is written too when the crash comes from a background task (reading a stream, loading a view, a daemon task): the message or the log gives the path. oh keeps the 20 latest reports. If it cannot write to `~/.oh/run/`, the stack is printed in the terminal. See [troubleshooting](../guides/troubleshooting.en.md#crash).
+
 ## Short options
 
 A letter has one meaning in every command. The former forms deprecated in 5.0 were removed in 5.1: a removed option gives the unknown-option error (`unknown shorthand flag: 'p' in -p`, exit code 2).

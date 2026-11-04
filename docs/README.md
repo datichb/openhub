@@ -8,7 +8,7 @@ Complete index of all openhub documentation (oh v5). Guides and references are b
 
 ---
 
-## Guides (47 guides)
+## Guides (46 guides)
 
 ### Getting Started
 
@@ -102,7 +102,7 @@ In v5, plugins are declared per workflow (`plugins:`) and delivered in the sessi
 
 ---
 
-## Reference (28 docs)
+## Reference (29 docs)
 
 | Document | Description |
 |----------|-------------|
@@ -145,7 +145,7 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 
 ---
 
-## Architecture (6 docs + 60 ADRs)
+## Architecture (7 docs + 60 ADRs)
 
 | Document | Description |
 |----------|-------------|
@@ -155,6 +155,7 @@ The `workflow` MCP server (`workflow_status`, `workflow_checkpoint`, `workflow_o
 | [Task Delegation](architecture/task-delegation.en.md) | Inter-agent delegation model (`calls:`, `after:`) |
 | [Living Wiki](architecture/living-wiki.en.md) | Living documentation wiki architecture |
 | [TodoWrite Isolation](architecture/todowrite-session-isolation.en.md) | Session isolation design |
+| [Developer routing](architecture/agents/developer-differentiation.md) (French) | Which domain to pass to the `developer` agent according to the ticket: responsibilities per domain, borderline cases, quick decision table |
 | [ADRs](architecture/adr/) | 60 Architecture Decision Records (v5: 038 to 060) |
 
 ### v5 decisions
@@ -270,3 +271,4 @@ Documents from before v5 (Bash CLI, Bash-to-Go migration), kept in [`legacy/`](l
 | [Progress Bar](legacy/progress-bar.md) ([FR](legacy/progress-bar.fr.md)) | Progress bar of the Bash scripts |
 | [Roadmap Audit](legacy/roadmap-audit.md) | Action plan of the July 2026 audit |
 | [Shell Gotchas](legacy/shell-gotchas.md) | Pitfalls of the Bash scripts |
+| [Git Worktrees guide](legacy/worktree.md) (French) | Worktree guide of the Bash era (`projects.md` fields, `oh worktree create`/`status`); the current commands are in [CLI — Tools](reference/cli-tools.en.md#git-worktree) |

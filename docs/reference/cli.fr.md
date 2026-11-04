@@ -50,6 +50,8 @@ Les codes sont définis en un seul endroit (`cli/cmd/exitcodes.go`). Un script p
 
 Contrôles de `oh doctor` : un contrôle obligatoire (système, `git`, configuration, base de données, outil des sessions, intégrité des workflows…) qui échoue donne `1`. Un contrôle optionnel qui échoue est affiché comme un avertissement et ne change pas le code.
 
+**Plantage** : sur une erreur interne (panic, code `1`), oh écrit un rapport `~/.oh/run/crash-<horodatage>.log` (version, date, valeur de la panique, pile d'appels) et en donne le chemin dans son message : ce fichier est à joindre au signalement du bogue. Il est écrit aussi quand le plantage vient d'une tâche de fond (lecture d'un flux, chargement d'une vue, tâche du démon) : le message ou le journal en donne le chemin. oh garde les 20 derniers rapports. S'il ne peut pas écrire dans `~/.oh/run/`, la pile est affichée dans le terminal. Voir le [dépannage](../guides/troubleshooting.fr.md#plantage).
+
 ## Options courtes
 
 Une lettre a un seul sens dans toutes les commandes. Les anciennes formes dépréciées en 5.0 ont été retirées en 5.1 : une option retirée donne l'erreur d'option inconnue (`unknown shorthand flag: 'p' in -p`, code de sortie 2).

@@ -40,6 +40,8 @@ oh run triage                                   # les tickets ouverts du projet 
 3. **`cp-triage`** : le tableau de tous les changements (ticket, champ, avant → après, raison), les tickets à créer et les inchangés. **Avant votre validation, oh refuse toute écriture dans Beads** (création, priorité, étiquette, lien, commentaire, doublon), dans le shell comme dans la passerelle Beads. Un refus : rien n'est écrit.
 4. Après validation, exactement les changements du tableau, et eux seuls.
 
+Sans tickets ni filtre, le lot est de 30 tickets au plus, mais le `planner` compte les tickets ouverts (`bd count`) : au-delà de 30, il annonce la coupe en tête de `cp-triage`, et le bilan donne le nombre de tickets restés hors du lot avec un second lot proposé (leurs identifiants, ou un filtre `bd query`).
+
 Une pause en semi-auto. oh relève lui-même les tickets modifiés, créés et fermés comme doublons (sorties `updated`, `created`, `duplicates`), et propose `ticket` sur les tickets créés.
 
 ## Pour une couche d'équipe
