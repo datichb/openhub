@@ -849,18 +849,30 @@ func (e *Engine) autoplan(
 	return e.repo.CommitAndPush(ctx, msg, relPaths...)
 }
 
+// maxPoolWindow bounds the issues fetched for the pool in one run.
+const maxPoolWindow = 500
+
 // autopoolUnassigned creates claims for tracker issues so they appear on the
 // team board as claimable tickets.
 //
-// When UnassignedLabels is configured, it fetches ALL open issues matching those
-// labels (regardless of assignee) via ListIssuesByLabels. Issues assigned to a
-// known team member get ClaimedBy=member.ID; others become pool claims (ClaimedBy="").
+// When UnassignedLabels is configured, it fetches the open issues carrying ANY
+// of those labels (an OR: one request per label, an issue found by several
+// labels counted once), regardless of assignee, via ListIssuesByLabels. Issues
+// assigned to a known team member get ClaimedBy=member.ID; others become pool
+// claims (ClaimedBy="").
 //
 // When UnassignedLabels is empty, it falls back to the original behaviour:
 // fetching only issues with no assignee via ListUnassignedIssues (pool claims only).
 //
-// Respects MaxUnassignedIssues. Claims are created locally in batch and
-// committed in a single git operation.
+// The first complete scan of a project's pool (and the first one after
+// unassigned_labels changed) does not filter on the update time: an issue
+// labelled long ago and not touched since has never been seen by a run that
+// did. The runs that follow only fetch what was updated since the last sync.
+//
+// Respects MaxUnassignedIssues: at most that many claims are created by a run,
+// and the fetch is wide enough (that many plus the issues that already have a
+// claim) for the claimed ones not to hide the others. Claims are created
+// locally in batch and committed in a single git operation.
 func (e *Engine) autopoolUnassigned(
 	ctx context.Context,
 	hubProjectID, trackerProjectID string,
@@ -870,11 +882,14 @@ func (e *Engine) autopoolUnassigned(
 	firstSync bool,
 	pr *ProjectSyncResult,
 ) error {
+	fullScan := firstSync || !e.state.AutoPoolScan(trackerType, trackerProjectID, e.cfg.UnassignedLabels)
 	var lastSync time.Time
-	if !firstSync {
+	if !fullScan {
 		lastSync = e.state.LastSync(trackerType, trackerProjectID)
 	}
-	slog.Debug("tracker.autopool.start", "project", hubProjectID, "first_sync", firstSync, "has_labels", len(e.cfg.UnassignedLabels) > 0)
+	slog.Debug("tracker.autopool.start", "project", hubProjectID, "first_sync", firstSync, "full_scan", fullScan, "has_labels", len(e.cfg.UnassignedLabels) > 0)
+
+	window := min(e.cfg.MaxUnassignedIssues+len(claimedTickets), maxPoolWindow)
 
 	// Fetch issues: use ListIssuesByLabels (all assignees) when labels are
 	// configured, otherwise fall back to ListUnassignedIssues (no assignee only).
@@ -884,13 +899,13 @@ func (e *Engine) autopoolUnassigned(
 		issues, err = e.tracker.ListIssuesByLabels(ctx, trackerProjectID, ListByLabelsOpts{
 			Labels:       e.cfg.UnassignedLabels,
 			UpdatedAfter: lastSync,
-			MaxResults:   e.cfg.MaxUnassignedIssues,
+			MaxResults:   window,
 		})
 	} else {
 		issues, err = e.tracker.ListUnassignedIssues(ctx, trackerProjectID, ListUnassignedOpts{
 			Labels:       e.cfg.UnassignedLabels,
 			UpdatedAfter: lastSync,
-			MaxResults:   e.cfg.MaxUnassignedIssues,
+			MaxResults:   window,
 		})
 	}
 	if err != nil {
@@ -898,9 +913,16 @@ func (e *Engine) autopoolUnassigned(
 			return err
 		}
 		slog.Warn("tracker.autopool.fetch_error", "error", err)
-		return nil // skip on transient errors
+		return nil // skip on transient errors: the scan starts again
 	}
 	slog.Debug("tracker.autopool.fetched", "count", len(issues))
+
+	// The scan is complete once the fetch and the creation went through.
+	markScanned := func() {
+		if fullScan {
+			e.state.MarkAutoPoolScanned(trackerType, trackerProjectID, e.cfg.UnassignedLabels, time.Now().UTC())
+		}
+	}
 
 	// Collect claims to create, then batch commit.
 	type pendingClaim struct {
@@ -949,6 +971,7 @@ func (e *Engine) autopoolUnassigned(
 	}
 
 	if len(pending) == 0 {
+		markScanned()
 		return nil
 	}
 
@@ -958,6 +981,7 @@ func (e *Engine) autopoolUnassigned(
 	}
 
 	var relPaths []string
+	createFailed := false
 	for i := range pending {
 		relPath, err := e.repo.CreateClaimLocal(pending[i].claim)
 		if err != nil {
@@ -965,6 +989,7 @@ func (e *Engine) autopoolUnassigned(
 				continue
 			}
 			slog.Warn("tracker.autopool.create_failed", "ticket", pending[i].claim.TicketID, "error", err)
+			createFailed = true // the scan starts again
 			continue
 		}
 		relPaths = append(relPaths, relPath)
@@ -973,11 +998,20 @@ func (e *Engine) autopoolUnassigned(
 	}
 
 	if len(relPaths) == 0 {
+		if !createFailed {
+			markScanned()
+		}
 		return nil
 	}
 
 	msg := fmt.Sprintf("autopool: %d tickets for %s", len(relPaths), hubProjectID)
-	return e.repo.CommitAndPush(ctx, msg, relPaths...)
+	if err := e.repo.CommitAndPush(ctx, msg, relPaths...); err != nil {
+		return err
+	}
+	if !createFailed {
+		markScanned()
+	}
+	return nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
