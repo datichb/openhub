@@ -3,7 +3,7 @@
 Ce document clarifie quel domaine passer à l'agent `developer` selon le contenu du ticket.
 L'agent est toujours `developer` — c'est le **domaine** passé dans le prompt d'invocation qui change.
 
-> Source de vérité pour la matrice complète : `skills/orchestrator/orchestrator-dev-protocol.md`
+> Source de vérité pour la matrice complète : `skills/orchestrator/orchestrator-dev-routing.md`
 
 ---
 
@@ -150,6 +150,6 @@ Un ticket qui touche le schéma, une migration de base ou des requêtes SQL reç
 
 ## Référence
 
-**Source de vérité :** `skills/orchestrator/orchestrator-dev-protocol.md` — section "Matrice de routing"
+**Source de vérité :** `skills/orchestrator/orchestrator-dev-routing.md`
 
 **ADR :** [ADR-013 — Fusion des agents developer-*](../adr/013-developer-agent-consolidation.fr.md)

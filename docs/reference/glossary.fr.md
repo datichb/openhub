@@ -187,4 +187,4 @@ La description declarative d'un cas d'usage (YAML `apiVersion: oh/v1`) : agent d
 
 ### Worktree
 
-Un Git worktree utilisé pour isoler les sessions IA en parallèle. Chaque worktree obtient sa propre branche et son répertoire de travail, permettant à plusieurs agents de travailler simultanément sans conflits. Géré via `oh worktree` ou `oh run <workflow> --location new`. Voir [Guide worktree](../worktree.md).
+Un Git worktree utilisé pour isoler les sessions IA en parallèle. Chaque worktree obtient sa propre branche et son répertoire de travail, permettant à plusieurs agents de travailler simultanément sans conflits. Géré via `oh worktree` ou `oh run <workflow> --location new`. Voir [`oh worktree`](cli-tools.fr.md#git-worktree).

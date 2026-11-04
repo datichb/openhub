@@ -1,5 +1,7 @@
 # Git Worktrees — Guide utilisateur
 
+> **Historique (v5).** Ce guide décrit les worktrees du temps des scripts Bash : blocs `Worktree` de `projects.md`, `oh worktree create`, `oh worktree status` et `oh worktree list [PROJECT_ID]`, qui n'existent plus. Aujourd'hui, `oh worktree` propose `list`, `add`, `remove` et `cleanup` ([référence](../reference/cli-tools.fr.md#git-worktree)), les réglages sont dans la section `[worktree]` de `hub.toml` ([configuration](../reference/config.fr.md)), et `oh run <workflow> --location new` ou `oh run ticket --tickets …` créent un worktree par session ([workflows](../reference/cli-workflows.fr.md#oh-run), [fan-out](../guides/fan-out.fr.md)). La suite de cette page est conservée pour l'historique.
+
 Les git worktrees permettent de travailler sur plusieurs branches simultanément sans `git stash` ou `git checkout`. Chaque worktree est un répertoire indépendant sur lequel une branche distincte est checkoutée.
 
 ---
@@ -114,7 +116,7 @@ oh run feature -m "Ajoute l'export CSV" --location new -i branch=feat/ma-feature
 **Comportement :**
 - Si le worktree pour cette branche n'existe pas → il est créé
 - La session OpenCode est lancée dans le répertoire du worktree
-- Un workflow qui écrit (`ticket`, `libre`…) travaille déjà dans son propre worktree : voir [`oh run`](reference/cli-workflows.fr.md#oh-run)
+- Un workflow qui écrit (`ticket`, `libre`…) travaille déjà dans son propre worktree : voir [`oh run`](../reference/cli-workflows.fr.md#oh-run)
 
 **Après la session :**
 ```bash
