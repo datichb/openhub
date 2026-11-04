@@ -543,8 +543,13 @@ func (v *TeamBoardView) buildTeamCard(t TeamTicket) widgets.Card {
 		MainText:      mainText,
 		SecondaryText: secondary,
 		MetaText:      meta,
+		Reference:     teamCardRef{Project: t.Project, ID: t.ID},
 	}
 }
+
+// teamCardRef is the identity of a card of the board: two projects may have a
+// ticket of the same ID.
+type teamCardRef struct{ Project, ID string }
 
 func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardColumnDef) {
 	// Defense-in-depth: if Unmount ran between the caller's check and this call,
@@ -570,22 +575,35 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 	filtered := v.applyProjectFilter(tickets)
 	filtered = v.applyFilters(filtered)
 
-	// Reset ticket ID lookup
+	v.fillColumns(filtered, columns, true)
+}
+
+// fillColumns puts the tickets in their columns and rebuilds the lookups of
+// the cards. With keepPosition the user stays on their card in each column
+// (found again by project and ID wherever it went) and the column stays
+// scrolled as it was: that is a refresh of the same board. Without, every
+// column starts again from its top: that is another view of the board (a new
+// filter or project tab).
+func (v *TeamBoardView) fillColumns(tickets []TeamTicket, columns []BoardColumnDef, keepPosition bool) {
 	v.ticketIDLookup = make([][]string, len(v.columnCards))
 	v.cardLookup = make([][]TeamTicket, len(v.columnCards))
-
-	for _, cc := range v.columnCards {
-		cc.Clear()
-	}
-	for _, t := range filtered {
+	cards := make([][]widgets.Card, len(v.columnCards))
+	for _, t := range tickets {
 		for i, col := range columns {
 			if t.Status != col.Status {
 				continue
 			}
-			v.columnCards[i].AddCard(v.buildTeamCard(t))
+			cards[i] = append(cards[i], v.buildTeamCard(t))
 			v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
 			v.cardLookup[i] = append(v.cardLookup[i], t)
 			break
+		}
+	}
+	for i, cc := range v.columnCards {
+		if keepPosition {
+			cc.ReplaceCards(cards[i])
+		} else {
+			cc.SetCards(cards[i])
 		}
 	}
 }
@@ -1419,12 +1437,17 @@ func (v *TeamBoardView) clearFilters() {
 // filter: the cards, the tabs (the active one) and the hints line (the
 // « filtered » mark), at once and not at the next read of the tickets.
 func (v *TeamBoardView) filtersChanged() {
-	v.repopulateWithFilters()
+	v.redrawFiltered(false)
 	refreshHints(v.shell)
 }
 
-// repopulateWithFilters re-renders the board with current filters applied.
-func (v *TeamBoardView) repopulateWithFilters() {
+// repopulateWithFilters re-renders the board with current filters applied,
+// the user staying where they are (the summary of Beads arrived).
+func (v *TeamBoardView) repopulateWithFilters() { v.redrawFiltered(true) }
+
+// redrawFiltered re-renders the board with current filters applied;
+// keepPosition: see fillColumns.
+func (v *TeamBoardView) redrawFiltered(keepPosition bool) {
 	if v.columnCards == nil || len(v.allTickets) == 0 {
 		return
 	}
@@ -1433,24 +1456,7 @@ func (v *TeamBoardView) repopulateWithFilters() {
 	filtered := v.applyProjectFilter(v.allTickets)
 	filtered = v.applyFilters(filtered)
 
-	// Reset ticket ID lookup
-	v.ticketIDLookup = make([][]string, len(v.columnCards))
-	v.cardLookup = make([][]TeamTicket, len(v.columnCards))
-
-	for _, cc := range v.columnCards {
-		cc.Clear()
-	}
-	for _, t := range filtered {
-		for i, col := range columns {
-			if t.Status != col.Status {
-				continue
-			}
-			v.columnCards[i].AddCard(v.buildTeamCard(t))
-			v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
-			v.cardLookup[i] = append(v.cardLookup[i], t)
-			break
-		}
-	}
+	v.fillColumns(filtered, columns, keepPosition)
 }
 
 // projectChip is a project name on the accent background, as the cards and
