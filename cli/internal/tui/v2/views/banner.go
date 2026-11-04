@@ -85,9 +85,14 @@ func renderBanner(name string, maxWidth int, colorHex string) (banner string, li
 		return plain()
 	}
 
-	// Color each line with left margin and bold
+	// Color each line with left margin and bold. The lines of a figlet font
+	// end at different columns, and the banner is shown in a centered text
+	// view, which centers each line on its own width: every line is padded to
+	// the widest one, with no-break spaces (a text view drops trailing
+	// spaces when it lays a line out), so the letters stay aligned.
 	var b strings.Builder
 	for _, l := range trimmed {
+		l += strings.Repeat("\u00a0", maxLine-len(l))
 		fmt.Fprintf(&b, "%s%s%s%s%s\n", color, theme.StyleTag(theme.AttrBold), l, theme.TagAttrs, reset)
 	}
 
