@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -115,4 +116,23 @@ func TestTeamsViewNamesTheMemberAndTheTeam(t *testing.T) {
 	defer sh.mu.Unlock()
 	require.NotEmpty(t, sh.toasts)
 	assert.Equal(t, "Team Core Platform removed", sh.toasts[len(sh.toasts)-1])
+}
+
+// n and the « add a team » command of the palette both open the assistant of
+// the host; without one the view keeps asking by itself.
+func TestTeamsViewAddOpensTheAssistantOfTheHost(t *testing.T) {
+	added := 0
+	v := NewTeamsView(TeamsViewDeps{Config: &config.Config{}, OnAdd: func() { added++ }})
+
+	assert.Nil(t, v.HandleKey(tcell.NewEventKey(tcell.KeyRune, 'n', tcell.ModNone)), "the key is taken")
+	assert.Equal(t, 1, added)
+	for _, c := range v.ContextCommands() {
+		if c.ID == "teams.add" {
+			c.Action()
+		}
+	}
+	assert.Equal(t, 2, added, "the palette command does the same")
+
+	bare := NewTeamsView(TeamsViewDeps{Config: &config.Config{}})
+	assert.NotPanics(t, func() { bare.handleAdd() }, "no host assistant and no shell: nothing to open")
 }

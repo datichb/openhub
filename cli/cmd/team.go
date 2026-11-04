@@ -906,9 +906,12 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 
 	// ── Step 2: Clone/pull and list members ──
 	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team.cloning_team_state_2", theme.WarningStyle.Render(theme.IconDot)))
-	teamRepoHandle, members, _, err := listTeamMembers(ctx, repoURL, "")
+	teamRepoHandle, members, stale, err := listTeamMembers(ctx, repoURL, "")
 	if err != nil {
 		return err
+	}
+	if stale != nil {
+		fmt.Fprintf(a.IO.Out, "\n  %s %s\n", theme.WarningStyle.Render(theme.IconWarning), i18n.Tf("v532m.pick.stale", staleCause(stale)))
 	}
 	if len(members) == 0 {
 		return errors.New(i18n.T("cmd.team.no_members_found_in_the_team"))

@@ -46,6 +46,9 @@ type memberJoin struct {
 	OnSkip func()
 	// Errors are the buttons of the error screens (the access…).
 	Errors func(error) []views.ErrorAction
+	// Defaults is who the person already is in another team (ID, name, GitLab
+	// handle): the form of their card starts with it. Nil: nothing.
+	Defaults func() (id, name, handle string)
 
 	PickerID, CardID, HandleID string
 	// HandleOnly is the handle typed for a card that has none.
@@ -141,6 +144,15 @@ func (j *memberJoin) showPicker(tvApp *tview.Application, container *tview.Flex,
 			*j.MemberID = ""
 			if !*j.Adding {
 				*j.MemberID = it.ID
+			} else if j.Defaults != nil {
+				id, name, handle := j.Defaults()
+				*j.MemberID = id
+				if *j.Fields.DisplayName == "" {
+					*j.Fields.DisplayName = name
+				}
+				if *j.Fields.GitLab == "" {
+					*j.Fields.GitLab = handle
+				}
 			}
 			onDone()
 		},

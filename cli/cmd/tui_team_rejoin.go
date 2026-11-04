@@ -126,6 +126,7 @@ func makeRejoinWizard(ctx context.Context, a *app.App) *rejoinWizard {
 		Own:      func() string { return teamService(w.a).MemberIDOf(w.stateRepo) },
 		Stale:    func() string { return w.staleCause },
 		Errors:   w.access.ErrorActions,
+		Defaults: identityDefaults(a),
 		PickerID: rejoinMemberStepID, CardID: "rejoin_new_member", HandleID: "rejoin_handle",
 	}
 	return w

@@ -30,6 +30,7 @@ type TeamsView struct {
 	onUpdate   func(fn func(*config.Config) error) error
 	onNavigate func(viewID string)
 	onSelect   func(teamID string)
+	onAdd      func()
 	undoStack  *widgets.UndoStack[[]config.TeamConfig]
 
 	// memberNames: the display name of the member of each team, by team ID,
@@ -52,6 +53,12 @@ type TeamsViewDeps struct {
 	// right before OnNavigate("team.detail"): the views of the team then work
 	// on that team (the default team of the hub otherwise).
 	OnSelectTeam func(teamID string)
+	// OnAdd adds a team: the host opens the assistant that joins it (the
+	// repository, its access, the clone, the card of the member). The list
+	// shows the new team when the assistant is left. Nil: the view asks the
+	// repository, the member and the team ID itself and only writes hub.toml
+	// (no clone, no card).
+	OnAdd func()
 	// MemberNames gives the display name of the member of each team (team ID →
 	// name) from the team-states. It reads files: called off the event loop.
 	// Nil: the member IDs.
@@ -69,6 +76,7 @@ func NewTeamsView(deps TeamsViewDeps) *TeamsView {
 		onUpdate:   deps.OnUpdate,
 		onNavigate: deps.OnNavigate,
 		onSelect:   deps.OnSelectTeam,
+		onAdd:      deps.OnAdd,
 		undoStack:  widgets.NewUndoStack[[]config.TeamConfig](10),
 
 		memberNames: deps.MemberNames,
@@ -330,6 +338,10 @@ func (v *TeamsView) handleSelect(index int, item widgets.SectionItem) {
 }
 
 func (v *TeamsView) handleAdd() {
+	if v.onAdd != nil {
+		v.onAdd()
+		return
+	}
 	if v.shell == nil {
 		return
 	}

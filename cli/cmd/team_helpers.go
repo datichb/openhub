@@ -160,6 +160,7 @@ func (s *initWizardTeamState) join(a **app.App) *memberJoin {
 			Active:   func() bool { return !s.Skipped && s.Mode == "rejoin" },
 			OnSkip:   s.abandon,
 			Errors:   s.access(a).ErrorActions,
+			Defaults: func() (string, string, string) { return identityDefaults(*a)() },
 			PickerID: "rejoin_member", CardID: "rejoin_new_member", HandleID: "rejoin_handle",
 		}
 	}

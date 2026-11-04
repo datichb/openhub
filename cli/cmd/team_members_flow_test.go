@@ -266,7 +266,7 @@ func TestPaletteRejoinPickedCardWithoutHandleIsCompleted(t *testing.T) {
 		}
 		k.typ("tu.g")
 		k.key(tcell.KeyCtrlS)
-		waitForText(k, i18n.T("cmd.init.wizard_rejoin_token_choice")) // the card has a handle now: the token
+		waitForText(k, i18n.T("cmd.init.wizard_rejoin_token_choice"))       // the card has a handle now: the token
 		k.key(tcell.KeyEnter, tcell.KeyDown, tcell.KeyDown, tcell.KeyEnter) // placeholder → new → skip
 		k.key(tcell.KeyCtrlS)
 		laterTracker(k)
@@ -418,4 +418,47 @@ func TestTeamIdentityStepRefusesATakenID(t *testing.T) {
 	assert.Empty(t, buildTeamIdentityStep(s2, teamStepOpts{}).Validate())
 	require.NoError(t, buildTeamIdentityStep(s2, teamStepOpts{}).OnDone())
 	assert.Equal(t, "Eve B.", cardsOf(t, bare)["eve"].DisplayName)
+}
+
+// The form of a new card starts with who the person already is in their other
+// team (ID, name, GitLab handle); a taken ID is refused all the same.
+func TestCardFormStartsWithWhoThePersonIsInTheirOtherTeam(t *testing.T) {
+	f := newTeamFlow(t, "")
+	other, _ := claimRepos(t)
+	state := teamstate.NewRepo(other, filepath.Join(t.TempDir(), "other-state"))
+	require.NoError(t, state.Clone(t.Context()))
+	require.NoError(t, state.PatchMember(t.Context(), "testuser", func(m *teamstate.Member) error {
+		m.GitLabUsername = "tu.g"
+		return nil
+	}))
+	f.a.Config.Teams = []config.TeamConfig{{ID: "other", Enabled: true, StateRepo: other, StatePath: state.Path(), MemberID: "testuser"}}
+
+	id, name, handle := identityDefaults(f.a)()
+	assert.Equal(t, []string{"testuser", "Test User", "tu.g"}, []string{id, name, handle})
+
+	bare := teamWithColleagues(t)
+	w := makeRejoinWizard(t.Context(), f.a)
+	w.stateRepo = bare
+	res := runWizardOnKeys(t, buildPaletteRejoin(w), func(k *wizardKeys) {
+		waitForText(k, i18n.T("cmd.team.init.repo_url_title"))
+		k.key(tcell.KeyCtrlS)
+		waitForText(k, i18n.T("v532m.pick.create"))
+		k.key(tcell.KeyEnter)
+		waitForText(k, i18n.T("v532m.identity.id"))
+		waitForText(k, "Test User") // the form starts with the name of the other card
+		k.key(tcell.KeyCtrlS)       // "testuser" is taken in this team: refused
+		waitForText(k, i18n.Tf("v532m.join.id_taken", "testuser", "Test User"))
+		k.key(tcell.KeyCtrlE)
+		for range "testuser" {
+			k.key(tcell.KeyBackspace2)
+		}
+		k.typ("tuser")
+		k.key(tcell.KeyCtrlS)
+		waitForText(k, i18n.T("cmd.init.wizard_rejoin_token_choice")) // the handle came along: the token is asked
+		k.key(tcell.KeyEnter, tcell.KeyDown, tcell.KeyDown, tcell.KeyEnter)
+		k.key(tcell.KeyCtrlS)
+		laterTracker(k)
+	})
+	require.NoError(t, res.Err)
+	assert.Equal(t, teamstate.Member{ID: "tuser", DisplayName: "Test User", GitLabUsername: "tu.g", Role: "dev", DefaultMode: "semi-auto"}, cardsOf(t, bare)["tuser"])
 }

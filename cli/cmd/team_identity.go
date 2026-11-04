@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/rivo/tview"
 
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -226,4 +228,25 @@ func identityErrorActions(claim *bool, identityStep, claimStep string, base func
 // équipe » of oh init.
 func teamCreatorFields(s *initWizardTeamState) identityFields {
 	return identityFields{ID: &s.MemberID, DisplayName: &s.DisplayName, GitLab: &s.GitLabUser, Role: &s.Role, DefaultRole: creatorRole}
+}
+
+// identityDefaults is who the person already is in the team of hub.toml: the ID
+// they use there, and the display name and GitLab handle of their card when the
+// clone has it (a local read). The same person is usually the same in every team:
+// the form of a new card starts with it, and a taken ID is refused all the same.
+func identityDefaults(a *app.App) func() (id, name, handle string) {
+	return func() (id, name, handle string) {
+		if a == nil || a.Config == nil {
+			return "", "", ""
+		}
+		team := a.Config.ActiveTeam()
+		if team.MemberID == "" || team.StatePath == "" {
+			return team.MemberID, "", ""
+		}
+		m, err := teamstate.NewRepo(team.StateRepo, team.StatePath).GetMember(context.Background(), team.MemberID)
+		if err != nil || m == nil {
+			return team.MemberID, "", ""
+		}
+		return team.MemberID, m.DisplayName, m.GitLabUsername
+	}
 }
