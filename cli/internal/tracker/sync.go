@@ -849,8 +849,35 @@ func (e *Engine) autoplan(
 	return e.repo.CommitAndPush(ctx, msg, relPaths...)
 }
 
+// poolClaim is the claim of an issue of the pool: the claim of the member it is
+// assigned to when it is assigned to a known one, otherwise a pool claim
+// (ClaimedBy="").
+func (e *Engine) poolClaim(issue IssueState, ticketID, hubProjectID string, memberByGitLab map[string]teamstate.Member) teamstate.Claim {
+	claimedBy := ""
+	e.noteUnknownAssignees(issue.Assignees, memberByGitLab)
+	if len(issue.Assignees) > 0 {
+		if m, ok := memberByGitLab[strings.ToLower(issue.Assignees[0])]; ok {
+			claimedBy = m.ID
+		}
+	}
+	return teamstate.Claim{
+		TicketID:      ticketID,
+		Project:       hubProjectID,
+		ClaimedBy:     claimedBy,
+		Status:        MapTrackerStatusWithBoard(&issue, e.cfg.StatusMapping, e.cfg.LabelStatusMapping, e.boardCfg),
+		Title:         issue.Title,
+		Description:   TruncateDescription(issue.Description),
+		TrackerStatus: issue.StatusName,
+		ExternalIID:   issue.IID,
+		Labels:        issue.Labels,
+	}
+}
+
 // maxPoolWindow bounds the issues fetched for the pool in one run.
-const maxPoolWindow = 500
+const maxPoolWindow = 2000
+
+// defaultMaxUnassigned is max_unassigned_issues when the team sets none.
+const defaultMaxUnassigned = 20
 
 // autopoolUnassigned creates claims for tracker issues so they appear on the
 // team board as claimable tickets.
@@ -864,14 +891,19 @@ const maxPoolWindow = 500
 // When UnassignedLabels is empty, it falls back to the original behaviour:
 // fetching only issues with no assignee via ListUnassignedIssues (pool claims only).
 //
-// The first complete scan of a project's pool (and the first one after
-// unassigned_labels changed) does not filter on the update time: an issue
-// labelled long ago and not touched since has never been seen by a run that
-// did. The runs that follow only fetch what was updated since the last sync.
+// The complete scan of a project's pool (and the one that follows a change of
+// unassigned_labels) does not filter on the update time: an issue labelled
+// long ago and not touched since has never been seen by a run that did. The
+// scan takes as many runs as the pool needs: a run creates at most
+// MaxUnassignedIssues claims, and the next one starts over from the whole pool,
+// skipping the issues that have a claim by then (the claims committed are the
+// progress, so a run that failed to read or to commit leaves nothing to undo
+// and is simply made again). The scan is recorded as complete only by a run
+// that found nothing left to create; the runs that follow only fetch what was
+// updated since the last sync.
 //
-// Respects MaxUnassignedIssues: at most that many claims are created by a run,
-// and the fetch is wide enough (that many plus the issues that already have a
-// claim) for the claimed ones not to hide the others. Claims are created
+// The fetch is wide enough (MaxUnassignedIssues plus the issues that already
+// have a claim) for the claimed ones not to hide the others. Claims are created
 // locally in batch and committed in a single git operation.
 func (e *Engine) autopoolUnassigned(
 	ctx context.Context,
@@ -882,6 +914,10 @@ func (e *Engine) autopoolUnassigned(
 	firstSync bool,
 	pr *ProjectSyncResult,
 ) error {
+	limit := e.cfg.MaxUnassignedIssues
+	if limit <= 0 {
+		limit = defaultMaxUnassigned
+	}
 	fullScan := firstSync || !e.state.AutoPoolScan(trackerType, trackerProjectID, e.cfg.UnassignedLabels)
 	var lastSync time.Time
 	if !fullScan {
@@ -889,89 +925,104 @@ func (e *Engine) autopoolUnassigned(
 	}
 	slog.Debug("tracker.autopool.start", "project", hubProjectID, "first_sync", firstSync, "full_scan", fullScan, "has_labels", len(e.cfg.UnassignedLabels) > 0)
 
-	window := min(e.cfg.MaxUnassignedIssues+len(claimedTickets), maxPoolWindow)
-
-	// Fetch issues: use ListIssuesByLabels (all assignees) when labels are
-	// configured, otherwise fall back to ListUnassignedIssues (no assignee only).
-	var issues []IssueState
-	var err error
-	if len(e.cfg.UnassignedLabels) > 0 {
-		issues, err = e.tracker.ListIssuesByLabels(ctx, trackerProjectID, ListByLabelsOpts{
-			Labels:       e.cfg.UnassignedLabels,
-			UpdatedAfter: lastSync,
-			MaxResults:   window,
-		})
-	} else {
-		issues, err = e.tracker.ListUnassignedIssues(ctx, trackerProjectID, ListUnassignedOpts{
-			Labels:       e.cfg.UnassignedLabels,
-			UpdatedAfter: lastSync,
-			MaxResults:   window,
-		})
-	}
-	if err != nil {
-		if errors.Is(err, ErrTokenInvalid) {
-			return err
-		}
-		slog.Warn("tracker.autopool.fetch_error", "error", err)
-		return nil // skip on transient errors: the scan starts again
-	}
-	slog.Debug("tracker.autopool.fetched", "count", len(issues))
-
-	// The scan is complete once the fetch and the creation went through.
-	markScanned := func() {
-		if fullScan {
-			e.state.MarkAutoPoolScanned(trackerType, trackerProjectID, e.cfg.UnassignedLabels, time.Now().UTC())
-		}
-	}
-
-	// Collect claims to create, then batch commit.
 	type pendingClaim struct {
 		claim teamstate.Claim
 	}
-	var pending []pendingClaim
+	var (
+		pending   []pendingClaim
+		more      bool // an issue is left that this run does not create (the cap)
+		truncated bool
+		uncertain bool
+	)
 
-	for _, issue := range issues {
-		ticketID := ticketIDFromIssue(issue, e.cfg.TicketPatterns[hubProjectID]) //nolint:staticcheck // backward compat: deprecated field
-		if claimedTickets[ticketID] {
+	// The window of the fetch is the limit plus the claims, so that the claimed
+	// issues do not hide the others. Claims released on purpose are skipped by
+	// a scan and are not claims: when they crowd the window, it is widened by
+	// their number and the fetch is made again.
+	window := min(limit+len(claimedTickets), maxPoolWindow)
+	for {
+		// Fetch issues: use ListIssuesByLabels (all assignees) when labels are
+		// configured, otherwise fall back to ListUnassignedIssues (no assignee only).
+		var issues []IssueState
+		var err error
+		if len(e.cfg.UnassignedLabels) > 0 {
+			issues, err = e.tracker.ListIssuesByLabels(ctx, trackerProjectID, ListByLabelsOpts{
+				Labels:       e.cfg.UnassignedLabels,
+				UpdatedAfter: lastSync,
+				MaxResults:   window,
+			})
+		} else {
+			issues, err = e.tracker.ListUnassignedIssues(ctx, trackerProjectID, ListUnassignedOpts{
+				Labels:       e.cfg.UnassignedLabels,
+				UpdatedAfter: lastSync,
+				MaxResults:   window,
+			})
+		}
+		if err != nil {
+			if errors.Is(err, ErrTokenInvalid) {
+				return err
+			}
+			slog.Warn("tracker.autopool.fetch_error", "error", err)
+			return nil // skip on transient errors: the scan starts again
+		}
+		slog.Debug("tracker.autopool.fetched", "count", len(issues))
+
+		pending, more = nil, false
+		released := 0
+		for _, issue := range issues {
+			ticketID := ticketIDFromIssue(issue, e.cfg.TicketPatterns[hubProjectID]) //nolint:staticcheck // backward compat: deprecated field
+			if claimedTickets[ticketID] {
+				continue
+			}
+			// A claim released on purpose is not made again by the passes of a
+			// scan; it comes back if the issue is updated on the tracker.
+			if fullScan && e.repo.ClaimRemovedOnPurpose(ctx, hubProjectID, ticketID) {
+				released++
+				continue
+			}
+			if len(pending) >= limit {
+				more = true
+				break
+			}
+			pending = append(pending, pendingClaim{claim: e.poolClaim(issue, ticketID, hubProjectID, memberByGitLab)})
+		}
+
+		// The pool is covered when nothing is left behind: not by the cap, and
+		// not by the window of the fetch. A fetch that filled its window with
+		// the run at its cap may have more behind: another run settles it, with
+		// a wider window.
+		truncated = len(issues) >= window
+		uncertain = truncated && window < maxPoolWindow && len(pending) >= limit
+		if truncated && !more && !uncertain && released > 0 && window < maxPoolWindow {
+			window = min(window+released, maxPoolWindow)
 			continue
 		}
-
-		initialStatus := MapTrackerStatusWithBoard(&issue, e.cfg.StatusMapping, e.cfg.LabelStatusMapping, e.boardCfg)
-		truncDesc := TruncateDescription(issue.Description)
-
-		// Resolve ClaimedBy: if the issue is assigned to a known team member,
-		// create the claim as theirs; otherwise create a pool claim.
-		claimedBy := ""
-		e.noteUnknownAssignees(issue.Assignees, memberByGitLab)
-		if len(issue.Assignees) > 0 {
-			assignee := strings.ToLower(issue.Assignees[0])
-			if m, ok := memberByGitLab[assignee]; ok {
-				claimedBy = m.ID
-			}
+		break
+	}
+	for i := range pending {
+		claimedTickets[pending[i].claim.TicketID] = true
+	}
+	covered := !more && !uncertain
+	if fullScan && truncated && !uncertain && !more {
+		slog.Warn("tracker.autopool.window_full", "project", hubProjectID, "window", window)
+	}
+	// Recorded only once what the run created is committed.
+	finish := func(created int) {
+		if !fullScan {
+			return
 		}
-
-		pending = append(pending, pendingClaim{
-			claim: teamstate.Claim{
-				TicketID:      ticketID,
-				Project:       hubProjectID,
-				ClaimedBy:     claimedBy,
-				Status:        initialStatus,
-				Title:         issue.Title,
-				Description:   truncDesc,
-				TrackerStatus: issue.StatusName,
-				ExternalIID:   issue.IID,
-				Labels:        issue.Labels,
-			},
-		})
-		claimedTickets[ticketID] = true
-
-		if len(pending) >= e.cfg.MaxUnassignedIssues {
-			break
+		now := time.Now().UTC()
+		if covered {
+			e.state.MarkAutoPoolScanned(trackerType, trackerProjectID, e.cfg.UnassignedLabels, now)
+			return
+		}
+		if created > 0 {
+			e.state.NoteAutoPoolPass(trackerType, trackerProjectID, e.cfg.UnassignedLabels, now)
 		}
 	}
 
 	if len(pending) == 0 {
-		markScanned()
+		finish(0)
 		return nil
 	}
 
@@ -999,7 +1050,7 @@ func (e *Engine) autopoolUnassigned(
 
 	if len(relPaths) == 0 {
 		if !createFailed {
-			markScanned()
+			finish(0)
 		}
 		return nil
 	}
@@ -1008,9 +1059,10 @@ func (e *Engine) autopoolUnassigned(
 	if err := e.repo.CommitAndPush(ctx, msg, relPaths...); err != nil {
 		return err
 	}
-	if !createFailed {
-		markScanned()
+	if createFailed {
+		covered = false // a claim that could not be written is made again
 	}
+	finish(len(relPaths))
 	return nil
 }
 
@@ -1023,11 +1075,18 @@ func (e *Engine) autopoolUnassigned(
 //
 // When several labels of the issue are mapped, the winner does not depend on
 // the order of the labels of the issue (the tracker's) nor on the order of the
-// map (random): it is the label whose status comes first among the columns of
-// the board, then the first in alphabetical order (case ignored). A value that
-// stands for no status of the board is left out, so that it never hides
-// another label. A value like "todo" that stands for the initial column is
-// read as the status of that column (see BoardConfig.ResolveStatus).
+// map (random):
+//  1. a status of a blocked column (role "blocked", or "blocked" on the default
+//     board) always wins: an impediment is never hidden by another label;
+//  2. otherwise the most advanced column wins, the one furthest in the order of
+//     the board (on the default board: done, validation, review, in progress,
+//     then todo), so that an issue does not fall back because of an old label;
+//  3. a tie (two labels for the same status, or statuses that cannot be
+//     ordered) goes to the first label in alphabetical order, case ignored.
+//
+// A value that stands for no status of the board is left out, so that it never
+// hides another label. A value like "todo" that stands for the initial column
+// is read as the status of that column (see BoardConfig.ResolveStatus).
 func matchLabelMapping(issue *IssueState, labelStatusMapping map[string]string, boardCfg teamstate.BoardConfig) (string, bool) {
 	if len(labelStatusMapping) == 0 || len(issue.Labels) == 0 {
 		return "", false
@@ -1047,10 +1106,11 @@ func matchLabelMapping(issue *IssueState, labelStatusMapping map[string]string, 
 	}
 
 	var (
-		best     string
-		bestRank int
-		bestName string
-		found    bool
+		best        string
+		bestBlocked bool
+		bestRank    int
+		bestName    string
+		found       bool
 	)
 	for _, label := range issue.Labels {
 		v, ok := lowerMap[strings.ToLower(label)]
@@ -1061,9 +1121,12 @@ func matchLabelMapping(issue *IssueState, labelStatusMapping map[string]string, 
 		if !valid {
 			continue
 		}
-		rank, name := boardCfg.StatusRank(status), strings.ToLower(label)
-		if !found || rank < bestRank || (rank == bestRank && name < bestName) {
-			best, bestRank, bestName, found = status, rank, name, true
+		blocked, rank, name := boardCfg.IsBlockedStatus(status), boardCfg.StatusRank(status), strings.ToLower(label)
+		better := !found ||
+			(blocked != bestBlocked && blocked) ||
+			(blocked == bestBlocked && (rank > bestRank || (rank == bestRank && name < bestName)))
+		if better {
+			best, bestBlocked, bestRank, bestName, found = status, blocked, rank, name, true
 		}
 	}
 	return best, found

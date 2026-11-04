@@ -120,9 +120,9 @@ func (cfg BoardConfig) OrderedStatuses() []string {
 	return out
 }
 
-// StatusRank is the position of a status among the columns of the board; a
-// status the board does not have comes after all of them. "planned" is the
-// initial column.
+// StatusRank is the position of a status among the columns of the board
+// (-1 for a status the board does not have, which cannot be ordered).
+// "planned" is the initial column.
 func (cfg BoardConfig) StatusRank(status string) int {
 	ordered := cfg.OrderedStatuses()
 	if status == ClaimStatusPlanned {
@@ -133,7 +133,18 @@ func (cfg BoardConfig) StatusRank(status string) int {
 			return i
 		}
 	}
-	return len(ordered)
+	return -1
+}
+
+// IsBlockedStatus reports whether the status is that of an impediment column:
+// a column with the role "blocked" on a board with columns of its own, the
+// status "blocked" on the default board.
+func (cfg BoardConfig) IsBlockedStatus(status string) bool {
+	if !cfg.HasCustomColumns() {
+		return status == ClaimStatusBlocked
+	}
+	c := cfg.ColumnByID(status)
+	return c != nil && c.Role == ColumnRoleBlocked
 }
 
 // NormalizeMappings rewrites in place the values of label_status_mapping and
