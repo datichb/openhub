@@ -33,7 +33,7 @@ La barre de mode affiche le badge des sessions **`● N ◐ M`** (N sessions qui
 
 **Accueils.** Les trois accueils dessinent leur nom dans la bannière tel qu'il a été saisi (une équipe « Core » n'est pas « CORE » ; le Hub dessine le logo « OPENHUB »).
 
-- **Hub** : sous la bannière, la ligne de l'outil `opencode v2.0.20 · adaptateur opencode-v2 ✔` (l'outil et l'adaptateur qui lancent les sessions). La section Système liste Configuration, Métriques, Doctor, Secrets, **Notifications** et le **Catalogue des briques**.
+- **Hub** : sous la bannière, la ligne de l'outil `opencode v2.0.25 · adaptateur opencode-v2 ✔` (l'outil et l'adaptateur qui lancent les sessions). La section Système liste Configuration, Métriques, Doctor, Secrets, **Notifications** et le **Catalogue des briques**.
 - **Projet** : l'en-tête donne le chemin et la branche, la ligne de l'outil et les environnements d'exécution avec leur état, `exécution : ⌂ local ✔  ▣ conteneur · colima ✔  ☁ distant ✗` (lus à l'ouverture de l'accueil, hors de la boucle d'événements).
 - **Équipe** : en plus des *Sessions de l'équipe*, la section **Sessions des autres membres** liste, d'après les claims du team-state, qui travaille sur quel ticket (membre, ticket, session, depuis quand ; `●` le claim est vivant, `○` son bail est dépassé). Elle est en **lecture seule** : `Entrée` ouvre une fenêtre de détail avec un seul bouton *Fermer* ; une session tourne sur la machine de son membre, oh n'agit pas dessus.
 
