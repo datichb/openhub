@@ -1,8 +1,10 @@
 package views
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/mattn/go-runewidth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -100,4 +102,36 @@ func TestQuickActionsOfAnIssueWithoutTicketWorkflow(t *testing.T) {
 	showQuickActionModal(sh, TicketContext{ID: "7"}, qa)
 	assert.Empty(t, sh.options)
 	assert.Len(t, sh.toasts, 1)
+}
+
+// The menu cuts nothing: a long title of workflow and a long title of card
+// reach the window whole (it is as wide as they need), and the columns line up
+// on the longest cell, not on a fixed width.
+func TestQuickActionsMenuCutsNothing(t *testing.T) {
+	t.Parallel()
+	long := "Implémenter un ou plusieurs tickets Beads déjà détaillés, développement puis review"
+	qa := &BoardQuickActions{
+		Workflows: func() []TicketWorkflow {
+			return []TicketWorkflow{
+				{ID: "ticket", Label: long, Risk: "write", Runtimes: []string{"local", "container"}, Pinned: true},
+				{ID: "brief-enrich", Label: "Enrichir", Risk: "read", Runtimes: []string{"local"}},
+			}
+		},
+		Launch: func(string, TicketContext) {},
+	}
+	sh := &pickingShell{}
+	cardTitle := "Export the monthly report of every project as CSV, with the totals"
+	showQuickActionModal(sh, TicketContext{ID: "bd-42", Title: cardTitle}, qa)
+
+	assert.Contains(t, sh.title, cardTitle, "the title of the card is whole")
+	require.Len(t, sh.options, 2)
+	first, second := sh.options[0].Label, sh.options[1].Label
+	assert.Contains(t, first, long)
+	assert.NotContains(t, first+second, "…")
+	assert.True(t, strings.HasPrefix(first, "★ ticket       "), "the id column is as wide as « brief-enrich »: %q", first)
+	assert.True(t, strings.HasSuffix(first, "write ⌂ ▣"), first)
+
+	// The risk starts on the same column in every row.
+	col := func(s, word string) int { return runewidth.StringWidth(s[:strings.Index(s, word)]) }
+	assert.Equal(t, col(first, "write"), col(second, "read"), "the columns line up:\n%s\n%s", first, second)
 }
