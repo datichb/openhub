@@ -49,7 +49,7 @@ func (w *InlineWizardView) findNext(from int) int {
 
 func (w *InlineWizardView) findPrev(from int) int {
 	for i := from - 1; i >= 0; i-- {
-		if !w.shouldSkip(i) && (w.stepStates[i].Status == widgets.StepDone || w.stepStates[i].Status == widgets.StepActive) {
+		if !w.shouldSkip(i) && !w.cfg.Steps[i].BackSkip && (w.stepStates[i].Status == widgets.StepDone || w.stepStates[i].Status == widgets.StepActive) {
 			return i
 		}
 	}
@@ -57,7 +57,13 @@ func (w *InlineWizardView) findPrev(from int) int {
 }
 
 func (w *InlineWizardView) skipCurrent() {
+	// Skipping a step that failed forgets its error: the wizard ends with
+	// OnComplete(true, nil), not with the error of a step the user left.
+	w.wizardErr = nil
 	w.syncStepBar(w.currentStep, widgets.StepSkipped)
+	if on := w.cfg.Steps[w.currentStep].OnSkip; on != nil {
+		on()
+	}
 
 	next := w.findNext(w.currentStep)
 	if next == -1 {
@@ -74,21 +80,62 @@ func (w *InlineWizardView) goBack() {
 	if prev == -1 {
 		return
 	}
-	// Reset current to pending
+	// Reset current to pending, and the steps passed over (BackSkip)
 	w.syncStepBar(w.currentStep, widgets.StepPending)
+	for i := prev + 1; i < w.currentStep; i++ {
+		if w.cfg.Steps[i].BackSkip && w.stepStates[i].Status == widgets.StepDone {
+			w.syncStepBar(i, widgets.StepPending)
+		}
+	}
 
 	// Reset previous to active
 	w.syncStepBar(prev, widgets.StepActive)
 
-	// Pop last info entry
-	if len(w.infoAccum) > 0 {
-		w.infoAccum = w.infoAccum[:len(w.infoAccum)-1]
+	// Drop the info of the previous step and of the steps passed over
+	kept := w.infoAccum[:0]
+	for _, e := range w.infoAccum {
+		if e.stepIdx < prev {
+			kept = append(kept, e)
+		}
 	}
+	w.infoAccum = kept
 	// Going back leaves the error of a step that failed behind it.
 	w.wizardErr = nil
 	w.currentStep = prev
 	w.renderInfoPanel()
 	w.doRenderStep(prev)
+}
+
+// goToStep goes back to the step of that ID: the steps after it, the current
+// one included, are pending again and their info is dropped. It reports false
+// when no earlier step has that ID.
+func (w *InlineWizardView) goToStep(id string) bool {
+	target := -1
+	for i := 0; i <= w.currentStep && i < len(w.cfg.Steps); i++ {
+		if w.cfg.Steps[i].ID == id {
+			target = i
+			break
+		}
+	}
+	if target == -1 {
+		return false
+	}
+	for i := target + 1; i <= w.currentStep; i++ {
+		w.syncStepBar(i, widgets.StepPending)
+	}
+	w.syncStepBar(target, widgets.StepActive)
+	kept := w.infoAccum[:0]
+	for _, e := range w.infoAccum {
+		if e.stepIdx < target {
+			kept = append(kept, e)
+		}
+	}
+	w.infoAccum = kept
+	w.wizardErr = nil
+	w.currentStep = target
+	w.renderInfoPanel()
+	w.doRenderStep(target)
+	return true
 }
 
 func (w *InlineWizardView) advanceAfterDone(step WizardStep) {

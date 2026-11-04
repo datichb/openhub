@@ -194,8 +194,9 @@ func TestTeamInitWizardFirstLaunch(t *testing.T) {
 
 	assert.Equal(t, []int{0, 1, 2, 3, 4}, s.ran, "steps that ran")
 	assert.Empty(t, s.refused, "steps refused")
-	repo := teamstate.NewRepo(bare, config.DefaultTeamStatePath())
-	require.True(t, repo.IsCloned(), "the team-state is cloned")
+	repo := teamstate.NewRepo(bare, config.TeamStatePath(bare))
+	require.True(t, repo.IsCloned(), "the team-state is cloned in the folder every team assistant uses")
+	assert.NoDirExists(t, config.DefaultTeamStatePath(), "not in the former ~/.oh/team-state")
 	cfg, err := repo.LoadConfig(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, 6, cfg.Takeover.StaleDays, "stale days")

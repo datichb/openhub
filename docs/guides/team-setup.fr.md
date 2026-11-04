@@ -40,20 +40,46 @@ Le wizard tourne directement dans le shell TUI sans quitter l'interface. L'omnib
 et les toasts restent accessibles. Raccourcis : `Ctrl+S` valider, `Ctrl+B` (ou `Alt+←`, `PgUp`) retour,
 `Esc` pour « Quitter l'assistant ? » (quitter, passer une étape facultative ou continuer).
 
-### Phase 1 — Connexion au repo (séquentiel)
+### Phase 1 — Dépôt, accès et identité (séquentiel)
 
-Un formulaire demande l'URL du repo team-state puis :
-1. Clone le repo dans `~/.oh/team-state/` (ou pull si déjà cloné)
-2. Crée la structure de répertoires (si premier membre)
-3. Détecte les clones dupliqués pour éviter les états divergents
+L'assistant suit le même ordre pour « Créer » comme pour « Rejoindre », dans `oh init` comme
+dans la palette (`team init`, `team rejoin`) :
 
-Si le repo est en HTTPS, une étape supplémentaire propose de configurer les credentials
-(token, ou skip si déjà configuré). Elle n'est **proposée que si le dépôt ne répond pas sans
-token** : une fois le dépôt cloné, `oh` lance `git ls-remote` sans aucune invite ; si git lit
-le dépôt avec ce qu'il a déjà (assistant d'identifiants, `netrc`, dépôt public), l'étape est
-sautée, comme pour une URL SSH. Sur l'option par défaut « Fournir un token », un champ vide
-est refusé avec un message qui dit quoi faire (saisir le token, ou choisir « Déjà configuré »
-ou « Accès public »).
+1. **Dépôt** : l'URL du repo team-state et, facultatif, le serveur GitLab quand l'URL est un alias SSH.
+2. **Sonde d'accès** : `git ls-remote` en lecture seule, sans aucune invite, avec un indicateur
+   d'attente. Elle utilise ce que git a déjà (agent SSH, assistant d'identifiants, `netrc`, dépôt
+   public) et le token que `oh` garde pour ce dépôt. Rien n'est cloné ni écrit.
+3. **Accès** : cette étape n'apparaît que si la sonde est refusée pour une raison d'accès.
+   - **HTTPS** : l'assistant demande un token (nom d'utilisateur `oauth2` par défaut pour GitLab),
+     le **vérifie** auprès du dépôt, puis le garde dans le trousseau de `oh`
+     (`openhub.git.<hôte>/<dépôt>.token`, voir [config](../reference/config.fr.md#clés-connues)).
+     `oh` le fournit à git par un `GIT_ASKPASS` à usage unique pour toutes les opérations du
+     team-state (clone, pull, push, sonde, démon) ; il n'est jamais dans une URL, une ligne de
+     commande ni le `credential.helper` de git. Un token refusé n'est pas gardé.
+   - **SSH** : le message donne la réponse de git et rappelle `ssh-add` ; « Réessayer » sonde de nouveau.
+4. **Identité** : votre identifiant et votre nom (« Créer »), ou le choix du membre (« Rejoindre »).
+5. **Clone** dans `~/.oh/team-states/<hôte>/<dépôt>/` (ou pull si déjà cloné), création de la
+   structure de répertoires (si premier membre) et détection des clones dupliqués.
+
+Un dossier qui contient déjà le clone **d'un autre dépôt** n'est jamais réutilisé : l'assistant
+l'indique (dossier, dépôt trouvé, dépôt demandé) et laisse le choix (supprimer le dossier, ou
+saisir une autre URL).
+
+Quand une étape échoue, l'écran d'erreur propose des boutons (Tab ou ←/→ pour choisir, `Entrée`
+réessaie, `Ctrl+B` revient) :
+
+| Bouton | Effet |
+|--------|-------|
+| **Configurer l'accès** | retourne à l'étape Accès (en premier quand git a refusé l'accès) |
+| **Réessayer** | refait l'étape (focus par défaut) |
+| **Modifier l'URL** | retourne à la saisie du dépôt |
+| **Passer l'équipe** | abandonne la configuration d'équipe : toutes les étapes du groupe sont sautées et le récapitulatif indique « équipe non configurée » (dans la palette, le bouton quitte l'assistant) |
+
+Dans `oh init`, passer une étape de l'équipe (ou « Passer l'équipe ») saute **tout** le groupe,
+le reste de l'installation continue : `setup_done` est écrit, aucune équipe n'est ajoutée à
+`hub.toml`. En type d'installation « équipe », où le fournisseur est censé venir de l'équipe,
+l'assistant le redemande après le groupe, puis propose un espace solo pour le projet (non créé
+sans votre accord).
 
 ### Phase 2 — Configuration (wizard interactif)
 
@@ -278,17 +304,26 @@ member_id  = "alice"           # ← utilisé comme fallback pour tous les proje
 
 ### Troubleshooting
 
-**Le clone échoue avec "terminal prompts disabled" :**
+**Le clone échoue avec "terminal prompts disabled" ou "Authentication failed" :**
 
-Le remote requiert une authentification (HTTP basic ou token) et aucun credential
-n'est configuré. `oh` positionne `GIT_TERMINAL_PROMPT=0` pour ne pas bloquer sur
-un prompt — l'erreur est intentionnelle.
+Le remote requiert une authentification et git n'a pas de quoi répondre. `oh` positionne
+`GIT_TERMINAL_PROMPT=0` pour ne pas bloquer sur une invite — le message est intentionnel. Dans
+l'assistant, l'étape **Accès** (ou le bouton « Configurer l'accès » de l'écran d'erreur) demande
+le token et le garde dans le trousseau de `oh`.
 
 Solutions :
-- **HTTPS + credential helper :** `git config --global credential.helper osxkeychain`
-  (macOS) ou `git config --global credential.helper store`
+- **HTTPS :** donner le token à l'assistant (étape Accès), ou l'enregistrer à la main :
+  `oh secrets set openhub.git.gitlab.com/org/team-state.token` (et `…/team-state.user` si le
+  nom d'utilisateur n'est pas `oauth2`). Un `credential.helper` de git qui répond déjà reste
+  utilisé quand `oh` n'a pas de token pour ce dépôt.
 - **SSH plutôt que HTTPS :** utiliser `git@gitlab.com:org/team-state.git`
 - **Clé SSH non chargée :** `ssh-add ~/.ssh/id_ed25519` ou `eval "$(ssh-agent)"`
+
+**Le dossier contient le clone d'un autre dépôt :**
+
+Un clone existant dont l'origine n'est pas l'URL saisie n'est jamais réutilisé. Supprimez le
+dossier (ou choisissez le bon dépôt). Les équipes configurées avant la 5.3.2 gardent leur
+`state_path` (dont l'ancien `~/.oh/team-state/`) : rien n'est déplacé.
 
 **Le clone timeout après 30 secondes :**
 

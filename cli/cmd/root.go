@@ -173,6 +173,8 @@ func initApp() error {
 	// Wire stores
 	wireStores(a, s)
 	a.WithSecretStore(resolveSecretStore())
+	// The token of an HTTPS team-state repository is in the keychain of oh.
+	teamGitCreds = wireTeamGitCredentials(func() domain.SecretStore { return a.Secrets })
 
 	// Auto-migrate legacy ProjectTeamConfig → TeamID (ADR-029).
 	if activeTeam := a.Config.ActiveTeam(); activeTeam.ID != "" {

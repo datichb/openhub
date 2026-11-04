@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -80,13 +79,19 @@ func (r *Repo) IsCloned() bool {
 // Error classification on Pull:
 //   - Auth error (missing/invalid credentials) → fatal error with actionable message
 //   - Other error (network, rebase conflict)   → *PullWarning (non-fatal, local usable)
+//
+// A clone of another repository than r.remote is refused, not reused
+// (*RemoteMismatchError).
 func (r *Repo) EnsureReady(ctx context.Context) error {
 	if !r.IsCloned() {
 		return r.Clone(ctx)
 	}
+	if err := r.CheckRemote(); err != nil {
+		return err
+	}
 	if err := r.Pull(ctx); err != nil {
 		if isAuthError(err) {
-			return fmt.Errorf("%s", authErrorMessage(r.remote))
+			return &AuthError{Message: authErrorMessage(r.remote), Cause: err}
 		}
 		return &PullWarning{Cause: err}
 	}
@@ -143,8 +148,8 @@ func (r *Repo) clone(ctx context.Context) error {
 	if err != nil {
 		elapsed := time.Since(start)
 		slog.Warn("teamstate.clone.failed", "url", r.remote, "path", r.path, "error", err, "duration", elapsed)
-		if isAuthError(err) {
-			return fmt.Errorf("clone failed — %s", authErrorMessage(r.remote))
+		if isAuthError(err) || IsAuthError(err) {
+			return &AuthError{Message: "clone failed — " + authErrorMessage(r.remote), Cause: err}
 		}
 		return fmt.Errorf("cloning team-state repo: %w", err)
 	}
@@ -464,20 +469,31 @@ func (r *Repo) HasMember(ctx context.Context, id string) bool {
 // GIT_TERMINAL_PROMPT=0 prevents git from blocking on interactive credential
 // prompts when the process has no TTY (e.g. running as a TUI background task).
 // GIT_SSH_COMMAND with BatchMode=yes makes SSH fail immediately instead of
-// waiting for a passphrase or host-key confirmation.
+// waiting for a passphrase or host-key confirmation. For an HTTPS remote the
+// token oh holds for it (SetCredentialSource) is handed over by a one-shot
+// GIT_ASKPASS (gitCommand): clone, pull, push, all of them.
 func (r *Repo) git(ctx context.Context, dir string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", args...)
-	cmd.Dir = dir
-	cmd.Env = append(os.Environ(),
-		"GIT_TERMINAL_PROMPT=0",
-		"GIT_SSH_COMMAND=ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=2",
-		// A stalled HTTP transfer gives up instead of holding the lock.
-		"GIT_HTTP_LOW_SPEED_LIMIT=1000",
-		"GIT_HTTP_LOW_SPEED_TIME=30",
-	)
+	cmd, cleanup := gitCommand(ctx, r.credentialRemote(), dir, nil,
+		"-o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=2",
+		[]string{
+			// A stalled HTTP transfer gives up instead of holding the lock.
+			"GIT_HTTP_LOW_SPEED_LIMIT=1000",
+			"GIT_HTTP_LOW_SPEED_TIME=30",
+		}, args...)
+	defer cleanup()
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return string(out), fmt.Errorf("git %s: %s: %w", strings.Join(args, " "), strings.TrimSpace(string(out)), err)
 	}
 	return string(out), nil
+}
+
+// credentialRemote is the remote whose token the git operations of the repo
+// use: the one it was made with, or the origin of an existing clone.
+func (r *Repo) credentialRemote() string {
+	if r.remote != "" {
+		return r.remote
+	}
+	origin, _ := originURL(r.path)
+	return origin
 }

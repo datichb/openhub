@@ -4,7 +4,7 @@
 
 ## Overview
 
-The `team` MCP server exposes team collaboration data to AI agents via the MCP protocol (stdio JSON-RPC). It reads from the local `~/.oh/team-state/` clone and provides read-only access to all agents, with write capabilities limited to specific agents.
+The `team` MCP server exposes team collaboration data to AI agents via the MCP protocol (stdio JSON-RPC). It reads from the local clone of the team-state (`state_path`, `~/.oh/team-states/<host>/<repo>/` by default) and provides read-only access to all agents, with write capabilities limited to specific agents.
 
 ## Activation
 

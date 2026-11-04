@@ -47,9 +47,9 @@ type rejoinWizard struct {
 	identityMismatch *identityMismatchError
 	mismatchPAT      string
 	mismatchChoice   string
-	cred             *httpsCredState
-	trackerWanted    bool   // the tracker is on another server than the team repository
-	trackerName      string // typed in the tracker name step
+	access           *teamAccess // the repository and its access (team_access.go)
+	trackerWanted    bool        // the tracker is on another server than the team repository
+	trackerName      string      // typed in the tracker name step
 
 	launchDiscovery bool   // « configure now » was chosen for the tracker
 	trackerChoice   string // "keep", "reconfigure", "later" or ""
@@ -58,13 +58,15 @@ type rejoinWizard struct {
 // buildRejoinWizard is the wizard of the rejoin: its steps and what it does
 // when it ends.
 func buildRejoinWizard(ctx context.Context, a *app.App) views.InlineWizardConfig {
-	w := &rejoinWizard{ctx: ctx, a: a, cred: &httpsCredState{Username: "oauth2", AuthChoice: "provide"}}
+	w := makeRejoinWizard(ctx, a)
 	return views.InlineWizardConfig{
 		ID:    "wizard.team.rejoin",
 		Title: i18n.T("tui.team.rejoin"),
 		Steps: []views.WizardStep{
-			w.repoStep(),
-			buildHTTPSCredStep(ctx, &w.stateRepo, w.cred, nil, a.Secrets),
+			w.access.RepoStep(),
+			w.access.ProbeStep(),
+			w.access.AccessStep(),
+			w.cloneStep(),
 			w.memberStep(),
 			w.trackerNameStep(),
 			w.gitlabTokenStep(),
@@ -75,6 +77,22 @@ func buildRejoinWizard(ctx context.Context, a *app.App) views.InlineWizardConfig
 		},
 		OnComplete: w.onComplete,
 	}
+}
+
+// makeRejoinWizard is the state of the rejoin, with the repository and access
+// steps it starts with.
+func makeRejoinWizard(ctx context.Context, a *app.App) *rejoinWizard {
+	w := &rejoinWizard{ctx: ctx, a: a}
+	w.access = &teamAccess{
+		Ctx:         func() context.Context { return w.ctx },
+		App:         func() *app.App { return w.a },
+		Repo:        &w.stateRepo,
+		GitLabURL:   &w.gitlabURL,
+		Quit:        true, // the wizard is only the team: giving it up is leaving it
+		RequiredKey: "cmd.team.init.validate.repo_required",
+		NextLabel:   i18n.T("tui.team.rejoin.next"),
+	}
+	return w
 }
 
 // onComplete launches the tracker discovery when « configure now » was chosen.
@@ -91,33 +109,16 @@ func (w *rejoinWizard) onComplete(completed bool, err error) {
 	}
 }
 
-// repoStep asks for the repository of the team-state (and the GitLab of an
-// SSH alias), then clones it and lists its members.
-func (w *rejoinWizard) repoStep() views.WizardStep {
+// cloneStep clones the repository (the URL and the access came before) and
+// lists its members.
+func (w *rejoinWizard) cloneStep() views.WizardStep {
 	ctx := w.ctx
 	return views.WizardStep{
-		Label:    i18n.T("cmd.team.init.step_repo"),
-		Required: true,
-		Validate: func() string {
-			if strings.TrimSpace(w.stateRepo) == "" {
-				return i18n.T("cmd.team.init.validate.repo_required")
-			}
-			return teamGitLabURLProblem(w.gitlabURL)
-		},
-		Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			form := tview.NewForm()
-			form.AddInputField(
-				i18n.T("cmd.team.init.repo_url_title"),
-				w.stateRepo, 0, nil,
-				func(text string) { w.stateRepo = text })
-			form.AddInputField(
-				i18n.T("cmd.init.wizard_team_gitlab_url"),
-				w.gitlabURL, 0, nil,
-				func(text string) { w.gitlabURL = strings.TrimSpace(text) })
-			form.AddTextView("", i18n.T("cmd.init.wizard_team_gitlab_hint_short"), 60, 2, true, false)
-			form.AddButton(i18n.T("tui.team.rejoin.next"), func() { onDone() })
-			return form
-		},
+		ID:           "rejoin_clone",
+		Label:        i18n.T("v532w.clone.label"),
+		Required:     true,
+		BackSkip:     true,
+		ErrorActions: w.access.ErrorActions,
 		OnDone: func() error {
 			w.statePath = config.TeamStatePath(w.stateRepo)
 			var (
@@ -132,7 +133,6 @@ func (w *rejoinWizard) repoStep() views.WizardStep {
 			if len(w.members) == 0 {
 				return errors.New(i18n.T("tui.team.rejoin.no_members"))
 			}
-			w.cred.Probe(ctx, w.stateRepo)
 			return nil
 		},
 		Processing: i18n.T("cmd.team.init.processing_repo"),
@@ -246,8 +246,8 @@ func (w *rejoinWizard) gitlabTokenStep() views.WizardStep {
 					break
 				}
 			}
-			// the HTTPS step stores the token, unless it was skipped
-			return glUser == "" || (teamstate.IsHTTPS(w.stateRepo) && !w.cred.Open)
+			// the access step stores the token of an HTTPS repository that asked for one
+			return glUser == "" || (teamstate.IsHTTPS(w.stateRepo) && w.access.TokenStored)
 		},
 		Validate: func() string {
 			if w.tokenChoiceIdx == 0 {
@@ -281,8 +281,9 @@ func (w *rejoinWizard) gitlabTokenStep() views.WizardStep {
 func (w *rejoinWizard) validateStep() views.WizardStep {
 	a, ctx := w.a, w.ctx
 	return views.WizardStep{
-		Label:      i18n.T("cmd.team.rejoin.validating"),
-		Processing: i18n.T("cmd.team.rejoin.validating"),
+		Label:        i18n.T("cmd.team.rejoin.validating"),
+		Processing:   i18n.T("cmd.team.rejoin.validating"),
+		ErrorActions: w.access.ErrorActions,
 		OnDone: func() error {
 			params := teamRejoinParams{
 				StateRepo: w.stateRepo,

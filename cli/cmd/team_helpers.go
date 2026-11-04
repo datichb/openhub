@@ -53,97 +53,6 @@ func resolvedTeamConfig(a *app.App, project *domain.Project) config.ResolvedTeam
 // Wizard step (used in oh project add)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// httpsCredState holds mutable state for the HTTPS credential wizard step.
-type httpsCredState struct {
-	AuthChoice string // "provide", "skip", or "public"
-	Username   string // default "oauth2"
-	Token      string
-	// Open: the repository answers without a token (see Probe), the step is
-	// not shown.
-	Open bool
-}
-
-// Probe asks git whether repoURL answers without a token (the clone just
-// done, a credential helper, a public repository): then the authentication
-// step is skipped. It runs where the clone runs, off the event loop, never in
-// SkipIf (called at every redraw).
-func (s *httpsCredState) Probe(ctx context.Context, repoURL string) {
-	s.Open = teamstate.IsHTTPS(repoURL) && teamstate.RemoteAccessible(ctx, repoURL)
-}
-
-// buildHTTPSCredStep returns a WizardStep that collects HTTPS credentials
-// (auth mode, username, token) and stores them via git credential approve.
-// The step auto-skips when the repo URL is not HTTPS.
-//
-// When secrets is non-nil and the repo host is a GitLab instance, the token
-// is also stored in the keychain for GitLab API use (identity verification, etc.).
-func buildHTTPSCredStep(ctx context.Context, repoURL *string, state *httpsCredState, extraSkipIf func() bool, secrets domain.SecretStore) views.WizardStep {
-	if state.Username == "" {
-		state.Username = "oauth2"
-	}
-	if state.AuthChoice == "" {
-		state.AuthChoice = "provide"
-	}
-	return views.WizardStep{
-		Label: i18n.T("cmd.team.init.step_credentials"),
-		SkipIf: func() bool {
-			if extraSkipIf != nil && extraSkipIf() {
-				return true
-			}
-			return state.Open || !teamstate.IsHTTPS(*repoURL)
-		},
-		Validate: func() string {
-			if state.AuthChoice == "provide" && strings.TrimSpace(state.Token) == "" {
-				return i18n.T("cmd.team.init.validate.token_required")
-			}
-			return ""
-		},
-		Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			form := tview.NewForm()
-			authOptions := []string{
-				i18n.T("cmd.team.init.cred_provide"),
-				i18n.T("cmd.team.init.cred_skip"),
-				i18n.T("cmd.team.init.cred_public"),
-			}
-			form.AddDropDown(i18n.T("cmd.team.init.cred_auth_mode"), authOptions, 0,
-				func(_ string, idx int) {
-					switch idx {
-					case 0:
-						state.AuthChoice = "provide"
-					case 1:
-						state.AuthChoice = "skip"
-					case 2:
-						state.AuthChoice = "public"
-					}
-				})
-			form.AddInputField(i18n.T("cmd.init.wizard_team_cred_username"), state.Username, 0, nil,
-				func(text string) { state.Username = text })
-			form.AddPasswordField(i18n.T("cmd.init.wizard_team_cred_token"), state.Token, 0, '*',
-				func(text string) { state.Token = text })
-			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
-			return form
-		},
-		OnDone: func() error {
-			if state.AuthChoice == "provide" && state.Token != "" {
-				if err := teamstate.ConfigureCredential(ctx, *repoURL, state.Username, state.Token); err != nil {
-					return err
-				}
-				// When the host is GitLab, also store in the keychain for API use.
-				if teamstate.IsGitLabHost(*repoURL) && secrets != nil {
-					teamID := config.RepoNameFromRemote(*repoURL)
-					if err := secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), state.Token); err != nil {
-						slog.Warn("failed to store GitLab token in keychain", "err", err)
-					}
-				}
-			}
-			return nil
-		},
-		InfoFields: func() []views.InfoField {
-			return []views.InfoField{{Label: i18n.T("cmd.init.wizard_team_info_auth"), Value: i18n.T("cmd.init.wizard_team_info_configured")}}
-		},
-	}
-}
-
 // initWizardTeamState holds mutable state shared across the team wizard steps.
 // It is allocated once by buildInitWizardTeamSteps and captured by closures.
 type initWizardTeamState struct {
@@ -177,11 +86,13 @@ type initWizardTeamState struct {
 	// server than the team repository (TrackerWanted).
 	TrackerWanted   bool
 	TrackerUsername string
-	// HTTPS credential state (shared by init and rejoin)
-	CredUsername   string // HTTPS username (default "oauth2")
-	CredToken      string // HTTPS token/password
-	CredAuthChoice string // "provide", "skip", or "public"
-	RepoOpen       bool   // the repository answers without a token: no HTTPS step
+	// Abandoned: the user gave the team up (« Passer l'équipe », or a step of
+	// the group skipped): the group is skipped whole and the summary says
+	// that the team is not configured.
+	Abandoned bool
+	// Access is the state of the repository and access steps (see
+	// buildInitWizardRepoSteps), shared by « Créer » and « Rejoindre ».
+	Access *teamAccess
 	// GitLab identity verification
 	GitLabToken      string                 // token entered in the optional GitLab token prompt
 	TokenChoice      string                 // "reuse", "new", or "skip"
@@ -195,10 +106,37 @@ type initWizardTeamState struct {
 	TrackerToken           string // token entered in the tracker token prompt (if missing from keychain)
 }
 
-// ProbeRepo records whether the repository answers without a token (see
-// httpsCredState.Probe).
-func (s *initWizardTeamState) ProbeRepo(ctx context.Context) {
-	s.RepoOpen = teamstate.IsHTTPS(s.Repo) && teamstate.RemoteAccessible(ctx, s.Repo)
+// abandon gives the team up: every step of the team group skips (Skipped,
+// no Mode), the summary says so (Abandoned). A team that was configured
+// before the wizard stays as it is.
+func (s *initWizardTeamState) abandon() {
+	s.Skipped, s.Mode, s.Abandoned = true, "", true
+}
+
+// access returns the state of the repository and access steps, made on first
+// use.
+func (s *initWizardTeamState) access(a **app.App) *teamAccess {
+	if s.Access == nil {
+		s.Access = &teamAccess{
+			Ctx:         func() context.Context { return s.Ctx },
+			App:         func() *app.App { return *a },
+			Repo:        &s.Repo,
+			GitLabURL:   &s.GitLabURL,
+			Active:      func() bool { return !s.Skipped && (s.Mode == "init" || s.Mode == "rejoin") },
+			Abandon:     s.abandon,
+			RequiredKey: "cmd.init.wizard_team_repo_required",
+		}
+	}
+	return s.Access
+}
+
+// buildInitWizardRepoSteps returns the steps both « Créer » and « Rejoindre »
+// start with: the repository (and its GitLab), the probe of the access, and the
+// access (a token or the SSH key) when the probe was refused. They come before
+// the clone and before the identity of the member.
+func buildInitWizardRepoSteps(a **app.App, state *initWizardTeamState) []views.WizardStep {
+	access := state.access(a)
+	return []views.WizardStep{access.RepoStep(), access.ProbeStep(), access.AccessStep()}
 }
 
 // selectedMemberGitLabUsername returns the GitLab username of the currently
@@ -245,14 +183,25 @@ func gitlabTokenSourceAt(ctx context.Context, a *app.App, teamID, repo, gitlabUR
 //
 // When "Reconfigure" is chosen, state.LaunchTrackerDiscovery is set to true;
 // the caller's OnComplete is responsible for actually launching the Discovery Wizard.
-func buildTrackerSetupSteps(a **app.App, state *initWizardTeamState) []views.WizardStep {
+//
+// Both « Créer » and « Rejoindre » append these steps, each for its modes
+// (modes): without that the question came twice after a creation.
+func buildTrackerSetupSteps(a **app.App, state *initWizardTeamState, modes ...string) []views.WizardStep {
+	inModes := func() bool {
+		for _, m := range modes {
+			if state.Mode == m {
+				return true
+			}
+		}
+		return false
+	}
 	return []views.WizardStep{
 		// ── Step 1: Tracker choice ──
 		{
 			ID:    "tracker_setup",
 			Label: i18n.T("cmd.init.wizard_step_tracker_setup"),
 			SkipIf: func() bool {
-				return state.Skipped || !state.Configured
+				return state.Skipped || !state.Configured || !inModes()
 			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
@@ -358,48 +307,46 @@ func buildTrackerSetupSteps(a **app.App, state *initWizardTeamState) []views.Wiz
 			},
 			Repo: func() string { return state.Repo },
 			Keep: func() bool {
-				return !state.Skipped && state.Configured && state.TrackerChoice == "keep"
+				return !state.Skipped && state.Configured && inModes() && state.TrackerChoice == "keep"
 			},
 		}),
 	}
 }
 
-// buildInitWizardTeamSteps returns the two WizardSteps for the "Team" group
-// used in the hub initialization wizards (first-run inline + oh init standalone).
+// buildInitWizardTeamSteps returns the WizardSteps of « Créer une équipe » in
+// the hub initialization wizards (first-run inline + oh init standalone).
 //
 // The returned steps are:
-//  1. Form — repo URL, member ID, display name
+//  1. Form — member ID, display name
 //  2. Processing — clone/pull, init structure, register member, write hub.toml
+//  3. the tracker steps
 //
-// The caller is responsible for prepending an intro step (via buildIntroStep)
-// that sets state.Skipped. Both steps use SkipIf → state.Skipped.
+// The repository and its access come first (buildInitWizardRepoSteps), the
+// caller prepends the intro step (buildTeamModeIntroStep) that sets
+// state.Skipped. The steps use SkipIf → state.Skipped, and OnSkip →
+// state.abandon: skipping one skips the group.
 //
 // After successful completion, state.Configured is true and the app should be
 // refreshed (refreshSharedConfig) so subsequent steps can see the team.
 func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.WizardStep {
 	steps := []views.WizardStep{
-		// ── Team form: repo + identity ──
+		// ── Team form: identity of the member (the repository and the access
+		// came before: buildInitWizardRepoSteps) ──
 		{
-			ID:    "team_form",
-			Label: i18n.T("cmd.init.wizard_step_team_form"),
+			ID:     "team_form",
+			Label:  i18n.T("cmd.init.wizard_step_team_form"),
+			OnSkip: state.abandon,
 			SkipIf: func() bool {
 				return state.Skipped || state.Mode != "init"
 			},
 			Validate: func() string {
-				if state.Repo == "" {
-					return i18n.T("cmd.init.wizard_team_repo_required")
-				}
 				if state.MemberID == "" {
 					return i18n.T("cmd.init.wizard_team_member_required")
 				}
-				return teamGitLabURLProblem(state.GitLabURL)
+				return ""
 			},
 			Form: func(_ *tview.Application, onDone func()) *tview.Form {
 				form := tview.NewForm()
-				form.AddInputField(
-					i18n.T("cmd.init.wizard_team_repo"), state.Repo, 0, nil,
-					func(t string) { state.Repo = t },
-				)
 				form.AddInputField(
 					i18n.T("cmd.init.wizard_team_member_id"), state.MemberID, 0, nil,
 					func(t string) { state.MemberID = t },
@@ -408,17 +355,11 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 					i18n.T("cmd.init.wizard_team_display_name"), state.DisplayName, 0, nil,
 					func(t string) { state.DisplayName = t },
 				)
-				form.AddInputField(
-					i18n.T("cmd.init.wizard_team_gitlab_url"), state.GitLabURL, 0, nil,
-					func(t string) { state.GitLabURL = strings.TrimSpace(t) },
-				)
-				form.AddTextView("", i18n.T("cmd.init.wizard_team_gitlab_hint_short"), 60, 2, true, false)
 				form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 				return form
 			},
 			InfoFields: func() []views.InfoField {
 				return []views.InfoField{
-					{Label: i18n.T("cmd.init.wizard_team_info_repo"), Value: state.Repo},
 					{Label: i18n.T("cmd.init.wizard_team_info_member"), Value: state.MemberID},
 				}
 			},
@@ -430,7 +371,10 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 			SkipIf: func() bool {
 				return state.Skipped || state.Mode != "init"
 			},
-			Processing: i18n.T("cmd.init.wizard_processing_team"),
+			OnSkip:       state.abandon,
+			BackSkip:     true,
+			ErrorActions: state.access(a).ErrorActions,
+			Processing:   i18n.T("cmd.init.wizard_processing_team"),
 			OnDone: func() error {
 				displayName := state.DisplayName
 				if displayName == "" {
@@ -473,127 +417,18 @@ func buildInitWizardTeamSteps(a **app.App, state *initWizardTeamState) []views.W
 		},
 		// ── Init: Tracker setup (conditional) ──
 	}
-	steps = append(steps, buildTrackerSetupSteps(a, state)...)
+	steps = append(steps, buildTrackerSetupSteps(a, state, "init", "keep")...)
 	return steps
-}
-
-// buildInitWizardHTTPSCredSteps returns two WizardSteps for HTTPS credential
-// configuration. They are used by the init and rejoin flows when the repo URL
-// uses HTTPS.
-//
-// The returned steps are:
-//  1. Auth mode selection — DropDown (provide/skip/public). Always shown for HTTPS.
-//  2. Credentials — Username + Token. Skipped when auth mode is "skip" or "public".
-//
-// Both steps are conditionally skipped if the repo is not HTTPS.
-//
-// When the repo host is a GitLab instance, the token is also stored in the
-// keychain (openhub.team.<teamID>.gitlab.token) so it can be reused for
-// GitLab API calls (identity verification, tracker sync, etc.).
-func buildInitWizardHTTPSCredSteps(a **app.App, state *initWizardTeamState, requiredMode string) []views.WizardStep {
-	// Initialize defaults
-	if state.CredUsername == "" {
-		state.CredUsername = "oauth2"
-	}
-	if state.CredAuthChoice == "" {
-		state.CredAuthChoice = "provide"
-	}
-
-	return []views.WizardStep{
-		// ── Step 1: Auth mode selection ──
-		{
-			ID:    "team_cred_mode",
-			Label: i18n.T("cmd.init.wizard_step_team_cred_mode"),
-			SkipIf: func() bool {
-				return state.Skipped || state.Mode != requiredMode || !teamstate.IsHTTPS(state.Repo) || state.RepoOpen
-			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
-				form := tview.NewForm()
-				authOptions := []string{
-					i18n.T("cmd.init.wizard_team_cred_provide"),
-					i18n.T("cmd.init.wizard_team_cred_skip"),
-					i18n.T("cmd.init.wizard_team_cred_public"),
-				}
-				form.AddDropDown(i18n.T("cmd.init.wizard_team_cred_auth_mode"), authOptions, 0,
-					func(_ string, idx int) {
-						switch idx {
-						case 0:
-							state.CredAuthChoice = "provide"
-						case 1:
-							state.CredAuthChoice = "skip"
-						case 2:
-							state.CredAuthChoice = "public"
-						}
-					})
-				form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
-				return form
-			},
-			InfoFields: func() []views.InfoField {
-				return []views.InfoField{{Label: i18n.T("cmd.init.wizard_team_info_auth"), Value: state.CredAuthChoice}}
-			},
-		},
-		// ── Step 2: Username + Token (skipped when not "provide") ──
-		{
-			ID:    "team_creds",
-			Label: i18n.T("cmd.init.wizard_step_team_creds"),
-			SkipIf: func() bool {
-				return state.Skipped || state.Mode != requiredMode || !teamstate.IsHTTPS(state.Repo) || state.RepoOpen ||
-					state.CredAuthChoice != "provide"
-			},
-			Validate: func() string {
-				if strings.TrimSpace(state.CredToken) == "" {
-					return i18n.T("cmd.init.wizard_team_cred_token_required")
-				}
-				return ""
-			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
-				form := tview.NewForm()
-				form.AddInputField(i18n.T("cmd.init.wizard_team_cred_username"), state.CredUsername, 0, nil,
-					func(text string) { state.CredUsername = text })
-				form.AddPasswordField(i18n.T("cmd.init.wizard_team_cred_token"), state.CredToken, 0, '*',
-					func(text string) { state.CredToken = text })
-				// Show a hint when the repo is on a GitLab host: this single token
-				// will be used for both git access and GitLab API calls.
-				if teamstate.IsGitLabHost(state.Repo) {
-					form.AddTextView("", i18n.T("cmd.init.wizard_team_cred_gitlab_hint"), 60, 2, true, false)
-				}
-				form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
-				return form
-			},
-			OnDone: func() error {
-				if state.CredToken != "" {
-					// Store in git credential helper for clone/pull.
-					if err := teamstate.ConfigureCredential(
-						state.Ctx, state.Repo, state.CredUsername, state.CredToken,
-					); err != nil {
-						return err
-					}
-					// When the host is GitLab, also store in the keychain for API use.
-					if teamstate.IsGitLabHost(state.Repo) && *a != nil && (*a).Secrets != nil {
-						teamID := config.RepoNameFromRemote(state.Repo)
-						if err := (*a).Secrets.Set(state.Ctx, config.TeamGitLabTokenKey(teamID), state.CredToken); err != nil {
-							slog.Warn("failed to store GitLab token in keychain", "err", err)
-						}
-					}
-				}
-				return nil
-			},
-			InfoFields: func() []views.InfoField {
-				return []views.InfoField{{Label: "Auth", Value: i18n.T("cmd.init.wizard_team_cred_configured")}}
-			},
-		},
-	}
 }
 
 // buildInitWizardRejoinSteps returns the WizardSteps for the "rejoin" flow
 // used in the hub initialization wizards (first-run inline + oh init standalone).
 //
 // The returned steps are:
-//  1. Repo URL — collects the team-state repo and fetches member list
-//  2. HTTPS Auth mode — conditional on HTTPS repo URL (provide/skip/public)
-//  3. HTTPS Credentials — conditional on auth mode == "provide"
-//  4. Member selection — SectionedList to pick the existing member
-//  5. Validation — validates GitLab identity, writes hub.toml, retro-tags sessions
+//  1. Clone — clones the team-state repo and fetches the member list (the URL
+//     and the access came before: buildInitWizardRepoSteps)
+//  2. Member selection — SectionedList to pick the existing member
+//  3. Validation — validates GitLab identity, writes hub.toml, retro-tags sessions
 //
 // All steps have SkipIf → state.Skipped || state.Mode != "rejoin".
 // After successful completion, state.Configured is true and the app should be
@@ -601,33 +436,17 @@ func buildInitWizardHTTPSCredSteps(a **app.App, state *initWizardTeamState, requ
 func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views.WizardStep {
 	var steps []views.WizardStep
 	steps = []views.WizardStep{
-		// ── Rejoin step 1: Repo URL + fetch members ──
+		// ── Rejoin step 1: clone the repository and list its members (the URL
+		// and the access came before: buildInitWizardRepoSteps) ──
 		{
-			ID:    "rejoin_repo",
-			Label: i18n.T("cmd.init.wizard_step_rejoin_repo"),
+			ID:    "rejoin_clone",
+			Label: i18n.T("v532w.clone.label"),
 			SkipIf: func() bool {
 				return state.Skipped || state.Mode != "rejoin"
 			},
-			Validate: func() string {
-				if strings.TrimSpace(state.Repo) == "" {
-					return i18n.T("cmd.init.wizard_team_repo_required")
-				}
-				return teamGitLabURLProblem(state.GitLabURL)
-			},
-			Form: func(_ *tview.Application, onDone func()) *tview.Form {
-				form := tview.NewForm()
-				form.AddInputField(
-					i18n.T("cmd.init.wizard_team_repo"), state.Repo, 0, nil,
-					func(t string) { state.Repo = t },
-				)
-				form.AddInputField(
-					i18n.T("cmd.init.wizard_team_gitlab_url"), state.GitLabURL, 0, nil,
-					func(t string) { state.GitLabURL = strings.TrimSpace(t) },
-				)
-				form.AddTextView("", i18n.T("cmd.init.wizard_team_gitlab_hint_short"), 60, 2, true, false)
-				form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
-				return form
-			},
+			OnSkip:       state.abandon,
+			BackSkip:     true,
+			ErrorActions: state.access(a).ErrorActions,
 			OnDone: func() error {
 				repo, members, _, err := listTeamMembers(state.Ctx, state.Repo, "")
 				if err != nil {
@@ -639,7 +458,6 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 				state.Members = members
 				state.TeamRepo = repo
 				state.TrackerWanted = trackerUsernameWanted(state.Ctx, repo, state.Repo, state.GitLabURL)
-				state.ProbeRepo(state.Ctx)
 				return nil
 			},
 			Processing: i18n.T("cmd.init.wizard_processing_rejoin_clone"),
@@ -649,9 +467,6 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 		},
 	}
 
-	// ── Rejoin steps 2-3: HTTPS Credentials (auth mode + username/token) ──
-	steps = append(steps, buildInitWizardHTTPSCredSteps(a, state, "rejoin")...)
-
 	// ── Rejoin step 4: Member selection ──
 	steps = append(steps, views.WizardStep{
 		ID:    "rejoin_member",
@@ -659,6 +474,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 		SkipIf: func() bool {
 			return state.Skipped || state.Mode != "rejoin"
 		},
+		OnSkip:   state.abandon,
 		Required: true,
 		CustomView: func(tvApp *tview.Application, container *tview.Flex, onDone func()) {
 			showMemberPicker(tvApp, container, state, onDone)
@@ -692,6 +508,8 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 		SkipIf: func() bool {
 			return state.Skipped || state.Mode != "rejoin" || !state.AddingNewMember
 		},
+		OnSkip:       state.abandon,
+		ErrorActions: state.access(a).ErrorActions,
 		Validate: func() string {
 			if strings.TrimSpace(state.MemberID) == "" {
 				return i18n.T("cmd.init.wizard_rejoin_new_member_id_required")
@@ -798,15 +616,16 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 
 	// ── Rejoin step 4b: GitLab token for SSH repos (conditional) ──
 	// When the repo uses HTTPS, the token was already stored in the keychain
-	// by buildInitWizardHTTPSCredSteps. This step only appears for SSH repos
-	// where the member has a gitlab_username and identity verification is needed.
+	// by the access step. This step only appears for SSH repos (or an HTTPS one
+	// that needed no token) where the member has a gitlab_username and
+	// identity verification is needed.
 	steps = append(steps, views.WizardStep{
 		ID:    "rejoin_gitlab_token",
 		Label: i18n.T("cmd.init.wizard_step_rejoin_gitlab_token"),
 		SkipIf: func() bool {
 			return state.Skipped || state.Mode != "rejoin" ||
 				selectedMemberGitLabUsername(state) == "" ||
-				(teamstate.IsHTTPS(state.Repo) && !state.RepoOpen) // the HTTPS flow already stores the token
+				(teamstate.IsHTTPS(state.Repo) && state.access(a).TokenStored) // the access step already stored the token
 		},
 		Validate: func() string {
 			if state.TokenChoiceIdx == 0 {
@@ -887,6 +706,8 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 		SkipIf: func() bool {
 			return state.Skipped || state.Mode != "rejoin"
 		},
+		OnSkip:       state.abandon,
+		ErrorActions: state.access(a).ErrorActions,
 		OnDone: func() error {
 			params := teamRejoinParams{
 				StateRepo: state.Repo,
@@ -1037,7 +858,7 @@ func buildInitWizardRejoinSteps(a **app.App, state *initWizardTeamState) []views
 	})
 
 	// ── Rejoin: Tracker setup (conditional) ──
-	steps = append(steps, buildTrackerSetupSteps(a, state)...)
+	steps = append(steps, buildTrackerSetupSteps(a, state, "rejoin")...)
 
 	return steps
 }

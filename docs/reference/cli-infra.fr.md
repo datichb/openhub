@@ -12,7 +12,7 @@ Initialise oh pour la première fois. Assistant interactif, sans flag.
 oh init
 ```
 
-Trois écrans en parcours solo : accueil (langue et type d'installation : solo, équipe ou complet), fournisseur IA et identifiants, premier projet (facultatif, prérempli avec le dossier courant). Pour les types « équipe » et « complet », un écran d'équipe (à rejoindre ou à créer) s'ajoute. Sans équipe, les workflows du projet vivent dans un espace solo. Les intégrations MCP (Figma, GitLab, Jira, Google Slides) se configurent ensuite avec `oh mcp setup`. La version d'opencode se vérifie avec `oh doctor`.
+Trois écrans en parcours solo : accueil (langue et type d'installation : solo, équipe ou complet), fournisseur IA et identifiants, premier projet (facultatif, prérempli avec le dossier courant). Pour les types « équipe » et « complet », un écran d'équipe (à rejoindre ou à créer) s'ajoute : dépôt (et serveur GitLab d'un alias SSH), sonde d'accès en lecture seule, étape **Accès** seulement si le dépôt refuse (token HTTPS vérifié puis gardé dans le trousseau de `oh` et donné à git par `GIT_ASKPASS`, ou rappel `ssh-add` en SSH), identité, puis clone. Un échec propose « Configurer l'accès », « Réessayer », « Modifier l'URL » et « Passer l'équipe » : passer l'équipe saute tout le groupe, l'installation continue (`setup_done` est écrit, aucune équipe ajoutée) ; en type « équipe », le fournisseur est alors redemandé. Voir le [guide d'équipe](../guides/team-setup.fr.md#phase-1--dépôt-accès-et-identité-séquentiel). Sans équipe, les workflows du projet vivent dans un espace solo. Les intégrations MCP (Figma, GitLab, Jira, Google Slides) se configurent ensuite avec `oh mcp setup`. La version d'opencode se vérifie avec `oh doctor`.
 
 **Exemple :**
 

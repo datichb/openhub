@@ -101,10 +101,11 @@ func TestInitWizard_ScreenCount(t *testing.T) {
 		want             []string
 	}{
 		{"solo", "solo", "", []string{"welcome", "provider", "project"}},
-		{"team, no team set up", "team", "skip", []string{"welcome", "team_mode", "project"}},
-		{"team, new team", "team", "init", []string{"welcome", "team_mode", "team_form", "project"}},
+		// no team brings the provider: it is asked after the group
+		{"team, no team set up", "team", "skip", []string{"welcome", "team_mode", "provider_late", "project"}},
+		{"team, new team", "team", "init", []string{"welcome", "team_mode", "team_repo", "team_form", "project"}},
 		{"full, no team set up", "full", "skip", []string{"welcome", "provider", "team_mode", "project"}},
-		{"full, new team", "full", "init", []string{"welcome", "provider", "team_mode", "team_form", "project"}},
+		{"full, new team", "full", "init", []string{"welcome", "provider", "team_mode", "team_repo", "team_form", "project"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			run := driveInitWizard(t, tt.mode, tt.team)

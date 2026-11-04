@@ -554,6 +554,8 @@ https://github.com/acme/my-team.git →  ~/.oh/team-states/github.com/my-team
 
 A former `~/.oh/team-states/<repo>` clone (without host) is reused when it exists. With `OH_HOME`, the clones live under `$OH_HOME/team-states/`.
 
+Since 5.3.2 this is the path of every team wizard ("Create", "Rejoin", and the palette's `team init` and `team rejoin`): "Create" used to clone into `~/.oh/team-state/`. A team that is already configured keeps its `state_path` (the former `~/.oh/team-state/` included): nothing is moved and the same repository is not cloned a second time. A folder that holds the clone **of another repository** (origin different from `state_repo`) is refused with a message that names the folder and both repositories, never reused.
+
 ### Setting the team of a project
 
 - **At creation:** the `oh project add` wizard has a Team step.
@@ -849,6 +851,7 @@ When the keychain is unavailable, secrets are stored in `~/.oh/secrets.enc` (AES
 | `openhub.team.<team>.provider.<provider>.token` | Credentials provided by a team |
 | `openhub.mcp.<service>.token` | MCP server token (`figma`, `gitlab`, `jira`, `gslides`…) |
 | `openhub.team.<team>.gitlab.token` | Team-specific GitLab token |
+| `openhub.git.<host>/<repo>.token` / `.user` | Token (and user name, `oauth2` by default) for **git** on the HTTPS team-state repository, per repository (host in lower case, path without `.git`). Set by the "Access" step of the team wizard after it is checked, handed to git by a one-shot `GIT_ASKPASS` for clone, pull, push and the daemon. Distinct from the GitLab API token above (the wizard writes both when the host is GitLab). Manageable with `oh secrets` |
 | `openhub.tracker.<type>.token` | Team tracker token |
 | `openhub.remote.<target>.token` / `.trigger` | API token and trigger token of a remote target |
 | `openhub.daemon.capability` | Local capability of the `ohd` daemon |

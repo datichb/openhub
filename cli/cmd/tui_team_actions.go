@@ -37,10 +37,9 @@ func actionTeamInit() {
 	ctx := tuiShell.Context()
 
 	// ── Shared state (captured by step closures) ────────────────────
-	credState := &httpsCredState{Username: "oauth2", AuthChoice: "provide"}
 	var (
 		stateRepo string
-		statePath = config.DefaultTeamStatePath()
+		statePath string // the clone: of the configured team, else derived from the URL once it is typed
 		repo      *teamstate.Repo
 
 		hasConfig, hasPolicies bool
@@ -64,11 +63,9 @@ func actionTeamInit() {
 	)
 
 	// Pre-fill from existing hub.toml if already configured
-	if at := a.Config.ActiveTeam(); at.StatePath != "" {
-		statePath = at.StatePath
-	}
 	if at := a.Config.ActiveTeam(); at.StateRepo != "" {
 		stateRepo = at.StateRepo
+		statePath = firstNonEmpty(at.StatePath, config.DefaultTeamStatePath())
 		repo = teamstate.NewRepo(stateRepo, statePath)
 		if repo.IsCloned() {
 			_ = repo.Pull(ctx)
@@ -78,7 +75,6 @@ func actionTeamInit() {
 				structureWarning = warn
 				tuiShell.ShowToast(warn, shell.ToastWarning)
 			}
-			credState.Probe(ctx, stateRepo)
 			hasConfig = repo.HasConfig()
 			hasPolicies = repo.HasPolicies()
 			existingCfg, _ = repo.LoadConfig(ctx)
@@ -122,36 +118,36 @@ func actionTeamInit() {
 	if repo != nil { // a nil *Repo in the interface would not be nil
 		tss.Repo = repo
 	}
-	// ── Step 0: Repository ──────────────────────────────────────────
-	repoStep := views.WizardStep{
-		Label:    i18n.T("cmd.team.init.step_repo"),
-		Required: true,
-		SkipIf: func() bool {
-			return a.Config.ActiveTeam().StateRepo != ""
-		},
-		Validate: func() string {
-			if strings.TrimSpace(stateRepo) == "" {
-				return i18n.T("cmd.team.init.validate.repo_required")
-			}
-			return ""
-		},
-		Form: func(_ *tview.Application, onDone func()) *tview.Form {
-			form := tview.NewForm()
-			form.AddInputField(
-				i18n.T("cmd.team.init.repo_url_title"),
-				stateRepo, 0, nil,
-				func(text string) { stateRepo = text })
-			form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
-			return form
-		},
-		Processing: i18n.T("cmd.team.init.processing_repo"),
+	// ── Steps 0: the repository, the probe of the access, the access ───
+	// (team_access.go), then the clone. Only when no team is configured yet.
+	noTeamYet := func() bool { return a.Config.ActiveTeam().StateRepo == "" }
+	access := &teamAccess{
+		Ctx:         func() context.Context { return ctx },
+		App:         func() *app.App { return a },
+		Repo:        &stateRepo,
+		Active:      noTeamYet,
+		Quit:        true, // the wizard is only the team: giving it up is leaving it
+		RequiredKey: "cmd.team.init.validate.repo_required",
+	}
+	cloneStep := views.WizardStep{
+		ID:           "team_clone",
+		Label:        i18n.T("v532w.clone.label"),
+		Required:     true,
+		BackSkip:     true,
+		SkipIf:       func() bool { return !noTeamYet() },
+		ErrorActions: access.ErrorActions,
+		Processing:   i18n.T("cmd.team.init.processing_repo"),
 		OnDone: func() error {
 			if existing, found := findExistingCloneForRemote(ctx, a, stateRepo); found {
 				return errors.New(
 					i18n.Tf("tui.team.clone_exists", existing.Path, existing.Source))
 			}
+			statePath = config.TeamStatePath(stateRepo)
 			repo = teamstate.NewRepo(stateRepo, statePath)
 			if repo.IsCloned() {
+				if err := repo.CheckRemote(); err != nil {
+					return err
+				}
 				_ = repo.Pull(ctx)
 			} else {
 				if err := repo.Clone(ctx); err != nil {
@@ -163,7 +159,6 @@ func actionTeamInit() {
 				return fmt.Errorf(i18n.T("cmd.tui_team_actions.init_structure"), err)
 			}
 			structureWarning = warn
-			credState.Probe(ctx, stateRepo)
 			// Now that the repo is available, the steps that follow work on it
 			tss.useRepo(repo)
 			return nil
@@ -176,9 +171,6 @@ func actionTeamInit() {
 			return fields
 		},
 	}
-
-	// ── Step 0b: HTTPS Credentials ──────────────────────────────────
-	credStep := buildHTTPSCredStep(ctx, &stateRepo, credState, nil, a.Secrets)
 
 	stepOpts := teamStepOpts{}
 
@@ -252,7 +244,8 @@ func actionTeamInit() {
 		ID:    "wizard.team.init",
 		Title: i18n.T("tui.team.init"),
 		Steps: []views.WizardStep{
-			repoStep, credStep, configStep, identityStep, notifStep, policiesStep, trackerStep,
+			access.RepoStep(), access.ProbeStep(), access.AccessStep(), cloneStep,
+			configStep, identityStep, notifStep, policiesStep, trackerStep,
 		},
 		SummaryTargetView:  "team.detail",
 		SummaryTargetLabel: i18n.T("wizard.summary.goto_team_detail"),
@@ -267,7 +260,7 @@ func actionTeamInit() {
 			if stateRepo == "" {
 				stateRepo = a.Config.ActiveTeam().StateRepo
 			}
-			if stateRepo == "" {
+			if stateRepo == "" || statePath == "" {
 				return
 			}
 			if memberID == "" {

@@ -12,7 +12,7 @@ Initializes oh for the first time. Interactive wizard, no flags.
 oh init
 ```
 
-Three screens on the solo path: welcome (language and setup type: solo, team or full), AI provider and credentials, first project (optional, prefilled with the current directory). The "team" and "full" types add a team screen (to join or create). Without a team, the project workflows live in a solo space. MCP integrations (Figma, GitLab, Jira, Google Slides) are configured afterwards with `oh mcp setup`. The opencode version is checked by `oh doctor`.
+Three screens on the solo path: welcome (language and setup type: solo, team or full), AI provider and credentials, first project (optional, prefilled with the current directory). The "team" and "full" types add a team screen (to join or create): repository (and the GitLab server of an SSH alias), read-only access probe, an **Access** step only when the repository refuses (HTTPS token checked then kept in the keychain of `oh` and handed to git by `GIT_ASKPASS`, or a `ssh-add` reminder over SSH), identity, then clone. A failure offers "Set up access", "Retry", "Change the URL" and "Skip the team": skipping the team skips the whole group and the installation goes on (`setup_done` is written, no team added); in the "team" type the provider is then asked again. See the [team guide](../guides/team-setup.en.md#phase-1--repository-access-and-identity-sequential). Without a team, the project workflows live in a solo space. MCP integrations (Figma, GitLab, Jira, Google Slides) are configured afterwards with `oh mcp setup`. The opencode version is checked by `oh doctor`.
 
 **Example:**
 

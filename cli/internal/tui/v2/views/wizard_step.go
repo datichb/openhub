@@ -75,6 +75,26 @@ type WizardStep struct {
 	// If nil, no validation is performed (always passes).
 	Validate func() string
 
+	// BackSkip makes « back » (Ctrl+B) pass over this step: a step with
+	// nothing to edit, that only does something (a probe, a clone). Going
+	// back from the step after it lands on the form before it, and going
+	// forward does the step again.
+	BackSkip bool
+
+	// OnSkip runs on the event loop when the user skips this step (Esc →
+	// « Passer l'étape », or an ErrorAction with Skip), after the error of
+	// the step is forgotten and before the next step is chosen: it sets the
+	// state the next SkipIf read, so that a step can skip its whole group.
+	OnSkip func()
+
+	// ErrorActions, when set, adds buttons to the error screen of this step
+	// (the failure of its OnDone): err is the error shown. The list is the
+	// whole row, in order; a « retry » action (Retry) is put first when the
+	// list has none. The focus starts on the retry button, so that Enter
+	// keeps meaning « retry ». Without it the screen only offers Ctrl+B
+	// (back) and Enter (retry).
+	ErrorActions func(err error) []ErrorAction
+
 	// Rerender is injected automatically by the wizard engine before calling
 	// Form. Dynamic forms (e.g. a DropDown that changes the set of fields)
 	// can call it to safely rebuild the current step from scratch.
@@ -87,6 +107,28 @@ type WizardStep struct {
 	//
 	// This field is set automatically — do not set it in step definitions.
 	Rerender func()
+}
+
+// ErrorAction is a button of the error screen of a step (WizardStep.ErrorActions).
+// Exactly one of Retry, GoToStep, Skip and Quit says what it does; Before
+// runs first, on the event loop (it sets the state the target step reads).
+type ErrorAction struct {
+	// Label is the text of the button.
+	Label string
+	// Key is an optional letter that triggers the action (any case).
+	Key rune
+	// Before runs before the action itself.
+	Before func()
+	// Retry draws the step again (what Enter does on the old error screen).
+	Retry bool
+	// GoToStep goes back to the step of that ID, which is drawn again; the
+	// steps after it, this one included, are to be done again.
+	GoToStep string
+	// Skip skips the step like « Passer l'étape » (OnSkip included), even when
+	// the step is Required.
+	Skip bool
+	// Quit leaves the wizard like « Quitter ».
+	Quit bool
 }
 
 // StepByID returns a pointer to the first step with the given ID, or nil if not found.

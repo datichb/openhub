@@ -40,20 +40,45 @@ The wizard runs directly inside the TUI shell without leaving the interface. The
 and toasts remain accessible. Shortcuts: `Ctrl+S` submit, `Ctrl+B` (or `Alt+←`, `PgUp`) back,
 `Esc` for « Quit the wizard? » (quit, skip an optional step or continue).
 
-### Phase 1 — Repository connection (sequential)
+### Phase 1 — Repository, access and identity (sequential)
 
-A form asks for the team-state repo URL, then:
-1. Clones the repo to `~/.oh/team-state/` (or pulls if already cloned)
-2. Creates the directory structure (if first member)
-3. Detects duplicate clones to prevent diverged state
+The wizard follows the same order for "Create" and "Rejoin", in `oh init` and in the palette
+(`team init`, `team rejoin`):
 
-If the repo is HTTPS, an extra step offers to configure credentials
-(token, or skip if already configured). It is **only offered when the repository does not
-answer without a token**: once the repository is cloned, `oh` runs `git ls-remote` with every
-prompt disabled; if git reads the repository with what it already has (credential helper,
-`netrc`, a public repository), the step is skipped, as for an SSH URL. On the default choice
-"Provide a token", an empty field is refused with a message that says what to do (type the
-token, or pick "Already configured" or "Public access").
+1. **Repository**: the team-state repo URL and, optionally, the GitLab server when the URL is an SSH alias.
+2. **Access probe**: `git ls-remote`, read-only, with every prompt disabled and a waiting
+   indicator. It uses what git already has (SSH agent, credential helper, `netrc`, a public
+   repository) and the token `oh` keeps for that repository. Nothing is cloned or written.
+3. **Access**: this step only appears when the probe is refused for an access reason.
+   - **HTTPS**: the wizard asks for a token (user name `oauth2` by default for GitLab),
+     **checks** it against the repository, then keeps it in the keychain of `oh`
+     (`openhub.git.<host>/<repo>.token`, see [config](../reference/config.en.md#known-keys)).
+     `oh` hands it to git through a one-shot `GIT_ASKPASS` for every operation of the team-state
+     (clone, pull, push, probe, daemon); it is never in a URL, on a command line or in git's
+     `credential.helper`. A token that is refused is not kept.
+   - **SSH**: the message gives git's answer and recalls `ssh-add`; "Retry" probes again.
+4. **Identity**: your ID and name ("Create"), or the choice of the member ("Rejoin").
+5. **Clone** into `~/.oh/team-states/<host>/<repo>/` (or pull if already cloned), creation of the
+   directory structure (if first member) and detection of duplicate clones.
+
+A folder that already holds the clone **of another repository** is never reused: the wizard
+says so (folder, repository found, repository asked for) and leaves the choice (delete the
+folder, or type another URL).
+
+When a step fails, the error screen has buttons (Tab or ←/→ to choose, `Enter` retries, `Ctrl+B` goes back):
+
+| Button | Effect |
+|--------|--------|
+| **Set up access** | goes back to the Access step (first when git refused the access) |
+| **Retry** | does the step again (default focus) |
+| **Change the URL** | goes back to the repository input |
+| **Skip the team** | gives the team up: every step of the group is skipped and the recap says "team not configured" (in the palette the button leaves the wizard) |
+
+In `oh init`, skipping a step of the team (or "Skip the team") skips the **whole** group and the
+rest of the installation goes on: `setup_done` is written, no team is added to `hub.toml`. In
+the "team" setup type, where the provider is supposed to come from the team, the wizard asks
+for it again after the group, then offers a solo space for the project (not created without
+your yes).
 
 ### Phase 2 — Configuration (interactive wizard)
 
@@ -277,17 +302,26 @@ member_id  = "alice"           # ← used as fallback for all custom projects
 
 ### Troubleshooting
 
-**Clone fails immediately with "terminal prompts disabled":**
+**Clone fails with "terminal prompts disabled" or "Authentication failed":**
 
-The remote requires authentication (HTTP basic auth or token) and no credentials
-are configured. `oh` sets `GIT_TERMINAL_PROMPT=0` to prevent blocking on a prompt —
-the error is intentional.
+The remote requires authentication and git has nothing to answer with. `oh` sets
+`GIT_TERMINAL_PROMPT=0` to prevent blocking on a prompt — the message is intentional. In the
+wizard, the **Access** step (or the "Set up access" button of the error screen) asks for the
+token and keeps it in the keychain of `oh`.
 
 Solutions:
-- **HTTPS + credential helper:** `git config --global credential.helper osxkeychain`
-  (macOS) or `git config --global credential.helper store`
+- **HTTPS:** give the token to the wizard (Access step), or store it by hand:
+  `oh secrets set openhub.git.gitlab.com/org/team-state.token` (and `…/team-state.user` if the
+  user name is not `oauth2`). A git `credential.helper` that already answers is still used
+  when `oh` has no token for that repository.
 - **SSH instead of HTTPS:** use `git@gitlab.com:org/team-state.git`
 - **SSH key not loaded:** run `ssh-add ~/.ssh/id_ed25519` or `eval "$(ssh-agent)"`
+
+**The folder holds the clone of another repository:**
+
+An existing clone whose origin is not the URL typed is never reused. Delete the folder (or pick
+the right repository). Teams configured before 5.3.2 keep their `state_path` (the former
+`~/.oh/team-state/` included): nothing is moved.
 
 **Clone times out after 30 seconds:**
 

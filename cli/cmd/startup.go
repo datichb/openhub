@@ -179,6 +179,8 @@ func initLight(withDB bool) error {
 		return startupFailed(err)
 	}
 	a.WithSecretStore(newLazySecrets(resolveSecretStore))
+	// The daemon pulls and pushes the team-state too: with the token of oh.
+	teamGitCreds = wireTeamGitCredentials(func() domain.SecretStore { return a.Secrets })
 	if withDB {
 		extractHubContent()
 		s, err := sqlite.OpenWith(sqlite.DBPath(), sqlite.OpenOptions{AllowNewer: true})
