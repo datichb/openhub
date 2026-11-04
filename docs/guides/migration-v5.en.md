@@ -18,7 +18,7 @@ oh v5 starts every session from a **workflow** (`oh run <workflow>`), in a **ses
 
 ## 1. opencode V2 required
 
-opencode V1 is no longer supported, with no fallback. oh v5 requires an opencode version between **2.0.0** and **2.99.99**; the **recommended** version is **2.0.25** (the one of the CI). Outside that range, `oh run` refuses to start and says why:
+opencode V1 is no longer supported, with no fallback. oh v5 requires an opencode version between **2.0.0** and **2.99.99**; the **recommended** version is **2.2.5** (the one of the CI). Outside that range, `oh run` refuses to start and says why:
 
 ```text
 opencode 1.18.29 is not supported: oh v5 requires version 2.0.0 or later.
@@ -30,7 +30,7 @@ Without opencode: "opencode was not found: oh v5 requires a supported release of
 1. Install opencode V2 with its own tooling (`brew install opencode`, or https://opencode.ai).
 2. Check with `oh doctor`: the **opencode** line must be green (✓).
 
-The fingerprint of the opencode Linux packages is pinned in oh for versions **2.0.20** and **2.0.25**. Another version of the range works, but `oh doctor` warns about it: container images would download it without a verified fingerprint, and `execution.strict_isolation = true` refuses it ([SECURITY.md](../../SECURITY.md#supply-chain)).
+The fingerprint of the opencode Linux packages is pinned in oh for versions **2.0.20**, **2.0.25** and **2.2.5**. Another version of the range works, but `oh doctor` warns about it: container images would download it without a verified fingerprint, and `execution.strict_isolation = true` refuses it ([SECURITY.md](../../SECURITY.md#supply-chain)).
 
 `oh upgrade opencode`, the managed install in `~/.oh/bin` and the `[opencode] version`, `channel`, `auto_update`, `install_dir` keys of `hub.toml` are removed (ignored if they remain). `[llm] default_provider` stays.
 

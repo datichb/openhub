@@ -18,7 +18,7 @@ oh v5 lance chaque session à partir d'un **workflow** (`oh run <workflow>`), da
 
 ## 1. opencode V2 obligatoire
 
-opencode V1 n'est plus pris en charge, sans repli. oh v5 demande une version d'opencode comprise entre **2.0.0** et **2.99.99** ; la version **recommandée** est **2.0.25** (celle de la CI). Hors de cette plage, `oh run` refuse de démarrer et l'explique :
+opencode V1 n'est plus pris en charge, sans repli. oh v5 demande une version d'opencode comprise entre **2.0.0** et **2.99.99** ; la version **recommandée** est **2.2.5** (celle de la CI). Hors de cette plage, `oh run` refuse de démarrer et l'explique :
 
 ```text
 opencode 1.18.29 n'est pas pris en charge : oh v5 demande la version 2.0.0 ou plus récente.
@@ -30,7 +30,7 @@ Sans opencode : « opencode est introuvable : oh v5 en demande une version prise
 1. Installez opencode V2 avec son propre outil (`brew install opencode`, ou https://opencode.ai).
 2. Vérifiez avec `oh doctor` : la ligne **opencode** doit être verte (✓).
 
-L'empreinte des paquets Linux d'opencode est épinglée dans oh pour les versions **2.0.20** et **2.0.25**. Une autre version de la plage fonctionne, mais `oh doctor` l'avertit : les images de conteneur la téléchargeraient sans empreinte vérifiée, et `execution.strict_isolation = true` la refuse ([SECURITY.fr.md](../../SECURITY.fr.md#chaîne-dapprovisionnement)).
+L'empreinte des paquets Linux d'opencode est épinglée dans oh pour les versions **2.0.20**, **2.0.25** et **2.2.5**. Une autre version de la plage fonctionne, mais `oh doctor` l'avertit : les images de conteneur la téléchargeraient sans empreinte vérifiée, et `execution.strict_isolation = true` la refuse ([SECURITY.fr.md](../../SECURITY.fr.md#chaîne-dapprovisionnement)).
 
 `oh upgrade opencode`, l'installation gérée dans `~/.oh/bin` et les clés `[opencode] version`, `channel`, `auto_update`, `install_dir` de `hub.toml` sont supprimées (ignorées si elles restent). `[llm] default_provider` reste.
 

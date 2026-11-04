@@ -64,7 +64,7 @@ oh 5.2.1
   built:   2026-11-04T07:58:12Z
   go:      go1.26.10
   os/arch: darwin/arm64
-2.0.25
+2.2.5
 ```
 
 opencode must be version 2.x: oh no longer supports opencode V1 (see [Migrating to oh v5](migration-v5.en.md)).

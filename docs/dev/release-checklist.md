@@ -29,12 +29,12 @@ Trois règles gouvernent tout le reste :
   | `.github/workflows/ci.yml` | `OPENCODE_VERSION` (et les deux `OPENCODE_SHA256_DARWIN_*`) |
   | `cli/internal/adapters/opencodev2/pinned_integrity.json` | l'empreinte sha512 des quatre paquets Linux de cette version |
 
-  **Chaque version mineure ajoute son entrée** `oh_versions."X.Y"` à `compatibility.json` (`opencode_min`, `opencode_max`, `opencode_recommended`, `notes`) : sans elle, la version de oh retombe sur `default` (`SupportedRange` lit `oh_versions` par `MajorMinor`), qui ne dit rien de cette version. L'entrée `"5.2"` existe depuis la 5.2 (`TestOhMinorVersionsHaveAnEntry` couvre 5.0 à 5.2) ; ajouter l'entrée de chaque version mineure suivante, et son nom dans ce test.
+  **Chaque version mineure ajoute son entrée** `oh_versions."X.Y"` à `compatibility.json` (`opencode_min`, `opencode_max`, `opencode_recommended`, `notes`) : sans elle, la version de oh retombe sur `default` (`SupportedRange` lit `oh_versions` par `MajorMinor`), qui ne dit rien de cette version. L'entrée `"5.3"` existe depuis la 5.3 (`TestOhMinorVersionsHaveAnEntry` couvre 5.0 à 5.3) ; ajouter l'entrée de chaque version mineure suivante, et son nom dans ce test.
 
   Pour épingler une version (lecture seule, ne modifie rien ; à lancer deux fois, de préférence depuis deux réseaux, et à comparer) :
 
   ```bash
-  .github/scripts/opencode-pin.sh --darwin 2.0.25
+  .github/scripts/opencode-pin.sh --darwin 2.2.5
   ```
 
   Il lit `dist.integrity` et `dist.tarball` de `@opencode/cli-<cible>@<version>` sur le registre npm pour `linux-x64`, `linux-x64-musl`, `linux-arm64` et `linux-arm64-musl`, télécharge chaque `.tgz`, recalcule son sha512 et échoue en cas d'écart ; il affiche le fragment JSON à coller dans `pinned_integrity.json` (jamais écrit par un test) et, avec `--darwin`, les SHA-256 des paquets macOS pour `ci.yml`. Procédure complète : commentaire de `cli/internal/adapters/opencodev2/pins.go`. Trois tests gardent l'accord (`cd cli && go test ./internal/adapters/opencodev2/ -run 'TestPinnedIntegrityTable|TestRecommendedVersionIsPinned|TestCIVersionIsRecommended'`) : version recommandée dans la plage supportée et épinglée pour les quatre cibles, et égale à `OPENCODE_VERSION` de `ci.yml`.

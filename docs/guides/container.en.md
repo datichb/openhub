@@ -62,7 +62,7 @@ TUI: **Settings › Execution**, or the `[execution]` section of `~/.oh/hub.toml
 runtime = "container"        # preferred runtime when the workflow allows it and the project sets none
 engine = "colima"            # auto (default: Colima, then Podman, then Docker) | colima | podman | docker
 keep_images = 2              # images kept per project and role (base, oh); the oldest are removed
-tool_version = "2.0.25"  # empty = the machine client version
+tool_version = "2.2.5"   # empty = the machine client version
 strict_isolation = true      # also hides your opencode config from local servers
 container_memory = "8g"      # memory limit of a container (512m to 1024g); empty = none (default)
 ```
