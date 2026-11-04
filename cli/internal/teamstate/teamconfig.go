@@ -600,7 +600,7 @@ type TrackerConfig struct {
 	MaxInProgressPerMember *int `toml:"max_in_progress_per_member,omitempty"`
 	// MaxAutoPlanPerMember is the former name of the setting above, which
 	// bound the claims a sync created per member. Only read, when
-	// MaxInProgressPerMember is absent; SaveConfig writes the new key.
+	// MaxInProgressPerMember is absent; the next write of the config writes the new key.
 	MaxAutoPlanPerMember int `toml:"max_auto_plan_per_member,omitempty"`
 	// AutoPlanUnassigned fetches unassigned open issues from the tracker and
 	// creates "pool" claims (ClaimedBy="") so they appear on the team board
@@ -728,7 +728,7 @@ func (r *Repo) LoadConfig(ctx context.Context) (*TeamConfig, error) {
 // mappings that stand for a status of the board but are not one ("todo" on a
 // board without a todo column) are read as the status they stand for, and a
 // single notice per clone says so (mappings_notice.go); the file is rewritten
-// by the next SaveConfig or by oh doctor --fix. A value that stands for nothing is left as it is: the sync
+// by the next write of the config (UpdateConfig) or by oh doctor --fix. A value that stands for nothing is left as it is: the sync
 // ignores it, and says so.
 func (r *Repo) loadConfig() (*TeamConfig, error) {
 	cfg, err := r.readConfig()
@@ -811,7 +811,11 @@ func marshalConfig(cfg *TeamConfig) ([]byte, error) {
 	return data, nil
 }
 
-// SaveConfig writes config.toml to the team-state repo.
+// SaveConfig replaces config.toml of the team-state repo with cfg, whole. It
+// is for what has no config.toml to preserve (the first one of a team, a test
+// fixture): cfg is not read again after the pull of the transaction, so a
+// setting a colleague changed meanwhile is overwritten. Every edit goes
+// through UpdateConfig (archtest: no other use in the code of oh).
 func (r *Repo) SaveConfig(ctx context.Context, cfg *TeamConfig) error {
 	if err := cfg.Claim.Validate(); err != nil {
 		return err
