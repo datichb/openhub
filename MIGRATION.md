@@ -47,6 +47,16 @@ La 5.3 change quatre comportements du mode équipe, dont deux ruptures (`unassig
 | Plusieurs labels rattachés sur une issue : une colonne **bloquée** l'emporte toujours, sinon la colonne **la plus avancée**, puis l'ordre alphabétique. Au premier passage, les claims existants suivent leurs labels | Pour qu'une colonne passe avant les autres, donnez-lui le rôle `blocked`, ou placez-la plus loin dans le board |
 | **Rupture** : le menu `a` d'une carte du board d'équipe suit sa colonne (todo : *Cadrer et écrire la spec*, *Implémenter le ticket* ; en cours : *Implémenter le ticket*, *Donner une consigne à la session en cours* ; review : *Review de code*, *Traiter les retours de review* ; autres : détail, statut, transfert). Sur une issue GitLab, *Implémenter le ticket* importe l'issue en ticket Beads à la confirmation du lancement, puis lance `ticket` (sinon `quick`). Nouveau rôle de colonne `review`, facultatif | Pour un autre workflow sur une carte : la barre de commandes ou l'accueil. Le rôle `review` n'est pas obligatoire : sans lui, la colonne d'identifiant `review` en tient lieu |
 
+## Vous venez de la 5.3.0 : ce que la 5.3.2 change
+
+La 5.3.2 (qui reprend la 5.3.1, jamais publiée) corrige la création et l'adhésion à une équipe. Deux ruptures légères, aucune migration de fichiers ni de la base. Sans mode équipe, rien à faire. Détail : [guide de migration, « Depuis la 5.3 vers la 5.3.2 »](docs/guides/migration-v5.fr.md#depuis-la-53-vers-la-532).
+
+| Changé en 5.3.2 | À faire |
+|---|---|
+| « Créer une équipe » et `oh team init` clonent le team-state dans `~/.oh/team-states/<hôte>/<dépôt>/` (et non plus `~/.oh/team-state/`). Une équipe déjà configurée garde son `state_path` | Rien. Un dossier qui contient le clone d'un **autre** dépôt est refusé : supprimez-le ou choisissez un autre dépôt |
+| Dépôt d'équipe en HTTPS : le token est demandé avant le clone, vérifié, gardé dans le trousseau de `oh` (`openhub.git.<hôte>/<dépôt>.token`) et donné à git pour toutes ses opérations, démon compris. Plus de `git credential approve` | Rien si l'accès marche déjà (SSH, assistant d'identifiants du poste). Sinon : « Rejoindre une équipe » (palette) refait l'étape Accès, ou `oh secrets set --global openhub.git.<hôte>/<dépôt>.token` |
+| Le formulaire d'identité est le même partout (ID, nom, handle GitLab facultatif et unique, rôle : `lead` pour qui crée, `dev` pour qui rejoint). Un identifiant ou un handle déjà pris par un collègue est **refusé** ; « C'est moi » rattache sa fiche sans l'écraser | Un script qui réutilisait l'identifiant d'un autre membre échoue : utilisez le vôtre |
+
 ## Prérequis
 
 | Prérequis | Valeur | Vérification |

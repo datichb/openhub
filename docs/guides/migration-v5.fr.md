@@ -381,3 +381,28 @@ Sur une issue GitLab, *Implémenter le ticket* importe l'issue en ticket Beads *
 Le nouveau rôle de colonne `review` est facultatif : sans lui, la colonne d'identifiant `review` en tient lieu. Ses claims ne comptent pas dans la limite de travail en cours et n'expirent pas, quel que soit l'ID de la colonne.
 
 **À faire** : pour lancer un autre workflow sur une carte, utilisez la barre de commandes ou l'accueil. Détail : [le menu `a` d'une carte](../reference/tui.fr.md#le-menu-a-dune-carte) et [`[board]`](../reference/config.fr.md#section-board).
+
+## Depuis la 5.3 vers la 5.3.2
+
+La 5.3.2 reprend la 5.3.1, jamais publiée. Elle corrige surtout la création et l'adhésion à une équipe, avec deux ruptures légères. La base de données ne change pas. Sans mode équipe, rien à faire.
+
+**1. Accès au dépôt d'équipe avant le clone**
+
+| En 5.3.0 | Depuis la 5.3.2 |
+|---|---|
+| Le clone partait juste après la saisie de l'URL, avec les seuls accès de git sur le poste ; un dépôt privé en HTTPS échouait sans qu'on puisse saisir de token | Dépôt, sonde d'accès, étape **Accès** si git est refusé (token HTTPS, ou rappel `ssh-add` en SSH), identité, puis clone. L'écran d'erreur propose Réessayer, Configurer l'accès, Modifier l'URL, Passer l'équipe |
+| Le token saisi n'était confié qu'à l'assistant d'identifiants du poste (`git credential approve`), et rien n'était gardé sans lui | Le token est vérifié, gardé dans le trousseau de `oh` sous `openhub.git.<hôte>/<dépôt>.token` (`.user` : `oauth2` par défaut) et donné à git par un `GIT_ASKPASS` à usage unique pour le clone, le pull, le push et le démon |
+
+**À faire** : rien si l'accès marche déjà (SSH, assistant d'identifiants du poste). Sinon, « Rejoindre une équipe » dans la palette refait l'étape Accès, ou `oh secrets set --global openhub.git.<hôte>/<dépôt>.token`. Détail : [mode équipe](team-setup.fr.md) et [SECURITY](../../SECURITY.fr.md).
+
+**2. Un seul emplacement pour le clone**
+
+« Créer une équipe » et `oh team init` clonaient dans `~/.oh/team-state/`, « Rejoindre » dans `~/.oh/team-states/<hôte>/<dépôt>/`. Tous les parcours utilisent maintenant le second. Une équipe déjà configurée garde son `state_path`, ancien chemin compris : rien n'est déplacé. Un dossier qui contient le clone d'un autre dépôt est refusé au lieu d'être réutilisé.
+
+**À faire** : rien, sauf si oh signale qu'un dossier contient le clone d'un autre dépôt : supprimez-le, ou choisissez un autre dépôt.
+
+**3. Identité du membre**
+
+Le formulaire est le même dans tous les parcours : ID, nom affiché, handle GitLab (facultatif, unique dans l'équipe), rôle (`lead` pour qui crée l'équipe, `dev` pour qui la rejoint), mode `semi-auto`. Un identifiant ou un handle déjà porté par un collègue est **refusé** ; avant, « Créer » écrasait sa fiche et `oh team init` l'ignorait. Si c'est bien votre fiche, « C'est moi » la rattache sans rien écraser (seuls les champs vides sont complétés). « Rejoindre une équipe » dans la palette permet maintenant de créer sa fiche, et `n` dans la vue Équipes lance cet assistant. Un dépôt d'équipe vide (projet GitLab neuf) est accepté par « Créer ».
+
+**À faire** : rien, sauf pour un script qui réutilisait l'identifiant d'un autre membre : il échoue désormais.

@@ -381,3 +381,28 @@ On a GitLab issue, *Implement the ticket* imports the issue as a Beads ticket **
 The new column role `review` is optional: without it, the column whose ID is `review` stands in. Its claims do not count in the work-in-progress limit and do not expire, whatever the ID of the column.
 
 **To do**: to launch another workflow on a card, use the command bar or the home view. Details: [the `a` menu of a card](../reference/tui.en.md#the-a-menu-of-a-card) and [`[board]`](../reference/config.en.md#board-section).
+
+## From 5.3 to 5.3.2
+
+5.3.2 includes 5.3.1, which was never published. It mostly fixes creating and joining a team, with two minor breaking changes. The database does not change. Without team mode, nothing to do.
+
+**1. Access to the team repository before the clone**
+
+| In 5.3.0 | Since 5.3.2 |
+|---|---|
+| The clone started right after the URL was entered, with only the access git had on the machine; a private repository over HTTPS failed and no token could be entered | Repository, access probe, **Access** step when git is refused (HTTPS token, or an `ssh-add` reminder over SSH), identity, then clone. The error screen offers Retry, Set up access, Edit the URL, Skip the team |
+| The token entered was only handed to the credential helper of the machine (`git credential approve`), and nothing was kept without one | The token is checked, kept in the keychain of `oh` under `openhub.git.<host>/<repository>.token` (`.user`: `oauth2` by default) and given to git through a one-time `GIT_ASKPASS` for the clone, pull, push and the daemon |
+
+**To do**: nothing if access already works (SSH, credential helper of the machine). Otherwise, "Rejoin a team" in the palette runs the Access step again, or `oh secrets set --global openhub.git.<host>/<repository>.token`. Details: [team mode](team-setup.en.md) and [SECURITY](../../SECURITY.md).
+
+**2. One place for the clone**
+
+"Create a team" and `oh team init` cloned into `~/.oh/team-state/`, "Rejoin" into `~/.oh/team-states/<host>/<repository>/`. All paths now use the latter. A team already configured keeps its `state_path`, old path included: nothing is moved. A folder that holds the clone of another repository is refused instead of being reused.
+
+**To do**: nothing, unless oh reports that a folder holds the clone of another repository: delete it, or choose another repository.
+
+**3. Member identity**
+
+The form is the same in every path: ID, display name, GitLab handle (optional, unique in the team), role (`lead` for whoever creates the team, `dev` for whoever joins it), mode `semi-auto`. An ID or a handle already held by a colleague is **refused**; before, "Create" overwrote their card and `oh team init` ignored it. If it is your card, "That's me" attaches it without overwriting anything (only empty fields are filled). "Rejoin a team" in the palette can now create your card, and `n` in the Teams view launches that wizard. An empty team repository (new GitLab project) is accepted by "Create".
+
+**To do**: nothing, except for a script that reused the ID of another member: it now fails.
