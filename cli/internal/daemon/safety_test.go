@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -84,7 +85,9 @@ func TestPanicInNotificationDoesNotKillTheDaemon(t *testing.T) {
 			t.Fatal("the note was never sent")
 		}
 	}
-	assert.Contains(t, logs.String(), "notification command exploded")
+	// The panic is logged by safego after the note was sent: wait for it.
+	assert.Eventually(t, func() bool { return strings.Contains(logs.String(), "notification command exploded") },
+		10*time.Second, 10*time.Millisecond, "the panic is logged")
 }
 
 type panicOnceAdapter struct {
