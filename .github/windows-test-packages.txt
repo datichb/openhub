@@ -26,6 +26,7 @@
 ./internal/cliout
 ./internal/config
 ./internal/config/configtest
+./internal/crashlog
 ./internal/credproxy
 ./internal/daemon/api
 ./internal/daemon/client
