@@ -206,10 +206,10 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 		return nil, abort
 	}
 	if txErr != nil {
-		if result == nil || errors.Is(txErr, teamstate.ErrOffline) || errors.Is(txErr, teamstate.ErrBusy) {
-			return nil, fmt.Errorf("sync engine: %w", txErr)
-		}
+		// Nothing reached the team-state: neither a result nor the sync
+		// state (the timestamps of a run that pushed nothing) is kept.
 		slog.Warn("tracker.sync.push_failed", "error", txErr)
+		return nil, fmt.Errorf("sync engine: %w", txErr)
 	}
 
 	// Persist the updated sync timestamps.
