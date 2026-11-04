@@ -259,6 +259,50 @@ func claimKeptNote(ticket string, o claimEndOutcome) string {
 // ticketFactsOf reads the tickets of a project (a variable for the tests).
 var ticketFactsOf = ticketFactsFromBeads
 
+// cardFactsOf reads, for the claim of a card of the board that is no Beads
+// ticket (a GitLab issue), what the project knows of it (a variable for the
+// tests).
+var cardFactsOf = cardFactsFromBeads
+
+// cardClaimsOfSession are the claims of the member that name the session
+// without being among its tickets: the claim of the card of the board the
+// launch started the work on (startCardClaim records the session on it), whose
+// ID is not a Beads ticket of the session.
+func cardClaimsOfSession(ctx context.Context, repo teamstate.ClaimReader, s domain.Session, member string) []string {
+	claims, err := repo.ListClaims(ctx, s.ProjectID)
+	if err != nil {
+		slog.Debug("team claims: claims of the session unreadable", "session", s.ID, "error", err)
+		return nil
+	}
+	var ids []string
+	for i := range claims {
+		if c := &claims[i]; c.ClaimedBy == member && c.Session == s.ID {
+			ids = append(ids, c.TicketID)
+		}
+	}
+	return ids
+}
+
+// cardFactsFromBeads reads the card of a GitLab issue: the Beads ticket the
+// issue was imported as (external_ref gitlab-<iid>) tells whether the work is
+// closed or waits for a review. A card with no such ticket (the issue was
+// handed to quick) has no facts: the checkpoints of the session decide.
+func cardFactsFromBeads(projectPath string) ticketLookup {
+	return func(id string) (ticketFacts, error) {
+		if strings.Trim(id, "0123456789") != "" || beads.Available() != nil || !beads.IsInitialized(projectPath) {
+			return ticketFacts{}, nil
+		}
+		linked, err := beads.FindByExternalRef(projectPath, beads.BuildExternalRef(beads.ProviderGitLab, id))
+		if err != nil {
+			return ticketFacts{}, err
+		}
+		if linked == nil {
+			return ticketFacts{}, nil
+		}
+		return ticketFacts{Closed: beads.IsClosedStatus(linked.Status), Labels: linked.Labels}, nil
+	}
+}
+
 // ticketFactsFromBeads reads a ticket in the Beads database of a project.
 func ticketFactsFromBeads(projectPath string) ticketLookup {
 	return func(id string) (ticketFacts, error) {
@@ -439,16 +483,30 @@ func waitClaimFlushes() {
 // returns (a local file): a background task that dies, or a daemon that stops
 // before it ran, loses nothing, the flush of the next beat applies the queue.
 func sessionClaimsEnd(ctx context.Context, a *app.App, proj *domain.Project, s domain.Session, async bool) {
-	if len(s.Tickets) == 0 {
-		return
-	}
 	repo, member, ok := teamClaimsRepo(a, proj)
 	if !ok {
 		return
 	}
+	tickets, cards := append([]string(nil), s.Tickets...), map[string]bool{}
+	for _, id := range cardClaimsOfSession(ctx, repo, s, member) {
+		if !slices.Contains(tickets, id) {
+			tickets = append(tickets, id)
+			cards[id] = true
+		}
+	}
+	if len(tickets) == 0 {
+		return
+	}
+	beadsFacts, cardFacts := ticketFactsOf(proj.Path), cardFactsOf(proj.Path)
 	in := sessionClaimsInput{
-		Project: s.ProjectID, Member: member, Session: s.ID, Tickets: s.Tickets,
-		Ticket: ticketFactsOf(proj.Path), State: sessionEndStateOf(a, s),
+		Project: s.ProjectID, Member: member, Session: s.ID, Tickets: tickets,
+		Ticket: func(id string) (ticketFacts, error) {
+			if cards[id] {
+				return cardFacts(id)
+			}
+			return beadsFacts(id)
+		},
+		State: sessionEndStateOf(a, s),
 	}
 	if !async {
 		reportClaimsEnd(a, endSessionClaims(ctx, repo, in, claimEndLockWait, claimEndFlushLimit))
