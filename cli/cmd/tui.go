@@ -6,9 +6,11 @@ import (
 	"io"
 	"log"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -72,6 +74,11 @@ func runTUI(l tuiLaunch) error {
 	}
 
 	homeViewID := "home"
+
+	// The team clones read before the shell is up warn through toasts, not
+	// through a line above the TUI.
+	holdNoticesForTUI()
+	defer releaseHeldNotices(func(text string) { cliout.Warn(os.Stderr, text) })
 
 	// Resolve initial project if requested
 	var initialProject *views.ActiveProject
@@ -205,6 +212,7 @@ func runTUI(l tuiLaunch) error {
 	}
 	safego.Go(func() {
 		time.Sleep(500 * time.Millisecond)
+		releaseHeldNotices(func(text string) { slog.Warn(text) })
 		showAbsenceRecap(context.Background(), a, tuiShell) // reads off the event loop
 		if l.Notice != "" {
 			tuiShell.ShowToast(l.Notice, shell.ToastWarning)

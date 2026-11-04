@@ -9,6 +9,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Valeurs `todo` des correspondances du tracker : une seule ligne d'avertissement, avec la commande à lancer, au lieu d'une rafale de lignes de journal.** À l'ouverture d'oh, chaque valeur de `label_status_mapping` ou de `status_mapping` lue comme `planned` affichait sur le terminal, avant la TUI, une ligne brute `teamstate.config.mapping_migrated table=… key=… config=<chemin>`, sans dire quoi faire. La lecture ne change pas (`todo` reste lu comme `planned`), mais l'utilisateur voit au plus **une ligne par clone d'équipe et par processus**, dans sa langue et avec le nom de l'équipe : « t-sru-team : 4 valeur(s) de config.toml lue(s) comme un statut du board (ex. 'todo' → 'planned') — lancez `oh doctor --fix` » ; pour des valeurs qui ne désignent aucune colonne, un message distinct : « … corrigez config.toml (`oh doctor`) ». Dans la TUI, rien n'est plus écrit au-dessus de l'écran : la ligne arrive en toast une fois la TUI affichée, et reste dans les notifications. Le détail de chaque valeur (table, clé, valeur, statut retenu, config) passe au niveau Info du journal (visible avec `oh -v`). `oh doctor` est inchangé.
+
 ## [5.3.0] — 2026-11-04
 
 Version mineure issue de la recette de la 5.2.1 : **le menu d'une carte du board d'équipe suit sa colonne** (rôle de colonne `review`, import d'une issue GitLab en ticket Beads pour `ticket`), **la colonne TODO se remplit enfin** (`unassigned_labels` en OU, réserve balayée en entier, valeurs `todo` migrées et contrôlées par [`oh doctor`](docs/reference/cli-infra.fr.md#oh-doctor)), et les fenêtres de la TUI prennent la largeur de leur contenu. opencode 2.2.5 devient la version recommandée et bd 1.3.3 la version attendue. Quatre changements à connaître en mode équipe, dont deux ruptures (`unassigned_labels`, menu des cartes), décrits dans la [migration 5.2 → 5.3](docs/guides/migration-v5.fr.md#depuis-la-52-vers-la-53) ; pas de migration de la base. Sans mode équipe, rien à faire.

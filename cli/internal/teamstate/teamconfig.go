@@ -727,17 +727,15 @@ func (r *Repo) LoadConfig(ctx context.Context) (*TeamConfig, error) {
 // loadConfig is LoadConfig without the lock. The values of the tracker
 // mappings that stand for a status of the board but are not one ("todo" on a
 // board without a todo column) are read as the status they stand for, and a
-// warning says so, once; the file is rewritten by the next SaveConfig or by
-// oh doctor --fix. A value that stands for nothing is left as it is: the sync
+// single notice per clone says so (mappings_notice.go); the file is rewritten
+// by the next SaveConfig or by oh doctor --fix. A value that stands for nothing is left as it is: the sync
 // ignores it, and says so.
 func (r *Repo) loadConfig() (*TeamConfig, error) {
 	cfg, err := r.readConfig()
 	if err != nil {
 		return nil, err
 	}
-	for _, issue := range cfg.Tracker.NormalizeMappings(cfg.Board) {
-		warnMappingOnce(r.path, issue)
-	}
+	noticeMappings(r.path, cfg.Tracker.NormalizeMappings(cfg.Board))
 	return cfg, nil
 }
 
