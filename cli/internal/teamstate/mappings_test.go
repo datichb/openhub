@@ -60,11 +60,28 @@ func TestStatusRankFollowsTheColumnsOfTheBoard(t *testing.T) {
 	assert.Equal(t, []string{"planned", "in_progress", "review", "validation", "done", "blocked"}, def.OrderedStatuses())
 	assert.Less(t, def.StatusRank("planned"), def.StatusRank("in_progress"))
 	assert.Less(t, def.StatusRank("validation"), def.StatusRank("blocked"))
-	assert.Equal(t, 6, def.StatusRank("nowhere"), "a status the board lacks comes last")
+	assert.Equal(t, -1, def.StatusRank("nowhere"), "a status the board lacks cannot be ordered")
 
 	custom := customWithoutTodo()
 	assert.Equal(t, []string{"backlog", "doing", "done"}, custom.OrderedStatuses())
 	assert.Equal(t, custom.StatusRank("backlog"), custom.StatusRank("planned"), "planned is the initial column")
+}
+
+func TestIsBlockedStatus(t *testing.T) {
+	def := BoardConfig{}
+	assert.True(t, def.IsBlockedStatus("blocked"))
+	assert.False(t, def.IsBlockedStatus("in_progress"))
+
+	custom := customBoard(
+		BoardColumnConfig{ID: "backlog", Name: "B", Role: ColumnRoleInitial},
+		BoardColumnConfig{ID: "stuck", Name: "S", Role: ColumnRoleBlocked},
+		BoardColumnConfig{ID: "blocked", Name: "X", Role: ColumnRoleActive},
+		BoardColumnConfig{ID: "done", Name: "D", Role: ColumnRoleTerminal},
+	)
+	assert.True(t, custom.IsBlockedStatus("stuck"), "the role makes a column blocked")
+	assert.False(t, custom.IsBlockedStatus("blocked"), "not the name")
+	assert.False(t, custom.IsBlockedStatus("planned"))
+	assert.False(t, custom.IsBlockedStatus("nowhere"))
 }
 
 func TestNormalizeMappings(t *testing.T) {

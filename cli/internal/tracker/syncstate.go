@@ -49,11 +49,21 @@ type SyncState struct {
 	LegacyAutoPlanHeld json.RawMessage `json:"autoplan_held,omitempty"`
 }
 
-// PoolScan records the first complete scan of the pool of a project.
+// PoolScan records the scan of the pool of a project. The scan takes as many
+// runs as the pool needs (a run creates at most max_unassigned_issues claims):
+// the claims committed are its progress, Passes only counts the runs that
+// created some, and Covered says that a run found nothing left to create.
 type PoolScan struct {
+	// At is the time of the last run of the scan.
 	At time.Time `json:"at"`
 	// Labels identifies the unassigned_labels the scan was made for.
 	Labels string `json:"labels,omitempty"`
+	// Passes is the number of runs of the scan that created claims.
+	Passes int `json:"passes,omitempty"`
+	// Covered: the whole pool was seen. A record without it (oh 5.3 candidates
+	// recorded the scan after the first run, whatever the cap had left) is a
+	// scan not finished.
+	Covered bool `json:"covered,omitempty"`
 }
 
 // KnownTicket records the essential identifiers of a claimed ticket for orphan detection.
@@ -196,17 +206,49 @@ func poolLabelsKey(labels []string) string {
 }
 
 // AutoPoolScan reports whether the pool of (type, projectID) was scanned in
-// full for these unassigned_labels; MarkAutoPoolScanned records it.
+// full for these unassigned_labels; MarkAutoPoolScanned records it, and
+// NoteAutoPoolPass records a run of a scan that is not finished.
 func (s *SyncState) AutoPoolScan(t Type, projectID string, labels []string) bool {
 	scan, ok := s.AutoPoolScanned[syncStateKey(t, projectID)]
-	return ok && !scan.At.IsZero() && scan.Labels == poolLabelsKey(labels)
+	return ok && scan.Covered && !scan.At.IsZero() && scan.Labels == poolLabelsKey(labels)
 }
 
 // MarkAutoPoolScanned records the complete scan of the pool of (type,
 // projectID) for these unassigned_labels.
 func (s *SyncState) MarkAutoPoolScanned(t Type, projectID string, labels []string, at time.Time) {
+	scan := s.poolScanFor(t, projectID, labels)
+	scan.At, scan.Covered = at, true
+	s.AutoPoolScanned[syncStateKey(t, projectID)] = scan
+}
+
+// NoteAutoPoolPass records a run of the scan that created claims and left
+// others for the next run.
+func (s *SyncState) NoteAutoPoolPass(t Type, projectID string, labels []string, at time.Time) {
+	scan := s.poolScanFor(t, projectID, labels)
+	scan.At, scan.Covered = at, false
+	scan.Passes++
+	s.AutoPoolScanned[syncStateKey(t, projectID)] = scan
+}
+
+// AutoPoolPasses is the number of runs of the scan in progress (or the last
+// complete one) for these labels.
+func (s *SyncState) AutoPoolPasses(t Type, projectID string, labels []string) int {
+	scan, ok := s.AutoPoolScanned[syncStateKey(t, projectID)]
+	if !ok || scan.Labels != poolLabelsKey(labels) {
+		return 0
+	}
+	return scan.Passes
+}
+
+// poolScanFor is the record of the scan for these labels: a fresh one when
+// the labels changed (the scan starts over).
+func (s *SyncState) poolScanFor(t Type, projectID string, labels []string) PoolScan {
 	if s.AutoPoolScanned == nil {
 		s.AutoPoolScanned = make(map[string]PoolScan)
 	}
-	s.AutoPoolScanned[syncStateKey(t, projectID)] = PoolScan{At: at, Labels: poolLabelsKey(labels)}
+	key := poolLabelsKey(labels)
+	if scan, ok := s.AutoPoolScanned[syncStateKey(t, projectID)]; ok && scan.Labels == key {
+		return scan
+	}
+	return PoolScan{Labels: key}
 }

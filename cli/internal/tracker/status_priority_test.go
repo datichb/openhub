@@ -9,44 +9,67 @@ import (
 	"github.com/datichb/openhub/cli/internal/tracker"
 )
 
-// An issue with several mapped labels is placed by the order of the columns of
-// the board, not by the order of its labels: "Blocked" and "Ready to dev" in
-// either order give the same column (the one that comes first: todo).
-func TestMapTrackerStatusPriorityIsTheOrderOfTheColumns(t *testing.T) {
-	mapping := map[string]string{"Blocked": "blocked", "Ready to dev": "planned", "Dev doing": "in_progress", "Testing": "validation"}
+// An issue with several mapped labels is placed by what they mean, not by the
+// order of its labels: a blocked column always wins, then the most advanced
+// column (the furthest in the order of the board).
+func TestMapTrackerStatusPriorityBlockedThenMostAdvanced(t *testing.T) {
+	mapping := map[string]string{"Blocked": "blocked", "Ready to dev": "planned", "Dev doing": "in_progress", "To review": "review", "Testing": "validation", "Released": "done"}
 	board := teamstate.BoardConfig{}
-	for _, labels := range [][]string{
-		{"Blocked", "Ready to dev"},
-		{"Ready to dev", "Blocked"},
-		{"blocked", "READY TO DEV", "bug"},
+	for _, tt := range []struct {
+		labels []string
+		want   string
+	}{
+		// #491: blocked wins over "ready to dev", in either order of the labels.
+		{[]string{"Blocked", "Ready to dev"}, "blocked"},
+		{[]string{"Ready to dev", "Blocked"}, "blocked"},
+		{[]string{"blocked", "READY TO DEV", "bug"}, "blocked"},
+		// Blocked beats even the most advanced columns.
+		{[]string{"Released", "Blocked", "Testing"}, "blocked"},
+		// An old label left on the issue does not make it fall back.
+		{[]string{"Ready to dev", "Dev doing"}, "in_progress"},
+		{[]string{"Dev doing", "Ready to dev"}, "in_progress"},
+		{[]string{"Dev doing", "To review"}, "review"},
+		{[]string{"To review", "Testing", "Dev doing"}, "validation"},
+		{[]string{"Testing", "Released"}, "done"},
+		{[]string{"Ready to dev"}, "planned"},
 	} {
-		got := tracker.MapTrackerStatusWithBoard(&tracker.IssueState{Labels: labels}, nil, mapping, board)
-		assert.Equal(t, "planned", got, "%v", labels)
+		got := tracker.MapTrackerStatusWithBoard(&tracker.IssueState{Labels: tt.labels}, nil, mapping, board)
+		assert.Equal(t, tt.want, got, "%v", tt.labels)
 	}
-	// Further in the board: validation before blocked, in progress before validation.
-	got := tracker.MapTrackerStatusWithBoard(&tracker.IssueState{Labels: []string{"Blocked", "Testing"}}, nil, mapping, board)
-	assert.Equal(t, "validation", got)
-	got = tracker.MapTrackerStatusWithBoard(&tracker.IssueState{Labels: []string{"Testing", "Dev doing"}}, nil, mapping, board)
-	assert.Equal(t, "in_progress", got)
 }
 
-// The order of the columns is the one the team gave its board.
+// The order and the blocked columns are those the team gave its board.
 func TestMapTrackerStatusPriorityFollowsTheCustomColumns(t *testing.T) {
 	board := teamstate.BoardConfig{Columns: []teamstate.BoardColumnConfig{
-		{ID: "stuck", Name: "STUCK", Role: teamstate.ColumnRoleBlocked},
 		{ID: "backlog", Name: "BACKLOG", Role: teamstate.ColumnRoleInitial},
+		{ID: "stuck", Name: "STUCK", Role: teamstate.ColumnRoleBlocked},
 		{ID: "doing", Name: "DOING", Role: teamstate.ColumnRoleActive},
+		{ID: "qa", Name: "QA", Role: teamstate.ColumnRoleActive},
 		{ID: "done", Name: "DONE", Role: teamstate.ColumnRoleTerminal},
 	}}
-	mapping := map[string]string{"Blocked": "stuck", "Ready": "backlog", "Doing": "doing"}
-	got := tracker.MapTrackerStatusWithBoard(&tracker.IssueState{Labels: []string{"Doing", "Ready", "Blocked"}}, nil, mapping, board)
-	assert.Equal(t, "stuck", got, "the team put its blocked column first")
+	mapping := map[string]string{"Blocked": "stuck", "Ready": "backlog", "Doing": "doing", "QA": "qa", "Planned": "planned"}
+	got := func(labels ...string) string {
+		return tracker.MapTrackerStatusWithBoard(&tracker.IssueState{Labels: labels}, nil, mapping, board)
+	}
+	assert.Equal(t, "stuck", got("Doing", "Ready", "Blocked", "QA"), "the blocked role wins wherever its column is")
+	assert.Equal(t, "qa", got("Doing", "Ready", "QA"), "the furthest column")
+	assert.Equal(t, "doing", got("Ready", "Doing"))
 
-	// planned is the initial column: two labels for the same column tie, and
-	// the alphabetical order of the labels settles it.
+	// A column called "blocked" without the role is an ordinary column.
+	named := teamstate.BoardConfig{Columns: []teamstate.BoardColumnConfig{
+		{ID: "backlog", Name: "B", Role: teamstate.ColumnRoleInitial},
+		{ID: "blocked", Name: "X", Role: teamstate.ColumnRoleActive},
+		{ID: "doing", Name: "D", Role: teamstate.ColumnRoleActive},
+		{ID: "done", Name: "E", Role: teamstate.ColumnRoleTerminal},
+	}}
+	m2 := map[string]string{"B": "blocked", "D": "doing"}
+	assert.Equal(t, "doing", tracker.MapTrackerStatusWithBoard(&tracker.IssueState{Labels: []string{"B", "D"}}, nil, m2, named))
+
+	// planned is the initial column: two labels for it tie, the alphabetical
+	// order of the labels settles it.
 	mapping = map[string]string{"B label": "backlog", "A label": "planned"}
-	got = tracker.MapTrackerStatusWithBoard(&tracker.IssueState{Labels: []string{"B label", "A label"}}, nil, mapping, board)
-	assert.Equal(t, "planned", got)
+	assert.Equal(t, "planned", got("B label", "A label"))
+	assert.Equal(t, "planned", got("A label", "B label"))
 }
 
 // The answer does not depend on the iteration order of the Go map: run the
@@ -61,7 +84,7 @@ func TestMapTrackerStatusPriorityIsStable(t *testing.T) {
 	mapping["dup"] = "validation"
 	issue := &tracker.IssueState{Labels: []string{"h-x", "dup", "g-x", "a"}}
 	first := tracker.MapTrackerStatusWithBoard(issue, nil, mapping, teamstate.BoardConfig{})
-	assert.Equal(t, "in_progress", first)
+	assert.Equal(t, "review", first, "the most advanced of the mapped labels")
 	for range 50 {
 		assert.Equal(t, first, tracker.MapTrackerStatusWithBoard(issue, nil, mapping, teamstate.BoardConfig{}))
 	}
