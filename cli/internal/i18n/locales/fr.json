@@ -6358,5 +6358,18 @@
   "v53d.doctor.mappings.fix_line": "[tracker.%[1]s] « %[2]s » : '%[3]s' → '%[4]s'",
   "v53d.doctor.mappings.fix_confirm": "Réécrire ces correspondances dans le config.toml de l'équipe (commit et push) ?",
   "v53d.doctor.mappings.fix_done": "%[1]d correspondance(s) réécrite(s) dans %[2]s",
-  "v53d.doctor.mappings.fix_failed": "réécriture des correspondances de %[1]s : %[2]v"
+  "v53d.doctor.mappings.fix_failed": "réécriture des correspondances de %[1]s : %[2]v",
+  "v53f.card.detail": "Détail du ticket",
+  "v53f.card.status": "Changer le statut",
+  "v53f.card.transfer": "Transférer à un membre",
+  "v53f.card.instruct": "Donner une consigne à la session en cours",
+  "v53f.card.instruct_title": "Consigne pour %s",
+  "v53f.card.no_session": "Consigne indisponible : aucune session en cours sur ce ticket",
+  "v53f.card.no_mr": "Retours de review indisponibles : le claim n'a pas d'URL de merge request",
+  "v53f.card.no_workflow": "« %s » n'est pas proposé dans ce projet",
+  "v53f.card.import_note": "%s sera importée en ticket Beads",
+  "v53f.card.no_beads_note": "« ticket » exige un ticket Beads et ce projet n'a pas Beads",
+  "v53f.card.not_beads_note": "« ticket » exige un ticket Beads, %s n'en est pas un",
+  "v53f.card.branch_note": "branche %s",
+  "v53f.card.branch_unknown_note": "branche inconnue : modifications récentes"
 }

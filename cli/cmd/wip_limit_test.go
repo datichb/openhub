@@ -153,45 +153,45 @@ func TestTeamBoardActionsAreRefusedAtTheInProgressLimit(t *testing.T) {
 	require.NotNil(t, actions)
 
 	// Take key.
-	err := actions.OnClaim("NEW-1")
+	err := actions.OnClaim(claimsProject, "NEW-1")
 	requireLimitError(t, err, 2, 2)
 	_, gerr := repo.GetClaim(ctx, claimsProject, "NEW-1")
 	assert.ErrorIs(t, gerr, teamstate.ErrClaimNotFound)
 
 	// A ticket someone holds: left as it is, no refusal.
 	claimsCreate(t, repo, "B-1", "bob", "")
-	require.NoError(t, actions.OnClaim("B-1"))
+	require.NoError(t, actions.OnClaim(claimsProject, "B-1"))
 	assert.Equal(t, "bob", claimsOnDisk(t, repo, "B-1").ClaimedBy)
 
 	// A pool ticket is a take too.
 	_, err = repo.CreateClaim(ctx, teamstate.Claim{TicketID: "POOL-1", Project: claimsProject, Status: teamstate.ClaimStatusPlanned})
 	require.NoError(t, err)
-	requireLimitError(t, actions.OnClaim("POOL-1"), 2, 2)
+	requireLimitError(t, actions.OnClaim(claimsProject, "POOL-1"), 2, 2)
 	assert.Empty(t, claimsOnDisk(t, repo, "POOL-1").ClaimedBy)
 
 	// A planned card of the member dragged to in progress.
 	_, err = repo.CreateClaim(ctx, teamstate.Claim{TicketID: "PLN-1", Project: claimsProject, ClaimedBy: "testuser", Status: teamstate.ClaimStatusPlanned})
 	require.NoError(t, err)
-	requireLimitError(t, actions.OnStatus("PLN-1", teamstate.ClaimStatusInProgress), 2, 2)
+	requireLimitError(t, actions.OnStatus(claimsProject, "PLN-1", teamstate.ClaimStatusInProgress), 2, 2)
 	assert.Equal(t, teamstate.ClaimStatusPlanned, claimsOnDisk(t, repo, "PLN-1").Status)
 	// …but not to a column that is not work, nor between two columns of work.
-	require.NoError(t, actions.OnStatus("W-1", teamstate.ClaimStatusReview))
-	require.NoError(t, actions.OnStatus("W-1", teamstate.ClaimStatusInProgress), "W-1 was left in review, there is room: 1 in progress")
+	require.NoError(t, actions.OnStatus(claimsProject, "W-1", teamstate.ClaimStatusReview))
+	require.NoError(t, actions.OnStatus(claimsProject, "W-1", teamstate.ClaimStatusInProgress), "W-1 was left in review, there is room: 1 in progress")
 	// A card of somebody else is not the member's to count.
 	_, err = repo.CreateClaim(ctx, teamstate.Claim{TicketID: "BPL-1", Project: claimsProject, ClaimedBy: "bob", Status: teamstate.ClaimStatusPlanned})
 	require.NoError(t, err)
-	require.NoError(t, actions.OnStatus("BPL-1", teamstate.ClaimStatusInProgress))
+	require.NoError(t, actions.OnStatus(claimsProject, "BPL-1", teamstate.ClaimStatusInProgress))
 
 	// Handed to oneself.
 	claimsCreate(t, repo, "ALI-1", "alice", "")
-	requireLimitError(t, actions.OnTransfer("ALI-1", "testuser"), 2, 2)
-	require.NoError(t, actions.OnTransfer("ALI-1", "bob"))
+	requireLimitError(t, actions.OnTransfer(claimsProject, "ALI-1", "testuser"), 2, 2)
+	require.NoError(t, actions.OnTransfer(claimsProject, "ALI-1", "bob"))
 	assert.Equal(t, "bob", claimsOnDisk(t, repo, "ALI-1").ClaimedBy)
 
 	// Without limit everything goes through.
 	setTeamLimit(t, repo, intp(0))
-	require.NoError(t, actions.OnClaim("NEW-1"))
-	require.NoError(t, actions.OnStatus("PLN-1", teamstate.ClaimStatusInProgress))
+	require.NoError(t, actions.OnClaim(claimsProject, "NEW-1"))
+	require.NoError(t, actions.OnStatus(claimsProject, "PLN-1", teamstate.ClaimStatusInProgress))
 }
 
 // A session launched on tickets: the tickets it would start are one more

@@ -6358,5 +6358,18 @@
   "v53d.doctor.mappings.fix_line": "[tracker.%[1]s] \"%[2]s\": '%[3]s' → '%[4]s'",
   "v53d.doctor.mappings.fix_confirm": "Rewrite these mappings in the team config.toml (commit and push)?",
   "v53d.doctor.mappings.fix_done": "%[1]d mapping(s) rewritten in %[2]s",
-  "v53d.doctor.mappings.fix_failed": "rewriting the mappings of %[1]s: %[2]v"
+  "v53d.doctor.mappings.fix_failed": "rewriting the mappings of %[1]s: %[2]v",
+  "v53f.card.detail": "Ticket detail",
+  "v53f.card.status": "Change the status",
+  "v53f.card.transfer": "Transfer to a member",
+  "v53f.card.instruct": "Give an instruction to the running session",
+  "v53f.card.instruct_title": "Instruction for %s",
+  "v53f.card.no_session": "Instruction unavailable: no session is running on this ticket",
+  "v53f.card.no_mr": "Review feedback unavailable: the claim has no merge request URL",
+  "v53f.card.no_workflow": "“%s” is not offered in this project",
+  "v53f.card.import_note": "%s will be imported as a Beads ticket",
+  "v53f.card.no_beads_note": "“ticket” needs a Beads ticket and this project has no Beads",
+  "v53f.card.not_beads_note": "“ticket” needs a Beads ticket, %s is not one",
+  "v53f.card.branch_note": "branch %s",
+  "v53f.card.branch_unknown_note": "branch unknown: recent changes"
 }

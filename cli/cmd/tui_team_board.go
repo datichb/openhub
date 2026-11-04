@@ -199,16 +199,12 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				}
 				return engine.FetchTicketDetail(ctx, project, ticketID)
 			},
-			OnClaim: func(ticketID string) error {
+			OnClaim: func(cardProject, ticketID string) error {
 				repo := resolveRepoWithBoard()
 				if repo == nil {
 					return errors.New(i18n.T("tui.team_board.team_not_configured"))
 				}
-				project, _ := resolveActiveProject(a)
-				projectID := ""
-				if project != nil {
-					projectID = project.ID
-				}
+				projectID := boardProjectID(a, cardProject)
 				memberID := a.Config.ActiveTeam().MemberID
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
@@ -272,30 +268,22 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				})
 				return nil
 			},
-			OnRelease: func(ticketID string) error {
+			OnRelease: func(cardProject, ticketID string) error {
 				repo := resolveRepo()
 				if repo == nil {
 					return errors.New(i18n.T("tui.team_board.team_not_configured"))
 				}
-				project, _ := resolveActiveProject(a)
-				projectID := ""
-				if project != nil {
-					projectID = project.ID
-				}
+				projectID := boardProjectID(a, cardProject)
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 				return repo.ReleaseClaim(ctx, projectID, ticketID)
 			},
-			OnTransfer: func(ticketID, toMember string) error {
+			OnTransfer: func(cardProject, ticketID, toMember string) error {
 				repo := resolveRepo()
 				if repo == nil {
 					return errors.New(i18n.T("tui.team_board.team_not_configured"))
 				}
-				project, _ := resolveActiveProject(a)
-				projectID := ""
-				if project != nil {
-					projectID = project.ID
-				}
+				projectID := boardProjectID(a, cardProject)
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 				// A claim in progress handed to oneself is one more ticket in progress.
@@ -308,16 +296,12 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				}
 				return repo.TransferClaim(ctx, projectID, ticketID, toMember)
 			},
-			OnStatus: func(ticketID, newStatus string) error {
+			OnStatus: func(cardProject, ticketID, newStatus string) error {
 				repo := resolveRepoWithBoard()
 				if repo == nil {
 					return errors.New(i18n.T("tui.team_board.team_not_configured"))
 				}
-				project, _ := resolveActiveProject(a)
-				projectID := ""
-				if project != nil {
-					projectID = project.ID
-				}
+				projectID := boardProjectID(a, cardProject)
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 				// A card of the member moved to a column of work in progress is one
@@ -332,6 +316,19 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 		},
 		QuickActions: buildBoardQuickActions(a),
 	}
+}
+
+// boardProjectID is the project an action of the team board works on: the one
+// of the card (a board shows the tickets of several projects, and the active
+// project is only one of them), else the active project.
+func boardProjectID(a *app.App, cardProject string) string {
+	if cardProject != "" {
+		return cardProject
+	}
+	if project, _ := resolveActiveProject(a); project != nil {
+		return project.ID
+	}
+	return ""
 }
 
 // buildBeadsSummaryFunc returns a function that aggregates bead task counts

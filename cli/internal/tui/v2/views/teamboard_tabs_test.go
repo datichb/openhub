@@ -200,7 +200,7 @@ func TestTeamBoardTransferToastNamesTheMember(t *testing.T) {
 			Members: func() []SelectOption {
 				return []SelectOption{{Label: "Bob Builder", Value: "bob"}, {Label: "Alice", Value: "alice"}}
 			},
-			OnTransfer: func(_, to string) error { transferred = to; return nil },
+			OnTransfer: func(_, _, to string) error { transferred = to; return nil },
 		},
 	})
 	content := tview.NewFlex()
