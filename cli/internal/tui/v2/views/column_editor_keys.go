@@ -11,7 +11,7 @@ var (
 	ColumnMoveUp = keys.Own("columns.move_up", 'K', "tui.team.columns.hint_move_up")
 	// ColumnMoveDown moves the column under the cursor down.
 	ColumnMoveDown = keys.Own("columns.move_down", 'J', "tui.team.columns.hint_move_down")
-	// ColumnRole gives the column the next role (initial, active, terminal, blocked).
+	// ColumnRole gives the column the next role (initial, active, review, terminal, blocked).
 	ColumnRole = keys.Own("columns.role", 'o', "tui.team.columns.hint_role")
 	// ColumnMappings opens the labels and statuses mapped to the column.
 	ColumnMappings = keys.Own("columns.mappings", 'm', "tui.team.columns.hint_mappings")

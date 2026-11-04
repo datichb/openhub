@@ -24,6 +24,7 @@ import (
 var columnEditorRoles = []string{
 	teamstate.ColumnRoleInitial,
 	teamstate.ColumnRoleActive,
+	teamstate.ColumnRoleReview,
 	teamstate.ColumnRoleTerminal,
 	teamstate.ColumnRoleBlocked,
 }
@@ -114,6 +115,8 @@ func columnRoleHex(role string) string {
 		return theme.SuccessHex
 	case teamstate.ColumnRoleBlocked:
 		return theme.ErrorHex
+	case teamstate.ColumnRoleReview:
+		return theme.TextSecondaryHex
 	default:
 		return theme.AccentHex
 	}

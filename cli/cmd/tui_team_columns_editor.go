@@ -201,9 +201,10 @@ func (e *columnEditor) columnItem(i int, col teamstate.BoardColumnConfig, role s
 func (e *columnEditor) addRolesLegend() {
 	legendText := "  " + accentText(fmt.Sprintf("── %s ──", i18n.T("tui.team.columns.roles_header")))
 	e.list.AddItem(legendText, "", 0, nil)
-	legendLine := fmt.Sprintf("    %s %s  %s %s  %s %s  %s %s",
+	legendLine := fmt.Sprintf("    %s %s  %s %s  %s %s  %s %s  %s %s",
 		theme.Paint(theme.WarningHex, theme.IconSwatch), i18n.T("tui.team.columns.role_initial_desc"),
 		theme.Paint(theme.ActiveMode.AccentHex, theme.IconSwatch), i18n.T("tui.team.columns.role_active_desc"),
+		theme.Paint(theme.TextSecondaryHex, theme.IconSwatch), i18n.T("tui.team.columns.role_review_desc"),
 		theme.Paint(theme.SuccessHex, theme.IconSwatch), i18n.T("tui.team.columns.role_terminal_desc"),
 		theme.Paint(theme.ErrorHex, theme.IconSwatch), i18n.T("tui.team.columns.role_blocked_desc"))
 	e.list.AddItem(legendLine,

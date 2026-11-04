@@ -3856,6 +3856,7 @@
   "tui.team.columns.role_active_desc": "active = en cours",
   "tui.team.columns.role_blocked_desc": "blocked = bloqué",
   "tui.team.columns.role_initial_desc": "initial = entrée",
+  "tui.team.columns.role_review_desc": "review = en revue",
   "tui.team.columns.role_terminal_desc": "terminal = terminé",
   "tui.team.columns.roles_explanation": "Les colonnes définissent les étapes du workflow kanban",
   "tui.team.columns.roles_header": "Rôles",

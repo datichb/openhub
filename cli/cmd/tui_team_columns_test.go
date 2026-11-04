@@ -317,13 +317,13 @@ func TestColumnEditorCyclesTheRole(t *testing.T) {
 		e.typ(columnEditorTestKeys.role)
 		roles = append(roles, (*e.columns)[0].Role)
 	}
-	assert.Equal(t, []string{"active", "terminal", "blocked", "initial", "active"}, roles)
+	assert.Equal(t, []string{"active", "review", "terminal", "blocked", "initial"}, roles)
 
 	// a column with no role counts as active
 	cols := []teamstate.BoardColumnConfig{{ID: "a", Name: "A"}, {ID: "b", Name: "B", Role: "terminal"}}
 	e = newColumnEditor(t, cols, nil, nil, "")
 	e.typ(columnEditorTestKeys.role)
-	assert.Equal(t, "terminal", (*e.columns)[0].Role)
+	assert.Equal(t, "review", (*e.columns)[0].Role)
 }
 
 func TestColumnEditorMappings(t *testing.T) {
@@ -455,7 +455,8 @@ func TestColumnEditorSavesOnCtrlS(t *testing.T) {
 	assert.Equal(t, i18n.T("cmd.discovery.validate.min_columns"), e.validate(), "nothing saved yet")
 
 	e.typ('j')
-	e.typ(columnEditorTestKeys.role) // active → terminal
+	e.typ(columnEditorTestKeys.role) // active → review
+	e.typ(columnEditorTestKeys.role) // review → terminal
 	e.press(tcell.KeyCtrlS, 0)
 	assert.Equal(t, 1, e.done)
 	assert.Equal(t, "terminal", (*e.result)[1].Role)
@@ -498,6 +499,7 @@ func TestColumnRoleHexAndColorName(t *testing.T) {
 	assert.Equal(t, theme.SuccessHex, columnRoleHex(teamstate.ColumnRoleTerminal))
 	assert.Equal(t, theme.ErrorHex, columnRoleHex(teamstate.ColumnRoleBlocked))
 	assert.Equal(t, theme.AccentHex, columnRoleHex(teamstate.ColumnRoleActive))
+	assert.Equal(t, theme.TextSecondaryHex, columnRoleHex(teamstate.ColumnRoleReview))
 	assert.Equal(t, "red", columnColorName(teamstate.BoardColumnConfig{Color: "red"}, tcell.ColorRed))
 	assert.Equal(t, "auto (#ff0000)", columnColorName(teamstate.BoardColumnConfig{}, tcell.NewRGBColor(255, 0, 0)))
 }
