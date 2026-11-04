@@ -64,6 +64,8 @@ openhub stores API tokens and secrets using two mechanisms:
 
 Secrets are never stored in plaintext on disk. `~/.oh` is 0700; `oh.db` and its WAL files are 0600.
 
+**Git token of an HTTPS team-state.** When the team repository is over HTTPS and asks for access, the team wizard checks the token against the repository (a refused token is not kept), then keeps it in this keychain, per repository: `openhub.git.<host>/<repo>.token` and `.user`. For every git operation on the team-state (clone, pull, push, probe, daemon), `oh` writes a one-shot `GIT_ASKPASS` in a private folder (0700, user name and token files 0600, script 0700) and removes it as soon as the command ends. The token is never in a URL, on a command line, in git's environment, in a configuration file or in git's `credential.helper` (`-c credential.helper=` during the operation: no helper of the machine receives it to keep). During the operation it is readable by your user in that temporary folder, like any secret git has to receive; on Windows the script is run by the `sh` of Git for Windows (not verified in CI: without a token if the folder cannot be written). SSH and public repositories are unchanged.
+
 The passwords of the opencode servers (needed to attach to a session and for the daemon to drive the server) are not in `oh.db`: one 0600 file per group under `~/.oh/run/server-passwords/` (0700 folder), `oh.db` keeps only their hash. A database of an older version is converted when the daemon starts (then compacted); `oh doctor` reports a password left in clear. These files stay readable by your user: the shell of the agents only reaches them by mistake (shell refusal of `~/.oh/run`), not through a barrier.
 
 ### LLM credential proxy

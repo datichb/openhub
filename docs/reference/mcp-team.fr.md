@@ -4,7 +4,7 @@
 
 ## Vue d'ensemble
 
-Le serveur MCP `team` expose les données de collaboration d'équipe aux agents IA via le protocole MCP (stdio JSON-RPC). Il lit depuis le clone local `~/.oh/team-state/` et fournit un accès en lecture seule à tous les agents, avec des capacités d'écriture limitées à certains agents spécifiques.
+Le serveur MCP `team` expose les données de collaboration d'équipe aux agents IA via le protocole MCP (stdio JSON-RPC). Il lit depuis le clone local du team-state (`state_path`, `~/.oh/team-states/<hôte>/<dépôt>/` par défaut) et fournit un accès en lecture seule à tous les agents, avec des capacités d'écriture limitées à certains agents spécifiques.
 
 ## Activation
 

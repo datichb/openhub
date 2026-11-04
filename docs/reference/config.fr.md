@@ -554,6 +554,8 @@ https://github.com/acme/my-team.git →  ~/.oh/team-states/github.com/my-team
 
 Un ancien clone `~/.oh/team-states/<dépôt>` (sans hôte) est réutilisé s'il existe. Avec `OH_HOME`, les clones sont sous `$OH_HOME/team-states/`.
 
+Depuis la 5.3.2, c'est le chemin de tous les assistants d'équipe (« Créer », « Rejoindre », `team init` et `team rejoin` de la palette) : « Créer » clonait avant dans `~/.oh/team-state/`. Une équipe déjà configurée garde son `state_path` (l'ancien `~/.oh/team-state/` compris) : rien n'est déplacé et le même dépôt n'est pas cloné une seconde fois. Un dossier qui contient le clone **d'un autre dépôt** (origine différente de `state_repo`) est refusé avec un message qui nomme le dossier et les deux dépôts, jamais réutilisé.
+
 ### Définir l'équipe d'un projet
 
 - **À la création :** l'assistant `oh project add` contient une étape Équipe.
@@ -849,6 +851,7 @@ Si le trousseau n'est pas disponible, les secrets sont stockés dans `~/.oh/secr
 | `openhub.team.<équipe>.provider.<fournisseur>.token` | Identifiants fournis par une équipe |
 | `openhub.mcp.<service>.token` | Token d'un serveur MCP (`figma`, `gitlab`, `jira`, `gslides`…) |
 | `openhub.team.<équipe>.gitlab.token` | Token GitLab propre à une équipe |
+| `openhub.git.<hôte>/<dépôt>.token` / `.user` | Token (et nom d'utilisateur, `oauth2` par défaut) pour **git** sur le dépôt team-state en HTTPS, par dépôt (hôte en minuscules, chemin sans `.git`). Posé par l'étape « Accès » de l'assistant d'équipe après vérification, donné à git par un `GIT_ASKPASS` à usage unique pour le clone, le pull, le push et le démon. Distinct du token GitLab de l'API ci-dessus (l'assistant écrit les deux quand l'hôte est GitLab). Gérable avec `oh secrets` |
 | `openhub.tracker.<type>.token` | Token du tracker de l'équipe |
 | `openhub.remote.<cible>.token` / `.trigger` | Token API et token de déclenchement d'une cible distante |
 | `openhub.daemon.capability` | Capacité locale du démon `ohd` |

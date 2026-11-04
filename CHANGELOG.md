@@ -9,6 +9,23 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Assistant d'équipe : passer une étape en erreur ne fait plus abandonner la fin de l'installation.** « Échap › Passer l'étape » sur une étape en échec (un clone refusé, par exemple) laissait l'erreur dans l'assistant, qui se terminait alors en erreur : `oh init` sortait avant d'écrire `setup_done`, d'extraire le contenu du hub et de détecter le motif de branche, et `team init` de la palette sortait avant d'écrire l'équipe dans `hub.toml` alors que le membre était déjà poussé. Passer une étape oublie son erreur.
+- **« Créer une équipe » et « Rejoindre » demandent l'accès avant le clone.** Le dépôt, puis une sonde d'accès en lecture seule (`git ls-remote`, avec un indicateur d'attente), puis, **seulement si le dépôt refuse**, l'étape **Accès**, puis l'identité, puis le clone. « Créer » n'avait aucune étape d'identifiants et « Rejoindre » les plaçait après le clone, donc jamais utiles : un dépôt HTTPS qui demandait un token échouait avec « terminal prompts disabled » sans que l'assistant puisse le recevoir. Même ordre dans `team init` et `team rejoin` de la palette.
+- **Token d'un dépôt team-state en HTTPS : gardé dans le trousseau de `oh` et donné à git pour toutes les opérations.** L'étape Accès vérifie le token auprès du dépôt (un token refusé n'est pas gardé), le garde sous `openhub.git.<hôte>/<dépôt>.token` (`.user` : `oauth2` par défaut), et `oh` le fournit à git par un `GIT_ASKPASS` à usage unique (dossier privé 0700, fichiers 0600, supprimé à la fin de la commande, jamais sur une ligne de commande ni dans une URL) pour le clone, le pull, le push, la sonde et le démon. Avant, git ne recevait que les accès du poste ; le token saisi pour l'API GitLab ne lui servait jamais. Sans token (SSH, dépôt public, assistant d'identifiants du poste), rien ne change. En SSH, l'étape Accès donne la réponse de git et rappelle `ssh-add`.
+- **Écran d'erreur d'une étape : des boutons.** « Configurer l'accès » (en premier quand git a refusé l'accès, il retourne à l'étape Accès), « Réessayer » (focus par défaut : `Entrée` réessaie toujours), « Modifier l'URL » et « Passer l'équipe ». Les anciens `Ctrl+B` (retour) et `Entrée` (réessayer) restent.
+- **« Passer l'équipe » saute tout le groupe.** Passer une étape du groupe équipe de `oh init` (Échap, ou le bouton) ne laissait que l'étape sautée : les suivantes apparaissaient et échouaient tour à tour. Le groupe est maintenant sauté en entier (`Mode` vide), le récapitulatif dit « équipe non configurée », en type d'installation « équipe » l'assistant redemande le fournisseur (l'équipe ne l'apporte pas) et propose un espace solo pour le projet (pas créé sans votre accord).
+- **Une seule place pour le clone du team-state.** « Créer » et `team init` clonaient dans `~/.oh/team-state/` pendant que « Rejoindre » et la configuration du tracker lisaient `~/.oh/team-states/<hôte>/<dépôt>/` : après « Créer », le tracker était « non configuré » à tort. Tous les assistants utilisent `~/.oh/team-states/<hôte>/<dépôt>/`.
+- **Un clone existant d'un autre dépôt n'est plus réutilisé.** Un dossier dont l'origine n'est pas l'URL saisie donne une erreur qui nomme le dossier et les deux dépôts, au lieu d'un clone silencieusement faux.
+- **La question du tracker n'est plus posée deux fois après « Créer une équipe ».**
+
+### Changed
+
+- **Étape « Identifiants » → « Identité du membre »** (ID et nom d'affichage) : le dépôt et l'accès ont leurs propres étapes (« Dépôt d'équipe », « Accès au dépôt », « Accès »). Les prérequis de l'écran d'équipe mentionnent l'accès au dépôt (clé SSH chargée, ou token HTTPS).
+- **Rupture légère : chemin du clone de « Créer ».** `~/.oh/team-states/<hôte>/<dépôt>/` au lieu de `~/.oh/team-state/`. **Aucune migration** : une équipe déjà configurée garde son `state_path` (l'ancien `~/.oh/team-state/` compris), et le même dépôt n'est pas cloné une seconde fois ; seule une nouvelle équipe prend le nouveau chemin.
+- **Le token git est une clé du trousseau par dépôt** (`openhub.git.<hôte>/<dépôt>.token` et `.user`, visibles et gérables avec [`oh secrets`](docs/reference/cli-tools.fr.md)), distincte du token GitLab de l'API (`openhub.team.<équipe>.gitlab.token`, écrit aussi quand l'hôte est GitLab). Plus de `git credential approve` : le token n'est plus confié à l'assistant d'identifiants du poste.
+
 ## [5.3.1] — 2026-11-04
 
 Version corrective de la 5.3.0 : les boards ne ramènent plus en haut de la colonne à chaque rafraîchissement, et les valeurs `todo` migrées ne donnent plus qu'une ligne d'avertissement par équipe, avec la commande à lancer ([`oh doctor --fix`](docs/reference/cli-infra.fr.md#oh-doctor)). Aucune rupture, aucune migration.
