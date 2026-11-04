@@ -9,6 +9,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Fixed
+
+- **TUI : le board (d'équipe et Beads) ne ramène plus en haut de la colonne.** Quand une colonne avait plus de tickets que la hauteur de l'écran, on descendait au-delà du bas puis, au rafraîchissement suivant (toutes les 5 s, ou à l'arrivée du résumé Beads toutes les 30 s), la colonne était vidée et remplie de nouveau, sélection et défilement remis à zéro. Le rafraîchissement garde maintenant la carte sélectionnée (retrouvée par son id, et son projet sur le board d'équipe, où deux projets peuvent avoir le même id, où qu'elle soit allée), le défilement, la colonne focalisée et la fenêtre de colonnes. Une carte disparue laisse l'index le plus proche sélectionné. Un changement de filtre ou d'onglet de projet repart toujours du haut.
+
 ## [5.3.0] — 2026-11-04
 
 Version mineure issue de la recette de la 5.2.1 : **le menu d'une carte du board d'équipe suit sa colonne** (rôle de colonne `review`, import d'une issue GitLab en ticket Beads pour `ticket`), **la colonne TODO se remplit enfin** (`unassigned_labels` en OU, réserve balayée en entier, valeurs `todo` migrées et contrôlées par [`oh doctor`](docs/reference/cli-infra.fr.md#oh-doctor)), et les fenêtres de la TUI prennent la largeur de leur contenu. opencode 2.2.5 devient la version recommandée et bd 1.3.3 la version attendue. Quatre changements à connaître en mode équipe, dont deux ruptures (`unassigned_labels`, menu des cartes), décrits dans la [migration 5.2 → 5.3](docs/guides/migration-v5.fr.md#depuis-la-52-vers-la-53) ; pas de migration de la base. Sans mode équipe, rien à faire.
