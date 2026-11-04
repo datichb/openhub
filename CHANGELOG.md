@@ -9,6 +9,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+## [5.2.1] — 2026-11-04
+
+Version corrective de la 5.2.0, issue de la recette et d'un audit de la TUI : plus de plantage au clic, fenêtres qui s'empilent et rendent le focus, contrôles d'[`oh doctor`](docs/reference/cli-infra.fr.md#oh-doctor) qui disent ce qu'ils n'ont pas pu lire, noms à la place des identifiants. Le workflow `spec` devient plus exigeant sur les questions et les risques ([guide](docs/guides/spec-workflow.fr.md)). Aucune rupture, aucune migration.
+
 ### Added
 
 - **`spec` : avertissement de `oh` quand la spec n'a pas de section « Risques et cas limites », ou qu'elle est vide sans raison** (`specdoc.Advise`). Il ne refuse rien : il s'ajoute au résultat de `cp-converge` et de `cp-spec` (« avertissement (non bloquant) »), sur la carte du checkpoint et dans la réponse faite à l'agent, qui fait compléter la section. « Aucun » est accepté avec sa raison.
