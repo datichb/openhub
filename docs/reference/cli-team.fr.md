@@ -95,6 +95,12 @@ Assistant de configuration des services MCP partagés (GitLab, Jira…) et de la
 
 Pour *Tracker sync*, l'assistant demande où se trouve le jeton du tracker : la clé du trousseau (`tracker_token_key`) et, pour GitLab, le serveur pour lequel elle est valable (`tracker_token_url`, vide = le serveur du tracker). **Il ne remplit plus la clé de lui-même** : une clé laissée vide reste vide, et l'assistant dit ce qui est lu alors (GitLab : `openhub.tracker.gitlab.token` pour le serveur du tracker ; Jira : rien). Au niveau local, la déclaration personnelle remplace celle de l'équipe (clé et serveur ensemble ; `-` pour effacer), et, si le dépôt d'équipe est joint par un alias SSH, le GitLab réel du dépôt (`gitlab_url`).
 
+**Les questions se répondent dans un terminal.** `Entrée` garde la valeur proposée entre crochets, c'est-à-dire la valeur actuelle (une équipe sur Jira reste sur Jira) ; `-` efface une valeur texte ; une réponse incomprise est dite et la question reposée. Pour les réglages de ce poste (`tracker.enabled`, `auto_sync`, `push_labels`), le choix **« hériter — équipe : … »** retire la clé de `hub.toml` ; tant qu'on ne le choisit pas, rien n'y est écrit. Pour les recommandations MCP de l'équipe, « aucune recommandation » laisse `enabled` absent. Une limite qui n'est pas un entier ≥ 0 est signalée et la limite reste. Sans terminal (entrée standard redirigée) la commande refuse de poser les questions, et change un réglage seul avec `oh config set`. Si l'entrée se ferme (Ctrl+D) avant la fin, **rien n'est écrit**. Les réponses sont lues sur l'entrée de l'application, jamais devinées.
+
+**Les écritures sont sûres.** Les réglages de `hub.toml` passent par la même voie que `oh config set` (verrou, sauvegarde, valeurs typées : une clé du trousseau faite de chiffres reste du texte). La configuration d'équipe est écrite **sur la dernière version** de `config.toml` : ce qu'un collègue a changé entre-temps ailleurs dans le fichier est conservé ; si le même réglage a été changé des deux côtés, rien n'est écrasé, la commande le dit et il suffit de la relancer. Un `config.toml` illisible arrête l'assistant avec la cause (`oh doctor`) au lieu de repartir d'une configuration vide.
+
+**`oh team config status` ne fait que lire** : il n'écrit ni le team-state ni `hub.toml`. Il ne propose plus de supprimer ou de fusionner des « membres orphelins » (les collègues n'étant pas dans votre configuration locale, ils étaient tous pris pour tels).
+
 ```bash
 oh team config
 oh team config status

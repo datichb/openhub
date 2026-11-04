@@ -53,9 +53,16 @@ type TeamModelsView struct {
 	cfg   TeamModelsViewConfig
 	loads loadSlot // the reads of the team config: only the latest is applied
 
+	content *tview.Flex // where the page is mounted (nil once unmounted)
 	teamCfg *teamstate.TeamConfig
-	dirty   bool
-	badge   saveBadge
+	// baseTeam is teamCfg as it was read or last saved: the save writes the
+	// difference, on top of the latest version of the team-state.
+	baseTeam *teamstate.TeamConfig
+	// cfgErr is why the team config could not be read: the view shows it and
+	// nothing can be saved until a read succeeds.
+	cfgErr error
+	dirty  bool
+	badge  saveBadge
 	// saving is true while a save runs off the event loop; saveAgain, that an
 	// edit asked for another one meanwhile.
 	saving, saveAgain bool
@@ -78,6 +85,9 @@ func (v *TeamModelsView) ID() string             { return "team.models" }
 func (v *TeamModelsView) Title() string          { return i18n.T("tui.config.section.models") }
 
 func (v *TeamModelsView) StatusHints() string {
+	if v.cfgErr != nil {
+		return keys.Hints(keys.Refresh.Hint(), keys.Back.Hint())
+	}
 	return keys.Hints(keys.Open.HintAs(i18n.T("tui.hints.edit")), keys.Create.Hint(),
 		keys.Delete.Hint(), keys.Save.Hint(), cfgUndoKey.Hint())
 }
@@ -93,27 +103,32 @@ func (v *TeamModelsView) SupportedModes() []Mode {
 
 func (v *TeamModelsView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
+	v.content = content
 	v.dirty = false
 	v.undoStack.Clear()
+	v.teamCfg, v.baseTeam, v.cfgErr = nil, nil, nil
 
 	// Loading placeholder
 	loading := stateView(stateLoading, i18n.T("tui.team_models.loading"))
 	content.AddItem(loading, 0, 1, true)
+	v.read(content, app)
+}
 
-	// Pull the team-state, read its config off the event loop, then build the
-	// list on it.
+// read pulls the team-state, reads its config off the event loop, then builds
+// the list on it (or says why the config could not be read).
+func (v *TeamModelsView) read(content *tview.Flex, app *tview.Application) {
 	tc := v.cfg.ResolveTeam()
 	fetch := func(ctx context.Context) (*teamstate.TeamConfig, error) {
 		if !tc.Enabled {
 			return nil, nil // no team: an empty config
 		}
-		return readTeamConfig(ctx, tc), nil
+		return readTeamConfig(ctx, tc)
 	}
-	apply := func(cfg *teamstate.TeamConfig, _ error) {
+	apply := func(cfg *teamstate.TeamConfig, err error) {
 		if v.app == nil {
 			return
 		}
-		v.setTeamConfig(cfg)
+		v.setTeamConfig(cfg, err)
 		v.buildList(content, app)
 	}
 	if tc.Enabled {
@@ -137,12 +152,28 @@ func (v *TeamModelsView) buildList(content *tview.Flex, app *tview.Application) 
 	})
 	v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) { v.showDetail(item) })
 
-	v.renderList()
+	if v.cfgErr != nil {
+		v.showConfigError()
+	} else {
+		v.renderList()
+	}
 	v.page.Mount(content)
 	focusIf(app, owned, v.list)
+	refreshHints(v.shell)
+}
+
+// showConfigError is the state of a view whose team config could not be read:
+// the reason, nothing to edit, nothing to save.
+func (v *TeamModelsView) showConfigError() {
+	v.dirty = false
+	v.undoStack.Clear()
+	v.list.SetItems([]widgets.SectionItem{{MainText: stateText(stateError, unreadableConfigText(v.cfgErr))}})
+	v.page.SetDetail(unreadableDetail(v.cfgErr))
+	v.badge.set(saveStatusFailed)
 }
 
 func (v *TeamModelsView) Unmount() {
+	v.content = nil
 	v.loads.Invalidate() // drop the load in flight
 	if v.dirty && v.shell != nil {
 		v.shell.ShowToastMsg(i18n.T("tui.save.unpublished_left"), false)
@@ -180,9 +211,17 @@ func (v *TeamModelsView) showDetail(item widgets.SectionItem) {
 // Data loading
 // ─────────────────────────────────────────────────────────────────────────────
 
-// setTeamConfig takes the config that was read (nil: it has none, the config
-// already shown stays, else an empty one).
-func (v *TeamModelsView) setTeamConfig(cfg *teamstate.TeamConfig) {
+// setTeamConfig takes the config that was read. One that could not be read is
+// not replaced by an empty one: the view keeps the error (cfgErr) and nothing
+// of the config, so nothing can be saved. nil without error: the team has no
+// state to read, an empty config is shown (and cannot be written, see the
+// writer).
+func (v *TeamModelsView) setTeamConfig(cfg *teamstate.TeamConfig, err error) {
+	v.cfgErr = err
+	if err != nil {
+		v.teamCfg, v.baseTeam = nil, nil
+		return
+	}
 	if cfg != nil {
 		v.teamCfg = cfg
 	}
@@ -190,6 +229,7 @@ func (v *TeamModelsView) setTeamConfig(cfg *teamstate.TeamConfig) {
 		v.teamCfg = &teamstate.TeamConfig{}
 	}
 	v.ensureMaps()
+	v.baseTeam = teamstate.CloneConfig(v.teamCfg)
 }
 
 // ensureMaps guarantees all map fields are non-nil for safe read/write.
@@ -294,6 +334,17 @@ func (v *TeamModelsView) renderList() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *TeamModelsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+	if v.cfgErr != nil { // nothing to edit: only a new read gets out of it
+		switch {
+		case keys.Refresh.Matches(event) && v.content != nil && v.app != nil:
+			v.read(v.content, v.app)
+			return nil
+		case keys.Save.Matches(event):
+			v.save() // says why it is refused
+			return nil
+		}
+		return event
+	}
 	if v.teamCfg == nil {
 		return event
 	}
@@ -462,7 +513,11 @@ func (v *TeamModelsView) undo() {
 }
 
 func (v *TeamModelsView) save() {
-	if v.shell == nil || v.teamCfg == nil {
+	if v.shell == nil {
+		return
+	}
+	if v.cfgErr != nil || v.teamCfg == nil { // never write what was not read
+		v.shell.ShowToastMsg(saveRefusedText(v.cfgErr), false)
 		return
 	}
 	if v.cfg.SaveTeamConfig == nil {
@@ -481,11 +536,12 @@ func (v *TeamModelsView) save() {
 		return
 	}
 	cfg := deepCopyTeamConfig(v.teamCfg)
+	base := teamstate.CloneConfig(v.baseTeam)
 	edits := v.undoStack.Len()
 	v.dirty = false // an edit made during the write sets it again
 	v.saving = true
 	v.badge.set(saveStatusPending) // the write really runs: saved is said when it ends
-	persist(v.app, func(ctx context.Context) error { return write(ctx, &cfg) }, func(err error) {
+	persist(v.app, func(ctx context.Context) error { return write(ctx, base, &cfg) }, func(err error) {
 		v.saving = false
 		again := v.saveAgain
 		v.saveAgain = false
@@ -493,8 +549,16 @@ func (v *TeamModelsView) save() {
 			v.dirty = true
 			v.shell.ShowToastMsg(i18n.T("tui.team_models.save_error")+err.Error(), false)
 			v.badge.set(saveStatusFailed)
+			confirmReloadOnConflict(v.shell, err, func() {
+				if v.content != nil && v.app != nil {
+					v.dirty = false
+					v.undoStack.Clear()
+					v.read(v.content, v.app)
+				}
+			})
 			return
 		}
+		v.baseTeam = teamstate.CloneConfig(&cfg)
 		if v.undoStack.Len() == edits {
 			v.undoStack.Clear()
 		}

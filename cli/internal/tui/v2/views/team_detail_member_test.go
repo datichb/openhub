@@ -27,7 +27,7 @@ func newMemberProfileEnv(t *testing.T) *memberProfileEnv {
 		member:   teamstate.Member{ID: "alice", DisplayName: "Alice", GitLabUsername: "alice1", Role: "dev"},
 	}
 	e.v.cfg.ResolveTeam = func() TeamResolution {
-		return TeamResolution{Enabled: true, TeamID: "core", StatePath: t.TempDir(), StateRepo: "git@gitlab.corp.example:acme/core.git", MemberID: "alice"}
+		return TeamResolution{Enabled: true, TeamID: "core", StatePath: clonedDir(t), StateRepo: "git@gitlab.corp.example:acme/core.git", MemberID: "alice"}
 	}
 	e.v.cfg.GetMember = func(context.Context, string) *teamstate.Member { m := e.member; return &m }
 	e.v.cfg.SaveMemberField = func(_ context.Context, _, field, value string) error {
@@ -87,7 +87,7 @@ func TestTeamDetailMemberProfileRules(t *testing.T) {
 // Without a member (not rejoined) or in a solo space there is no profile section.
 func TestTeamDetailNoMemberProfileWithoutMember(t *testing.T) {
 	e := newMemberProfileEnv(t)
-	e.v.cfg.ResolveTeam = func() TeamResolution { return TeamResolution{Enabled: true, TeamID: "core", StatePath: t.TempDir()} }
+	e.v.cfg.ResolveTeam = func() TeamResolution { return TeamResolution{Enabled: true, TeamID: "core", StatePath: clonedDir(t)} }
 	e.v.buildFields()
 	_, ok := fieldByKey(e.v, "member_tracker_username")
 	assert.False(t, ok)

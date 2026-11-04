@@ -826,31 +826,6 @@ func normalizeRemoteURL(u string) string {
 	return u
 }
 
-// collectUsedMemberIDs returns a set of member IDs that are actively referenced
-// by at least one team configuration (hub-level or project-level).
-// Used to detect orphan entries in members.toml.
-func collectUsedMemberIDs(ctx context.Context, a *app.App) map[string]bool {
-	used := make(map[string]bool)
-
-	// Hub-level member_id
-	if a.Config.ActiveTeam().MemberID != "" {
-		used[a.Config.ActiveTeam().MemberID] = true
-	}
-
-	// Per-project member IDs
-	projects, err := a.Projects.List(ctx, "")
-	if err != nil {
-		return used
-	}
-	for _, p := range projects {
-		resolved := config.ResolveTeamForProject(a.Config, &p)
-		if resolved.Enabled && resolved.MemberID != "" {
-			used[resolved.MemberID] = true
-		}
-	}
-	return used
-}
-
 // maskRepoURL strips credentials and scheme from a repo URL for safe display.
 // e.g. "https://oauth2:token@gitlab.com/group/repo.git" → "gitlab.com/group/repo.git"
 func maskRepoURL(raw string) string {

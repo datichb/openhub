@@ -154,9 +154,14 @@ type ConfigReader interface {
 	LoadConfig(ctx context.Context) (*TeamConfig, error)
 }
 
-// ConfigWriter saves the configuration of the team.
+// ConfigWriter changes the configuration of the team on top of its latest
+// version: the patch runs on the config as the transaction read it (and runs
+// again on the version of the remote when a push is refused); UpdateConfigFrom
+// applies the changes between two copies and refuses to overwrite a setting a
+// colleague changed (ErrConfigConflict).
 type ConfigWriter interface {
-	SaveConfig(ctx context.Context, cfg *TeamConfig) error
+	UpdateConfig(ctx context.Context, patch func(*TeamConfig) error) error
+	UpdateConfigFrom(ctx context.Context, base, edited *TeamConfig) error
 }
 
 // PolicyReader reads and checks the policies.

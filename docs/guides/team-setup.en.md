@@ -185,6 +185,8 @@ to navigate to the team detail view (`Enter`) or return home (`Esc`).
 
 Edit `config.toml` in the team-state repo (or `hub.toml` for hub-level config).
 
+> **Several people edit `config.toml`.** The team detail, the team MCP services and models of the TUI, the columns editor, the tracker discovery and `oh team config` save **what you changed** on top of the latest version of the file (pulled just before the commit): a setting a colleague changed elsewhere meanwhile is kept. If you both changed **the same** setting, nothing is written: the screen says so (“changed by a colleague meanwhile: reload?”, with the keys) and `r` reads their version. An unreadable `config.toml` (TOML error) or a missing clone is never shown as an empty configuration: the screen shows “config.toml unreadable: … — oh doctor”, `Ctrl+S` is refused, and `r` reads it again once the file is fixed.
+
 ### Mattermost
 
 ```toml

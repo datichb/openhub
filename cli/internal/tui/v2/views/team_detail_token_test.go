@@ -3,6 +3,7 @@ package views
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -83,7 +84,10 @@ func newTokenEnv(t *testing.T, trackerType string) *tokenEnv {
 	frLocale(t)
 	shared := seedHome(t)
 	e := &tokenEnv{shared: shared, sh: &askShell{}, secrets: map[string]string{}}
-	tc := TeamResolution{Enabled: true, TeamID: "core", StatePath: t.TempDir(), StateRepo: "git@gitlab.corp.example:acme/core.git"}
+	statePath := filepath.Join(t.TempDir(), "state")
+	_, err := teamstate.InitSolo(t.Context(), statePath, teamstate.Member{ID: "alice"})
+	require.NoError(t, err)
+	tc := TeamResolution{Enabled: true, TeamID: "core", StatePath: statePath, StateRepo: "git@gitlab.corp.example:acme/core.git"}
 	require.NoError(t, config.Update(func(c *config.Config) error {
 		c.Teams = []config.TeamConfig{{ID: "core", Enabled: true, StateRepo: tc.StateRepo, StatePath: tc.StatePath, MemberID: "alice"}}
 		return nil
@@ -109,7 +113,7 @@ func newTokenEnv(t *testing.T, trackerType string) *tokenEnv {
 			return nil
 		},
 		SaveTeamConfig: func() TeamConfigWriter {
-			return func(_ context.Context, cfg *teamstate.TeamConfig) error {
+			return func(_ context.Context, _, cfg *teamstate.TeamConfig) error {
 				c := *cfg
 				e.saved = &c
 				return nil

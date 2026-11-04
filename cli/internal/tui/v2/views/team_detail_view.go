@@ -104,7 +104,13 @@ type TeamDetailView struct {
 	syncs  loadSlot // the tracker sync: only the latest one is shown
 	checks loadSlot // the connection test: only the latest one is shown
 
-	teamCfg    *teamstate.TeamConfig
+	teamCfg *teamstate.TeamConfig
+	// baseTeam is teamCfg as it was read or last saved: the save writes the
+	// difference, on top of the latest version of the team-state.
+	baseTeam *teamstate.TeamConfig
+	// cfgErr is why the team config could not be read: the view shows it and
+	// nothing can be saved until a read succeeds.
+	cfgErr     error
 	member     teamstate.Member // the profile of the current member, as read or last saved
 	localMCP   config.MCPConfig
 	localTrk   config.TrackerLocalConfig
@@ -147,6 +153,9 @@ func (v *TeamDetailView) StatusHints() string {
 	if v.noTeam {
 		return keys.Back.Hint()
 	}
+	if v.cfgErr != nil {
+		return keys.Hints(keys.Refresh.Hint(), keys.Back.Hint())
+	}
 	if v.solo() {
 		return keys.Hints(keys.Navigate.Hint(), keys.Open.HintAs(i18n.T("tui.hints.edit")),
 			keys.Save.Hint(), cfgUndoKey.Hint())
@@ -169,7 +178,7 @@ func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 	// exit and eat the next Esc.
 	v.dirtyTeam, v.dirtyLocal = false, false
 	v.undoStack.Clear()
-	v.teamCfg, v.member, v.fields = nil, teamstate.Member{}, nil
+	v.teamCfg, v.baseTeam, v.cfgErr, v.member, v.fields = nil, nil, nil, teamstate.Member{}, nil
 	var team TeamResolution
 	if v.cfg.ResolveTeam != nil {
 		team = v.cfg.ResolveTeam()
@@ -250,6 +259,17 @@ func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.list == nil || v.noTeam {
 		return event
 	}
+	if v.cfgErr != nil { // nothing to edit: only a new read gets out of it
+		switch {
+		case keys.Refresh.Matches(event):
+			v.reload()
+			return nil
+		case keys.Save.Matches(event):
+			v.save() // says why it is refused
+			return nil
+		}
+		return event
+	}
 	switch {
 	case keys.Open.Matches(event), keys.Edit.Matches(event):
 		v.editSelected()
@@ -302,6 +322,21 @@ func (v *TeamDetailView) reload() {
 	})
 }
 
+// showConfigError is the state of a view whose team config could not be read:
+// the reason, no field, nothing to save.
+func (v *TeamDetailView) showConfigError() {
+	v.fields = nil
+	v.dirtyTeam, v.dirtyLocal = false, false
+	v.undoStack.Clear()
+	if v.list == nil {
+		return
+	}
+	v.list.SetItems([]widgets.SectionItem{{MainText: stateText(stateError, unreadableConfigText(v.cfgErr))}})
+	v.page.SetDetail(unreadableDetail(v.cfgErr))
+	v.badge.set(saveStatusFailed)
+	refreshHints(v.shell)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Data loading
 // ─────────────────────────────────────────────────────────────────────────────
@@ -309,6 +344,7 @@ func (v *TeamDetailView) reload() {
 // teamDetailRead is what the view reads of the team-state, off the event loop.
 type teamDetailRead struct {
 	teamCfg *teamstate.TeamConfig
+	cfgErr  error // why teamCfg could not be read
 	member  *teamstate.Member
 }
 
@@ -321,16 +357,23 @@ func (v *TeamDetailView) open(then func()) {
 	tc := v.cfg.ResolveTeam()
 	fetch := func(ctx context.Context) (teamDetailRead, error) {
 		var r teamDetailRead
-		r.teamCfg = readTeamConfig(ctx, tc)
+		r.teamCfg, r.cfgErr = readTeamConfig(ctx, tc)
 		if v.cfg.GetMember != nil {
 			r.member = v.cfg.GetMember(ctx, tc.TeamID)
 		}
 		return r, nil
 	}
-	apply := func(r teamDetailRead, _ error) {
+	apply := func(r teamDetailRead, err error) {
+		if err != nil && r.cfgErr == nil {
+			r.cfgErr = err
+		}
 		v.localMCP, v.localTrk = localMCP, localTrk
 		v.baseMCP, v.baseTrk = localMCP, localTrk
 		v.setData(r)
+		if v.cfgErr != nil {
+			v.showConfigError()
+			return
+		}
 		then()
 	}
 	if tc.hasState() {
@@ -344,15 +387,21 @@ func (v *TeamDetailView) open(then func()) {
 // view reads it with open).
 func (v *TeamDetailView) loadData() { v.open(func() {}) }
 
-// setData takes what was read: the team config (nil: it has none, the one
-// already shown stays) and the profile of the member.
+// setData takes what was read: the team config and the profile of the member.
+// A team config that could not be read is not replaced by an empty one: the
+// view keeps the error (cfgErr) and nothing of it, so nothing can be saved.
 func (v *TeamDetailView) setData(r teamDetailRead) {
-	if r.teamCfg != nil {
-		v.teamCfg = r.teamCfg
-	}
 	v.member = teamstate.Member{}
 	if r.member != nil {
 		v.member = *r.member
+	}
+	v.cfgErr = r.cfgErr
+	if v.cfgErr != nil {
+		v.teamCfg, v.baseTeam = nil, nil
+		return
+	}
+	if r.teamCfg != nil {
+		v.teamCfg = r.teamCfg
 	}
 	// Ensure non-nil teamCfg for editing
 	if v.teamCfg == nil {
@@ -370,6 +419,7 @@ func (v *TeamDetailView) setData(r teamDetailRead) {
 	if v.teamCfg.Models.Agents == nil {
 		v.teamCfg.Models.Agents = make(map[string]string)
 	}
+	v.baseTeam = teamstate.CloneConfig(v.teamCfg)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -751,8 +801,11 @@ func (v *TeamDetailView) undo() {
 // Persistence
 // ─────────────────────────────────────────────────────────────────────────────
 
-// TeamConfigWriter writes the config of the team to its team-state.
-type TeamConfigWriter func(ctx context.Context, cfg *teamstate.TeamConfig) error
+// TeamConfigWriter writes the changes between base (the config as the view
+// read it) and edited to the config of the team, on top of the latest version
+// of its team-state: what a colleague changed meanwhile is kept, and a setting
+// both changed is refused with a teamstate.ErrConfigConflict.
+type TeamConfigWriter func(ctx context.Context, base, edited *teamstate.TeamConfig) error
 
 // save writes what was edited: the team config to the team-state and the
 // local settings to hub.toml, off the event loop, one save at a time (the
@@ -762,6 +815,10 @@ func (v *TeamDetailView) save() {
 	if v.shell == nil || v.noTeam {
 		return
 	}
+	if v.cfgErr != nil || v.teamCfg == nil { // never write what was not read
+		v.shell.ShowToastMsg(saveRefusedText(v.cfgErr), false)
+		return
+	}
 	if v.saving {
 		v.saveAgain = true
 		return
@@ -769,6 +826,7 @@ func (v *TeamDetailView) save() {
 	var (
 		writeTeam TeamConfigWriter
 		teamCopy  teamstate.TeamConfig
+		baseCopy  *teamstate.TeamConfig
 		patchMCP  func(*config.MCPConfig)
 		patchTrk  func(*config.TrackerLocalConfig)
 		newMCP    = v.localMCP
@@ -780,6 +838,7 @@ func (v *TeamDetailView) save() {
 			saveTeam = false
 		} else {
 			teamCopy = deepCopyTeamConfig(v.teamCfg)
+			baseCopy = teamstate.CloneConfig(v.baseTeam)
 		}
 	}
 	saveLocal := v.dirtyLocal
@@ -801,7 +860,7 @@ func (v *TeamDetailView) save() {
 	v.badge.set(saveStatusPending) // the write really runs: saved is said when it ends
 	persist(v.app, func(ctx context.Context) error {
 		if saveTeam {
-			teamErr = writeTeam(ctx, &teamCopy)
+			teamErr = writeTeam(ctx, baseCopy, &teamCopy)
 			if teamErr != nil {
 				return teamErr
 			}
@@ -830,6 +889,7 @@ func (v *TeamDetailView) save() {
 			v.dirtyLocal = v.dirtyLocal || saveLocal // not tried
 			v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.save_team_error", teamErr.Error()), false)
 			v.badge.set(saveStatusFailed)
+			confirmReloadOnConflict(v.shell, teamErr, v.reload)
 			return
 		case localErr != nil:
 			v.dirtyLocal = true
@@ -838,6 +898,7 @@ func (v *TeamDetailView) save() {
 			return
 		}
 		if teamDone {
+			v.baseTeam = teamstate.CloneConfig(&teamCopy)
 			saved = append(saved, i18n.T("tui.team.detail.saved_team"))
 		}
 		if saveLocal {

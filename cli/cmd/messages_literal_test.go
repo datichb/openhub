@@ -70,12 +70,11 @@ var literalExceptions = map[string]string{
 	"  %s%s%s  oh (OpenHub CLI)\n": "product name",
 	// Text written into other systems, in a fixed language: git commit
 	// messages, documents committed to the team-state, prompts for the agents.
-	"patterns: add %s":                      "git commit message",
-	"patterns: validate %s":                 "git commit message",
-	"patterns: remove %s":                   "git commit message",
-	"takeover: enriched brief for %s/%s":    "git commit message",
-	"tracker: discovery config for %s (%s)": "git commit message",
-	"# Takeover Brief (enrichi): %s\n\n%s":  "document committed to the team-state",
+	"patterns: add %s":                     "git commit message",
+	"patterns: validate %s":                "git commit message",
+	"patterns: remove %s":                  "git commit message",
+	"takeover: enriched brief for %s/%s":   "git commit message",
+	"# Takeover Brief (enrichi): %s\n\n%s": "document committed to the team-state",
 	// Protocols and markup.
 	"event: ping\ndata: {\"status\":\"connected\"}\n\n": "server-sent event",
 	// Output of the eval harness, read by developers (make test-eval).

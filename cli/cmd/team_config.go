@@ -4,18 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"strconv"
 	"strings"
 
-	toml "github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/fsutil"
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/mcpresolve"
@@ -65,47 +61,52 @@ func runTeamConfigWizard(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	teamCfg, _ := repo.LoadConfig(ctx)
-	if teamCfg == nil {
-		teamCfg = &teamstate.TeamConfig{}
+	// The questions need someone to answer them: refused before anything is read.
+	p, err := newPrompter(a)
+	if err != nil {
+		return err
 	}
 
+	// A config.toml that cannot be read is not an empty configuration to start
+	// from: the assistant would write it over the real one.
+	teamCfg, err := repo.LoadConfig(ctx)
+	if err != nil {
+		return errors.New(i18n.Tf("v533b.team_config.unreadable", err))
+	}
+
+	fmt.Fprint(a.IO.Out, i18n.T("v533b.team_config.hint_keep"))
+
 	// Step 1 — Choisir le scope
-	scope := askSelect(a.IO.Out, i18n.T("cmd.team_config.what_do_you_want_to_configure"), []string{
+	scope := askSelect(p, i18n.T("cmd.team_config.what_do_you_want_to_configure"), []string{
 		i18n.T("cmd.team_config.team_configuration_shared_through_team_state"),
 		i18n.T("cmd.team_config.local_configuration_hub_toml_just_for"),
 		i18n.T("cmd.team_config.both"),
-	})
+	}, -1)
 
 	// Step 2 — Choisir le service
-	service := askSelect(a.IO.Out, i18n.T("cmd.team_config.which_service"), []string{
+	service := askSelect(p, i18n.T("cmd.team_config.which_service"), []string{
 		"GitLab",
 		"Jira",
 		"Figma",
 		i18n.T("cmd.team_config.tracker_sync"),
 		i18n.T("cmd.team_config.show_everything"),
-	})
+	}, -1)
+	if err := p.failed(); err != nil {
+		return err
+	}
 
 	configureTeam := scope == 0 || scope == 2
 	configureLocal := scope == 1 || scope == 2
 
 	switch service {
 	case 0: // GitLab
-		if err := configureGitLab(ctx, a, repo, teamCfg, configureTeam, configureLocal); err != nil {
-			return err
-		}
+		return configureGitLab(ctx, a, p, repo, teamCfg, configureTeam, configureLocal)
 	case 1: // Jira
-		if err := configureJira(ctx, a, repo, teamCfg, configureTeam, configureLocal); err != nil {
-			return err
-		}
+		return configureJira(ctx, a, p, repo, teamCfg, configureTeam, configureLocal)
 	case 2: // Figma
-		if err := configureFigma(ctx, a, repo, teamCfg, configureTeam, configureLocal); err != nil {
-			return err
-		}
+		return configureFigma(ctx, a, p, repo, teamCfg, configureTeam, configureLocal)
 	case 3: // Tracker sync
-		if err := configureTrackerSync(ctx, a, repo, teamCfg, configureTeam, configureLocal); err != nil {
-			return err
-		}
+		return configureTrackerSync(ctx, a, p, repo, teamCfg, configureTeam, configureLocal)
 	case 4: // Tout afficher
 		return runTeamConfigStatus(cmd, nil)
 	}
@@ -117,7 +118,39 @@ func runTeamConfigWizard(cmd *cobra.Command, _ []string) error {
 // Service configuration helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-func configureGitLab(ctx context.Context, a *app.App, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
+// saveTeamConfig writes the changes made to teamCfg since base (the config as
+// it was read) on top of the latest config.toml. Nothing is written once the
+// answers were cut short. A setting a colleague changed meanwhile is not
+// overwritten: the assistant says so and stops. format wraps another failure
+// (it takes the error as its %w).
+func saveTeamConfig(ctx context.Context, p *prompter, repo teamstate.ConfigWriter, base, teamCfg *teamstate.TeamConfig, format string) error {
+	if err := p.failed(); err != nil {
+		return err
+	}
+	err := repo.UpdateConfigFrom(ctx, base, teamCfg)
+	if c, ok := teamstate.IsConfigConflict(err); ok {
+		return errors.New(i18n.Tf("v533b.team_config.conflict_cli", strings.Join(c.Keys, ", ")))
+	}
+	if err != nil {
+		return fmt.Errorf(format, err)
+	}
+	return nil
+}
+
+// recommendation asks whether the team uses a service: yes, no, or no
+// recommendation at all (the setting stays absent), starting from the current
+// one.
+func recommendation(p *prompter, prompt string, current *bool) *bool {
+	return askTriState(p, prompt, current, i18n.T("v533b.team_config.no_recommendation"))
+}
+
+// inheritLabel words the choice of inheriting a setting of the team, with the
+// value it has there.
+func inheritLabel(teamValue bool) string {
+	return i18n.Tf("v533b.team_config.inherit", boolWord(teamValue))
+}
+
+func configureGitLab(ctx context.Context, a *app.App, p *prompter, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
 
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.gitlab_configuration", theme.Title.Render(glyph.Current)))
@@ -126,29 +159,29 @@ func configureGitLab(ctx context.Context, a *app.App, repo teamstate.ConfigWrite
 	if configTeam {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.team_configuration", theme.Bold.Render("→")))
 
+		base := teamstate.CloneConfig(teamCfg)
 		if teamCfg.MCP == nil {
 			teamCfg.MCP = make(map[string]teamstate.SharedMCPConfig)
 		}
 		shared := teamCfg.MCP["gitlab"]
 
 		// URL
-		url := askInput(out, i18n.T("cmd.team_config.gitlab_url_leave_empty_for_gitlab"), shared.URL)
+		url := clearable(askInput(p, i18n.T("cmd.team_config.gitlab_url_leave_empty_for_gitlab"), shared.URL))
 		if url == "https://gitlab.com" {
 			url = "" // store empty to mean "use default"
 		}
 		shared.URL = url
 
-		// Enabled
-		enabledRec := askYN(out, i18n.T("cmd.team_config.does_the_team_use_gitlab"), shared.Enabled == nil || *shared.Enabled)
-		shared.Enabled = &enabledRec
+		// Enabled: a recommendation of the team, or none
+		shared.Enabled = recommendation(p, i18n.T("cmd.team_config.does_the_team_use_gitlab"), shared.Enabled)
 
 		// WriteRecommended
-		shared.WriteRecommended = askYN(out, i18n.T("cmd.team_config.recommend_write_enabled_for_the_team"), shared.WriteRecommended)
+		shared.WriteRecommended = askYN(p, i18n.T("cmd.team_config.recommend_write_enabled_for_the_team"), shared.WriteRecommended)
 
 		teamCfg.MCP["gitlab"] = shared
 
-		if err := repo.SaveConfig(ctx, teamCfg); err != nil {
-			return fmt.Errorf(i18n.T("cmd.team_config.saving_the_team_config"), err)
+		if err := saveTeamConfig(ctx, p, repo, base, teamCfg, i18n.T("cmd.team_config.saving_the_team_config")); err != nil {
+			return err
 		}
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.gitlab_team_config_saved", cliout.SuccessIcon()))
 	}
@@ -156,113 +189,147 @@ func configureGitLab(ctx context.Context, a *app.App, repo teamstate.ConfigWrite
 	// ── Config locale ──────────────────────────────────────────────────────────
 	if configLocal {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.local_configuration", theme.Bold.Render("→")))
+		edits := &localEdits{}
 
 		// Test de connexion avec les credentials actuels du GitLab du MCP
 		src := mcpGitLabCredentials(ctx, a, teamCfg)
 		if err := testAndDisplayConnection(ctx, out, src, tracker.TypeGitLab); err != nil {
-			if askYN(out, i18n.T("cmd.team_config.set_up_a_new_gitlab_token"), true) {
-				tokenKey := askInput(out, i18n.T("cmd.team_config.key_name_in_the_keychain_e"), a.Config.MCP.Gitlab.Token)
+			if askYN(p, i18n.T("cmd.team_config.set_up_a_new_gitlab_token"), true) {
+				tokenKey := strings.TrimSpace(askInput(p, i18n.T("cmd.team_config.key_name_in_the_keychain_e"), a.Config.MCP.Gitlab.Token))
 				fmt.Fprint(out, i18n.Tf("cmd.team_config.to_store_the_token", theme.Bold.Render("oh secrets set "+tokenKey)))
-				writeLocalLog(a.IO, config.ConfigPath(), "mcp.gitlab.token_key", tokenKey)
-				writeLocalLog(a.IO, config.ConfigPath(), "mcp.gitlab.enabled", "true")
+				if tokenKey != "" {
+					edits.set("mcp.gitlab.token_key", tokenKey)
+					edits.set("mcp.gitlab.enabled", "true")
+				}
 				// The token is only used for the server declared for the GitLab MCP.
-				mcpURL := askInput(out, i18n.T("cmd.team_config.gitlab_server_of_the_key"), src.URL)
+				mcpURL := strings.TrimSpace(askInput(p, i18n.T("cmd.team_config.gitlab_server_of_the_key"), src.URL))
 				if tracker.ServerOf(mcpURL) != "" {
-					if err := updateHubConfig(a, func(c *config.Config) error {
+					edits.change(func(c *config.Config) error {
 						c.MCP.Gitlab.URL = mcpURL
 						return nil
-					}); err != nil {
-						fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_config.warning", err))
-					}
+					})
 				}
 			}
 		}
 
 		// write_enabled
-		writeEnabled := askYN(out, i18n.T("cmd.team_config.enable_write_enabled_mr_creation_label"), a.Config.MCP.Gitlab.WriteEnabled)
-		writeLocalLog(a.IO, config.ConfigPath(), "mcp.gitlab.write_enabled", fmt.Sprintf("%v", writeEnabled))
+		writeEnabled := askYN(p, i18n.T("cmd.team_config.enable_write_enabled_mr_creation_label"), a.Config.MCP.Gitlab.WriteEnabled)
+		if writeEnabled != a.Config.MCP.Gitlab.WriteEnabled {
+			edits.set("mcp.gitlab.write_enabled", strconv.FormatBool(writeEnabled))
+		}
 
+		if err := finishLocal(a, p, edits); err != nil {
+			return err
+		}
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.gitlab_local_config_saved", cliout.SuccessIcon()))
 	}
 
 	return nil
 }
 
-func configureJira(ctx context.Context, a *app.App, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
+// finishLocal writes the local changes of an assistant, unless its answers were
+// cut short.
+func finishLocal(a *app.App, p *prompter, edits *localEdits) error {
+	if err := p.failed(); err != nil {
+		return err
+	}
+	if err := edits.apply(a); err != nil {
+		return fmt.Errorf("%s", i18n.Tf("cmd.team_config.warning", err))
+	}
+	return nil
+}
+
+func configureJira(ctx context.Context, a *app.App, p *prompter, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
 
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.jira_configuration", theme.Title.Render(glyph.Current)))
 
 	if configTeam {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.team_configuration", theme.Bold.Render("→")))
+		base := teamstate.CloneConfig(teamCfg)
 		if teamCfg.MCP == nil {
 			teamCfg.MCP = make(map[string]teamstate.SharedMCPConfig)
 		}
 		shared := teamCfg.MCP["jira"]
 
-		url := askInput(out, i18n.T("cmd.team_config.jira_url_e_g_https_yourcompany"), shared.URL)
-		shared.URL = url
-
-		enabledRec := askYN(out, i18n.T("cmd.team_config.does_the_team_use_jira"), shared.Enabled == nil || *shared.Enabled)
-		shared.Enabled = &enabledRec
+		shared.URL = clearable(askInput(p, i18n.T("cmd.team_config.jira_url_e_g_https_yourcompany"), shared.URL))
+		shared.Enabled = recommendation(p, i18n.T("cmd.team_config.does_the_team_use_jira"), shared.Enabled)
 
 		teamCfg.MCP["jira"] = shared
 
-		if err := repo.SaveConfig(ctx, teamCfg); err != nil {
-			return fmt.Errorf(i18n.T("cmd.team_config.saving_the_team_config"), err)
+		if err := saveTeamConfig(ctx, p, repo, base, teamCfg, i18n.T("cmd.team_config.saving_the_team_config")); err != nil {
+			return err
 		}
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.jira_team_config_saved", cliout.SuccessIcon()))
 	}
 
 	if configLocal {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.local_configuration", theme.Bold.Render("→")))
+		edits := &localEdits{}
 		src := trackerCredentials(ctx, a, teamCfg)
 		if err := testAndDisplayConnection(ctx, out, src, tracker.TypeJira); err != nil {
-			if askYN(out, i18n.T("cmd.team_config.set_up_a_new_jira_token"), true) {
-				tokenKey := askInput(out, i18n.T("cmd.team_config.key_name_in_the_keychain_e_2"), a.Config.MCP.Jira.Token)
+			if askYN(p, i18n.T("cmd.team_config.set_up_a_new_jira_token"), true) {
+				tokenKey := strings.TrimSpace(askInput(p, i18n.T("cmd.team_config.key_name_in_the_keychain_e_2"), a.Config.MCP.Jira.Token))
 				fmt.Fprint(out, i18n.Tf("cmd.team_config.to_store_the_token", theme.Bold.Render("oh secrets set "+tokenKey)))
-				writeLocalLog(a.IO, config.ConfigPath(), "mcp.jira.token_key", tokenKey)
-				writeLocalLog(a.IO, config.ConfigPath(), "mcp.jira.enabled", "true")
+				if tokenKey != "" {
+					edits.set("mcp.jira.token_key", tokenKey)
+					edits.set("mcp.jira.enabled", "true")
+				}
 			}
 		}
-		writeEnabled := askYN(out, i18n.T("cmd.team_config.enable_write_enabled_label_push"), a.Config.MCP.Jira.WriteEnabled)
-		writeLocalLog(a.IO, config.ConfigPath(), "mcp.jira.write_enabled", fmt.Sprintf("%v", writeEnabled))
+		writeEnabled := askYN(p, i18n.T("cmd.team_config.enable_write_enabled_label_push"), a.Config.MCP.Jira.WriteEnabled)
+		if writeEnabled != a.Config.MCP.Jira.WriteEnabled {
+			edits.change(func(c *config.Config) error {
+				c.MCP.Jira.WriteEnabled = writeEnabled
+				return nil
+			})
+			edits.said = append(edits.said, i18n.Tf("cmd.team_config.updated", config.ConfigPath(), "mcp.jira.write_enabled", strconv.FormatBool(writeEnabled)))
+		}
+		if err := finishLocal(a, p, edits); err != nil {
+			return err
+		}
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.jira_local_config_saved", cliout.SuccessIcon()))
 	}
 
 	return nil
 }
 
-func configureFigma(ctx context.Context, a *app.App, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
+func configureFigma(ctx context.Context, a *app.App, p *prompter, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
 
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.figma_configuration", theme.Title.Render(glyph.Current)))
 
 	if configTeam {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.team_configuration", theme.Bold.Render("→")))
+		base := teamstate.CloneConfig(teamCfg)
 		if teamCfg.MCP == nil {
 			teamCfg.MCP = make(map[string]teamstate.SharedMCPConfig)
 		}
 		shared := teamCfg.MCP["figma"]
-		enabledRec := askYN(out, i18n.T("cmd.team_config.does_the_team_use_figma"), shared.Enabled == nil || *shared.Enabled)
-		shared.Enabled = &enabledRec
+		shared.Enabled = recommendation(p, i18n.T("cmd.team_config.does_the_team_use_figma"), shared.Enabled)
 		// No URL: the Figma server always calls api.figma.com. A URL already
 		// recorded is left as it is and ignored.
 		teamCfg.MCP["figma"] = shared
 
-		if err := repo.SaveConfig(ctx, teamCfg); err != nil {
-			return fmt.Errorf(i18n.T("cmd.team_config.saving_the_team_config"), err)
+		if err := saveTeamConfig(ctx, p, repo, base, teamCfg, i18n.T("cmd.team_config.saving_the_team_config")); err != nil {
+			return err
 		}
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.figma_team_config_saved", cliout.SuccessIcon()))
 	}
 
 	if configLocal {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.local_configuration", theme.Bold.Render("→")))
-		tokenKey := askInput(out, i18n.T("cmd.team_config.key_name_in_the_keychain_e_3"), a.Config.MCP.Figma.Token)
+		edits := &localEdits{}
+		tokenKey := strings.TrimSpace(askInput(p, i18n.T("cmd.team_config.key_name_in_the_keychain_e_3"), a.Config.MCP.Figma.Token))
 		if tokenKey != "" {
 			fmt.Fprint(out, i18n.Tf("cmd.team_config.to_store_the_token", theme.Bold.Render("oh secrets set "+tokenKey)))
-			writeLocalLog(a.IO, config.ConfigPath(), "mcp.figma.token_key", tokenKey)
-			writeLocalLog(a.IO, config.ConfigPath(), "mcp.figma.enabled", "true")
+			edits.set("mcp.figma.token_key", tokenKey)
+			edits.set("mcp.figma.enabled", "true")
+		}
+		if err := finishLocal(a, p, edits); err != nil {
+			return err
+		}
+		if tokenKey != "" {
 			fmt.Fprint(out, i18n.Tf("cmd.team_config.figma_local_config_saved", cliout.SuccessIcon()))
 		}
 	}
@@ -270,17 +337,27 @@ func configureFigma(ctx context.Context, a *app.App, repo teamstate.ConfigWriter
 	return nil
 }
 
-func configureTrackerSync(ctx context.Context, a *app.App, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
+func configureTrackerSync(ctx context.Context, a *app.App, p *prompter, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
 
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.tracker_sync_configuration", theme.Title.Render(glyph.Current)))
 
 	if configTeam {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.team_configuration", theme.Bold.Render("→")))
+		base := teamstate.CloneConfig(teamCfg)
 
-		// Type
-		typeIdx := askSelect(out, i18n.T("cmd.team_config.tracker_type"), []string{"GitLab", "Jira"})
+		// Type: Enter keeps the one of the team; a team without one has to say.
 		trackerTypes := []string{"gitlab", "jira"}
+		currentType := -1
+		for i, t := range trackerTypes {
+			if teamCfg.Tracker.Type == t {
+				currentType = i
+			}
+		}
+		typeIdx := askSelect(p, i18n.T("cmd.team_config.tracker_type"), []string{"GitLab", "Jira"}, currentType)
+		if err := p.failed(); err != nil {
+			return err
+		}
 		teamCfg.Tracker.Type = trackerTypes[typeIdx]
 
 		// Tracker URL
@@ -293,23 +370,26 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo teamstate.Config
 				defaultURL = a.Config.MCP.Jira.URL
 			}
 		}
-		trackerURL := askInput(out, i18n.T("cmd.team_config.instance_url_e_g_https_gitlab"), defaultURL)
+		trackerURL := clearable(askInput(p, i18n.T("cmd.team_config.instance_url_e_g_https_gitlab"), defaultURL))
 		teamCfg.Tracker.TrackerURL = trackerURL
 
 		// Tracker token — where it is (key and server), said by the user:
 		// nothing is filled in on their behalf.
-		ask := func(prompt, def string) string { return askInput(out, prompt, def) }
+		ask := func(prompt, def string) string { return askInput(p, prompt, def) }
 		teamCfg.Tracker.TrackerTokenKey, teamCfg.Tracker.TrackerTokenURL = askTrackerTokenDecl(
 			out, ask, declTeam, teamCfg.Tracker.Type, teamCfg.Tracker.TrackerTokenKey, teamCfg.Tracker.TrackerTokenURL)
+		if err := p.failed(); err != nil {
+			return err
+		}
 
 		// Check if token exists, prompt if not
 		src := trackerCredentials(ctx, a, teamCfg)
 		trackerType := tracker.Type(teamCfg.Tracker.Type)
 		fmt.Fprint(out, i18n.T("cmd.team_config.testing_the_connection"))
 		if err := testAndDisplayConnection(ctx, out, src, trackerType); err != nil {
-			if askYN(out, i18n.T("cmd.team_config.set_up_a_token_for_this"), true) {
-				token := askInput(out, "Token d'accès "+teamCfg.Tracker.Type, "")
-				if token != "" {
+			if askYN(p, i18n.T("cmd.team_config.set_up_a_token_for_this"), true) {
+				token := askInput(p, i18n.Tf("v533b.team_config.access_token", teamCfg.Tracker.Type), "")
+				if token != "" && p.failed() == nil {
 					tokenKey := teamCfg.Tracker.TrackerTokenKey
 					if tokenKey == "" {
 						// No key declared: the default key is where GitLab reads it for
@@ -334,32 +414,38 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo teamstate.Config
 		}
 
 		// Enabled
-		teamCfg.Tracker.Enabled = askYN(out, i18n.T("cmd.team_config.enable_the_tracker_sync_for_the"), teamCfg.Tracker.Enabled)
+		teamCfg.Tracker.Enabled = askYN(p, i18n.T("cmd.team_config.enable_the_tracker_sync_for_the"), teamCfg.Tracker.Enabled)
 
 		// Auto-plan
-		teamCfg.Tracker.AutoPlanAssigned = askYN(out, i18n.T("cmd.team_config.auto_create_planned_claims_for_assigned"), teamCfg.Tracker.AutoPlanAssigned)
+		teamCfg.Tracker.AutoPlanAssigned = askYN(p, i18n.T("cmd.team_config.auto_create_planned_claims_for_assigned"), teamCfg.Tracker.AutoPlanAssigned)
 
 		// Work-in-progress limit (0 = no limit); writing it also replaces the
 		// former max_auto_plan_per_member of the file.
-		maxStr := askInput(out, i18n.T("cmd.team_config.max_in_progress_per_member"), strconv.Itoa(teamCfg.Tracker.InProgressLimit()))
-		if n, err := strconv.Atoi(strings.TrimSpace(maxStr)); err == nil && n >= 0 {
+		current := teamCfg.Tracker.InProgressLimit()
+		maxStr := strings.TrimSpace(askInput(p, i18n.T("cmd.team_config.max_in_progress_per_member"), strconv.Itoa(current)))
+		if n, err := strconv.Atoi(maxStr); err != nil || n < 0 {
+			fmt.Fprint(out, i18n.Tf("v533b.team_config.invalid_limit", cliout.WarnIcon(), maxStr, current))
+		} else if n != current {
 			teamCfg.Tracker.MaxInProgressPerMember = &n
 		}
 
 		// Push labels
-		teamCfg.Tracker.PushLabels = askYN(out, i18n.T("cmd.team_config.recommend_pushing_labels_to_the_tracker"), teamCfg.Tracker.PushLabels)
+		teamCfg.Tracker.PushLabels = askYN(p, i18n.T("cmd.team_config.recommend_pushing_labels_to_the_tracker"), teamCfg.Tracker.PushLabels)
 
 		// Auto-sync
-		teamCfg.Tracker.AutoSync = askYN(out, i18n.T("cmd.team_config.enable_the_automatic_sync_when_views"), teamCfg.Tracker.AutoSync)
+		teamCfg.Tracker.AutoSync = askYN(p, i18n.T("cmd.team_config.enable_the_automatic_sync_when_views"), teamCfg.Tracker.AutoSync)
 
 		// Projet tracker par défaut
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.default_tracker_project", theme.Bold.Render("→")))
-		trackerProject := askInput(out, i18n.T("cmd.team_config.project_id_or_path_on_the"), teamCfg.Tracker.TrackerProject)
+		trackerProject := clearable(askInput(p, i18n.T("cmd.team_config.project_id_or_path_on_the"), teamCfg.Tracker.TrackerProject))
 		teamCfg.Tracker.TrackerProject = trackerProject
+		if err := p.failed(); err != nil {
+			return err
+		}
 
 		// ── Discovery: fetch labels/statuses and suggest mappings ─────────
 		if trackerProject != "" && teamCfg.Tracker.Type != "" {
-			if askYN(out, i18n.T("cmd.team_config.run_the_discovery_of_the_tracker"), true) {
+			if askYN(p, i18n.T("cmd.team_config.run_the_discovery_of_the_tracker"), true) {
 				fmt.Fprint(out, i18n.Tf("cmd.team_config.project_discovery", theme.Bold.Render("→")))
 
 				// Build tracker client for discovery.
@@ -396,13 +482,13 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo teamstate.Config
 								}
 
 								var acceptedMappings []tracker.SuggestedMapping
-								if askYN(out, i18n.Tf("cmd.team_config.accept_the_suggested_mappings", len(mappings)), true) {
+								if askYN(p, i18n.Tf("cmd.team_config.accept_the_suggested_mappings", len(mappings)), true) {
 									acceptedMappings = mappings
 								} else {
 									fmt.Fprint(out, i18n.T("cmd.team_config.individual_confirmation"))
 									for _, m := range mappings {
 										label := fmt.Sprintf("    %s → %s (%s)", m.Source, m.ColumnID, m.Confidence)
-										if askYN(out, label, true) {
+										if askYN(p, label, true) {
 											acceptedMappings = append(acceptedMappings, m)
 										}
 									}
@@ -440,7 +526,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo teamstate.Config
 								if len(poolLabels) > 0 {
 									fmt.Fprint(out, i18n.Tf("cmd.team_config.pool_tickets", theme.Bold.Render("→")))
 									fmt.Fprint(out, i18n.Tf("cmd.team_config.labels_detected_as_ready", strings.Join(poolLabels, ", ")))
-									if askYN(out, i18n.T("cmd.team_config.show_these_tickets_on_the_board"), true) {
+									if askYN(p, i18n.T("cmd.team_config.show_these_tickets_on_the_board"), true) {
 										teamCfg.Tracker.AutoPlanUnassigned = true
 										teamCfg.Tracker.UnassignedLabels = poolLabels
 										fmt.Fprint(out, i18n.Tf("cmd.team_config.pool_configured", cliout.SuccessIcon(), strings.Join(poolLabels, ", ")))
@@ -453,7 +539,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo teamstate.Config
 							if len(newCols) > 0 {
 								fmt.Fprint(out, i18n.Tf("cmd.team_config.suggested_columns", theme.Bold.Render("→")))
 								for _, c := range newCols {
-									if askYN(out, i18n.Tf("cmd.team_config.add_the_column", c.Name, c.Role), true) {
+									if askYN(p, i18n.Tf("cmd.team_config.add_the_column", c.Name, c.Role), true) {
 										existingCols = append(existingCols, c)
 									}
 								}
@@ -465,30 +551,25 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo teamstate.Config
 			}
 		}
 
-		if err := repo.SaveConfig(ctx, teamCfg); err != nil {
-			return fmt.Errorf(i18n.T("cmd.team_config.saving_the_tracker_config"), err)
+		if err := saveTeamConfig(ctx, p, repo, base, teamCfg, i18n.T("cmd.team_config.saving_the_tracker_config")); err != nil {
+			return err
 		}
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.team_tracker_config_saved", cliout.SuccessIcon()))
 	}
 
 	if configLocal {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.local_configuration_overrides", theme.Bold.Render("→")))
-		fmt.Fprint(out, i18n.T("cmd.team_config.leave_empty_inherit_the_team_config"))
+		fmt.Fprint(out, i18n.T("v533b.team_config.local_hint"))
+		edits := &localEdits{}
+		local := a.Config.Tracker
 
 		// enabled override
-		if askYN(out, i18n.T("cmd.team_config.disable_the_tracker_sync_locally"), false) {
-			writeLocalLog(a.IO, config.ConfigPath(), "tracker.enabled", "false")
-		} else {
-			writeLocalLog(a.IO, config.ConfigPath(), "tracker.enabled", "true")
-		}
+		edits.tri("tracker.enabled", local.Enabled,
+			askTriState(p, i18n.T("v533b.team_config.local_enabled"), local.Enabled, inheritLabel(teamCfg.Tracker.Enabled)))
 
 		// auto_sync override
-		sharedAutoSync := teamCfg.Tracker.AutoSync
-		if askYN(out, i18n.Tf("cmd.team_config.automatic_sync_team", sharedAutoSync), sharedAutoSync) {
-			writeLocalLog(a.IO, config.ConfigPath(), "tracker.auto_sync", "true")
-		} else {
-			writeLocalLog(a.IO, config.ConfigPath(), "tracker.auto_sync", "false")
-		}
+		edits.tri("tracker.auto_sync", local.AutoSync,
+			askTriState(p, i18n.T("v533b.team_config.local_auto_sync"), local.AutoSync, inheritLabel(teamCfg.Tracker.AutoSync)))
 
 		// push_labels override
 		sharedPush := teamCfg.Tracker.PushLabels
@@ -498,36 +579,41 @@ func configureTrackerSync(ctx context.Context, a *app.App, repo teamstate.Config
 			fmt.Fprint(out, i18n.Tf("cmd.team_config.push_labels_is_recommended_by_the", cliout.WarnIcon()))
 			fmt.Fprint(out, i18n.Tf("cmd.team_config.enable_write_enabled_in_mcp_to", teamCfg.Tracker.Type))
 		} else if writeEnabled {
-			if askYN(out, i18n.Tf("cmd.team_config.push_labels_prompt", sharedPush), sharedPush) {
-				writeLocalLog(a.IO, config.ConfigPath(), "tracker.push_labels", "true")
-			} else {
-				writeLocalLog(a.IO, config.ConfigPath(), "tracker.push_labels", "false")
-			}
+			edits.tri("tracker.push_labels", local.PushLabels,
+				askTriState(p, i18n.T("v533b.team_config.local_push_labels"), local.PushLabels, inheritLabel(sharedPush)))
 		}
 
 		// the personal declaration of the token (key and server together)
-		curKey, curServer := a.Config.Tracker.TokenDecl()
-		key, server := askTrackerTokenDecl(out, func(prompt, def string) string { return askInput(out, prompt, def) },
+		curKey, curServer := local.TokenDecl()
+		key, server := askTrackerTokenDecl(out, func(prompt, def string) string { return askInput(p, prompt, def) },
 			declLocal, teamCfg.Tracker.Type, curKey, curServer)
 		if key != curKey || server != curServer {
-			if err := updateHubConfig(a, func(c *config.Config) error {
+			edits.change(func(c *config.Config) error {
 				c.Tracker.SetTokenDecl(key, server)
 				return nil
-			}); err != nil {
-				fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_config.warning", err))
-			}
+			})
 		}
 
 		// the real GitLab of the team repository, when its remote is an SSH alias
-		if tc := a.Config.ActiveTeam(); tc.StateRepo != "" && !teamstate.IsHTTPS(tc.StateRepo) {
-			url := askTeamGitLabURL(out, func(prompt, def string) string { return askInput(out, prompt, def) }, tc.GitLabURL)
-			if url != tc.GitLabURL {
-				if err := setTeamGitLabURL(a, tc.ID, url); err != nil {
-					fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_config.warning", err))
-				}
+		var gitlabURL string
+		tc := a.Config.ActiveTeam()
+		if tc.StateRepo != "" && !teamstate.IsHTTPS(tc.StateRepo) {
+			gitlabURL = askTeamGitLabURL(out, func(prompt, def string) string { return askInput(p, prompt, def) }, tc.GitLabURL)
+			if gitlabURL != tc.GitLabURL {
+				edits.change(func(c *config.Config) error {
+					t := c.FindTeam(tc.ID)
+					if t == nil {
+						return fmt.Errorf("%s", i18n.Tf("tui.team.detail.team_not_in_hub", tc.ID))
+					}
+					t.GitLabURL = gitlabURL
+					return nil
+				})
 			}
 		}
 
+		if err := finishLocal(a, p, edits); err != nil {
+			return err
+		}
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.tracker_local_config_saved", cliout.SuccessIcon()))
 	}
 
@@ -550,12 +636,16 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 	tc := resolvedTeamConfig(a, project)
 
 	// Load team-state config (optional — degrades gracefully if not configured).
+	// This command only reads: it writes nothing, to the team-state nor to hub.toml.
 	var teamCfg *teamstate.TeamConfig
-	var repo mcpTrackerStore
 	if tc.Enabled && tc.StatePath != "" {
-		repo = teamstate.NewRepo(tc.StateRepo, tc.StatePath)
+		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 		if repo.IsCloned() {
-			teamCfg, _ = repo.LoadConfig(ctx)
+			var err error
+			if teamCfg, err = repo.LoadConfig(ctx); err != nil {
+				fmt.Fprint(out, i18n.Tf("v533b.team_config.status_unreadable", cliout.WarnIcon(), err))
+				teamCfg = nil
+			}
 		}
 	}
 
@@ -626,11 +716,6 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 	}
 
 	fmt.Fprintln(out)
-
-	// ── Orphan member check ──────────────────────────────────────────────────
-	if repo != nil && repo.IsCloned() {
-		checkAndCleanOrphanMembers(ctx, a, out, repo)
-	}
 
 	return nil
 }
@@ -796,283 +881,6 @@ func testAndDisplayConnection(ctx context.Context, out interface{ Write([]byte) 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Orphan member detection + cleanup
-// ─────────────────────────────────────────────────────────────────────────────
-
-// memberRegistry is what cleaning the orphan members asks of the team-state:
-// the members to list, remove and merge.
-type memberRegistry interface {
-	teamstate.MemberReader
-	teamstate.MemberWriter
-}
-
-// mcpTrackerStore is what the configuration of the MCP and tracker asks of
-// the team-state: its configuration and its members.
-type mcpTrackerStore interface {
-	teamstate.RepoInfo
-	teamstate.ConfigReader
-	memberRegistry
-}
-
-// checkAndCleanOrphanMembers detects members in members.toml that are not
-// referenced as member_id in any active configuration (hub or project), displays
-// an insight for each, and offers to delete or merge them interactively.
-func checkAndCleanOrphanMembers(ctx context.Context, a *app.App, out interface{ Write([]byte) (int, error) }, repo memberRegistry) {
-	members, err := repo.ListMembers(ctx)
-	if err != nil || len(members) == 0 {
-		return
-	}
-
-	used := collectUsedMemberIDs(ctx, a)
-
-	var orphans []teamstate.Member
-	for _, m := range members {
-		if !used[m.ID] {
-			orphans = append(orphans, m)
-		}
-	}
-	if len(orphans) == 0 {
-		return
-	}
-
-	fmt.Fprintf(out, "\n%s\n", theme.Bold.Render("Membres orphelins"))
-	for _, m := range orphans {
-		fmt.Fprint(out, i18n.Tf("cmd.team_config.member_gitlab_is_in_the_registry", theme.Subtitle.Render("ℹ"), m.ID, m.DisplayName, m.GitLabUsername))
-	}
-
-	// Offer cleanup for each orphan
-	for _, orphan := range orphans {
-		fmt.Fprint(out, i18n.Tf("cmd.team_config.what_to_do_with", orphan.ID))
-		choice := askSelect(out, "", []string{
-			i18n.T("cmd.team_config.remove_from_the_registry"),
-			i18n.T("cmd.team_config.merge_with_an_active_member"),
-			"Ignorer",
-		})
-
-		switch choice {
-		case 0: // Supprimer
-			if err := repo.RemoveMember(ctx, orphan.ID); err != nil {
-				fmt.Fprint(out, i18n.Tf("cmd.team_config.orphan_error", theme.ErrorStyle.Render(glyph.Failure), err))
-				continue
-			}
-			fmt.Fprint(out, i18n.Tf("cmd.team_config.member_removed", cliout.SuccessIcon(), orphan.ID))
-
-		case 1: // Fusionner
-			if err := mergeOrphanMember(ctx, out, repo, orphan, members); err != nil {
-				fmt.Fprint(out, i18n.Tf("cmd.team_config.merge_cancelled", cliout.WarnIcon(), err))
-			}
-
-		case 2: // Ignorer
-			fmt.Fprint(out, i18n.T("cmd.team_config.orphan_skipped"))
-		}
-	}
-}
-
-// mergeOrphanMember guides the user through merging an orphan member into an
-// active member. Non-empty fields of the orphan are offered to fill gaps in the
-// active member; when both have conflicting values the user chooses which to keep.
-func mergeOrphanMember(ctx context.Context, out interface{ Write([]byte) (int, error) }, repo memberRegistry, orphan teamstate.Member, allMembers []teamstate.Member) error {
-	// Build list of candidates (active members, i.e. not the orphan itself)
-	var candidates []teamstate.Member
-	for _, m := range allMembers {
-		if m.ID != orphan.ID {
-			candidates = append(candidates, m)
-		}
-	}
-	if len(candidates) == 0 {
-		return errors.New(i18n.T("cmd.team_config.no_other_member_available_for_the"))
-	}
-
-	// Let the user pick the target
-	names := make([]string, len(candidates))
-	for i, c := range candidates {
-		names[i] = fmt.Sprintf("%s (%s)", c.ID, c.DisplayName)
-	}
-	idx := askSelect(out, i18n.T("cmd.team_config.merge_with_which_member"), names)
-	target := candidates[idx]
-
-	// Merge: for each field, if target is empty and orphan is not → copy automatically.
-	// If both have different non-empty values → ask which to keep.
-	merged := target
-
-	merged.DisplayName = resolveField(out, "display_name", target.DisplayName, orphan.DisplayName)
-	merged.GitLabUsername = resolveField(out, "gitlab_username", target.GitLabUsername, orphan.GitLabUsername)
-	merged.MattermostUsername = resolveField(out, "mattermost_username", target.MattermostUsername, orphan.MattermostUsername)
-	merged.TrackerUsername = resolveField(out, "tracker_username", target.TrackerUsername, orphan.TrackerUsername)
-	merged.Role = resolveField(out, "role", target.Role, orphan.Role)
-
-	// Preview
-	fmt.Fprint(out, i18n.Tf("cmd.team_config.merge_result_for", merged.ID))
-	fmt.Fprintf(out, "    display_name:        %s\n", merged.DisplayName)
-	fmt.Fprintf(out, "    gitlab_username:     %s\n", merged.GitLabUsername)
-	fmt.Fprintf(out, "    mattermost_username: %s\n", merged.MattermostUsername)
-	fmt.Fprintf(out, "    tracker_username:    %s\n", merged.TrackerUsername)
-	fmt.Fprintf(out, "    role:                %s\n", merged.Role)
-
-	if !askYN(out, i18n.T("cmd.team_config.confirm_the_merge"), true) {
-		return errors.New(i18n.T("cmd.team_config.merge_cancelled_by_the_user"))
-	}
-
-	// Apply: update target member, remove orphan
-	if err := repo.UpdateMember(ctx, merged); err != nil {
-		return fmt.Errorf(i18n.T("cmd.team_config.updating_the_member"), err)
-	}
-	if err := repo.RemoveMember(ctx, orphan.ID); err != nil {
-		return fmt.Errorf(i18n.T("cmd.team_config.removing_the_orphan"), err)
-	}
-
-	fmt.Fprint(out, i18n.Tf("cmd.team_config.merge_done", cliout.SuccessIcon()))
-
-	fmt.Fprint(out, i18n.Tf("cmd.team_config.members_merged", cliout.SuccessIcon()))
-	return nil
-}
-
-// resolveField returns the value to use for a member field after merge.
-// If only one side has a non-empty value → use it automatically.
-// If both differ → ask the user to choose.
-func resolveField(out interface{ Write([]byte) (int, error) }, fieldName, target, source string) string {
-	target = strings.TrimSpace(target)
-	source = strings.TrimSpace(source)
-
-	switch {
-	case target == "" && source == "":
-		return ""
-	case target == "" && source != "":
-		return source // auto-fill from orphan
-	case target != "" && source == "":
-		return target // target already has a value
-	case target == source:
-		return target // same value, no conflict
-	default:
-		// Conflict — ask the user
-		fmt.Fprint(out, i18n.Tf("cmd.team_config.conflict_on_1_active_member_2", fieldName, target, source))
-		choice := askSelect(out, i18n.T("cmd.team_config.which_value_to_keep"), []string{target, source})
-		if choice == 1 {
-			return source
-		}
-		return target
-	}
-}
-
-// coerceValue converts string representations of booleans and integers
-// to their native Go types so that TOML marshaling produces the correct
-// syntax (e.g., enabled = true instead of enabled = "true").
-func coerceValue(s string) interface{} {
-	if s == "true" {
-		return true
-	}
-	if s == "false" {
-		return false
-	}
-	if i, err := strconv.Atoi(s); err == nil {
-		return i
-	}
-	return s
-}
-
-// writeLocalLog calls writeLocal and logs any error to stderr.
-// Used by interactive config commands where write failures are non-fatal
-// but should be visible to the user.
-func writeLocalLog(streams *app.IOStreams, configPath, keyPath, value string) {
-	if err := writeLocal(streams.Out, configPath, keyPath, value); err != nil {
-		fmt.Fprint(streams.ErrOut, i18n.Tf("cmd.team_config.warning", err))
-	}
-}
-
-// reading the file, updating the value, and rewriting. This is intentionally
-// simple — for complex edits the user can edit hub.toml directly.
-func writeLocal(w io.Writer, configPath, keyPath, value string) error {
-	// Read current content
-	data, err := os.ReadFile(configPath)
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("reading %s: %w", configPath, err)
-	}
-
-	// Parse existing TOML into a nested map
-	var tree map[string]interface{}
-	if len(data) > 0 {
-		if err := toml.Unmarshal(data, &tree); err != nil {
-			return fmt.Errorf("parsing %s: %w", configPath, err)
-		}
-	}
-	if tree == nil {
-		tree = make(map[string]interface{})
-	}
-
-	// Navigate the key path and set the value
-	parts := strings.Split(keyPath, ".")
-	current := tree
-	for i := 0; i < len(parts)-1; i++ {
-		child, ok := current[parts[i]]
-		if !ok {
-			// Create intermediate table
-			newTable := make(map[string]interface{})
-			current[parts[i]] = newTable
-			current = newTable
-		} else if childMap, ok := child.(map[string]interface{}); ok {
-			current = childMap
-		} else {
-			return fmt.Errorf(i18n.T("cmd.team_config.is_not_a_toml_table"), strings.Join(parts[:i+1], "."))
-		}
-	}
-	current[parts[len(parts)-1]] = coerceValue(value)
-
-	// Marshal and write atomically
-	out, err := toml.Marshal(tree)
-	if err != nil {
-		return fmt.Errorf(i18n.T("cmd.team_config.marshaling_toml"), err)
-	}
-	if err := fsutil.WriteFileAtomic(configPath, out, 0o600); err != nil {
-		return fmt.Errorf("writing %s: %w", configPath, err)
-	}
-	fmt.Fprint(w, i18n.Tf("cmd.team_config.updated", configPath, keyPath, value))
-	return nil
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Interactive prompt helpers (stdin)
-// ─────────────────────────────────────────────────────────────────────────────
-
-func askInput(out interface{ Write([]byte) (int, error) }, prompt, defaultVal string) string {
-	if defaultVal != "" {
-		fmt.Fprintf(out, "  %s [%s]: ", prompt, defaultVal)
-	} else {
-		fmt.Fprintf(out, "  %s: ", prompt)
-	}
-	var input string
-	_, _ = fmt.Scanln(&input)
-	if input == "" {
-		return defaultVal
-	}
-	return input
-}
-
-func askYN(out interface{ Write([]byte) (int, error) }, prompt string, defaultYes bool) bool {
-	fmt.Fprintf(out, "  %s %s ", prompt, yesNoHint(defaultYes))
-	var input string
-	_, _ = fmt.Scanln(&input)
-	return confirmed(input, defaultYes)
-}
-
-func askSelect(out interface{ Write([]byte) (int, error) }, prompt string, options []string) int {
-	fmt.Fprintf(out, "\n  %s\n", prompt)
-	for i, opt := range options {
-		fmt.Fprintf(out, "    [%d] %s\n", i+1, opt)
-	}
-	fmt.Fprint(out, i18n.T("cmd.prompt.choice"))
-	var input string
-	_, _ = fmt.Scanln(&input)
-	if input == "" {
-		return 0
-	}
-	n := parseInt(input, 1)
-	if n < 1 || n > len(options) {
-		return 0
-	}
-	return n - 1
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Misc helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1095,18 +903,4 @@ func last4(s string) string {
 		return s
 	}
 	return s[len(s)-4:]
-}
-
-func parseInt(s string, dflt int) int {
-	n := 0
-	for _, c := range s {
-		if c < '0' || c > '9' {
-			return dflt
-		}
-		n = n*10 + int(c-'0')
-	}
-	if n == 0 {
-		return dflt
-	}
-	return n
 }

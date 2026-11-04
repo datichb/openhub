@@ -253,7 +253,7 @@ func TestTeamModelsViewKeys(t *testing.T) {
 	v := NewTeamModelsView(TeamModelsViewConfig{
 		ResolveTeam: func() TeamResolution { return tc },
 		SaveTeamConfig: func() TeamConfigWriter {
-			return func(_ context.Context, c *teamstate.TeamConfig) error {
+			return func(_ context.Context, _, c *teamstate.TeamConfig) error {
 				saved.Store(c)
 				return nil
 			}
@@ -502,7 +502,7 @@ func TestTeamMCPViewRefreshAsksWhenDirty(t *testing.T) {
 		ResolveTeam:  func() TeamResolution { return tc },
 		GetMCPConfig: func() config.MCPConfig { loads.Add(1); return config.MCPConfig{} },
 		SaveTeamConfig: func() TeamConfigWriter {
-			return func(_ context.Context, c *teamstate.TeamConfig) error { saved.Store(c); return nil }
+			return func(_ context.Context, _, c *teamstate.TeamConfig) error { saved.Store(c); return nil }
 		},
 	})
 	sh := &viewShell{}
@@ -641,7 +641,7 @@ func TestTeamModelsViewIndicatorFollowsTheWrite(t *testing.T) {
 	v := NewTeamModelsView(TeamModelsViewConfig{
 		ResolveTeam: func() TeamResolution { return tc },
 		SaveTeamConfig: func() TeamConfigWriter {
-			return func(context.Context, *teamstate.TeamConfig) error {
+			return func(context.Context, *teamstate.TeamConfig, *teamstate.TeamConfig) error {
 				started <- struct{}{}
 				return <-release
 			}

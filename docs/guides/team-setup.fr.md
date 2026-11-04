@@ -194,6 +194,8 @@ de naviguer vers la vue de détail équipe (`Enter`) ou de retourner à l'accuei
 
 Édite `config.toml` dans le repo team-state (ou `hub.toml` pour la config hub) :
 
+> **Plusieurs personnes modifient `config.toml`.** Le détail d'équipe, les services MCP et les modèles d'équipe de la TUI, l'éditeur de colonnes, la découverte du tracker et `oh team config` enregistrent **ce que vous avez changé** sur la dernière version du fichier (tirée juste avant le commit) : le réglage qu'un collègue a modifié ailleurs entre-temps est conservé. Si vous avez tous deux changé **le même** réglage, rien n'est écrit : l'écran le dit (« modifié par un collègue entre-temps : recharger ? », avec les clés) et `r` relit sa version. Un `config.toml` illisible (faute TOML) ou un clone absent n'est jamais montré comme une configuration vide : l'écran affiche « config.toml illisible : … — oh doctor », `Ctrl+S` est refusé, et `r` relit une fois le fichier corrigé.
+
 ### Mattermost
 
 ```toml

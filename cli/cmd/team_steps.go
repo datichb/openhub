@@ -129,30 +129,27 @@ func buildTeamConfigStep(s *teamStepState, opts teamStepOpts) views.WizardStep {
 			if err != nil || days <= 0 {
 				days = 3
 			}
-			if s.HasConfig && s.ExistingCfg != nil {
-				if days == s.ExistingCfg.Takeover.StaleDays {
-					return nil
+			if s.HasConfig && s.ExistingCfg != nil && days == s.ExistingCfg.Takeover.StaleDays {
+				return nil
+			}
+			// The one setting of the step, on top of the latest config.toml:
+			// what the others changed in it meanwhile is kept. A team without
+			// config.toml gets the defaults of a new team around it.
+			return s.Repo.UpdateConfig(s.Ctx, func(cfg *teamstate.TeamConfig) error {
+				cfg.Takeover.StaleDays = days
+				if !s.HasConfig && cfg.Parallel == (teamstate.ParallelConfig{}) {
+					cfg.Parallel = teamstate.ParallelConfig{
+						MaxSessions:            5,
+						MaxBudgetMinutes:       180,
+						DefaultTicketWeightMin: 60,
+						PortRangeStart:         4100,
+						AutoMergeBeads:         true,
+						MaxRetries:             2,
+						RetryDelaySeconds:      5,
+					}
 				}
-				s.ExistingCfg.Takeover.StaleDays = days
-				return s.Repo.SaveConfig(s.Ctx, s.ExistingCfg)
-			}
-			cfg := &teamstate.TeamConfig{
-				Notification: teamstate.NotificationConfig{
-					Enabled: false,
-					BotName: "OpenHub",
-				},
-				Takeover: teamstate.TakeoverConfig{StaleDays: days},
-				Parallel: teamstate.ParallelConfig{
-					MaxSessions:            5,
-					MaxBudgetMinutes:       180,
-					DefaultTicketWeightMin: 60,
-					PortRangeStart:         4100,
-					AutoMergeBeads:         true,
-					MaxRetries:             2,
-					RetryDelaySeconds:      5,
-				},
-			}
-			return s.Repo.SaveConfig(s.Ctx, cfg)
+				return nil
+			})
 		},
 		InfoFields: func() []views.InfoField {
 			return []views.InfoField{{Label: i18n.T("cmd.init.wizard_team_info_stale_days"), Value: s.StaleDaysStr}}
@@ -262,20 +259,13 @@ func buildTeamNotifStep(s *teamStepState, opts teamStepOpts) views.WizardStep {
 			if s.WebhookURL == "" {
 				return nil
 			}
-			cfg, err := s.Repo.LoadConfig(s.Ctx)
-			if err != nil {
-				return err
-			}
-			if cfg.Notification.MattermostWebhook == s.WebhookURL &&
-				cfg.Notification.Channel == s.Channel &&
-				cfg.Notification.BotName == s.BotName {
+			return s.Repo.UpdateConfig(s.Ctx, func(cfg *teamstate.TeamConfig) error {
+				cfg.Notification.MattermostWebhook = s.WebhookURL
+				cfg.Notification.Channel = s.Channel
+				cfg.Notification.BotName = s.BotName
+				cfg.Notification.Enabled = true
 				return nil
-			}
-			cfg.Notification.MattermostWebhook = s.WebhookURL
-			cfg.Notification.Channel = s.Channel
-			cfg.Notification.BotName = s.BotName
-			cfg.Notification.Enabled = true
-			return s.Repo.SaveConfig(s.Ctx, cfg)
+			})
 		},
 		InfoFields: func() []views.InfoField {
 			if s.WebhookURL == "" {

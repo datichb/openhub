@@ -44,14 +44,16 @@ func updateHubConfigOffLoop(a *app.App, fn func(*config.Config) error) error {
 // teamConfigWriter is called on the event loop: it resolves the team the views
 // work on, the same as they do (it reads the Config), and gives the function
 // that writes the team config to its team-state, which the view runs off the
-// loop.
+// loop. The function writes the changes the view made (base → edited) on top of
+// the latest version of config.toml: a colleague's change to another setting
+// is kept, to the same one is a teamstate.ErrConfigConflict.
 func teamConfigWriter(a *app.App) views.TeamConfigWriter {
 	tc := makeResolveTeamFunc(a)()
-	return func(ctx context.Context, cfg *teamstate.TeamConfig) error {
+	return func(ctx context.Context, base, edited *teamstate.TeamConfig) error {
 		if !tc.Enabled {
 			return errors.New(i18n.T("tui.views.team_not_configured"))
 		}
-		return teamstate.NewRepo(tc.StateRepo, tc.StatePath).SaveConfig(ctx, cfg)
+		return teamstate.NewRepo(tc.StateRepo, tc.StatePath).UpdateConfigFrom(ctx, base, edited)
 	}
 }
 

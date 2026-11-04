@@ -1,6 +1,7 @@
 package views
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/rivo/tview"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tracker"
 )
 
@@ -35,7 +37,7 @@ func fieldByKey(v *TeamDetailView, key string) (configField, bool) {
 // The governance is read only; « Passer en équipe » promotes the solo space.
 func TestTeamDetailGovernanceAndPromote(t *testing.T) {
 	var promoted string
-	v := teamDetailFor(TeamResolution{Solo: true, TeamID: "solo", StatePath: t.TempDir()}, func(id, remote string) { promoted = id + "→" + remote })
+	v := teamDetailFor(TeamResolution{Solo: true, TeamID: "solo", StatePath: clonedDir(t)}, func(id, remote string) { promoted = id + "→" + remote })
 	sh := &formShell{}
 	v.SetShell(sh)
 	v.Mount(tview.NewFlex(), nil)
@@ -57,7 +59,7 @@ func TestTeamDetailGovernanceAndPromote(t *testing.T) {
 	assert.Equal(t, "solo→git@example.com:me/ts.git", promoted)
 
 	// A regular team: governance, no solo rows; without team-state: nothing.
-	v = teamDetailFor(TeamResolution{Enabled: true, TeamID: "core", StatePath: t.TempDir()}, nil)
+	v = teamDetailFor(TeamResolution{Enabled: true, TeamID: "core", StatePath: clonedDir(t)}, nil)
 	v.Mount(tview.NewFlex(), nil)
 	_, ok = fieldByKey(v, "governance.publish")
 	assert.True(t, ok)
@@ -74,7 +76,7 @@ func TestTeamDetailGovernanceAndPromote(t *testing.T) {
 // The team [parallel] settings have no effect (the session
 // restrictions are the [limits]): they are no longer editable.
 func TestTeamDetailHasNoParallelSetting(t *testing.T) {
-	v := teamDetailFor(TeamResolution{Enabled: true, TeamID: "core", StatePath: t.TempDir()}, nil)
+	v := teamDetailFor(TeamResolution{Enabled: true, TeamID: "core", StatePath: clonedDir(t)}, nil)
 	v.SetShell(&formShell{})
 	v.Mount(tview.NewFlex(), nil)
 	_, ok := fieldByKey(v, "stale_days")
@@ -87,7 +89,7 @@ func TestTeamDetailHasNoParallelSetting(t *testing.T) {
 // notifications, collaboration, tracker overrides); a team keeps them.
 func TestTeamDetailSoloHidesTeamFeatures(t *testing.T) {
 	hidden := []string{"tracker_url", "webhook_url", "channel", "stale_days", "tracker_enabled", "auto_sync"}
-	v := teamDetailFor(TeamResolution{Solo: true, TeamID: "solo", StatePath: t.TempDir()}, func(string, string) {})
+	v := teamDetailFor(TeamResolution{Solo: true, TeamID: "solo", StatePath: clonedDir(t)}, func(string, string) {})
 	v.SetShell(&formShell{})
 	v.Mount(tview.NewFlex(), nil)
 	for _, k := range hidden {
@@ -106,11 +108,21 @@ func TestTeamDetailSoloHidesTeamFeatures(t *testing.T) {
 	}
 	assert.NotContains(t, v.StatusHints(), i18n.T("tui.team.detail.hint_discover"))
 
-	v = teamDetailFor(TeamResolution{Enabled: true, TeamID: "core", StatePath: t.TempDir()}, nil)
+	v = teamDetailFor(TeamResolution{Enabled: true, TeamID: "core", StatePath: clonedDir(t)}, nil)
 	v.SetShell(&formShell{})
 	v.Mount(tview.NewFlex(), nil)
 	for _, k := range hidden {
 		_, ok := fieldByKey(v, k)
 		assert.True(t, ok, k)
 	}
+}
+
+// clonedDir is the path of a team-state that exists (a repository with its
+// config): a view refuses to show, and to write, a team-state it cannot read.
+func clonedDir(t *testing.T) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), "state")
+	_, err := teamstate.InitSolo(t.Context(), dir, teamstate.Member{ID: "alice"})
+	require.NoError(t, err)
+	return dir
 }
