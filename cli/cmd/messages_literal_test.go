@@ -101,6 +101,7 @@ var literalExceptions = map[string]string{
 	"global action %s without Run":               "programming error",
 	"provider credentials missing":               "sentinel error (errors.Is)",
 	"transfer of the existing session failed":    "sentinel error (errors.Is)",
+	"workflow not offered for this input":        "sentinel error (errors.Is)",
 	"checkpoint verification must be overridden": "sentinel error (errors.Is)",
 }
 
