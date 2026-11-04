@@ -244,7 +244,11 @@ func claimExists(cmd *cobra.Command, a *app.App, repo claimConflictStore, existi
 		project, ticketID,
 		theme.Bold.Render(existing.ClaimedBy),
 		textfmt.ShortDateTime(existing.ClaimedAt)))
-	if existing.InReview() {
+	var board teamstate.BoardConfig
+	if teamCfg != nil {
+		board = teamCfg.Board
+	}
+	if existing.InReviewOn(board) {
 		fmt.Fprintln(a.IO.Out, i18n.T("cmd.claims.in_review"))
 	}
 	fmt.Fprintf(a.IO.Out, "%s\n",

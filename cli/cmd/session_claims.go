@@ -156,6 +156,7 @@ func endTicketClaims(ctx context.Context, repo claimEnder, in sessionClaimsInput
 			Closed:        tk.Closed,
 			ClaimStatus:   c.Status,
 			ClaimTerminal: slices.Contains(terminals, c.Status),
+			ClaimInReview: c.InReviewOn(board),
 			Labels:        slices.Concat(tk.Labels, c.Labels),
 		}
 		if !tk.Closed && !facts.ClaimTerminal && in.State != nil {

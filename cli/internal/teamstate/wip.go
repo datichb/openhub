@@ -26,7 +26,7 @@ import (
 // limit of its owner on the given board. A claim without an owner (pool)
 // counts for nobody.
 func (c *Claim) CountsInProgress(board BoardConfig) bool {
-	return c.ClaimedBy != "" && !c.InReview() && StatusCountsInProgress(board, c.Status)
+	return c.ClaimedBy != "" && !c.InReviewOn(board) && StatusCountsInProgress(board, c.Status)
 }
 
 // StatusCountsInProgress reports whether a claim in the status is work in
