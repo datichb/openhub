@@ -77,3 +77,88 @@ func TestCardColumnDrawColoredText(t *testing.T) {
 		})
 	}
 }
+
+func refCards(ids ...string) []Card {
+	cards := make([]Card, len(ids))
+	for i, id := range ids {
+		cards[i] = Card{MainText: id, SecondaryText: id, Reference: id}
+	}
+	return cards
+}
+
+func drawColumn(t *testing.T, c *CardColumn, w, h int) {
+	t.Helper()
+	s := tcell.NewSimulationScreen("UTF-8")
+	require.NoError(t, s.Init())
+	defer s.Fini()
+	s.SetSize(w, h)
+	c.SetRect(0, 0, w, h)
+	c.Draw(s)
+}
+
+// ReplaceCards follows the selected card and the first visible card by their
+// Reference, and keeps the nearest index when the selected card is gone.
+func TestCardColumnReplaceCardsKeepsTheUserWhereTheyAre(t *testing.T) {
+	ids := func(from, to int) []string {
+		var out []string
+		for i := from; i < to; i++ {
+			out = append(out, string(rune('a'+i)))
+		}
+		return out
+	}
+	c := NewCardColumn("X", tcell.ColorWhite).SetCards(refCards(ids(0, 20)...))
+	c.SetFocused(true)
+	for range 12 {
+		c.MoveSelection(1)
+		drawColumn(t, c, 30, 20)
+	}
+	require.Equal(t, 12, c.selected)
+	offset := c.offset
+	require.Positive(t, offset)
+
+	t.Run("same cards", func(t *testing.T) {
+		c.ReplaceCards(refCards(ids(0, 20)...))
+		assert.Equal(t, 12, c.selected)
+		assert.Equal(t, offset, c.offset)
+	})
+	t.Run("cards inserted above", func(t *testing.T) {
+		c.ReplaceCards(refCards(append([]string{"x", "y"}, ids(0, 20)...)...))
+		assert.Equal(t, 14, c.selected, "still the card 'm'")
+		assert.Equal(t, offset+2, c.offset, "still the same first visible card")
+		drawColumn(t, c, 30, 20)
+		assert.Equal(t, offset+2, c.offset)
+	})
+	t.Run("selected card gone", func(t *testing.T) {
+		c.ReplaceCards(refCards(append(append(ids(0, 12), ids(13, 20)...), "x")...))
+		assert.Equal(t, 14, c.selected, "the nearest index")
+	})
+	t.Run("column shorter than the selection", func(t *testing.T) {
+		c.ReplaceCards(refCards(ids(0, 5)...))
+		assert.Equal(t, 4, c.selected)
+		assert.LessOrEqual(t, c.offset, c.selected)
+		drawColumn(t, c, 30, 40)
+		assert.Zero(t, c.offset, "all the cards fit: no blank under them while others are hidden above")
+	})
+	t.Run("empty", func(t *testing.T) {
+		c.ReplaceCards(nil)
+		assert.Equal(t, -1, c.GetCurrentItem())
+		assert.Zero(t, c.offset)
+	})
+}
+
+// Cards without a usable Reference are followed by index; SetCards starts
+// again from the top.
+func TestCardColumnReplaceCardsWithoutIdentity(t *testing.T) {
+	c := NewCardColumn("X", tcell.ColorWhite).SetCards([]Card{
+		{MainText: "a"}, {MainText: "b", Reference: []int{1}}, {MainText: "c", Reference: []int{2}},
+	})
+	c.SetCurrentItem(2)
+	assert.NotPanics(t, func() {
+		c.ReplaceCards([]Card{{MainText: "a"}, {MainText: "b", Reference: []int{1}}, {MainText: "c", Reference: []int{2}}, {MainText: "d"}})
+	})
+	assert.Equal(t, 2, c.selected)
+
+	c.SetCards(refCards("a", "b", "c"))
+	assert.Zero(t, c.selected)
+	assert.Zero(t, c.offset)
+}

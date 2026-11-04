@@ -2,6 +2,7 @@ package widgets
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -25,7 +26,9 @@ type Card struct {
 	// MetaText is the third line (labels, assignee, refs). Supports tview dynamic color tags.
 	// If empty, the card renders 2 content lines instead of 3.
 	MetaText string
-	// Reference is an opaque value for caller use (e.g. ticket ID).
+	// Reference is the identity of the card (e.g. ticket ID): ReplaceCards
+	// follows the selected card by it. It must be comparable; nil means the
+	// card has no identity.
 	Reference any
 }
 
@@ -93,6 +96,52 @@ func (c *CardColumn) SetCards(cards []Card) *CardColumn {
 	c.selected = 0
 	c.offset = 0
 	return c
+}
+
+// ReplaceCards replaces the cards of a column that is drawn again with fresh
+// data (the periodic refresh of a board), keeping the user where they are: the
+// selected card stays selected when a card of the same Reference is still
+// there, wherever it moved to, and the first visible card stays the first
+// visible one the same way. A card that is gone leaves the nearest index (kept
+// inside the new cards) selected, and the scroll offset as it was.
+// SetCards or Clear is the way to start again from the top (a new filter).
+func (c *CardColumn) ReplaceCards(cards []Card) *CardColumn {
+	selected, offset := c.selected, c.offset
+	if i := indexOfReference(cards, c.referenceAt(c.selected)); i >= 0 {
+		selected = i
+	}
+	if i := indexOfReference(cards, c.referenceAt(c.offset)); i >= 0 {
+		offset = i
+	}
+	c.cards = cards
+	c.selected, c.offset = 0, 0
+	if n := len(cards); n > 0 {
+		c.selected = max(0, min(selected, n-1))
+		c.offset = max(0, min(offset, c.selected))
+	}
+	return c
+}
+
+// referenceAt is the Reference of the card at idx (nil when none).
+func (c *CardColumn) referenceAt(idx int) any {
+	if idx < 0 || idx >= len(c.cards) {
+		return nil
+	}
+	return c.cards[idx].Reference
+}
+
+// indexOfReference is the index of the first card whose Reference is ref, or
+// -1 (a nil or not comparable Reference identifies nothing).
+func indexOfReference(cards []Card, ref any) int {
+	if ref == nil || !reflect.TypeOf(ref).Comparable() {
+		return -1
+	}
+	for i := range cards {
+		if cards[i].Reference == ref {
+			return i
+		}
+	}
+	return -1
 }
 
 // Clear removes all cards.
@@ -590,13 +639,26 @@ func (c *CardColumn) adjustScroll(availableHeight int) {
 	if c.selected < c.offset {
 		c.offset = c.selected
 	}
+
+	// Scroll up while the cards from the offset to the last one leave room
+	// for the one before (a column that got shorter): no blank under the
+	// last card while others are hidden above.
+	for c.offset > 0 && c.visibleCountFrom(c.offset-1, availableHeight) >= len(c.cards)-c.offset+1 {
+		c.offset--
+	}
 }
 
 // visibleCount returns how many cards fit starting from c.offset within the given height.
 func (c *CardColumn) visibleCount(availableHeight int) int {
+	return c.visibleCountFrom(c.offset, availableHeight)
+}
+
+// visibleCountFrom returns how many cards fit starting from card start within
+// the given height.
+func (c *CardColumn) visibleCountFrom(start, availableHeight int) int {
 	used := 0
 	count := 0
-	for i := c.offset; i < len(c.cards); i++ {
+	for i := start; i < len(c.cards); i++ {
 		cardH := c.cards[i].contentLines() + 2 // border top + bottom
 		need := cardH
 		if count > 0 {

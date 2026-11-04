@@ -535,15 +535,9 @@ func (v *BoardView) populateColumns(tickets []BoardTicket, columns []BoardColumn
 		v.emptyTV = nil
 	}
 
-	for _, cc := range v.columnCards {
-		cc.Clear()
-	}
-
 	// Reset ticket ID lookup.
 	v.ticketIDLookup = make([][]string, len(v.columnCards))
-	for i := range v.ticketIDLookup {
-		v.ticketIDLookup[i] = nil
-	}
+	cards := make([][]widgets.Card, len(v.columnCards))
 
 	// Rebuild lookup map.
 	newMap := make(map[string]BoardTicket, len(tickets))
@@ -564,14 +558,20 @@ func (v *BoardView) populateColumns(tickets []BoardTicket, columns []BoardColumn
 			if t.ExternalRef != "" {
 				meta = tview.Escape(fmt.Sprintf("← %s", t.ExternalRef))
 			}
-			v.columnCards[i].AddCard(widgets.Card{
+			cards[i] = append(cards[i], widgets.Card{
 				MainText:      mainText,
 				SecondaryText: secondary,
 				MetaText:      meta,
+				Reference:     t.ID,
 			})
 			v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
 			break
 		}
+	}
+	// The board is read again every few seconds: the user stays on their
+	// card, and the column stays scrolled as it was.
+	for i, cc := range v.columnCards {
+		cc.ReplaceCards(cards[i])
 	}
 	v.ticketsByID = newMap
 }
