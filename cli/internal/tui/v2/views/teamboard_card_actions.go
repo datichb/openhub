@@ -242,7 +242,7 @@ func (v *TeamBoardView) showCardMenu(tc TicketContext) {
 		var label string
 		switch {
 		case e.Why != "":
-			label = theme.Paint(theme.TextMutedHex, tview.Escape("– "+e.Why))
+			label = theme.Paint(theme.TextMutedHex, tview.Escape(theme.SymInactive+" "+e.Why))
 		case e.Workflow != "":
 			label = rows.label(n)
 			n++

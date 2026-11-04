@@ -161,7 +161,7 @@ func importCardIssue(a *app.App, ticket views.TicketContext) (id string, created
 
 // cardTeam is the team-state of the project of a launch and the member who
 // launches; false when the project has no team (nothing is claimed then).
-func cardTeam(a *app.App, project *domain.Project) (*teamstate.Repo, string, bool) {
+func cardTeam(a *app.App, project *domain.Project) (cardClaimStore, string, bool) {
 	if project == nil || !teamEnabledForProject(a, project) || a.Config.ActiveTeam().MemberID == "" {
 		return nil, "", false
 	}
