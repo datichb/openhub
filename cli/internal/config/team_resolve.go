@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"net/url"
 	"os"
@@ -8,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitremote"
 )
 
 // ResolvedTeamConfig is the effective team configuration for a project after
@@ -52,7 +55,7 @@ func ResolveTeamForProject(cfg *Config, project *domain.Project) ResolvedTeamCon
 			Enabled:   team.Enabled && !team.Solo,
 			TeamID:    team.ID,
 			StateRepo: team.StateRepo,
-			StatePath: team.StatePath,
+			StatePath: ResolveStatePath(team.StateRepo, team.StatePath),
 			GitLabURL: team.GitLabURL,
 			MemberID:  team.MemberID,
 			Solo:      team.Solo && team.Enabled,
@@ -83,7 +86,7 @@ func ResolveTeamConfig(hub TeamConfig, project *domain.ProjectTeamConfig) Resolv
 			Enabled:   hub.Enabled,
 			TeamID:    hub.ID,
 			StateRepo: hub.StateRepo,
-			StatePath: hub.StatePath,
+			StatePath: ResolveStatePath(hub.StateRepo, hub.StatePath),
 			GitLabURL: hub.GitLabURL,
 			MemberID:  hub.MemberID,
 		}
@@ -99,47 +102,114 @@ func ResolveTeamConfig(hub TeamConfig, project *domain.ProjectTeamConfig) Resolv
 		memberID = hub.MemberID
 	}
 
-	statePath := project.StatePath
-	if statePath == "" && project.StateRepo != "" {
-		statePath = TeamStatePath(project.StateRepo)
-	}
-
 	return ResolvedTeamConfig{
 		Enabled:   true,
 		StateRepo: project.StateRepo,
-		StatePath: statePath,
+		StatePath: ResolveStatePath(project.StateRepo, project.StatePath),
 		MemberID:  memberID,
 	}
 }
 
-// TeamStatePath derives a local clone path from a Git remote URL.
-// The result is inside ~/.oh/team-states/<host>/<repo-name> so that repos with
-// identical names but on different hosts each get their own isolated clone.
+// ResolveStatePath is the one rule that gives the local folder of a team-state
+// clone, the folder oh reads and writes: hub.toml is normalised with it when
+// it is read (readDisk), so that nothing downstream has a fallback of its own.
 //
-// For backward compatibility, if a legacy path (~/.oh/team-states/<repo-name>)
-// exists and the new path does not, the legacy path is returned.
-//
-// Examples:
-//
-//	"git@gitlab.com:acme/team-state.git" → "~/.oh/team-states/gitlab.com/team-state"
-//	"https://github.com/acme/my-team.git" → "~/.oh/team-states/github.com/my-team"
-func TeamStatePath(remoteURL string) string {
-	name := repoNameFromRemote(remoteURL)
-	host := hostFromRemote(remoteURL)
-	// Under the hub directory: OH_HOME relocates the team-states too.
-	base := filepath.Join(HubDir(), "team-states")
-	newPath := filepath.Join(base, host, name)
-
-	// Backward compat: if the old (no-host) path exists and the new one doesn't,
-	// use the old path. This prevents breaking existing installations.
-	legacyPath := filepath.Join(base, name)
-	if _, legacyErr := os.Stat(legacyPath); legacyErr == nil {
-		if _, newErr := os.Stat(newPath); os.IsNotExist(newErr) {
-			return legacyPath
+//   - state_path set: that folder, with "~" expanded to the home directory; a
+//     relative path is under the hub folder (HubDir), never under the working
+//     directory;
+//   - state_path empty: TeamStatePath(stateRepo);
+//   - state_path and state_repo empty: "" (no team-state to speak of: the
+//     callers refuse an empty path, teamstate.NewRepo included).
+func ResolveStatePath(stateRepo, statePath string) string {
+	statePath = strings.TrimSpace(statePath)
+	if statePath == "" {
+		if strings.TrimSpace(stateRepo) == "" {
+			return ""
+		}
+		return TeamStatePath(stateRepo)
+	}
+	if statePath == "~" || strings.HasPrefix(statePath, "~/") || strings.HasPrefix(statePath, `~\`) {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, statePath[1:])
 		}
 	}
+	if !filepath.IsAbs(statePath) && !strings.HasPrefix(statePath, "/") && !strings.HasPrefix(statePath, `\`) {
+		return filepath.Join(HubDir(), statePath)
+	}
+	return statePath
+}
 
+// TeamStatePath derives the local clone path of a team-state from its Git
+// remote URL: <hub>/team-states/<host>/<path of the repository>, e.g.
+//
+//	"git@gitlab.com:acme/team-state.git"        → ~/.oh/team-states/gitlab.com/acme/team-state
+//	"https://gitlab.com/beta/team-state.git"    → ~/.oh/team-states/gitlab.com/beta/team-state
+//	"https://github.com/acme/my-team.git"       → ~/.oh/team-states/github.com/acme/my-team
+//
+// The whole path of the repository is used, not its name: two teams whose
+// repositories are both called "team-state" (the name the documentation
+// recommends) never share a folder. A local remote, which has no host, goes
+// under "local/<name>-<hash of its path>".
+//
+// An existing clone of this very repository at a former location is kept, not
+// cloned a second time: <host>/<name> (until 5.3.2), <name> (before 5.3) and
+// ~/.oh/team-state (the first default). A folder there that holds another
+// repository is never used: the new path is returned, whose own clone
+// (teamstate.Repo.EnsureReady) refuses a folder of another repository.
+func TeamStatePath(remoteURL string) string {
+	base := filepath.Join(HubDir(), "team-states")
+	newPath := filepath.Join(append([]string{base}, stateFolderParts(remoteURL)...)...)
+	if gitremote.IsCloneOf(newPath, remoteURL) {
+		return newPath
+	}
+	name := cleanSegment(repoNameFromRemote(remoteURL))
+	former := []string{
+		filepath.Join(base, hostFromRemote(remoteURL), name),
+		filepath.Join(base, name),
+		DefaultTeamStatePath(),
+	}
+	for _, p := range former {
+		if p != newPath && gitremote.IsCloneOf(p, remoteURL) {
+			return p
+		}
+	}
 	return newPath
+}
+
+// stateFolderParts are the folders under team-states of the clone of remote:
+// the host, then the segments of the path of the repository.
+func stateFolderParts(remote string) []string {
+	host, path, ok := gitremote.Split(remote)
+	if !ok {
+		sum := sha1.Sum([]byte(filepath.Clean(strings.TrimSpace(remote))))
+		return []string{"local", cleanSegment(repoNameFromRemote(remote)) + "-" + hex.EncodeToString(sum[:4])}
+	}
+	parts := []string{cleanSegment(host)}
+	for _, seg := range strings.Split(path, "/") {
+		if seg != "" {
+			parts = append(parts, cleanSegment(seg))
+		}
+	}
+	if len(parts) == 1 {
+		parts = append(parts, cleanSegment(repoNameFromRemote(remote)))
+	}
+	return parts
+}
+
+// cleanSegment makes s a folder name on every system: no separator, no
+// character Windows refuses, no trailing dot or space, never "." or "..".
+func cleanSegment(s string) string {
+	s = strings.Map(func(r rune) rune {
+		if r < ' ' || strings.ContainsRune(`<>:"/\|?*`, r) {
+			return '_'
+		}
+		return r
+	}, s)
+	s = strings.TrimRight(s, ". ")
+	if s == "" {
+		return "_"
+	}
+	return s
 }
 
 // HostFromRemote is the exported version of hostFromRemote.

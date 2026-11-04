@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/fsutil"
+	"github.com/datichb/openhub/cli/internal/gitremote"
 	"github.com/datichb/openhub/cli/internal/limits"
 	toml "github.com/pelletier/go-toml/v2"
 )
@@ -159,35 +160,137 @@ func (c *Config) FindTeam(id string) *TeamConfig {
 	return nil
 }
 
-// FindTeamByRepo looks up a team by its StateRepo URL. Returns nil if not found.
+// FindTeamByRepo looks up a team by its StateRepo URL: the same repository
+// whatever the spelling (scheme, user, .git suffix). Returns nil if not found.
 func (c *Config) FindTeamByRepo(repo string) *TeamConfig {
 	for i := range c.Teams {
-		if c.Teams[i].StateRepo == repo {
+		if gitremote.Same(c.Teams[i].StateRepo, repo) {
 			return &c.Teams[i]
 		}
 	}
 	return nil
 }
 
-// UpsertTeam saves t in Teams without touching any other entry: it replaces
-// the entry with the same ID or, when t has a StateRepo, the same StateRepo
-// (keeping its Name and its GitLabURL if t has none), and appends t otherwise.
-func (c *Config) UpsertTeam(t TeamConfig) {
+// TeamIDFor is the ID of the team whose team-state is stateRepo: the ID of the
+// entry already configured for this repository (an ID chosen with --id is
+// kept), otherwise a new one, not used by the team of another repository:
+//
+//  1. the name of the repository ("team-state");
+//  2. else "<group>-<name>" ("beta-team-state"), which depends on the
+//     repository only, not on the order the teams were joined in;
+//  3. else "<host>-<group>-<name>", for the same path on two servers;
+//  4. else that, followed by -2, -3…
+//
+// The first team keeps the name of its repository, as before.
+func (c *Config) TeamIDFor(stateRepo string) string {
+	if cur := c.FindTeamByRepo(stateRepo); cur != nil && cur.ID != "" {
+		return cur.ID
+	}
+	return c.freeTeamID(stateRepo)
+}
+
+func (c *Config) freeTeamID(stateRepo string) string {
+	taken := func(id string) bool {
+		t := c.FindTeam(id)
+		return t != nil && !gitremote.Same(t.StateRepo, stateRepo)
+	}
+	name := TeamIDSlug(repoNameFromRemote(stateRepo))
+	host, path, _ := gitremote.Split(stateRepo)
+	group := ""
+	if dir := filepath.Dir(filepath.FromSlash(path)); dir != "." && dir != string(filepath.Separator) {
+		group = TeamIDSlug(strings.ReplaceAll(filepath.ToSlash(dir), "/", "-"))
+	}
+	candidates := []string{name}
+	if group != "" {
+		candidates = append(candidates, group+"-"+name)
+		if host != "" {
+			candidates = append(candidates, TeamIDSlug(host)+"-"+group+"-"+name)
+		}
+	}
+	for _, id := range candidates {
+		if !taken(id) {
+			return id
+		}
+	}
+	last := candidates[len(candidates)-1]
+	for n := 2; ; n++ {
+		if id := fmt.Sprintf("%s-%d", last, n); !taken(id) {
+			return id
+		}
+	}
+}
+
+// TeamIDSlug makes s a team ID: lowercase letters, digits and hyphens.
+func TeamIDSlug(s string) string {
+	s = strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-':
+			return r
+		case r >= 'A' && r <= 'Z':
+			return r + ('a' - 'A')
+		}
+		return '-'
+	}, s)
+	s = strings.Trim(s, "-")
+	if s == "" {
+		return "team-state"
+	}
+	return s
+}
+
+// UpsertTeam saves t in Teams and returns the ID the team has there. It never
+// replaces the team of another repository:
+//
+//   - the entry of the same repository (SameRemote, whatever the spelling of
+//     the URL) is replaced and keeps its ID, its Name and its GitLabURL when t
+//     has none, and its StatePath when t has none: an ID chosen by the member
+//     is not rewritten;
+//   - otherwise t is appended; when its ID is already the one of a team of
+//     another repository, it gets a free one (TeamIDFor);
+//   - a team without a StateRepo (solo, placeholder) is replaced by the entry
+//     with the same ID.
+func (c *Config) UpsertTeam(t TeamConfig) string {
+	if t.StateRepo != "" {
+		for i := range c.Teams {
+			cur := c.Teams[i]
+			if !gitremote.Same(cur.StateRepo, t.StateRepo) {
+				continue
+			}
+			if cur.ID != "" {
+				t.ID = cur.ID
+			}
+			if t.Name == "" {
+				t.Name = cur.Name
+			}
+			if t.GitLabURL == "" {
+				t.GitLabURL = cur.GitLabURL
+			}
+			if t.StatePath == "" {
+				t.StatePath = cur.StatePath
+			}
+			c.Teams[i] = t
+			return t.ID
+		}
+	}
 	for i := range c.Teams {
 		cur := c.Teams[i]
-		if cur.ID != t.ID && (t.StateRepo == "" || cur.StateRepo != t.StateRepo) {
+		if cur.ID != t.ID {
 			continue
+		}
+		if cur.StateRepo != "" && t.StateRepo != "" {
+			break // the ID is the one of another repository: not replaced
 		}
 		if t.Name == "" {
 			t.Name = cur.Name
 		}
-		if t.GitLabURL == "" && t.StateRepo == cur.StateRepo {
-			t.GitLabURL = cur.GitLabURL
-		}
 		c.Teams[i] = t
-		return
+		return t.ID
+	}
+	if t.ID == "" || (t.StateRepo != "" && c.FindTeam(t.ID) != nil) {
+		t.ID = c.freeTeamID(t.StateRepo)
 	}
 	c.Teams = append(c.Teams, t)
+	return t.ID
 }
 
 // MCPServer returns a pointer to the MCPServerConfig for the given service name
@@ -253,7 +356,7 @@ type TeamConfig struct {
 	Name      string `toml:"name,omitempty"`
 	Enabled   bool   `toml:"enabled"`
 	StateRepo string `toml:"state_repo"`           // Git remote URL for the team-state repo
-	StatePath string `toml:"state_path,omitempty"` // Local clone path (default: ~/.oh/team-state)
+	StatePath string `toml:"state_path,omitempty"` // Local clone path (empty: derived from state_repo, see ResolveStatePath)
 	MemberID  string `toml:"member_id"`            // Current user's member ID
 	// GitLabURL is the GitLab server that hosts the team-state repository,
 	// declared by the member when state_repo reaches it through an SSH alias
@@ -552,7 +655,11 @@ func ConfigPath() string {
 	return filepath.Join(HubDir(), "hub.toml")
 }
 
-// DefaultTeamStatePath returns the default local path for the team-state repo.
+// DefaultTeamStatePath is the folder of the clone of the first versions of
+// oh (~/.oh/team-state). It is no fallback any more: a team without state_path
+// has the folder ResolveStatePath gives; this one is only looked at, as a
+// former location of a clone of the right repository (TeamStatePath), and
+// recognised by the migration of the [team] section.
 func DefaultTeamStatePath() string {
 	return filepath.Join(HubDir(), "team-state")
 }
@@ -613,8 +720,20 @@ func readDisk() (*Config, error) {
 	if len(c.Teams) > 0 {
 		c.Team = TeamConfig{}
 	}
+	c.normalizeStatePaths()
 	c.src = stamp
 	return c, nil
+}
+
+// normalizeStatePaths gives every team the folder of its clone: ResolveStatePath
+// on the state_path read (empty = derived from state_repo, "~" expanded). It
+// is the only place hub.toml is normalised, so that no caller has a fallback
+// of its own; the folders are written to hub.toml by the next write.
+func (c *Config) normalizeStatePaths() {
+	for i := range c.Teams {
+		c.Teams[i].StatePath = ResolveStatePath(c.Teams[i].StateRepo, c.Teams[i].StatePath)
+	}
+	c.Team.StatePath = ResolveStatePath(c.Team.StateRepo, c.Team.StatePath)
 }
 
 // Load reads the hub.toml configuration. It is safe to call from any goroutine.

@@ -71,11 +71,8 @@ func CleanUsername(name string) string {
 func (s *Service) profileRepo(teamID string) (*teamstate.Repo, string, error) {
 	tc := s.ResolveTeam(nil)
 	if t := s.Config.FindTeam(teamID); teamID != "" && teamID != tc.TeamID && t != nil {
-		tc = config.ResolvedTeamConfig{Enabled: t.Enabled, TeamID: t.ID, StateRepo: t.StateRepo, StatePath: t.StatePath,
-			GitLabURL: t.GitLabURL, MemberID: t.MemberID}
-		if tc.StatePath == "" && tc.StateRepo != "" {
-			tc.StatePath = config.DefaultTeamStatePath()
-		}
+		tc = config.ResolvedTeamConfig{Enabled: t.Enabled, TeamID: t.ID, StateRepo: t.StateRepo,
+			StatePath: config.ResolveStatePath(t.StateRepo, t.StatePath), GitLabURL: t.GitLabURL, MemberID: t.MemberID}
 	} else if teamID != "" && teamID != tc.TeamID {
 		return nil, "", ErrTeamNotConfigured
 	}

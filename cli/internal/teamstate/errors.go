@@ -9,6 +9,12 @@ var (
 	// ErrNotCloned is returned when an operation requires the team-state repo
 	// but it has not been cloned yet.
 	ErrNotCloned = errors.New("team-state repository not cloned")
+
+	// ErrNoStatePath is returned by every operation of a Repo made without a
+	// local folder (NewRepo(remote, "")): there is nothing to clone into, and
+	// the folder "" is the working directory, whose own repository must never
+	// be pulled, committed to or pushed.
+	ErrNoStatePath = errors.New("team-state: no local folder (state_path is empty)")
 	// ErrSyncConflict is returned when a push fails after retries due to
 	// concurrent modifications.
 	ErrSyncConflict = errors.New("team-state sync conflict after retries")

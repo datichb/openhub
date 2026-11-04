@@ -31,7 +31,8 @@ const (
 // .git/oh.lock shared with the other oh processes.
 type Repo struct {
 	mu            sync.RWMutex
-	path          string   // local clone path (e.g. ~/.oh/team-state/)
+	path          string   // local clone path (e.g. ~/.oh/team-states/gitlab.com/acme/team-state)
+	noPath        bool     // made without a path: every operation fails with ErrNoStatePath
 	remote        string   // Git remote URL
 	boardStatuses []string // custom board column IDs (set via SetBoardStatuses)
 	// beforePush runs in Transact between the commit and the push (tests:
@@ -39,8 +40,20 @@ type Repo struct {
 	beforePush func()
 }
 
+// unusablePath stands for the folder of a Repo made without one. A NUL byte
+// makes every system call on it fail: should an operation forget to check
+// noPath, it fails instead of reading or writing in the working directory.
+const unusablePath = "\x00no-state-path"
+
 // NewRepo creates a Repo instance. It does NOT clone or validate the repo.
+// An empty localPath is refused: the Repo it returns fails every operation
+// with ErrNoStatePath (callers get the folder of a team from hub.toml, where
+// config normalises it, or from config.TeamStatePath), never the working
+// directory.
 func NewRepo(remote, localPath string) *Repo {
+	if strings.TrimSpace(localPath) == "" {
+		return &Repo{remote: remote, path: unusablePath, noPath: true}
+	}
 	return &Repo{
 		remote: remote,
 		path:   localPath,
@@ -57,8 +70,12 @@ func (r *Repo) SetBoardStatuses(statuses []string) {
 	r.boardStatuses = statuses
 }
 
-// Path returns the local filesystem path to the team-state repo.
+// Path returns the local filesystem path to the team-state repo ("" for a
+// Repo made without one).
 func (r *Repo) Path() string {
+	if r.noPath {
+		return ""
+	}
 	return r.path
 }
 
@@ -69,6 +86,9 @@ func (r *Repo) Remote() string {
 
 // IsCloned returns true if the local directory exists and is a Git repo.
 func (r *Repo) IsCloned() bool {
+	if r.noPath {
+		return false
+	}
 	info, err := os.Stat(filepath.Join(r.path, ".git"))
 	return err == nil && info.IsDir()
 }
@@ -83,6 +103,9 @@ func (r *Repo) IsCloned() bool {
 // A clone of another repository than r.remote is refused, not reused
 // (*RemoteMismatchError).
 func (r *Repo) EnsureReady(ctx context.Context) error {
+	if r.noPath {
+		return ErrNoStatePath
+	}
 	if !r.IsCloned() {
 		return r.Clone(ctx)
 	}
@@ -514,6 +537,9 @@ func (r *Repo) HasMember(ctx context.Context, id string) bool {
 // token oh holds for it (SetCredentialSource) is handed over by a one-shot
 // GIT_ASKPASS (gitCommand): clone, pull, push, all of them.
 func (r *Repo) git(ctx context.Context, dir string, args ...string) (string, error) {
+	if r.noPath || strings.TrimSpace(dir) == "" {
+		return "", ErrNoStatePath
+	}
 	cmd, cleanup := gitCommand(ctx, r.credentialRemote(), dir, nil,
 		"-o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=2",
 		[]string{

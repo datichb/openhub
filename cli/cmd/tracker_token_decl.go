@@ -182,7 +182,9 @@ func (c trackerTokenStep) teamConfig() *teamstate.TeamConfig {
 		path = c.StatePath()
 	}
 	if path == "" {
-		path = config.TeamStatePath(repoURL)
+		if a := c.App(); a != nil {
+			path = teamStatePathFor(a, repoURL)
+		}
 	}
 	cfg, err := teamstate.NewRepo(repoURL, path).LoadConfig(c.Ctx())
 	if err != nil || cfg.Tracker.Type == "" {
@@ -215,7 +217,7 @@ func buildTrackerTokenStep(c trackerTokenStep) views.WizardStep {
 			if teamCfg == nil {
 				return true
 			}
-			return checkTrackerToken(c.Ctx(), a, config.RepoNameFromRemote(c.Repo()), teamCfg).Found
+			return checkTrackerToken(c.Ctx(), a, teamIDFor(c.App(), c.Repo()), teamCfg).Found
 		},
 		Validate: func() string {
 			if err := tracker.ValidateServer(strings.TrimSpace(server)); err != nil {
@@ -231,7 +233,7 @@ func buildTrackerTokenStep(c trackerTokenStep) views.WizardStep {
 				form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 				return form
 			}
-			check := checkTrackerToken(c.Ctx(), a, config.RepoNameFromRemote(c.Repo()), teamCfg)
+			check := checkTrackerToken(c.Ctx(), a, teamIDFor(c.App(), c.Repo()), teamCfg)
 			trackerType := check.Eff.Type
 			if !loaded {
 				proposedKey = firstNonEmpty(check.Eff.TrackerTokenKey, tracker.DefaultTokenKey(trackerType))

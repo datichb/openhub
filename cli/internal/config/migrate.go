@@ -28,7 +28,7 @@ func MigrateTeamToTeams(c *Config) bool {
 	}
 
 	// Derive an ID from the repo URL
-	id := repoNameFromRemote(c.Team.StateRepo)
+	id := TeamIDSlug(repoNameFromRemote(c.Team.StateRepo))
 
 	// Build the new entry
 	entry := TeamConfig{
@@ -40,10 +40,11 @@ func MigrateTeamToTeams(c *Config) bool {
 		MemberID:  c.Team.MemberID,
 	}
 
-	// If StatePath is the legacy default, update to the new convention
-	if entry.StatePath == DefaultTeamStatePath() || entry.StatePath == "" {
-		entry.StatePath = filepath.Join(HubDir(), "team-states", id)
-	}
+	// A folder chosen (or the former default ~/.oh/team-state) holds the clone:
+	// it is kept, not rewritten to another place the clone is not in. Without
+	// a folder, the one of the other teams (ResolveStatePath), which is the
+	// former clone when there is one.
+	entry.StatePath = ResolveStatePath(entry.StateRepo, entry.StatePath)
 
 	c.Teams = []TeamConfig{entry}
 

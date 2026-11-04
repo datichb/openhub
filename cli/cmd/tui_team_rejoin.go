@@ -157,7 +157,7 @@ func (w *rejoinWizard) cloneStep() views.WizardStep {
 		BackSkip:     true,
 		ErrorActions: w.access.ErrorActions,
 		OnDone: func() error {
-			w.statePath = config.TeamStatePath(w.stateRepo)
+			w.statePath = teamStatePathFor(w.a, w.stateRepo)
 			handle, members, stale, err := listTeamMembers(ctx, w.stateRepo, w.statePath)
 			if err != nil {
 				return err
@@ -386,7 +386,7 @@ func (w *rejoinWizard) trackerTokenStep() views.WizardStep {
 // known, give a new one, or leave it.
 func (w *rejoinWizard) tokenForm(_ *tview.Application, onDone func()) *tview.Form {
 	a, ctx := w.a, w.ctx
-	teamID := config.RepoNameFromRemote(w.stateRepo)
+	teamID := teamIDFor(w.a, w.stateRepo)
 	source := gitlabTokenSourceAt(ctx, a, teamID, w.stateRepo, w.gitlabURL)
 
 	options := []string{i18n.T("cmd.init.wizard_select_placeholder")}
@@ -428,7 +428,7 @@ func (w *rejoinWizard) tokenForm(_ *tview.Application, onDone func()) *tview.For
 func (w *rejoinWizard) storeToken() error {
 	a, ctx := w.a, w.ctx
 	if w.tokenChoice == "new" && w.gitlabToken != "" && a.Secrets != nil {
-		teamID := config.RepoNameFromRemote(w.stateRepo)
+		teamID := teamIDFor(w.a, w.stateRepo)
 		return a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), w.gitlabToken)
 	}
 	return nil
@@ -491,16 +491,12 @@ func (w *rejoinWizard) recoverIdentity() error {
 	}
 	// "verify" — store the PAT and re-validate
 	if w.mismatchPAT != "" && a.Secrets != nil {
-		teamID := config.RepoNameFromRemote(w.stateRepo)
+		teamID := teamIDFor(w.a, w.stateRepo)
 		if err := a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), w.mismatchPAT); err != nil {
 			return fmt.Errorf(i18n.T("cmd.tui_team_rejoin.storing_token"), err)
 		}
 	}
-	sp := w.statePath
-	if sp == "" {
-		sp = config.TeamStatePath(w.stateRepo)
-	}
-	repo := teamstate.NewRepo(w.stateRepo, sp)
+	repo := teamstate.NewRepo(w.stateRepo, w.statePath)
 	member, err := repo.GetMember(ctx, w.memberID)
 	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.tui_team_rejoin.member_lookup"), err)
@@ -516,11 +512,7 @@ func (w *rejoinWizard) recoverIdentity() error {
 func (w *rejoinWizard) trackerSetupForm(_ *tview.Application, onDone func()) *tview.Form {
 	form := tview.NewForm()
 
-	sp := w.statePath
-	if sp == "" {
-		sp = config.TeamStatePath(w.stateRepo)
-	}
-	repo := teamstate.NewRepo(w.stateRepo, sp)
+	repo := teamstate.NewRepo(w.stateRepo, w.statePath)
 	trackerConfigured := false
 	if teamCfg, err := repo.LoadConfig(w.ctx); err == nil && teamCfg.Tracker.Type != "" {
 		trackerConfigured = true

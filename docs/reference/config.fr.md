@@ -412,7 +412,7 @@ id = "acme"                              # identifiant court local
 name = "Équipe ACME"                     # nom affiché (facultatif, sinon l'id)
 enabled = true                           # activer les fonctions d'équipe
 state_repo = "git@gitlab.com:acme/team-state.git"
-state_path = ""                          # vide = ~/.oh/team-states/<hôte>/<dépôt>
+state_path = ""                          # vide = ~/.oh/team-states/<hôte>/<chemin du dépôt>
 member_id = "alice"                      # votre identité dans cette équipe
 
 [[teams]]
@@ -424,11 +424,11 @@ member_id = "alice.dupont"
 
 | Champ | Type | Obligatoire | Description |
 |-------|------|-------------|-------------|
-| `id` | string | Oui | Identifiant court local, utilisé par les projets |
+| `id` | string | Oui | Identifiant court local, utilisé par les projets. Par défaut le nom du dépôt ; si l'équipe d'un **autre** dépôt le porte déjà, `<groupe>-<nom>` (`beta-team-state`), puis `<hôte>-<groupe>-<nom>`, puis un numéro. Un identifiant choisi (`--id`) n'est jamais réécrit |
 | `name` | string | Non | Nom affiché (sinon `id`) |
 | `enabled` | bool | Non | Activer / désactiver cette équipe |
 | `state_repo` | string | Oui (sauf solo) | URL Git du dépôt team-state |
-| `state_path` | string | Non | Chemin du clone local (déduit de `state_repo`) |
+| `state_path` | string | Non | Chemin du clone local. Vide = déduit de `state_repo` (voir « Déduction automatique du chemin du clone »). `~` est développé ; un chemin relatif est relatif à `~/.oh`, jamais au dossier courant |
 | `gitlab_url` | string | Non | GitLab réel du dépôt d'équipe quand `state_repo` passe par un alias SSH (`git@mon-alias:…`) : l'alias est un nom de `~/.ssh/config`, pas un serveur. Le jeton de l'équipe est alors valable pour ce GitLab. Propre à la machine, vide = l'hôte de `state_repo`. Se règle dans `oh init`, `oh team rejoin --gitlab-url`, `oh teams add --gitlab-url`, `oh team config` (local) et la vue `team-detail` |
 | `member_id` | string | Oui | Votre identité dans `members.toml` |
 | `solo` | bool | Non | Espace solo (voir ci-dessous) |
@@ -548,11 +548,16 @@ Quand l'équipe est désactivée pour le projet, le serveur MCP `team` n'est pas
 Quand `state_path` est vide, il est déduit de `state_repo` :
 
 ```
-git@gitlab.com:acme/other-team.git  →  ~/.oh/team-states/gitlab.com/other-team
-https://github.com/acme/my-team.git →  ~/.oh/team-states/github.com/my-team
+git@gitlab.com:acme/team-state.git  →  ~/.oh/team-states/gitlab.com/acme/team-state
+https://gitlab.com/beta/team-state  →  ~/.oh/team-states/gitlab.com/beta/team-state
+https://github.com/acme/my-team.git →  ~/.oh/team-states/github.com/acme/my-team
 ```
 
-Un ancien clone `~/.oh/team-states/<dépôt>` (sans hôte) est réutilisé s'il existe. Avec `OH_HOME`, les clones sont sous `$OH_HOME/team-states/`.
+C'est l'hôte puis le **chemin complet** du dépôt, et non son seul nom : deux équipes dont les dépôts s'appellent toutes deux `team-state` (le nom que recommande ce guide) ont chacune leur dossier, leur identifiant et leur clé de trousseau. Avec `OH_HOME`, les clones sont sous `$OH_HOME/team-states/`.
+
+`hub.toml` est normalisé **à la lecture** : une équipe dont `state_path` est vide reçoit ce chemin (ou celui d'un clone existant, ci-dessous), si bien que la TUI, la CLI, les services et le serveur MCP voient tous le même dossier. Le chemin est écrit dans `hub.toml` à la prochaine écriture du fichier. Il n'y a plus de repli sur le dossier courant ni sur `~/.oh/team-state` : un dépôt d'équipe sans dossier est refusé (`team-state: no local folder (state_path is empty)`), jamais lu ni poussé depuis le dossier où `oh` est lancé.
+
+**Clone existant** : une équipe à `state_path` vide dont le clone du **bon dépôt** (même hôte et même chemin, quel que soit le schéma, l'utilisateur ou le suffixe `.git`) existe à un ancien emplacement (`~/.oh/team-states/<hôte>/<nom>` jusqu'à la 5.3.2, `~/.oh/team-states/<nom>`, `~/.oh/team-state`) continue de l'utiliser : rien n'est cloné une seconde fois ni déplacé. Un dossier qui contient un autre dépôt n'est jamais utilisé. La migration de l'ancienne section `[team]` garde de la même façon le clone existant.
 
 Depuis la 5.3.2, c'est le chemin de tous les assistants d'équipe (« Créer », « Rejoindre », `team init` et `team rejoin` de la palette) : « Créer » clonait avant dans `~/.oh/team-state/`. Une équipe déjà configurée garde son `state_path` (l'ancien `~/.oh/team-state/` compris) : rien n'est déplacé et le même dépôt n'est pas cloné une seconde fois. Un dossier qui contient le clone **d'un autre dépôt** (origine différente de `state_repo`) est refusé avec un message qui nomme le dossier et les deux dépôts, jamais réutilisé.
 
@@ -565,7 +570,7 @@ Depuis la 5.3.2, c'est le chemin de tous les assistants d'équipe (« Créer »,
 
 ## Configuration du team-state (`config.toml`)
 
-**Emplacement :** racine du clone du team-state (`~/.oh/team-states/<hôte>/<dépôt>/config.toml`, espace solo : `~/.oh/teams/<id>/config.toml`)  
+**Emplacement :** racine du clone du team-state (`~/.oh/team-states/<hôte>/<chemin du dépôt>/config.toml`, espace solo : `~/.oh/teams/<id>/config.toml`)  
 **Objet :** réglages partagés de l'équipe (notifications, claims, tracker, board, MCP, modèles, gouvernance des workflows, restrictions).  
 Ce fichier est versionné dans le dépôt team-state — **pas** dans `hub.toml`.
 
@@ -926,7 +931,7 @@ Au démarrage d'une session, le fournisseur LLM est résolu dans cet ordre :
 | `~/.oh/run/` | Démon `ohd` (socket, journaux) |
 | `~/.oh/servers/`, `~/.oh/sessions/<id>/` | État des serveurs et des sessions (dont `limits.json`) |
 | `~/.oh/cache/` | Cache (images de conteneur…) |
-| `~/.oh/team-states/<hôte>/<dépôt>/` | Clones des team-states |
+| `~/.oh/team-states/<hôte>/<chemin du dépôt>/` | Clones des team-states |
 | `~/.oh/teams/<id>/` | Espaces solo |
 | `~/.oh/migrated/` | Anciennes surcharges de workflow archivées |
 | `~/.oh/notifications.jsonl` | Historique des notifications de la TUI |

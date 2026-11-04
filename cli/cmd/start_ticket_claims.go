@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/datichb/openhub/cli/internal/app"
-	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/runsvc"
@@ -23,9 +22,6 @@ func startTicketClaims(a *app.App, project *domain.Project) func(ctx context.Con
 	}
 	tc := resolvedTeamConfig(a, project)
 	statePath := tc.StatePath
-	if statePath == "" {
-		statePath = defaultTeamStatePath(a)
-	}
 	repo := teamstate.NewRepo(tc.StateRepo, statePath)
 	member := a.Config.ActiveTeam().MemberID
 	return func(ctx context.Context, projectID string, tickets []string) []string {
@@ -96,12 +92,4 @@ func startTicketClaim(ctx context.Context, repo ticketClaimStore, projectID, mem
 		return note
 	}
 	return ""
-}
-
-// defaultTeamStatePath returns the team state path from config or default.
-func defaultTeamStatePath(a *app.App) string {
-	if a.Config.ActiveTeam().StatePath != "" {
-		return a.Config.ActiveTeam().StatePath
-	}
-	return config.DefaultTeamStatePath()
 }

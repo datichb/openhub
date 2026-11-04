@@ -6416,5 +6416,7 @@
   "v533b.team_config.access_token": "Access token %s",
   "v533b.team_config.invalid_limit": "  %s “%s” is not an integer ≥ 0: the limit stays at %d.\n",
   "v533b.team_config.conflict_cli": "config.toml was changed meanwhile by a colleague (%s): nothing was overwritten. Run oh team config again to read their version.",
-  "v533b.team_config.status_unreadable": "%s team config.toml unreadable: %v — oh doctor\n"
+  "v533b.team_config.status_unreadable": "%s team config.toml unreadable: %v — oh doctor\n",
+  "v533a.teams.duplicate_id": "The ID %[1]s is already the one of another team (%[2]s): choose another ID.",
+  "v533a.teams.duplicate_repo": "This repository is already configured: team %[1]s."
 }

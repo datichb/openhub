@@ -108,9 +108,6 @@ func ticketRoom(a *app.App, project *domain.Project) func(ctx context.Context, p
 	}
 	tc := resolvedTeamConfig(a, project)
 	statePath := tc.StatePath
-	if statePath == "" {
-		statePath = defaultTeamStatePath(a)
-	}
 	repo := teamstate.NewRepo(tc.StateRepo, statePath)
 	member := a.Config.ActiveTeam().MemberID
 	local := a.Config.Tracker

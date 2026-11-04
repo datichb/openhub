@@ -60,11 +60,9 @@ func New(cfg *config.Config, secrets tracker.SecretGetter, projects ProjectListe
 func (s *Service) ResolveTeam(project *domain.Project) config.ResolvedTeamConfig {
 	tc := s.resolveTeam(project)
 	if tc.TeamID == "" && tc.StateRepo != "" {
-		tc.TeamID = config.RepoNameFromRemote(tc.StateRepo)
+		tc.TeamID = s.Config.TeamIDFor(tc.StateRepo)
 	}
-	if tc.StatePath == "" && tc.StateRepo != "" {
-		tc.StatePath = config.DefaultTeamStatePath()
-	}
+	tc.StatePath = config.ResolveStatePath(tc.StateRepo, tc.StatePath)
 	return tc
 }
 
@@ -222,20 +220,15 @@ func (s *Service) teamRepoOf(teamID string, project *domain.Project) (remote, st
 	}
 	t := s.Config.FindTeam(teamID)
 	if t == nil {
-		for _, c := range append(append([]config.TeamConfig{}, s.Config.Teams...), s.Config.Team) {
-			if c.StateRepo != "" && config.RepoNameFromRemote(c.StateRepo) == teamID {
-				t = &c
-				break
-			}
+		// The legacy [team] section has no ID: it answers to the name of its repository.
+		if c := s.Config.Team; c.StateRepo != "" && config.TeamIDSlug(config.RepoNameFromRemote(c.StateRepo)) == teamID {
+			t = &c
 		}
 	}
 	if t == nil {
 		return "", "", ""
 	}
-	if t.StatePath == "" {
-		return t.StateRepo, config.DefaultTeamStatePath(), t.GitLabURL
-	}
-	return t.StateRepo, t.StatePath, t.GitLabURL
+	return t.StateRepo, config.ResolveStatePath(t.StateRepo, t.StatePath), t.GitLabURL
 }
 
 // sharedGitLabMCP reads the [mcp.gitlab] recommendation of the team-state

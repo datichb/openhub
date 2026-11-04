@@ -42,9 +42,6 @@ func resolveWorkflowTeamLayers(ctx context.Context, a *app.App, projectRef strin
 		return nil, nil
 	}
 	path := tc.StatePath
-	if path == "" {
-		path = config.DefaultTeamStatePath()
-	}
 	repo := teamstate.NewRepo(tc.StateRepo, path)
 	if !repo.IsCloned() {
 		return nil, nil
@@ -77,9 +74,6 @@ func workflowTeamState(ctx context.Context, c workflowsvc.Context) (*workflowsvc
 			return nil, nil
 		}
 		path := t.StatePath
-		if path == "" {
-			path = config.DefaultTeamStatePath()
-		}
 		if repo := teamstate.NewRepo(t.StateRepo, path); repo.IsCloned() {
 			layers = &workflowTeamLayers{Repo: repo, TeamID: t.ID, Member: t.MemberID}
 		}

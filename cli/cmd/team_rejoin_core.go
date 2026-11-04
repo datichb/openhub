@@ -91,7 +91,7 @@ func (e *identityUnverifiedError) Unwrap() error { return e.Err }
 func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamRejoinResult, error) {
 	statePath := p.StatePath
 	if statePath == "" {
-		statePath = config.TeamStatePath(p.StateRepo)
+		statePath = teamStatePathFor(a, p.StateRepo)
 	}
 
 	repo := teamstate.NewRepo(p.StateRepo, statePath)
@@ -149,10 +149,10 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 		}
 	}
 
-	// Persist team config to hub.toml
-	teamID := config.RepoNameFromRemote(p.StateRepo)
+	// Persist team config to hub.toml. The team of this repository, if hub.toml
+	// has one, keeps its ID (the one chosen with --id included) and its folder;
+	// a new one gets an ID no other repository's team has.
 	newTeam := config.TeamConfig{
-		ID:        teamID,
 		Enabled:   true,
 		StateRepo: p.StateRepo,
 		StatePath: statePath,
@@ -162,8 +162,10 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 
 	// Check if this team already exists in the config (update it, its declared
 	// GitLab kept for the same repository) or add new
+	var teamID, teamName string
 	if err := updateHubConfig(a, func(c *config.Config) error {
-		c.UpsertTeam(newTeam)
+		teamID = c.UpsertTeam(newTeam)
+		teamName = c.FindTeam(teamID).DisplayName()
 		// Clear legacy field
 		c.Team = config.TeamConfig{}
 		return nil
@@ -185,7 +187,7 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 	return &teamRejoinResult{
 		Member:             *member,
 		TeamID:             teamID,
-		TeamName:           newTeam.DisplayName(),
+		TeamName:           teamName,
 		EventCount:         eventCount,
 		StaleData:          staleData,
 		IdentityMismatch:   identityMismatch,
@@ -226,7 +228,7 @@ func validateGitLabIdentityAt(ctx context.Context, a *app.App, repo teamstate.Re
 	}
 
 	// Resolve the token: env → team-specific key → MCP key → tracker key
-	teamID := config.RepoNameFromRemote(repo.Remote())
+	teamID := teamIDFor(a, repo.Remote())
 	res := gitlabTeamTokenAt(ctx, a, teamID, repo.Remote(), gitlabURL)
 	if !res.Found() {
 		slog.Warn("GitLab identity validation skipped: no token available for the server",
@@ -361,10 +363,6 @@ type rejoinRepo interface {
 // used; nil when the list is up to date. A repository nobody created the team
 // in (empty, or no members.toml) is an error that says so.
 func listTeamMembers(ctx context.Context, stateRepo, statePath string) (repo rejoinRepo, members []teamstate.Member, stale, err error) {
-	if statePath == "" {
-		statePath = config.TeamStatePath(stateRepo)
-	}
-
 	clone := teamstate.NewRepo(stateRepo, statePath)
 	if err := clone.EnsureReady(ctx); err != nil {
 		if !teamstate.IsPullWarning(err) {

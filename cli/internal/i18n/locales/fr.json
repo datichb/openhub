@@ -6416,5 +6416,7 @@
   "v533b.team_config.access_token": "Token d'accès %s",
   "v533b.team_config.invalid_limit": "  %s « %s » n'est pas un entier ≥ 0 : la limite reste à %d.\n",
   "v533b.team_config.conflict_cli": "config.toml a été modifié entre-temps par un collègue (%s) : rien n'a été écrasé. Relancez oh team config pour relire sa version.",
-  "v533b.team_config.status_unreadable": "%s config.toml de l'équipe illisible : %v — oh doctor\n"
+  "v533b.team_config.status_unreadable": "%s config.toml de l'équipe illisible : %v — oh doctor\n",
+  "v533a.teams.duplicate_id": "L'identifiant %[1]s est déjà celui d'une autre équipe (%[2]s) : choisissez-en un autre.",
+  "v533a.teams.duplicate_repo": "Ce dépôt est déjà configuré : équipe %[1]s."
 }

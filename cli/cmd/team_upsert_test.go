@@ -68,8 +68,9 @@ func TestTeamConfigIsUpserted(t *testing.T) {
 		teams := reloadTeams(t)
 		assert.Len(t, teams, 2, "the team is replaced, not duplicated: the solo space and the team")
 		assert.True(t, teams["solo"].Solo, "the solo space is untouched")
-		replaced := teams["team-state"]
+		replaced := teams["acme"]
 		assert.Equal(t, "Acme", replaced.Name, "the name of the replaced entry is kept")
+		assert.Equal(t, "acme", replaced.ID, "its ID is kept, not rewritten to the name of the repository")
 		assert.Equal(t, "carol", replaced.MemberID)
 		assert.Equal(t, "/acme-new", replaced.StatePath)
 	})

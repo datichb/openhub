@@ -146,9 +146,6 @@ func runTeamInit(cmd *cobra.Command, args []string) error {
 
 	// Determine local path
 	statePath = a.Config.ActiveTeam().StatePath
-	if statePath == "" && a.Config.ActiveTeam().StateRepo != "" {
-		statePath = config.DefaultTeamStatePath() // a team configured without a folder: the former default
-	}
 
 	// If already configured in hub.toml, clone/pull immediately (skip Step 0)
 	if a.Config.ActiveTeam().StateRepo != "" {
@@ -725,9 +722,6 @@ func ensureTeamRepoForProject(ctx context.Context, a *app.App, project *domain.P
 		return nil, fmt.Errorf(i18n.T("cmd.team.team_features_not_enabled_run_first"), theme.Bold.Render("oh team init"))
 	}
 	statePath := tc.StatePath
-	if statePath == "" {
-		statePath = config.DefaultTeamStatePath()
-	}
 	repo := teamstate.NewRepo(tc.StateRepo, statePath)
 	if !repo.IsCloned() {
 		return nil, fmt.Errorf(i18n.T("cmd.team.team_state_repository_not_found_in"), statePath, theme.Bold.Render("oh team init"))
@@ -881,7 +875,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 
 	// ── Step 2: Clone/pull and list members ──
 	fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team.cloning_team_state_2", theme.WarningStyle.Render(theme.IconDot)))
-	teamRepoHandle, members, stale, err := listTeamMembers(ctx, repoURL, "")
+	teamRepoHandle, members, stale, err := listTeamMembers(ctx, repoURL, teamStatePathFor(a, repoURL))
 	if err != nil {
 		return err
 	}
@@ -955,7 +949,7 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 
 	// ── Step 3b: GitLab token prompt (conditional) ──
 	if selectedMember != nil && selectedMember.GitLabUsername != "" {
-		teamID := config.RepoNameFromRemote(repoURL)
+		teamID := teamIDFor(a, repoURL)
 		source := gitlabTokenSourceAt(ctx, a, teamID, repoURL, gitlabURL)
 
 		fmt.Fprintln(a.IO.Out)
@@ -1067,15 +1061,14 @@ func runTeamRejoin(cmd *cobra.Command, _ []string) error {
 				tokenBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 				fmt.Fprintln(a.IO.Out)
 				if err == nil && len(tokenBytes) > 0 {
-					teamID := config.RepoNameFromRemote(repoURL)
+					teamID := teamIDFor(a, repoURL)
 					if a.Secrets != nil {
 						if sErr := a.Secrets.Set(ctx, config.TeamGitLabTokenKey(teamID), string(tokenBytes)); sErr != nil {
 							slog.Error("failed to save GitLab token to keychain", "team", teamID, "error", sErr)
 						}
 					}
 					// Re-validate
-					sp := config.TeamStatePath(repoURL)
-					repo := teamstate.NewRepo(repoURL, sp)
+					repo := teamstate.NewRepo(repoURL, teamStatePathFor(a, repoURL))
 					member, _ := repo.GetMember(ctx, memberID)
 					if member != nil {
 						if err := validateGitLabIdentity(ctx, a, repo, member); err != nil {

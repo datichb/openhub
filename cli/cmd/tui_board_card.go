@@ -140,9 +140,6 @@ func cardTeam(a *app.App, project *domain.Project) (cardClaimStore, string, bool
 	}
 	tc := resolvedTeamConfig(a, project)
 	statePath := tc.StatePath
-	if statePath == "" {
-		statePath = defaultTeamStatePath(a)
-	}
 	repo := teamstate.NewRepo(tc.StateRepo, statePath)
 	if !repo.IsCloned() {
 		return nil, "", false

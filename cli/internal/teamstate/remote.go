@@ -1,11 +1,7 @@
 package teamstate
 
 import (
-	"net/url"
-	"os"
-	"path/filepath"
-	"strings"
-
+	"github.com/datichb/openhub/cli/internal/gitremote"
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
@@ -43,100 +39,10 @@ func (r *Repo) CheckRemote() error {
 
 // originURL reads the URL of the origin of the clone at path from
 // .git/config (no git process).
-func originURL(path string) (string, bool) {
-	data, err := os.ReadFile(filepath.Join(path, ".git", "config"))
-	if err != nil {
-		return "", false
-	}
-	inOrigin := false
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		switch {
-		case strings.HasPrefix(line, "["):
-			inOrigin = strings.EqualFold(strings.Join(strings.Fields(line), " "), `[remote "origin"]`)
-		case inOrigin && strings.HasPrefix(line, "url"):
-			if k, v, ok := strings.Cut(line, "="); ok && strings.TrimSpace(k) == "url" {
-				return gitConfigValue(v), true
-			}
-		}
-	}
-	return "", false
-}
-
-// gitConfigValue decodes a value as git writes it in a config file: quoted
-// parts, backslash escapes (a Windows path is written C:\\Users\\…) and an
-// inline comment (# or ;) outside quotes.
-func gitConfigValue(raw string) string {
-	var b strings.Builder
-	quoted := false
-	for i := 0; i < len(raw); i++ {
-		c := raw[i]
-		switch {
-		case c == '\\' && i+1 < len(raw):
-			i++
-			switch raw[i] {
-			case 'n':
-				b.WriteByte('\n')
-			case 't':
-				b.WriteByte('\t')
-			case 'b':
-				b.WriteByte('\b')
-			default:
-				b.WriteByte(raw[i])
-			}
-		case c == '"':
-			quoted = !quoted
-		case (c == '#' || c == ';') && !quoted:
-			return strings.TrimSpace(b.String())
-		default:
-			b.WriteByte(c)
-		}
-	}
-	return strings.TrimSpace(b.String())
-}
+func originURL(path string) (string, bool) { return gitremote.Origin(path) }
 
 // SameRemote reports whether a and b designate the same repository: same host
 // and same path, whatever the scheme (https, ssh, scp-like), the user, the
 // .git suffix, the trailing slash or the case of the host. Local paths are
 // compared as cleaned paths.
-func SameRemote(a, b string) bool {
-	ka, kb := remoteKey(a), remoteKey(b)
-	return ka != "" && ka == kb
-}
-
-func remoteKey(remote string) string {
-	remote = strings.TrimSpace(remote)
-	if remote == "" {
-		return ""
-	}
-	host, path := "", ""
-	switch {
-	case strings.Contains(remote, "://"):
-		u, err := url.Parse(remote)
-		if err != nil || u.Host == "" {
-			return filepath.Clean(remote)
-		}
-		host, path = strings.ToLower(u.Hostname()), u.Path
-	case isSCPLike(remote):
-		rest := remote
-		if i := strings.Index(rest, "@"); i >= 0 {
-			rest = rest[i+1:]
-		}
-		h, p, _ := strings.Cut(rest, ":")
-		host, path = strings.ToLower(h), p
-	default:
-		return filepath.Clean(remote)
-	}
-	path = strings.TrimSuffix(strings.Trim(path, "/"), ".git")
-	return host + "/" + path
-}
-
-// isSCPLike: user@host:path (git's short form for ssh), not a local path nor
-// a Windows drive.
-func isSCPLike(s string) bool {
-	i := strings.Index(s, ":")
-	if i <= 1 || strings.ContainsAny(s[:i], `/\`) {
-		return false
-	}
-	return true
-}
+func SameRemote(a, b string) bool { return gitremote.Same(a, b) }

@@ -374,9 +374,6 @@ func getRepo() (store, error) {
 	}
 
 	statePath := teamCfg.StatePath
-	if statePath == "" {
-		statePath = config.DefaultTeamStatePath()
-	}
 
 	repo := openStore(teamCfg.StateRepo, statePath)
 	if !repo.IsCloned() {

@@ -393,9 +393,6 @@ func teamClaimsRepo(a *app.App, proj *domain.Project) (claimsStore, string, bool
 		return nil, "", false
 	}
 	statePath := tc.StatePath
-	if statePath == "" {
-		statePath = defaultTeamStatePath(a)
-	}
 	repo := teamstate.NewRepo(tc.StateRepo, statePath)
 	if !repo.IsCloned() {
 		return nil, "", false

@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/services/doctor"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
@@ -28,9 +27,6 @@ func workflowIntegrityChecks() []doctor.Result {
 			continue
 		}
 		path := t.StatePath
-		if path == "" {
-			path = config.DefaultTeamStatePath()
-		}
 		repo := teamstate.NewRepo(t.StateRepo, path)
 		if !repo.IsCloned() {
 			continue
