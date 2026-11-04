@@ -11,7 +11,8 @@ import (
 // owner works on it: its status is one of the "active" columns of the board
 // (in_progress on the default board), and it does not wait for a review. A
 // claim in review (InReview: status review, or the review or ready-for-review
-// label) waits for a person, not for the member's hands: it does not count.
+// label, or a column of role review) waits for a person, not for the member's
+// hands: it does not count.
 // Neither do planned, blocked, finished and validation claims (the work passed
 // review and is being validated): on the default board the count is exactly
 // the claims in in_progress, whether the team left its columns unset or saved
@@ -32,7 +33,8 @@ func (c *Claim) CountsInProgress(board BoardConfig) bool {
 // progress on the board: an active column, the review and validation ones
 // apart.
 func StatusCountsInProgress(board BoardConfig, status string) bool {
-	return status != ClaimStatusReview && status != ClaimStatusValidation && slices.Contains(board.ActiveStatuses(), status)
+	return status != ClaimStatusReview && status != ClaimStatusValidation &&
+		slices.Contains(board.ActiveStatuses(), status) && !slices.Contains(board.ReviewStatuses(), status)
 }
 
 // InProgressOf returns the claims of member that count as in progress.

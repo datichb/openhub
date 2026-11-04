@@ -91,12 +91,14 @@ type BoardLayout struct {
 	LabelStatusMapping map[string]string
 }
 
-// BoardActions provides callbacks for ticket actions on the board.
+// BoardActions provides callbacks for ticket actions on the board. They act
+// on the project of the card (the team-state directory ID, "" when the card
+// has none), which is not the active project of the hub on a board of several.
 type BoardActions struct {
-	OnClaim    func(ticketID string) error
-	OnRelease  func(ticketID string) error
-	OnTransfer func(ticketID, toMember string) error
-	OnStatus   func(ticketID, newStatus string) error
+	OnClaim    func(project, ticketID string) error
+	OnRelease  func(project, ticketID string) error
+	OnTransfer func(project, ticketID, toMember string) error
+	OnStatus   func(project, ticketID, newStatus string) error
 	Members    func() []SelectOption // returns team members for transfer
 	// FetchDetail fetches the full ticket detail from the external tracker.
 	// Returns title and full description (not truncated). If nil, the detail
@@ -126,6 +128,9 @@ type TeamBoardView struct {
 	// ticketIDLookup maps [colIndex][itemIndex] → ticket ID for selected-item resolution.
 	// Rebuilt every time populateColumns or repopulateWithFilters is called.
 	ticketIDLookup [][]string
+	// cardLookup is the same for the tickets themselves: two projects may
+	// have a ticket of the same ID.
+	cardLookup [][]TeamTicket
 
 	// Filtering state
 	allTickets     []TeamTicket // all tickets from RefreshFunc (unfiltered)
@@ -567,9 +572,7 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 
 	// Reset ticket ID lookup
 	v.ticketIDLookup = make([][]string, len(v.columnCards))
-	for i := range v.ticketIDLookup {
-		v.ticketIDLookup[i] = nil
-	}
+	v.cardLookup = make([][]TeamTicket, len(v.columnCards))
 
 	for _, cc := range v.columnCards {
 		cc.Clear()
@@ -581,6 +584,7 @@ func (v *TeamBoardView) populateColumns(tickets []TeamTicket, columns []BoardCol
 			}
 			v.columnCards[i].AddCard(v.buildTeamCard(t))
 			v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
+			v.cardLookup[i] = append(v.cardLookup[i], t)
 			break
 		}
 	}
@@ -1018,45 +1022,67 @@ func (v *TeamBoardView) selectedTicketID() string {
 
 // selectedTeamTicket returns the full TeamTicket of the currently selected card.
 func (v *TeamBoardView) selectedTeamTicket() (*TeamTicket, bool) {
-	id := v.selectedTicketID()
-	if id == "" {
+	if v.focusCol < 0 || v.focusCol >= len(v.columnCards) || v.focusCol >= len(v.cardLookup) {
 		return nil, false
 	}
-	for i := range v.allTickets {
-		if v.allTickets[i].ID == id {
-			return &v.allTickets[i], true
-		}
+	idx := v.columnCards[v.focusCol].GetCurrentItem()
+	if idx < 0 || idx >= len(v.cardLookup[v.focusCol]) {
+		return nil, false
 	}
-	return nil, false
+	return &v.cardLookup[v.focusCol][idx], true
 }
 
-// showTeamBoardQuickActions opens the quick action modal for the selected ticket.
-func (v *TeamBoardView) showTeamBoardQuickActions() {
-	if v.shell == nil || v.cfg.QuickActions == nil || len(v.columnCards) == 0 {
-		return
-	}
-
-	ticket, ok := v.selectedTeamTicket()
-	if !ok {
-		return
-	}
-
+// ticketContext is the context of a card for the actions that launch a
+// workflow: its project, and the column it is in.
+func (v *TeamBoardView) ticketContext(ticket *TeamTicket) TicketContext {
 	tc := TicketContext{
 		ID:          ticket.ID,
 		Title:       ticket.Title,
 		Description: ticket.Description,
 		Project:     ticket.Project,
+		AssigneeID:  ticket.AssigneeID,
+		MRURL:       ticket.MRURL,
+		Branch:      ticket.Branch,
+		SessionID:   ticket.SessionID,
 	}
-
+	work := false // the first active column is where the work happens
+	for _, col := range v.allColumns {
+		if col.Role == teamstate.ColumnRoleActive && !work {
+			work = true
+			if col.Status == ticket.Status {
+				tc.Work = true
+			}
+		}
+		if col.Status == ticket.Status {
+			tc.Role = col.Role
+		}
+	}
 	// Resolve the project path from the ticket's team-state project directory ID.
-	if v.cfg.QuickActions.ResolveProjectByDirID != nil && ticket.Project != "" {
-		if projectID, projectPath, ok := v.cfg.QuickActions.ResolveProjectByDirID(ticket.Project); ok {
+	if qa := v.cfg.QuickActions; qa != nil && qa.ResolveProjectByDirID != nil && ticket.Project != "" {
+		if projectID, projectPath, ok := qa.ResolveProjectByDirID(ticket.Project); ok {
 			tc.ProjectPath = projectPath
 			tc.ProjectID = projectID
 		}
 	}
+	return tc
+}
 
-	showQuickActionModal(v.shell, tc, v.cfg.QuickActions)
+// showTeamBoardQuickActions opens the menu of the selected card: the actions
+// of its column (teamboard_card_actions.go).
+func (v *TeamBoardView) showTeamBoardQuickActions() {
+	if v.shell == nil || v.cfg.QuickActions == nil || len(v.columnCards) == 0 {
+		return
+	}
+	ticket, ok := v.selectedTeamTicket()
+	if !ok {
+		return
+	}
+	tc := v.ticketContext(ticket)
+	if tc.Role == "" { // columns without roles: the menu of the Beads board
+		showQuickActionModal(v.shell, tc, v.cfg.QuickActions)
+		return
+	}
+	v.showCardMenu(tc)
 }
 
 // ContextCommands implements CommandProvider — injects ticket-specific commands
@@ -1065,19 +1091,28 @@ func (v *TeamBoardView) ContextCommands() []ContextCommand {
 	if v.cfg.QuickActions == nil {
 		return nil
 	}
-
 	ticket, ok := v.selectedTeamTicket()
 	if !ok {
 		return nil
 	}
-
-	tc := TicketContext{ID: ticket.ID, Title: ticket.Title, Description: ticket.Description, Project: ticket.Project}
-	if v.cfg.QuickActions.ResolveProjectByDirID != nil && ticket.Project != "" {
-		if pid, ppath, ok := v.cfg.QuickActions.ResolveProjectByDirID(ticket.Project); ok {
-			tc.ProjectPath, tc.ProjectID = ppath, pid
-		}
+	tc := v.ticketContext(ticket)
+	if tc.Role == "" {
+		return ticketContextCommands("team.board.run.", tc, v.cfg.QuickActions)
 	}
-	return ticketContextCommands("team.board.run.", tc, v.cfg.QuickActions)
+	return v.cardCommands("team.board.run.", tc)
+}
+
+// cardRef is the card an action works on: the team-state project it is in
+// and its ticket ID.
+type cardRef struct{ project, ticket string }
+
+// selectedCard returns the card an action works on.
+func (v *TeamBoardView) selectedCard() (cardRef, bool) {
+	t, ok := v.selectedTeamTicket()
+	if !ok || t.ID == "" {
+		return cardRef{}, false
+	}
+	return cardRef{project: t.Project, ticket: t.ID}, true
 }
 
 func (v *TeamBoardView) claimTicket() {
@@ -1087,14 +1122,14 @@ func (v *TeamBoardView) claimTicket() {
 	if v.actionInProgress.Load() {
 		return
 	}
-	ticketID := v.selectedTicketID()
-	if ticketID == "" {
+	card, ok := v.selectedCard()
+	if !ok {
 		return
 	}
 	v.actionInProgress.Store(true)
 	onClaim, app, ctx := v.actions.OnClaim, v.app, shellContext(v.shell)
 	safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
-		err := onClaim(ticketID)
+		err := onClaim(card.project, card.ticket)
 		if app == nil {
 			return
 		}
@@ -1103,7 +1138,7 @@ func (v *TeamBoardView) claimTicket() {
 			if err != nil {
 				v.shell.ShowToastMsg(i18n.T("tui.teamboard.claim_failed")+err.Error(), false)
 			} else {
-				v.shell.ShowToastMsg(i18n.T("tui.teamboard.claim_success")+ticketID, true)
+				v.shell.ShowToastMsg(i18n.T("tui.teamboard.claim_success")+card.ticket, true)
 				if v.cfg.RefreshFunc != nil {
 					v.reload(nil)
 				}
@@ -1119,23 +1154,22 @@ func (v *TeamBoardView) releaseTicket() {
 	if v.actionInProgress.Load() {
 		return
 	}
-	ticketID := v.selectedTicketID()
-	if ticketID == "" {
+	card, ok := v.selectedCard()
+	if !ok {
 		return
 	}
-	v.shell.Confirm(i18n.T("tui.confirm.release.title"), i18n.Tf("tui.confirm.release.detail", ticketID), true, func() {
-		v.doReleaseTicket(ticketID)
+	v.shell.Confirm(i18n.T("tui.confirm.release.title"), i18n.Tf("tui.confirm.release.detail", card.ticket), true, func() {
+		v.doReleaseTicket(card)
 	})
 }
 
-func (v *TeamBoardView) doReleaseTicket(ticketID string) {
-	if v.actionInProgress.Load() {
+func (v *TeamBoardView) doReleaseTicket(card cardRef) {
+	if v.actionInProgress.Swap(true) {
 		return
 	}
-	v.actionInProgress.Store(true)
 	onRelease, app, ctx := v.actions.OnRelease, v.app, shellContext(v.shell)
 	safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
-		err := onRelease(ticketID)
+		err := onRelease(card.project, card.ticket)
 		if app == nil {
 			return
 		}
@@ -1144,7 +1178,7 @@ func (v *TeamBoardView) doReleaseTicket(ticketID string) {
 			if err != nil {
 				v.shell.ShowToastMsg(i18n.T("tui.teamboard.release_failed")+err.Error(), false)
 			} else {
-				v.shell.ShowToastMsg(i18n.T("tui.teamboard.release_success")+ticketID, true)
+				v.shell.ShowToastMsg(i18n.T("tui.teamboard.release_success")+card.ticket, true)
 				if v.cfg.RefreshFunc != nil {
 					v.reload(nil)
 				}
@@ -1153,6 +1187,11 @@ func (v *TeamBoardView) doReleaseTicket(ticketID string) {
 	})
 }
 
+// The transfer and the status change ask for a choice in a list first. The
+// flag that guards the actions is taken once the choice is made, not when the
+// list opens: Esc closes the list without calling back, and a flag taken
+// before would never be released.
+
 func (v *TeamBoardView) transferTicket() {
 	if v.actions == nil || v.actions.OnTransfer == nil || v.actions.Members == nil || v.shell == nil {
 		return
@@ -1160,8 +1199,8 @@ func (v *TeamBoardView) transferTicket() {
 	if v.actionInProgress.Load() {
 		return
 	}
-	ticketID := v.selectedTicketID()
-	if ticketID == "" {
+	card, ok := v.selectedCard()
+	if !ok {
 		return
 	}
 	members := v.actions.Members()
@@ -1169,8 +1208,10 @@ func (v *TeamBoardView) transferTicket() {
 		v.shell.ShowToastMsg(i18n.T("tui.teamboard.no_members"), false)
 		return
 	}
-	v.actionInProgress.Store(true)
-	v.shell.ShowSelectModal(i18n.Tf("tui.teamboard.transfer_title", ticketID), members, "", func(toMember string) {
+	v.shell.ShowSelectModal(i18n.Tf("tui.teamboard.transfer_title", card.ticket), members, "", func(toMember string) {
+		if v.actionInProgress.Swap(true) {
+			return
+		}
 		app, ctx := v.app, shellContext(v.shell)
 		toName := toMember // the toast names the member as the list did
 		for _, m := range members {
@@ -1179,7 +1220,7 @@ func (v *TeamBoardView) transferTicket() {
 			}
 		}
 		safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
-			err := v.actions.OnTransfer(ticketID, toMember)
+			err := v.actions.OnTransfer(card.project, card.ticket, toMember)
 			if app == nil {
 				return
 			}
@@ -1205,8 +1246,8 @@ func (v *TeamBoardView) changeStatus() {
 	if v.actionInProgress.Load() {
 		return
 	}
-	ticketID := v.selectedTicketID()
-	if ticketID == "" {
+	card, ok := v.selectedCard()
+	if !ok {
 		return
 	}
 
@@ -1221,11 +1262,13 @@ func (v *TeamBoardView) changeStatus() {
 		currentStatus = ticket.Status
 	}
 
-	v.actionInProgress.Store(true)
-	v.shell.ShowSelectModal(i18n.Tf("tui.teamboard.status_title", ticketID), statusOptions, currentStatus, func(newStatus string) {
+	v.shell.ShowSelectModal(i18n.Tf("tui.teamboard.status_title", card.ticket), statusOptions, currentStatus, func(newStatus string) {
+		if v.actionInProgress.Swap(true) {
+			return
+		}
 		app, ctx := v.app, shellContext(v.shell)
 		safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
-			err := v.actions.OnStatus(ticketID, newStatus)
+			err := v.actions.OnStatus(card.project, card.ticket, newStatus)
 			if app == nil {
 				return
 			}
@@ -1392,9 +1435,7 @@ func (v *TeamBoardView) repopulateWithFilters() {
 
 	// Reset ticket ID lookup
 	v.ticketIDLookup = make([][]string, len(v.columnCards))
-	for i := range v.ticketIDLookup {
-		v.ticketIDLookup[i] = nil
-	}
+	v.cardLookup = make([][]TeamTicket, len(v.columnCards))
 
 	for _, cc := range v.columnCards {
 		cc.Clear()
@@ -1406,6 +1447,7 @@ func (v *TeamBoardView) repopulateWithFilters() {
 			}
 			v.columnCards[i].AddCard(v.buildTeamCard(t))
 			v.ticketIDLookup[i] = append(v.ticketIDLookup[i], t.ID)
+			v.cardLookup[i] = append(v.cardLookup[i], t)
 			break
 		}
 	}

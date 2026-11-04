@@ -13,17 +13,23 @@ type BoardColumnDef struct {
 	Name   string
 	Status string
 	Color  tcell.Color
+	// Role is the semantic role of the column (teamstate.ColumnRole*): what
+	// the actions of a card depend on. Never empty on a column built here: a
+	// column without a role is active, and, when no column of the board
+	// declares the review role, the column of the review status is the review
+	// column.
+	Role string
 }
 
 // DefaultColumns returns the standard kanban columns.
 func DefaultColumns() []BoardColumnDef {
 	return []BoardColumnDef{
-		{Name: "TODO", Status: "todo", Color: theme.Warning},
-		{Name: "IN PROGRESS", Status: "in_progress", Color: tcell.GetColor(theme.BlueHex)},
-		{Name: "REVIEW", Status: "review", Color: theme.FgSecondary},
-		{Name: "VALIDATION", Status: "validation", Color: theme.Info},
-		{Name: "DONE", Status: "done", Color: theme.Success},
-		{Name: "BLOCKED", Status: "blocked", Color: theme.Error},
+		{Name: "TODO", Status: "todo", Color: theme.Warning, Role: teamstate.ColumnRoleInitial},
+		{Name: "IN PROGRESS", Status: "in_progress", Color: tcell.GetColor(theme.BlueHex), Role: teamstate.ColumnRoleActive},
+		{Name: "REVIEW", Status: "review", Color: theme.FgSecondary, Role: teamstate.ColumnRoleReview},
+		{Name: "VALIDATION", Status: "validation", Color: theme.Info, Role: teamstate.ColumnRoleActive},
+		{Name: "DONE", Status: "done", Color: theme.Success, Role: teamstate.ColumnRoleTerminal},
+		{Name: "BLOCKED", Status: "blocked", Color: theme.Error, Role: teamstate.ColumnRoleBlocked},
 	}
 }
 
@@ -37,14 +43,30 @@ func ColumnsFromConfig(cfg teamstate.BoardConfig) []BoardColumnDef {
 	}
 	cols := make([]BoardColumnDef, len(cfg.Columns))
 	activeIdx := 0
+	declared := false // a column declares the review role
 	for i, c := range cfg.Columns {
+		role := c.Role
+		if role == "" {
+			role = teamstate.ColumnRoleActive
+		}
 		cols[i] = BoardColumnDef{
 			Name:   c.Name,
 			Status: c.ID,
 			Color:  ResolveColumnColor(c, activeIdx),
+			Role:   role,
 		}
 		if c.Role == teamstate.ColumnRoleActive || c.Role == "" {
 			activeIdx++
+		}
+		declared = declared || role == teamstate.ColumnRoleReview
+	}
+	if !declared {
+		// The board declares no review column: the column of the review
+		// status is it (a team that has not set the role yet).
+		for i := range cols {
+			if cols[i].Status == teamstate.ClaimStatusReview && cols[i].Role == teamstate.ColumnRoleActive {
+				cols[i].Role = teamstate.ColumnRoleReview
+			}
 		}
 	}
 	return cols
@@ -68,6 +90,8 @@ func ResolveColumnColor(c teamstate.BoardColumnConfig, activeIdx int) tcell.Colo
 		return theme.Success
 	case teamstate.ColumnRoleBlocked:
 		return theme.Error
+	case teamstate.ColumnRoleReview:
+		return theme.FgSecondary
 	default: // active or unset
 		return activeColorCycle[activeIdx%len(activeColorCycle)]
 	}

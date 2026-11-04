@@ -183,6 +183,22 @@ func (t *tuiSessions) refresh(ctx context.Context) {
 	})
 }
 
+// openSession returns id when it is the ID of a session that is not finished
+// (from the cache of the last refresh, event loop safe), "" otherwise.
+func (t *tuiSessions) openSession(id string) string {
+	if t == nil || id == "" {
+		return ""
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for _, v := range t.cache {
+		if v.Session.ID == id && v.Open() {
+			return id
+		}
+	}
+	return ""
+}
+
 // summarySignature changes when what the landings show changes.
 func summarySignature(list []sessionsvc.View) string {
 	var b strings.Builder

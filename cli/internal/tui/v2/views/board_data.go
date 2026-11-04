@@ -34,6 +34,12 @@ type TeamTicket struct {
 	Labels []string
 	// MRURL is the merge request URL (from claim). Empty if no MR published.
 	MRURL string
+	// Branch is the branch of the work on the claim (the worktree of the
+	// claim); empty when none is known.
+	Branch string
+	// SessionID is the session that works on the claim, when the claim names
+	// one (it may be over: the menu of the card checks it).
+	SessionID string
 }
 
 // ProjectNameResolver maps a project directory ID to a human-friendly display name.
@@ -109,6 +115,8 @@ func FetchTeamTicketsWithColumns(ctx context.Context, repo TeamTicketSource, res
 			Labels:      c.Labels,
 			Description: c.Description,
 			MRURL:       c.MRURL,
+			Branch:      c.Worktree,
+			SessionID:   c.Session,
 		})
 	}
 

@@ -28,6 +28,11 @@ const (
 	ColumnRoleTerminal = "terminal"
 	// ColumnRoleBlocked marks impediment/waiting columns.
 	ColumnRoleBlocked = "blocked"
+	// ColumnRoleReview marks the columns where work waits for a review: the
+	// card menu of the board offers the review of the claim's branch there. A
+	// review column is alive like an active one (ActiveStatuses), but its
+	// claims wait for a person and do not count as work in progress.
+	ColumnRoleReview = "review"
 )
 
 // BoardColumnConfig defines a single board column.
@@ -42,7 +47,7 @@ type BoardColumnConfig struct {
 	// Empty = auto-assigned from role-based DS palette.
 	Color string `toml:"color,omitempty"`
 	// Role defines the semantic role of this column.
-	// Values: "initial", "active", "terminal", "blocked".
+	// Values: "initial", "active", "review", "terminal", "blocked".
 	// Empty = "active" (default for columns without explicit role).
 	Role string `toml:"role,omitempty"`
 }
@@ -101,17 +106,34 @@ func (cfg BoardConfig) TerminalStatuses() []string {
 	return ids
 }
 
-// ActiveStatuses returns the IDs of all columns with role "active".
+// ActiveStatuses returns the IDs of all columns with role "active" or
+// "review" (a ticket that waits for a review is still moving).
 // Used for badge counts and summary displays.
 func (cfg BoardConfig) ActiveStatuses() []string {
 	var ids []string
 	for _, c := range cfg.Columns {
-		if c.Role == ColumnRoleActive {
+		if c.Role == ColumnRoleActive || c.Role == ColumnRoleReview {
 			ids = append(ids, c.ID)
 		}
 	}
 	if len(ids) == 0 {
 		return []string{ClaimStatusInProgress, ClaimStatusReview}
+	}
+	return ids
+}
+
+// ReviewStatuses returns the IDs of all columns with role "review". When no
+// column declares it (the default board, a team that never set the role), the
+// review status stands in: a column whose ID is "review" is the review column.
+func (cfg BoardConfig) ReviewStatuses() []string {
+	var ids []string
+	for _, c := range cfg.Columns {
+		if c.Role == ColumnRoleReview {
+			ids = append(ids, c.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return []string{ClaimStatusReview}
 	}
 	return ids
 }
@@ -208,10 +230,10 @@ func (cfg BoardConfig) Validate() error {
 			initialCount++
 		case ColumnRoleTerminal:
 			terminalCount++
-		case ColumnRoleActive, ColumnRoleBlocked, "":
+		case ColumnRoleActive, ColumnRoleReview, ColumnRoleBlocked, "":
 			// ok
 		default:
-			return fmt.Errorf("board: column %q has unknown role %q (valid: initial, active, terminal, blocked)", c.ID, c.Role)
+			return fmt.Errorf("board: column %q has unknown role %q (valid: initial, active, review, terminal, blocked)", c.ID, c.Role)
 		}
 	}
 	if initialCount > 1 {

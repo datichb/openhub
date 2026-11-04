@@ -270,6 +270,16 @@ func requestInputOf(s workflowsvc.Summary) string {
 	return ""
 }
 
+// workflow returns a workflow of the cached catalogue by its ID (event loop
+// safe); false when the project does not offer it.
+func (t *tuiStart) workflow(scope views.StartScope, id string) (views.TicketWorkflow, bool) {
+	ws := t.workflowsWhere(scope, func(s workflowsvc.Summary) bool { return s.ID == id })
+	if len(ws) == 0 {
+		return views.TicketWorkflow{}, false
+	}
+	return ws[0], true
+}
+
 // boardLabel is how the menu of a card names a workflow: a short title of its
 // own where the catalogue has one (keys tui.board.label.<id>), else its
 // description.

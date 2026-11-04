@@ -372,7 +372,30 @@ Commande `doctor`. `f` corriger le contrôle sélectionné (comme `oh doctor --f
 | Vue | Touches |
 |-----|---------|
 | Board du projet | `h` / `l` colonnes, `Entrée` détail, `a` actions (lancer un workflow sur le ticket), `L` lier au tracker, `i` initialiser Beads |
-| Board d'équipe | `h` / `l` colonnes, `[` / `]` projets (les onglets portent le nom du projet, triés par nom ; un ID qu'aucun projet local ne connaît s'affiche « (projet inconnu) »), `Entrée` détail, `a` actions (workflows à ticket ; sur une issue GitLab, aussi les workflows à demande libre avec `#<iid>`), `/` filtrer (menu : texte, **Mes tickets**, **Non assignés** — la réserve, à prendre avec `c` —, assigné, libellé, effacer), `c` prendre (refusé à `max_in_progress_per_member`), `L` libérer (confirmé), `t` transférer, `s` statut, `C` éditer les colonnes du board (l'éditeur ci-dessous) |
+| Board d'équipe | `h` / `l` colonnes, `[` / `]` projets (les onglets portent le nom du projet, triés par nom ; un ID qu'aucun projet local ne connaît s'affiche « (projet inconnu) »), `Entrée` détail, `a` actions (le menu suit la colonne de la carte : voir [le menu `a` d'une carte](#le-menu-a-dune-carte)), `/` filtrer (menu : texte, **Mes tickets**, **Non assignés** — la réserve, à prendre avec `c` —, assigné, libellé, effacer), `c` prendre (refusé à `max_in_progress_per_member`), `L` libérer (confirmé), `t` transférer, `s` statut, `C` éditer les colonnes du board (l'éditeur ci-dessous). `c`, `L`, `t` et `s` agissent sur le projet de la carte, pas sur le projet actif, et répondent de nouveau après un `Échap` dans la liste de `t` ou de `s` |
+
+#### Le menu `a` d'une carte
+
+Sur le board d'équipe, `a` propose les actions de la colonne où est la carte. La colonne est reconnue à son **rôle** (`initial`, `active`, `review`…), pas à son nom.
+
+| Colonne (rôle) | Actions de `a` |
+|---|---|
+| todo (`initial`) | **Cadrer** (`spec`, avec l'issue `#<iid>` ou l'id Beads comme demande) · **Faire le ticket** (`ticket`) |
+| première colonne `active` (en cours) | **Faire le ticket** · **Consigne** à la session en cours, quand le claim en nomme une qui n'est pas finie |
+| `review` | **Review** (`review`, sur la branche du claim) · **Retours de review** (`review-feedback`, avec la MR du claim : seulement si le claim a un `mr_url`) |
+| les autres (validation, bloquée, terminée…) | Détail · statut · transfert |
+
+« Faire le ticket » dépend de la source de la carte :
+
+- **ticket Beads** : `ticket` sur son id ;
+- **issue GitLab** : si Beads est initialisé dans le projet, l'issue est **importée en ticket Beads** (liée par `external_ref = gitlab-<iid>` ; une seconde fois, le ticket déjà lié est repris, pas un second) puis `ticket` est lancé sur cet id. Sans Beads dans le projet, `quick` prend l'issue comme demande. Un workflow à id Beads ne reçoit jamais `#<iid>` ;
+- **ticket d'un autre tracker** (clé Jira…) : `quick`, avec la clé comme demande.
+
+Le lancement de « Faire le ticket » met le claim de la carte **en cours** une fois la session démarrée (le claim est pris s'il est dans la réserve ou n'existe pas) et respecte `max_in_progress_per_member` : au-delà, le lancement est refusé avant de rien créer. Cadrer, Review et Retours de review ne touchent pas au claim.
+
+Une action indisponible reste dans la liste, en gris, avec la raison (« `spec` n'est pas proposé dans ce projet », « le claim n'a pas d'URL de merge request », « aucune session en cours sur ce ticket ») ; la choisir affiche la raison. Dans la barre de commandes, `run <workflow>` suit le même menu. Un projet qui ne propose pas le workflow, ou une colonne sans rôle (board construit à la main), garde le menu des autres boards.
+
+Le formulaire de lancement d'un workflow à id Beads sur lequel on a saisi `#<iid>` dit pourquoi il ne le lit pas et quoi lancer à la place, au lieu de « Impossible de charger ».
 
 ### Éditeur de colonnes du board
 
@@ -386,7 +409,7 @@ Liste des colonnes :
 | `n` | ajouter une colonne après celle du curseur (le nom est demandé ; l'identifiant en est tiré, le rôle est proposé d'après le nom) |
 | `e` / `Entrée` | renommer la colonne (son identifiant ne change pas) |
 | `d` | supprimer la colonne, **après confirmation** (le focus est sur « Annuler ») ; les labels et statuts qui y mènent partent avec elle, la confirmation en donne le nombre. Deux colonnes au moins restent : en dessous, un message refuse sans rien demander |
-| `o` | changer le rôle : `initial` → `active` → `terminal` → `blocked` |
+| `o` | changer le rôle : `initial` → `active` → `review` → `terminal` → `blocked` |
 | `K` / `J` | monter / descendre la colonne |
 | `m` | ouvrir les rattachements de la colonne (quand l'équipe a un tracker) |
 | `Ctrl+S` | enregistrer : au moins deux colonnes dont une `terminal`, sinon un message dit ce qui manque |

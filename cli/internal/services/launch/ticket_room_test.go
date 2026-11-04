@@ -69,3 +69,40 @@ func TestStartIsRefusedWhenTheTeamHasNoRoom(t *testing.T) {
 	p.deps.TicketRoom = func(*domain.Project) func(context.Context, string, []string) error { return nil }
 	assert.NoError(t, checkTicketRoom(t.Context(), p))
 }
+
+// A ticket another claim covers (NoClaim: the card of the board whose issue
+// was imported as that Beads ticket) is neither asked to the check nor given
+// to the hook that claims the tickets of a started session.
+func TestNoClaimTicketsAreLeftOutOfTheRoomAndTheClaims(t *testing.T) {
+	var asked []string
+	room := func(*domain.Project) func(context.Context, string, []string) error {
+		return func(_ context.Context, _ string, tickets []string) error {
+			asked = append([]string(nil), tickets...)
+			return errors.New("no room")
+		}
+	}
+	plan := &runsvc.RunPlan{Sessions: []runsvc.PlannedSession{
+		{PlannedInput: runsvc.PlannedInput{Tickets: []string{"T-1", "T-2"}}},
+	}}
+	p := &Prepared{Project: &domain.Project{ID: "proj"}, Plan: plan, deps: Deps{TicketRoom: room}, Opts: Options{NoClaim: []string{"T-1", "T-2"}}}
+	require.NoError(t, checkTicketRoom(t.Context(), p), "nothing is left to ask: no refusal")
+	assert.Nil(t, asked)
+
+	p.Opts.NoClaim = []string{"T-2"}
+	require.Error(t, checkTicketRoom(t.Context(), p))
+	assert.Equal(t, []string{"T-1"}, asked)
+
+	var claimed []string
+	hook := func(_ context.Context, _ string, tickets []string) []string {
+		claimed = append([]string(nil), tickets...)
+		return []string{"note"}
+	}
+	wrapped := withoutTickets(hook, []string{"T-2"})
+	assert.Equal(t, []string{"note"}, wrapped(t.Context(), "proj", []string{"T-1", "T-2"}))
+	assert.Equal(t, []string{"T-1"}, claimed)
+	claimed = nil
+	assert.Nil(t, wrapped(t.Context(), "proj", []string{"T-2"}), "only the skipped ticket: the hook is not called")
+	assert.Nil(t, claimed)
+	assert.Nil(t, withoutTickets(nil, []string{"T-2"}), "no hook stays no hook")
+	assert.NotNil(t, withoutTickets(hook, nil))
+}

@@ -17,6 +17,9 @@ import (
 // chosen there). On the card of a GitLab issue the workflows that take a free
 // request (spec, quick…) are offered too, with the issue (#<iid>) as the
 // request: the launch form opens on its inputs, the request prefilled.
+//
+// The cards of the team board get a menu that follows their column
+// (teamboard_card_actions.go); the menu above is that of the Beads board.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // TicketContext holds the selected ticket.
@@ -27,6 +30,19 @@ type TicketContext struct {
 	Project     string // project directory ID (team board multi-project resolution)
 	ProjectPath string // resolved filesystem path
 	ProjectID   string // hub project ID
+
+	// What the team board knows of the card; Role is empty on the Beads board,
+	// whose menu does not depend on a column.
+
+	// Role is the role of the column of the card (teamstate.ColumnRole*).
+	Role string
+	// Work: the column is the one where the work happens (the first active
+	// column of the board).
+	Work bool
+	// AssigneeID is the member who holds the claim ("" in the pool).
+	AssigneeID string
+	// MRURL, Branch and SessionID are those of the claim.
+	MRURL, Branch, SessionID string
 }
 
 // TicketWorkflow is a workflow that takes a Beads ticket.
@@ -62,6 +78,26 @@ type BoardQuickActions struct {
 	ResolveProjectByDirID func(dirID string) (projectID, projectPath string, ok bool)
 	// FetchDescription fetches the ticket description (best-effort). May be nil.
 	FetchDescription func(projectPath, ticketID string) string
+
+	// The menu of the cards of the team board (teamboard_card_actions.go).
+
+	// Workflow returns a workflow of the catalogue by its ID (cached, event
+	// loop safe); false when the project does not offer it.
+	Workflow func(id string) (TicketWorkflow, bool)
+	// Source says where the ticket of a card lives, and, for a GitLab issue,
+	// its reference (« #693 »). Nil: IssueRef tells a GitLab issue from a
+	// Beads ticket.
+	Source func(ticket TicketContext) (CardSource, string)
+	// CanImport tells whether the issue of a card can be imported into the
+	// Beads of its project (Beads is installed and initialised there).
+	CanImport func(ticket TicketContext) bool
+	// LaunchCard opens the launch form of a workflow on a card.
+	LaunchCard func(launch CardLaunch, ticket TicketContext)
+	// ActiveSession returns the open session that works on the card ("" when
+	// none). Cached, event loop safe.
+	ActiveSession func(ticket TicketContext) string
+	// Instruct sends an instruction to a session of a card.
+	Instruct func(ticket TicketContext, sessionID, text string)
 }
 
 // requestPrefix tells, in the values of the quick action modal, a workflow

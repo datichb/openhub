@@ -672,6 +672,7 @@ Column layout of the team board. Without this section: 6 columns (TODO, IN PROGR
 |------|---------|
 | `initial` | Entry column: new tickets land here (pool claims, `--planned` flag) |
 | `active` | Work in progress: counted in badges and summaries |
+| `review` | Waiting for a review: counted like `active` in badges and summaries, but its claims do not count towards `max_in_progress_per_member`; the `a` menu of a card offers the review of the claim's branch there. Several columns may have it; with no column of this role, the column whose id is `review` stands in |
 | `terminal` | Completion: triggers the cleanup of done claims |
 | `blocked` | Impediment: counted separately in summaries |
 
@@ -693,7 +694,7 @@ columns = [
 | `columns[].id` | string | — | Internal id, lowercase, no space, `..` or `/`; claim status value |
 | `columns[].name` | string | — | Header label |
 | `columns[].color` | string | role-based | `orange`, `blue`, `gray`, `cyan`, `green`, `red`, `purple`, `yellow` |
-| `columns[].role` | string | `"active"` | `initial`, `active`, `terminal`, `blocked` |
+| `columns[].role` | string | `"active"` | `initial`, `active`, `review`, `terminal`, `blocked` |
 
 > **Tip:** the `Discover Tracker` command (omnibar or `T` key in team config) configures the columns from the tracker labels. The columns can also be edited by hand in the TUI editor (team home → *Board Columns*: `n` add, `e` rename, `d` delete after a confirmation, `o` role, `K` / `J` order, `m` mappings, `Ctrl+S` save; see [the editor](tui.en.md#board-columns-editor)). Without `[board]`, existing `"planned"` claims go to the first column.
 
