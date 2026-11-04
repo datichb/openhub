@@ -6332,5 +6332,8 @@
   "a12.legend.cursor": "ligne sous le curseur, début d'une action",
   "a12.legend.selected": "choisi (choix unique)",
   "a12.legend.selected-multi": "coché (choix multiple)",
-  "a12.legend.unselected-multi": "non coché (choix multiple)"
+  "a12.legend.unselected-multi": "non coché (choix multiple)",
+  "v53d.mapping.issue_migrated": "[tracker.%[1]s] « %[2]s » = '%[3]s' n'est pas un statut de claim : la valeur est lue comme '%[4]s' (statut de la colonne initiale). Écrivez '%[4]s'.",
+  "v53d.mapping.issue_unknown": "[tracker.%[1]s] « %[2]s » = '%[3]s' n'est le statut d'aucune colonne du board : la correspondance est ignorée.",
+  "v53d.mapping.valid_statuses": "Statuts valides : %s."
 }

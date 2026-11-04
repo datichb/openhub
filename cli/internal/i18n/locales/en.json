@@ -6332,5 +6332,8 @@
   "a12.legend.cursor": "row under the cursor, start of an action",
   "a12.legend.selected": "chosen (single choice)",
   "a12.legend.selected-multi": "ticked (multiple choice)",
-  "a12.legend.unselected-multi": "not ticked (multiple choice)"
+  "a12.legend.unselected-multi": "not ticked (multiple choice)",
+  "v53d.mapping.issue_migrated": "[tracker.%[1]s] \"%[2]s\" = '%[3]s' is not a claim status: the value is read as '%[4]s' (the status of the initial column). Write '%[4]s'.",
+  "v53d.mapping.issue_unknown": "[tracker.%[1]s] \"%[2]s\" = '%[3]s' is the status of no column of the board: the mapping is ignored.",
+  "v53d.mapping.valid_statuses": "Valid statuses: %s."
 }
