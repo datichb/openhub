@@ -438,7 +438,7 @@ The tracker discovery wizard (`Discover Tracker`) uses the same editor for its c
 | Provider | `Space` default, `Enter` / `e` modify, `s` set up, `d` clear the configuration and the key of the keychain (confirmed) |
 | MCP (hub, project, team) | `Space` enable, `Enter` modify, `t` token or test, `m` write mode (hub view), `Ctrl+S` save (team), `u` undo, `T` approve the URL imposed by the team (hub view; confirmed, see [`oh mcp trust`](cli-mcp.en.md#oh-mcp-trust)) |
 | Secrets | `Enter` / `e` modify, `n` create, `d` delete (confirmed) |
-| Teams | `Enter` open, `n` create, `d` delete (confirmed), `s` sync, `u` undo. With no team: « No team », `n` to add one |
+| Teams | `Enter` open, `n` add a team (opens the "Rejoin a team" wizard: repository, access, clone, your card; the list shows the team when you come back), `d` delete (confirmed), `s` sync, `u` undo. With no team: « No team », `n` to add one |
 | Team detail | the team opened in the list (else the default team; « No team to configure » and a `Ctrl+S` with no effect when there is none): `Space` toggle, `Enter` modify, `Ctrl+S` save, `s` sync, `t` test, `u` undo, `T` discover the tracker, `K` provider key of the team |
 | Patterns | `Enter` see, `n` create, `y` validate, `d` delete (confirmed) |
 | Policies | `Enter` detail, `n` create, `t` template, `e` edit, `d` delete (confirmed), `c` check |
