@@ -167,14 +167,14 @@ func (v *LaunchFormView) SetShell(s ShellAccess) { v.shell = s }
 func (v *LaunchFormView) ID() string { return "launch." + v.cfg.WorkflowID }
 
 func (v *LaunchFormView) Title() string {
-	workflow := v.workflowName()
+	name := v.workflowName()
 	switch {
 	case v.cfg.Alias != "" && v.cfg.AliasWith != "":
-		return i18n.Tf("tui.launch.title_alias_with", v.cfg.Alias, workflow, strings.ToLower(v.m.plainLabel(v.cfg.AliasWith)))
+		return i18n.Tf("tui.launch.title_alias_with", v.cfg.Alias, name, strings.ToLower(v.m.plainLabel(v.cfg.AliasWith)))
 	case v.cfg.Alias != "":
-		return i18n.Tf("tui.launch.title_alias", v.cfg.Alias, workflow)
+		return i18n.Tf("tui.launch.title_alias", v.cfg.Alias, name)
 	}
-	return i18n.Tf("tui.launch.title", workflow)
+	return i18n.Tf("tui.launch.title", name)
 }
 
 // workflowName is the label of the workflow in the language of the form; its ID
