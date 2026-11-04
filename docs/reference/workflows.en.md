@@ -201,6 +201,8 @@ Implements the tickets of a spec one after the other, in a single session (`risk
 
 No delegation before `cp-plan`. Each ticket goes through its `cp-2` (commit, then close, before the next one). Once every ticket is processed, the `reviewer` makes an adversarial review of all the commits of the session; `cp-final` presents its verdict, the tickets and their commits, the open points: the user decides on a fix round (one only, through `cp-2` again) or to stop.
 
+When a spec is given (input `spec`), the orchestrator reads only two of its sections, "Acceptance criteria" and "Risks and edge cases", and flags at `cp-plan` every risk that neither a ticket nor a `CA-n` criterion covers, without covering it itself; a spec with no "Risks and edge cases" section is flagged too. The same holds in fan-out.
+
 Pause budget (CP-R2) in semi-auto: `cp-plan`, `cp-2`, `cp-final`, i.e. 3 pauses for a budget of 3 (2 decisions, 1 irreversible action); the `tdd` method adds one (`cp-seams`). A feature of N tickets thus costs N + 2 pauses (instead of N + 3 in the former `feature`). Default mode: `semi-auto`. Runs: locally or in a container. Allowed Beads commands: `show`, `list`, `ready`, `children`, `dep`, `update`, `close`, `comments`, `label`. Outputs: `branch` (declared), `tickets` (closed tickets, recorded by oh).
 
 ### Fan-out (`fanout=true`, experimental)
@@ -231,7 +233,7 @@ Discovers the project and creates or enriches the `docs/wiki/` wiki (`doc-wiki-p
 | `refresh` | `bool` (default: no) | no | Rediscover the project and propose the updates of the existing wiki (validated one by one on the card of `cp-wiki`), without deleting anything |
 | `focus` | `text` (4,000 characters max) | no | Modules or topics to dig into |
 
-The onboarder only writes `docs/wiki/`, `ONBOARDING.md` and `CONVENTIONS.md`: it is a permission (any other write is refused, `.gitignore` and `.git/` included). Without a wiki, it creates the pages; with a wiki (`docs/wiki/index.md`), it changes none and proposes each update with `wiki_propose` (nothing when the wiki is faithful to the code). It then passes `cp-wiki` (mandatory, unlocks the commit, `remote: defer`): the card shows its proposals, the user accepts, edits or refuses each one, oh applies the accepted ones; then the onboarder commits `docs/wiki/`, `ONBOARDING.md` and `CONVENTIONS.md` in one commit (`writes: ["docs/wiki/**", ONBOARDING.md, CONVENTIONS.md]`), nothing else. The push is left to the user. One pause in semi-auto (CP-R2 budget: one irreversible action). Output: `wiki`. Allowed Beads commands (read only): `show`, `list`, `search`, `query`.
+The onboarder only writes `docs/wiki/`, `ONBOARDING.md` and `CONVENTIONS.md`: it is a permission (any other write is refused, `.gitignore` and `.git/` included). Without a wiki, it creates the pages; with a wiki (`docs/wiki/index.md`), it changes none and proposes each update with `wiki_propose` (nothing when the wiki is faithful to the code). Its phase 2 asks five questions at most, ranked by impact; a **blocking** question (without its answer, the diagnosis or the profile rests on a guess) does not count in that cap and is always asked. It then passes `cp-wiki` (mandatory, unlocks the commit, `remote: defer`): the card shows its proposals, the user accepts, edits or refuses each one, oh applies the accepted ones; then the onboarder commits `docs/wiki/`, `ONBOARDING.md` and `CONVENTIONS.md` in one commit (`writes: ["docs/wiki/**", ONBOARDING.md, CONVENTIONS.md]`), nothing else. The push is left to the user. One pause in semi-auto (CP-R2 budget: one irreversible action). Output: `wiki`. Allowed Beads commands (read only): `show`, `list`, `search`, `query`.
 
 ## `doc-sync`
 
@@ -334,6 +336,8 @@ Read-only audit: the `auditor` coordinates `auditor-subagent`s, one per domain (
 - `infra`: IaC review (Terraform/OpenTofu, Kubernetes, Helm, ArgoCD), IaC security, cloud cost, drift. The `auditor-subagent` may run static analysis tools (`tflint`, `tfsec`, `checkov`, `trivy config`, `kube-score`, `kubesec`, `helm lint`, `helm template`, `infracost`, `terraform fmt -check`, `terraform validate`, `terraform plan`), each one asked; any other command, changes included, is refused. Applying a change is the job of `infra-change`.
 - `database`: roles and privileges, Row-Level Security, injection surfaces, encryption at rest and in transit, backups, migration safety, exposure of sensitive data. Static reading only: queries against a real database are given to the user.
 
+With the light protocol, the report keeps all its sections: a section where the audit found nothing reads "Vérifié : rien à signaler" (checked: nothing to report) with what was checked (files, rules, tools), and what could not be checked reads "Non vérifié" (not checked) with the reason. A missing section therefore no longer tells a healthy domain from one that was not looked at.
+
 Outputs **recorded by oh**: `findings` (the last report deposited, `record: report`) and `type` (the launch input, `record: input`). Proposed next step (`next:`) after a `security` audit that deposited its report: **`security-fix`**, which reads the findings in this session (`oh run security-fix --parent <session>`), without launching it.
 
 ## `infra-change`
@@ -363,6 +367,8 @@ Diagnosis of a bug or isolated problem by the `debugger`: diagnostic report (urg
 | `issue` | `text` (8,000 characters max) | no | The observed problem; empty: the session asks for it |
 
 The fix ticket is only created after `cp-ticket` (« Create the fix ticket », paused in every mode, unlocks `create`): the `debugger` presents the diagnosis and the ticket there, instead of asking for confirmation with the `question` tool (which it keeps in a `libre` session). A fix made in the session ends with `cp-commit` (mandatory, paused in every mode, unlocks `commit` and `close`). Output: `tickets`. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `lint`, `children`, `comments`, `count`, `status`, `graph`, `history`, `create`, `update`, `close`, `dep`, `label`.
+
+**No cause found.** At the limit of 3 iterations, or on "Finish", the `debugger` returns an "unresolved diagnosis" report ("Diagnostic non résolu"): hypotheses ruled out with their evidence, remaining hypotheses with what is missing to settle them, leads to follow. It states no root cause, presents nothing as diagnosed or fixed, and creates no fix ticket.
 
 **Session scratch folders** (`debugger: { scratch: { readers: [developer] } }`, see [`scratch`](workflow-schema.en.md#scratch-session-scratch-folders)): in the reproduction phase, the `debugger` writes its reproduction test or script in `~/.oh/sessions/<session>/scratch/debugger/` (path given in the `oh.scratch` entry of the session state), outside the repository and deleted with the session; it describes this test in text in the fix ticket. The `developer`, declared reader, may read this scratch file in the same session, without changing it, and makes it the final test of the project. No agent of another session has access to it.
 
@@ -434,7 +440,7 @@ Settles a technical question within a time box: sourced research, a throwaway pr
 
 Flow:
 
-1. **`cp-question`**: closed question, verifiable criteria, time box. No research nor prototype before it (the `developer` is locked until `cp-question`, `after:`).
+1. **`cp-question`**: closed question, verifiable criteria, time box. When the request gives no time box, or leaves a go/kill criterion unclear, the `pathfinder` asks the user for them beforehand, in a single batch; blocking questions have no cap (the cap of 1-2 questions of the protocol does not apply here). No research nor prototype before it (the `developer` is locked until `cp-question`, `after:`).
 2. **Sourced research**, criterion by criterion: the repository first, then the official documentation (skill `research`); each fact cites `file:line` or its URL.
 3. **Throwaway prototype**, only when a criterion can only be settled by running code: the `developer` writes the smallest program that answers it, in `.oh-spike/<slug>/` only, with no dependency added, runs it, records its output, then deletes `.oh-spike/`. Never committed.
 4. **Decision**: `docs/wiki/decisions/<slug>.md` (`**Décision : go | clarify | kill**`, findings per criterion with their sources, prototype, next steps). `go`: every criterion holds; `kill`: one does not; `clarify`: one cannot be settled without a decision or information from the user.
@@ -483,7 +489,7 @@ Triage of a batch of Beads tickets or findings: priorities, duplicates, labels, 
 | Input | Type | Required | Role |
 |---|---|---|---|
 | `tickets` | `beads-ids` | no | The tickets to triage |
-| `query` | `string` (400 characters max) | no | A `bd query` filter of the tickets to triage; without tickets or filter: the open tickets of the project, 30 at most |
+| `query` | `string` (400 characters max) | no | A `bd query` filter of the tickets to triage; without tickets or filter: the open tickets of the project, 30 at most (see below) |
 | `findings` | `text` (16,000 characters max) | no | Findings (review, audit, retrospective…): each is attached to the ticket that already covers it (a comment) or becomes a ticket |
 
 | Checkpoint | manuel | semi-auto | auto |
@@ -496,6 +502,8 @@ Flow:
 2. **Triage**: a priority changed only when the ticket justifies it; a duplicate only when both tickets describe the same problem at the same place (the most complete one is kept), else a `related` link; the project's labels only; a ticket that mixes independent deliverables gets one child ticket per deliverable; neither status, assignee nor description change.
 3. **`cp-triage`**: the table of changes (ticket, field, before → after, reason), the tickets to create, the unchanged ones. Before it passes, oh refuses **every write to Beads**: creating (`create`) and changing (`update`: `bd update`, `label add|remove`, `dep add|remove`, `comments add`, `duplicate`, `supersede`, `reopen`…), in the shell and in the Beads gateway. A refusal: nothing is written.
 4. **Writes**: exactly the approved lines, one command per line.
+
+Without tickets or filter, the `planner` first counts the open tickets (`bd count`). Beyond 30, it says so at the top of `cp-triage` (the batch is cut), and the closing summary gives the number of tickets left out of the batch with a second batch proposed (their identifiers, or a `bd query` filter): the whole backlog does not pass for triaged.
 
 Outputs **recorded by oh** from what the Beads gateway saw: `updated` (the changed tickets, `record: updated`), `created` (the created tickets) and `duplicates` (the duplicates closed, `record: closed`). Proposed next step: **`ticket`** on the created tickets. Pause budget in semi-auto: 1 pause (1 irreversible action), for a budget of 3. Allowed Beads commands: `show`, `list`, `ready`, `search`, `query`, `count`, `children`, `lint`, `find-duplicates`, `label`, `dep`, `comments`, `create`, `update`, `duplicate`, `supersede`.
 
