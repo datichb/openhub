@@ -71,6 +71,9 @@ Nothing is written into the project any more (`oh deploy` and `oh sync` are migr
 | `internal/storage/` | SQLite database (`oh.db`), OS keychain, file encryption |
 | `internal/adapters/opencodev2/deploycleanup/` | Cleanup of former deployment leftovers (`oh migrate deploy-cleanup`) |
 | `internal/i18n/` | Internationalization (FR + EN, JSON locale files) |
+| `internal/safego/` | Launchers for goroutines, timers and loops that recover a panic (`Go`, `Wrap`, `WrapErr`, `AfterFunc`, `Supervise`): a panic is logged and leaves a crash report instead of ending oh; an architecture guard refuses bare goroutines |
+| `internal/crashlog/` | Crash report `~/.oh/run/crash-<timestamp>.log` (version, panic, stack; the latest 20 are kept), written by `cmd` for the main goroutine and by `safego` for the others |
+| `internal/specdoc/` | Reading and checking of the wiki specs (`docs/wiki/specs/`): glossary, `CA-n` acceptance criteria, breakdown, warning on the "Risques et cas limites" section; what oh verifies at the checkpoints of the `spec` workflow |
 
 `internal/deploy`, `internal/opencode`, `internal/parallel`, `internal/sweep`, `internal/plugin` and `platform.SessionPlatform` were removed in v5 (replaced by `internal/bricks`, `internal/bundle`, the adapters and `internal/runsvc`).
 
