@@ -75,6 +75,12 @@ type WizardStep struct {
 	// If nil, no validation is performed (always passes).
 	Validate func() string
 
+	// BackSkip makes « back » (Ctrl+B) pass over this step: a step with
+	// nothing to edit, that only does something (a probe, a clone). Going
+	// back from the step after it lands on the form before it, and going
+	// forward does the step again.
+	BackSkip bool
+
 	// OnSkip runs on the event loop when the user skips this step (Esc →
 	// « Passer l'étape », or an ErrorAction with Skip), after the error of
 	// the step is forgotten and before the next step is chosen: it sets the

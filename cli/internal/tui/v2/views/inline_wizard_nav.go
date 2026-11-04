@@ -49,7 +49,7 @@ func (w *InlineWizardView) findNext(from int) int {
 
 func (w *InlineWizardView) findPrev(from int) int {
 	for i := from - 1; i >= 0; i-- {
-		if !w.shouldSkip(i) && (w.stepStates[i].Status == widgets.StepDone || w.stepStates[i].Status == widgets.StepActive) {
+		if !w.shouldSkip(i) && !w.cfg.Steps[i].BackSkip && (w.stepStates[i].Status == widgets.StepDone || w.stepStates[i].Status == widgets.StepActive) {
 			return i
 		}
 	}
@@ -80,16 +80,25 @@ func (w *InlineWizardView) goBack() {
 	if prev == -1 {
 		return
 	}
-	// Reset current to pending
+	// Reset current to pending, and the steps passed over (BackSkip)
 	w.syncStepBar(w.currentStep, widgets.StepPending)
+	for i := prev + 1; i < w.currentStep; i++ {
+		if w.cfg.Steps[i].BackSkip && w.stepStates[i].Status == widgets.StepDone {
+			w.syncStepBar(i, widgets.StepPending)
+		}
+	}
 
 	// Reset previous to active
 	w.syncStepBar(prev, widgets.StepActive)
 
-	// Pop last info entry
-	if len(w.infoAccum) > 0 {
-		w.infoAccum = w.infoAccum[:len(w.infoAccum)-1]
+	// Drop the info of the previous step and of the steps passed over
+	kept := w.infoAccum[:0]
+	for _, e := range w.infoAccum {
+		if e.stepIdx < prev {
+			kept = append(kept, e)
+		}
 	}
+	w.infoAccum = kept
 	// Going back leaves the error of a step that failed behind it.
 	w.wizardErr = nil
 	w.currentStep = prev

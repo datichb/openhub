@@ -14,6 +14,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
+	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
 
 // completion records the calls of OnComplete (made on the event loop).
@@ -305,6 +306,38 @@ func TestInlineWizardErrorScreenWithoutActionsRetriesOnEnter(t *testing.T) {
 		require.True(t, ok)
 		tv.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(tview.Primitive) {})
 		assert.NoError(t, v.wizardErr)
+		v.Unmount()
+	})
+}
+
+// Back passes over a step that only does something (BackSkip): from the form
+// after it, it lands on the form before it; going forward does it again.
+func TestInlineWizardBackSkipsAStepWithNothingToEdit(t *testing.T) {
+	runs := 0
+	probe := WizardStep{ID: "probe", Label: "Probe", BackSkip: true, OnDone: func() error { runs++; return nil }}
+	var done completion
+	v := NewInlineWizardView(InlineWizardConfig{
+		ID:         "wizard.errors.backskip",
+		Steps:      []WizardStep{formStep("URL"), probe, formStep("Identity")},
+		OnComplete: done.fn,
+	})
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	onLoop(app, func() { v.Mount(content, app) })
+	onLoop(app, func() { v.completeStep(v.cfg.Steps[0]) })
+	waitLoop(t, app, func() bool { return v.currentStep == 2 && !v.processing })
+	onLoop(app, func() {
+		assert.Equal(t, 1, runs)
+		assert.Contains(t, v.statusHintsForStep(2), "ctrl+b", "there is a step to go back to")
+		v.goBack()
+		assert.Equal(t, 0, v.currentStep, "back lands on the form before the probe")
+		assert.Equal(t, widgets.StepPending, v.stepStates[1].Status, "the probe is to be done again")
+		assert.Equal(t, 0, len(v.infoAccum), "no info of the steps left behind")
+		v.completeStep(v.cfg.Steps[0])
+	})
+	waitLoop(t, app, func() bool { return v.currentStep == 2 && !v.processing })
+	onLoop(app, func() {
+		assert.Equal(t, 2, runs, "going forward does the probe again")
 		v.Unmount()
 	})
 }
