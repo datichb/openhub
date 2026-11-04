@@ -2,7 +2,7 @@
 
 # Migrer vers oh v5
 
-oh v5 lance chaque session à partir d'un **workflow** (`oh run <workflow>`), dans un **paquet de session** construit hors du projet, sur un serveur **opencode V2**. Ce guide liste ce qui change pour un utilisateur de la v4 (4.2.0). Les mêmes ruptures, classées par thème avec l'action à faire, sont dans [MIGRATION.md](../../MIGRATION.md). **Vous venez de la 5.0 ?** Allez à [Depuis la 5.0 vers la 5.1](#depuis-la-50-vers-la-51).
+oh v5 lance chaque session à partir d'un **workflow** (`oh run <workflow>`), dans un **paquet de session** construit hors du projet, sur un serveur **opencode V2**. Ce guide liste ce qui change pour un utilisateur de la v4 (4.2.0). Les mêmes ruptures, classées par thème avec l'action à faire, sont dans [MIGRATION.md](../../MIGRATION.md). **Vous venez de la 5.0 ?** Allez à [Depuis la 5.0 vers la 5.1](#depuis-la-50-vers-la-51). **Vous venez de la 5.1 ?** Allez à [Depuis la 5.1 vers la 5.2](#depuis-la-51-vers-la-52).
 
 ## Mise à jour pas à pas
 
@@ -314,3 +314,28 @@ La 5.1 **retire** ce que la 5.0 avait déprécié (rupture annoncée dans le [CH
 Les deux sont masquées de l'aide. À faire : les remplacer dans vos habitudes ; un script qui lit `oh metrics` a jusqu'à la v6 (`oh budget report --json` donne les dépenses).
 
 **Changé en 5.1** : `oh board`, `oh team board` et `oh dashboard` ne dessinent plus de vue plein écran à part : elles ouvrent la TUI sur le Board, le Board d'équipe et la vue Métriques, et `Esc` revient à l'accueil du mode. Sans terminal (script, CI), elles sortent avec le code **2**. `oh board` affiche le projet du dossier courant (ou `--project <nom>`, ou l'unique projet enregistré) au lieu des tickets du dossier courant ; `--watch` est accepté et sans effet (le board se rafraîchit toutes les 5 s).
+
+## Depuis la 5.1 vers la 5.2
+
+La 5.2 change le sens d'un réglage du mode équipe et ajoute un refus (deux ruptures annoncées dans le [CHANGELOG](../../CHANGELOG.md)). La base de données ne change pas. La 5.2.1 est une version corrective : aucune rupture, aucune migration. Sans mode équipe, rien à faire.
+
+**1. `max_auto_plan_per_member` devient `max_in_progress_per_member`**
+
+| En 5.1 | Depuis la 5.2 |
+|---|---|
+| `max_auto_plan_per_member` bornait les réservations que la synchro du tracker créait pour un membre | `max_in_progress_per_member` borne le nombre de tickets **en cours** d'un membre (5 par défaut, `0` = sans limite) |
+| Les issues au-delà du plafond restaient « retenues », hors du board | La synchro met **tous** les tickets assignés sur le board, sans plafond, et ne refuse jamais rien ; un ticket déjà en cours sur le tracker arrive en cours, même au-delà de la limite |
+
+Les tickets en revue (statut `review`, ou label `review` / `ready-for-review`) et en validation ne comptent pas ; sur un board personnalisé, ce sont les colonnes de rôle `active`. L'ancienne clé est **dépréciée** : encore lue quand la nouvelle est absente (une valeur à 0 de `hub.toml` valait « défaut », elle est ignorée), annoncée une fois par processus, signalée par [`oh doctor`](../reference/cli-infra.fr.md#oh-doctor) avec la commande à lancer, et retirée à la prochaine écriture du fichier. `oh config set|get|unset tracker.max_auto_plan_per_member` reste accepté comme alias de la nouvelle clé. Fin de la prise en charge en v6.
+
+**À faire** : écrire la nouvelle clé, `oh config set tracker.max_in_progress_per_member <n>` pour votre machine (`hub.toml`) ou `oh team config` pour l'équipe (`config.toml`). Le champ de la TUI s'appelle maintenant « Tickets en cours par membre (max) ». Le mécanisme des issues « retenues » disparaît (avertissement de synchro, ligne « N issue(s) hors du board » du board d'équipe) ; un état de synchro de la 5.1.0 qui en contient fait refaire un balayage complet au prochain run, qui met ces issues sur le board.
+
+**2. Au-delà de la limite, oh refuse de prendre ou de démarrer un ticket**
+
+Un membre qui a atteint sa limite ne peut plus prendre ni démarrer un ticket de plus ; oh refuse en donnant le compte et la clé :
+
+- `oh team claim`, aussi la reprise d'une réservation expirée et `oh team claim transfer` vers soi ;
+- la touche de prise (`c`) du board d'équipe, et une carte passée en cours ou transférée à soi sur le board ;
+- le lancement d'une session sur des tickets d'équipe, locale ou distante, avant que rien ne soit créé.
+
+**À faire** : un script ou un membre qui avait plus de 5 tickets en cours est refusé au prochain ticket. Relever la limite (`oh config set tracker.max_in_progress_per_member <n>` pour soi, `oh team config` pour l'équipe, `0` pour la supprimer) ou passer des tickets en revue. Détail : [mode équipe](team-setup.fr.md) et [`[tracker]`](../reference/config.fr.md).

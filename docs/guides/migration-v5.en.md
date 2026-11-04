@@ -2,7 +2,7 @@
 
 # Migrating to oh v5
 
-oh v5 starts every session from a **workflow** (`oh run <workflow>`), in a **session bundle** built outside the project, on an **opencode V2** server. This guide lists what changes for a v4 user (4.2.0). The same breaking changes, grouped by theme with the action to take, are in [MIGRATION.md](../../MIGRATION.md) (in French). **Coming from 5.0?** Go to [From 5.0 to 5.1](#from-50-to-51).
+oh v5 starts every session from a **workflow** (`oh run <workflow>`), in a **session bundle** built outside the project, on an **opencode V2** server. This guide lists what changes for a v4 user (4.2.0). The same breaking changes, grouped by theme with the action to take, are in [MIGRATION.md](../../MIGRATION.md) (in French). **Coming from 5.0?** Go to [From 5.0 to 5.1](#from-50-to-51). **Coming from 5.1?** Go to [From 5.1 to 5.2](#from-51-to-52).
 
 ## Step-by-step update
 
@@ -314,3 +314,28 @@ Accepted limits and maturity of the features: [SECURITY.md](../../SECURITY.md).
 Both are hidden from the help. To do: replace them in your habits; a script that reads `oh metrics` has until v6 (`oh budget report --json` gives the spending).
 
 **Changed in 5.1**: `oh board`, `oh team board` and `oh dashboard` no longer draw a separate full-screen view: they open the TUI on the Board, the Team board and the Metrics view, and `Esc` goes back to the landing of the mode. Without a terminal (script, CI) they exit with code **2**. `oh board` shows the project of the current directory (or `--project <name>`, or the only registered project) instead of the tickets of the current directory; `--watch` is accepted and has no effect (the board refreshes every 5 s).
+
+## From 5.1 to 5.2
+
+5.2 changes the meaning of a team mode setting and adds a refusal (two breaking changes announced in the [CHANGELOG](../../CHANGELOG.md)). The database does not change. 5.2.1 is a corrective release: no breaking change, no migration. Without team mode, nothing to do.
+
+**1. `max_auto_plan_per_member` becomes `max_in_progress_per_member`**
+
+| In 5.1 | Since 5.2 |
+|---|---|
+| `max_auto_plan_per_member` capped the claims that the tracker sync created for a member | `max_in_progress_per_member` caps the number of tickets a member has **in progress** (5 by default, `0` = no limit) |
+| Issues beyond the cap stayed "held", off the board | The sync puts **all** the assigned tickets on the board, with no cap, and never refuses anything; a ticket already in progress on the tracker arrives in progress, even beyond the limit |
+
+Tickets in review (status `review`, or label `review` / `ready-for-review`) and in validation do not count; on a custom board, the columns of role `active` do. The old key is **deprecated**: still read when the new one is absent (a `hub.toml` value of 0 used to mean "default", it is ignored), announced once per process, reported by [`oh doctor`](../reference/cli-infra.en.md#oh-doctor) with the command to run, and removed on the next write of the file. `oh config set|get|unset tracker.max_auto_plan_per_member` is still accepted as an alias of the new key. Support ends in v6.
+
+**To do**: write the new key, `oh config set tracker.max_in_progress_per_member <n>` for your machine (`hub.toml`) or `oh team config` for the team (`config.toml`). The TUI field is now called "Tickets in progress per member (max)". The "held" issues mechanism is gone (sync warning, "N issue(s) off the board" line of the team board); a 5.1.0 sync state that contains some makes the next run sweep everything again, which puts these issues on the board.
+
+**2. Beyond the limit, oh refuses to take or start a ticket**
+
+A member who reached the limit can no longer take or start one more ticket; oh refuses, giving the count and the key:
+
+- `oh team claim`, also the takeover of an expired claim and `oh team claim transfer` to yourself;
+- the claim key (`c`) of the team board, and a card moved to in progress or transferred to yourself on the board;
+- launching a session on team tickets, local or remote, before anything is created.
+
+**To do**: a script or a member that had more than 5 tickets in progress is refused at the next ticket. Raise the limit (`oh config set tracker.max_in_progress_per_member <n>` for yourself, `oh team config` for the team, `0` to remove it) or move tickets to review. Details: [team mode](team-setup.en.md) and [`[tracker]`](../reference/config.en.md).

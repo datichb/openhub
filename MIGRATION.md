@@ -27,6 +27,15 @@ La 5.1 **retire** ce que la 5.0 avait déprécié (rupture). Un nom de commande 
 
 La 5.1 **déprécie** `oh dashboard` et `oh metrics` (retrait en v6) : elles avertissent sur la sortie d'erreur et nomment la vue **Métriques** de la TUI (`oh`, puis `Ctrl+P` › Métriques) ; `oh metrics` garde sa sortie texte jusqu'à la v6. `oh board`, `oh team board` et `oh dashboard` ouvrent maintenant la TUI sur leur vue (code 2 sans terminal).
 
+## Vous venez de la 5.1 : ce que la 5.2 change
+
+La 5.2 change le sens d'un réglage du mode équipe et ajoute un refus (deux ruptures). La base de données ne change pas, et la 5.2.1 n'ajoute ni rupture ni migration. Sans mode équipe, rien à faire. Détail et explications : [guide de migration, « Depuis la 5.1 vers la 5.2 »](docs/guides/migration-v5.fr.md#depuis-la-51-vers-la-52).
+
+| Changé en 5.2 | À faire |
+|---|---|
+| `max_auto_plan_per_member` (plafond des réservations créées par la synchro) est remplacée par `max_in_progress_per_member`, le nombre maximal de tickets **en cours** d'un membre (5 par défaut, `0` = sans limite). La synchro met désormais tous les tickets assignés sur le board. L'ancienne clé est encore lue quand la nouvelle est absente, `oh doctor` la signale, et `oh config set tracker.max_auto_plan_per_member` écrit la nouvelle clé (fin de prise en charge en v6) | `oh config set tracker.max_in_progress_per_member <n>` (machine) ou `oh team config` (équipe) |
+| Au-delà de la limite, oh **refuse** qu'un membre prenne ou démarre un ticket de plus : `oh team claim` (reprise et transfert vers soi compris), la touche de prise et le déplacement d'une carte sur le board d'équipe, le lancement d'une session sur un ticket d'équipe | Relever la limite (`0` la supprime) ou passer des tickets en revue ; un script qui prend des tickets en boucle peut échouer là où il passait |
+
 ## Prérequis
 
 | Prérequis | Valeur | Vérification |
