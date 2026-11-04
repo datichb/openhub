@@ -6412,5 +6412,13 @@
   "v532m.handle.label": "Handle GitLab",
   "v532m.handle.hint": "Votre fiche n'a pas de handle GitLab. Le donner permet à oh de vérifier que votre token est bien le vôtre. Facultatif : vide, la fiche ne change pas.",
   "v532m.rejoin.empty_repo": "Ce dépôt est vide : l'équipe n'a pas encore été créée. Faites-la créer par son responsable (« Créer une équipe »), ou créez-la vous-même, puis rejoignez-la.",
-  "v532m.rejoin.no_team_state": "Ce dépôt ne contient pas d'équipe oh (pas de members.toml). Vérifiez l'URL, ou créez l'équipe avec « Créer une équipe »."
+  "v532m.rejoin.no_team_state": "Ce dépôt ne contient pas d'équipe oh (pas de members.toml). Vérifiez l'URL, ou créez l'équipe avec « Créer une équipe ».",
+  "v533b.team_config.not_cloned": "le clone local de l'équipe est absent",
+  "v533b.team_config.not_loaded": "la configuration n'est pas encore lue",
+  "v533b.team_config.unreadable": "config.toml illisible : %s — oh doctor",
+  "v533b.team_config.unreadable_title": "Configuration d'équipe illisible",
+  "v533b.team_config.unreadable_detail": "Rien n'est affiché ni enregistré : une configuration vide écraserait celle de l'équipe au prochain enregistrement. Corrigez config.toml ou rétablissez le clone (oh doctor), puis r pour relire.",
+  "v533b.team_config.save_refused": "Enregistrement refusé — %s",
+  "v533b.team_config.conflict_title": "Modifié par un collègue entre-temps : recharger ?",
+  "v533b.team_config.conflict_detail": "Un collègue a modifié les mêmes réglages depuis votre lecture (%s). Rien n'a été écrasé. Recharger la configuration abandonne vos modifications non enregistrées."
 }

@@ -6412,5 +6412,13 @@
   "v532m.handle.label": "GitLab handle",
   "v532m.handle.hint": "Your card has no GitLab handle. Giving it lets oh check that your token is yours. Optional: left empty, the card does not change.",
   "v532m.rejoin.empty_repo": "This repository is empty: the team has not been created yet. Have its lead create it (\"Create a team\"), or create it yourself, then join it.",
-  "v532m.rejoin.no_team_state": "This repository holds no oh team (no members.toml). Check the URL, or create the team with \"Create a team\"."
+  "v532m.rejoin.no_team_state": "This repository holds no oh team (no members.toml). Check the URL, or create the team with \"Create a team\".",
+  "v533b.team_config.not_cloned": "the local clone of the team is missing",
+  "v533b.team_config.not_loaded": "the configuration has not been read yet",
+  "v533b.team_config.unreadable": "config.toml unreadable: %s — oh doctor",
+  "v533b.team_config.unreadable_title": "Team configuration unreadable",
+  "v533b.team_config.unreadable_detail": "Nothing is shown or saved: an empty configuration would overwrite the team's at the next save. Fix config.toml or restore the clone (oh doctor), then press r to read it again.",
+  "v533b.team_config.save_refused": "Save refused — %s",
+  "v533b.team_config.conflict_title": "Changed by a colleague meanwhile: reload?",
+  "v533b.team_config.conflict_detail": "A colleague changed the same settings since you read them (%s). Nothing was overwritten. Reloading the configuration drops your unsaved changes."
 }

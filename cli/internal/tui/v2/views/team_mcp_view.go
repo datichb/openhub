@@ -66,7 +66,14 @@ type TeamMCPView struct {
 	loads loadSlot // the reads of the team config: only the latest is applied
 	tests loadSlot // connection tests: only the latest one is shown
 
-	teamCfg    *teamstate.TeamConfig
+	content *tview.Flex // where the page is mounted (nil once unmounted)
+	teamCfg *teamstate.TeamConfig
+	// baseTeam is teamCfg as it was read or last saved: the save writes the
+	// difference, on top of the latest version of the team-state.
+	baseTeam *teamstate.TeamConfig
+	// cfgErr is why the team config could not be read: the view shows it and
+	// nothing can be saved until a read succeeds.
+	cfgErr     error
 	localMCP   config.MCPConfig
 	baseMCP    config.MCPConfig // localMCP as loaded or last saved: the save writes the difference
 	fields     []configField
@@ -102,6 +109,9 @@ func (v *TeamMCPView) SetShell(s ShellAccess) { v.shell = s }
 func (v *TeamMCPView) ID() string    { return "team.mcp" }
 func (v *TeamMCPView) Title() string { return i18n.T("tui.config.section.mcp_services") }
 func (v *TeamMCPView) StatusHints() string {
+	if v.cfgErr != nil {
+		return keys.Hints(keys.Refresh.Hint(), keys.Back.Hint())
+	}
 	return keys.Hints(keys.Navigate.Hint(), "{/} "+i18n.T("tui.hints.sections"),
 		toggleHint(),
 		keys.Open.HintAs(i18n.T("tui.hints.edit")), keys.Save.Hint(),
@@ -114,8 +124,10 @@ func (v *TeamMCPView) StatusHints() string {
 
 func (v *TeamMCPView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
+	v.content = content
 	v.dirtyTeam = false
 	v.dirtyLocal = false
+	v.teamCfg, v.baseTeam, v.cfgErr = nil, nil, nil
 
 	// Show loading placeholder immediately
 	loading := stateView(stateLoading, i18n.T("tui.settings.loading"))
@@ -123,10 +135,19 @@ func (v *TeamMCPView) Mount(content *tview.Flex, app *tview.Application) {
 
 	// Pull the team-state, read its config off the event loop, then build the
 	// list on it.
-	v.open(func() {
-		owned := ownsFocus(app, content)
+	v.open(v.showLoaded)
+}
+
+// showLoaded shows what was read: the fields of the config or, when the team
+// config could not be read, why. The page is built the first time.
+func (v *TeamMCPView) showLoaded() {
+	if v.content == nil || v.app == nil {
+		return
+	}
+	if v.list == nil {
+		owned := ownsFocus(v.app, v.content)
 		v.list = widgets.NewSectionedList()
-		v.list.SetApp(app)
+		v.list.SetApp(v.app)
 		v.page = newListPage(v.Title(), v.list)
 		v.badge.attach(v.page, v.Title())
 
@@ -136,13 +157,27 @@ func (v *TeamMCPView) Mount(content *tview.Flex, app *tview.Application) {
 		v.list.SetItemChangedFunc(func(_ int, item widgets.SectionItem) {
 			showFieldItemDetail(v.page, v.fields, item, teamMCPExtraKeys()...)
 		})
+		v.page.Mount(v.content)
+		focusIf(v.app, owned, v.list)
+	}
+	if v.cfgErr != nil {
+		v.showConfigError()
+		return
+	}
+	v.buildFields()
+	v.renderFields()
+}
 
-		v.buildFields()
-		v.renderFields()
-
-		v.page.Mount(content)
-		focusIf(app, owned, v.list)
-	})
+// showConfigError is the state of a view whose team config could not be read:
+// the reason, no field, nothing to save.
+func (v *TeamMCPView) showConfigError() {
+	v.fields = nil
+	v.dirtyTeam, v.dirtyLocal = false, false
+	v.undoStack.Clear()
+	v.list.SetItems([]widgets.SectionItem{{MainText: stateText(stateError, unreadableConfigText(v.cfgErr))}})
+	v.page.SetDetail(unreadableDetail(v.cfgErr))
+	v.badge.set(saveStatusFailed)
+	refreshHints(v.shell)
 }
 
 // open reads what the view shows: the personal MCP settings (taken on the
@@ -157,19 +192,19 @@ func (v *TeamMCPView) open(then func()) {
 		if !tc.Enabled {
 			return nil, nil // no team: an empty config
 		}
-		return readTeamConfig(ctx, tc), nil
+		return readTeamConfig(ctx, tc)
 	}
-	take := func(cfg *teamstate.TeamConfig) {
+	take := func(cfg *teamstate.TeamConfig, err error) {
 		v.localMCP, v.baseMCP = local, local
-		v.setTeamConfig(cfg)
+		v.setTeamConfig(cfg, err)
 		then()
 	}
-	apply := func(cfg *teamstate.TeamConfig, _ error) {
+	apply := func(cfg *teamstate.TeamConfig, err error) {
 		if v.app == nil {
 			return
 		}
 		if reflect.DeepEqual(v.edited(), before) {
-			take(cfg)
+			take(cfg, err)
 			return
 		}
 		// An edit was made while the read ran (a reload is asked, the user
@@ -177,7 +212,7 @@ func (v *TeamMCPView) open(then func()) {
 		if v.shell == nil {
 			return
 		}
-		v.shell.Confirm(i18n.T("tui.config.discard_title"), i18n.T("tui.config.discard_detail"), true, func() { take(cfg) })
+		v.shell.Confirm(i18n.T("tui.config.discard_title"), i18n.T("tui.config.discard_detail"), true, func() { take(cfg, err) })
 	}
 	if tc.Enabled {
 		syncLoad(v.app, shellContext(v.shell), &v.loads, teamstate.NewRepo(tc.StateRepo, tc.StatePath), v.shell, fetch, apply)
@@ -197,6 +232,7 @@ func (v *TeamMCPView) edited() teamMCPSnapshot {
 }
 
 func (v *TeamMCPView) Unmount() {
+	v.content = nil
 	v.loads.Invalidate() // drop the load in flight
 	v.tests.Invalidate()
 	if (v.dirtyTeam || v.dirtyLocal) && v.shell != nil {
@@ -218,6 +254,17 @@ func teamMCPExtraKeys() []string {
 
 func (v *TeamMCPView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	if v.list == nil {
+		return event
+	}
+	if v.cfgErr != nil { // nothing to edit: only a new read gets out of it
+		switch {
+		case keys.Refresh.Matches(event):
+			v.reload()
+			return nil
+		case keys.Save.Matches(event):
+			v.save() // says why it is refused
+			return nil
+		}
 		return event
 	}
 	switch {
@@ -259,10 +306,11 @@ func (v *TeamMCPView) reload() {
 // dropped.
 func (v *TeamMCPView) refreshData() {
 	v.open(func() {
-		v.buildFields()
-		v.renderFields()
-		v.dirtyTeam = false
-		v.dirtyLocal = false
+		v.showLoaded()
+		if v.cfgErr == nil {
+			v.dirtyTeam = false
+			v.dirtyLocal = false
+		}
 	})
 }
 
@@ -297,9 +345,17 @@ func (v *TeamMCPView) ContextCommands() []ContextCommand {
 // Data loading
 // ─────────────────────────────────────────────────────────────────────────────
 
-// setTeamConfig takes the config that was read (nil: it has none, the config
-// already shown stays, else an empty one).
-func (v *TeamMCPView) setTeamConfig(cfg *teamstate.TeamConfig) {
+// setTeamConfig takes the config that was read. One that could not be read is
+// not replaced by an empty one: the view keeps the error (cfgErr) and nothing
+// of the config, so nothing can be saved. nil without error: the team has no
+// state to read, an empty config is shown (and cannot be written, see the
+// writer).
+func (v *TeamMCPView) setTeamConfig(cfg *teamstate.TeamConfig, err error) {
+	v.cfgErr = err
+	if err != nil {
+		v.teamCfg, v.baseTeam = nil, nil
+		return
+	}
 	if cfg != nil {
 		v.teamCfg = cfg
 	}
@@ -310,6 +366,7 @@ func (v *TeamMCPView) setTeamConfig(cfg *teamstate.TeamConfig) {
 	if v.teamCfg.MCP == nil {
 		v.teamCfg.MCP = make(map[string]teamstate.SharedMCPConfig)
 	}
+	v.baseTeam = teamstate.CloneConfig(v.teamCfg)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -637,6 +694,10 @@ func (v *TeamMCPView) save() {
 	if v.shell == nil {
 		return
 	}
+	if v.cfgErr != nil || v.teamCfg == nil { // never write what was not read
+		v.shell.ShowToastMsg(saveRefusedText(v.cfgErr), false)
+		return
+	}
 	if v.saving {
 		v.saveAgain = true
 		return
@@ -646,6 +707,7 @@ func (v *TeamMCPView) save() {
 	var (
 		writeTeam TeamConfigWriter
 		teamCopy  teamstate.TeamConfig
+		baseCopy  *teamstate.TeamConfig
 		patch     func(*config.MCPConfig)
 		newMCP    = v.localMCP
 	)
@@ -655,6 +717,7 @@ func (v *TeamMCPView) save() {
 			saveTeam = false
 		} else {
 			teamCopy = deepCopyTeamConfig(v.teamCfg)
+			baseCopy = teamstate.CloneConfig(v.baseTeam)
 		}
 	}
 	saveLocal := v.dirtyLocal
@@ -676,7 +739,7 @@ func (v *TeamMCPView) save() {
 	v.badge.set(saveStatusPending) // the write really runs: saved is said when it ends
 	persist(v.app, func(ctx context.Context) error {
 		if saveTeam {
-			teamErr = writeTeam(ctx, &teamCopy)
+			teamErr = writeTeam(ctx, baseCopy, &teamCopy)
 			if teamErr != nil {
 				return teamErr
 			}
@@ -703,6 +766,7 @@ func (v *TeamMCPView) save() {
 			v.dirtyLocal = v.dirtyLocal || saveLocal // not tried
 			v.shell.ShowToastMsg(i18n.T("tui.team_mcp.save_error_team")+teamErr.Error(), false)
 			v.badge.set(saveStatusFailed)
+			confirmReloadOnConflict(v.shell, teamErr, v.reload)
 			return
 		case localErr != nil:
 			v.dirtyLocal = true
@@ -712,6 +776,7 @@ func (v *TeamMCPView) save() {
 		}
 		var saved []string
 		if teamDone {
+			v.baseTeam = teamstate.CloneConfig(&teamCopy)
 			saved = append(saved, i18n.T("tui.team_mcp.scope_team"))
 		}
 		if saveLocal {
