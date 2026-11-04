@@ -202,7 +202,10 @@ func runWizardOnKeys(t *testing.T, cfg views.InlineWizardConfig, drive func(k *w
 		// the application starts the screen again when it takes it: the size
 		// is set once it runs
 		k.sc.SetSize(140, 60)
-		k.tvApp.QueueUpdate(func() {})
+		// SetSize posts no resize event: without one, a page drawn before the
+		// new size stays half drawn until the next key
+		_ = k.sc.PostEvent(tcell.NewEventResize(140, 60))
+		k.tvApp.QueueUpdateDraw(func() {})
 		drive(k)
 		select {
 		case <-ended:
