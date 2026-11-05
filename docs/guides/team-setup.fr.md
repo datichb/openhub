@@ -140,7 +140,7 @@ Le wizard détecte automatiquement l'état du repo et adapte le comportement :
 | Nom d'affichage | Comment ton nom apparaît dans les notifications | `Benjamin` |
 | Handle GitLab | Facultatif. Pour l'intégration GitLab et la vérification de votre token ; **unique dans l'équipe** | `bdatiche` |
 | Rôle | Ton rôle dans l'équipe | `lead`, `dev`, ou `reviewer` |
-| Username Mattermost | Pour les mentions dans les notifications (`oh team init` et « Initialiser l'équipe » seulement) | `benjamin.datiche` |
+| Username Mattermost | Pour les mentions dans les notifications du webhook (relecteur, auteur d'une revue, ticket transféré) ; modifiable ensuite avec `oh team profile --mattermost-username` et dans « Membres et ma fiche » | `benjamin.datiche` |
 | Username tracker | Ton nom sur le tracker (`tracker_username`), mêmes écrans. **Indispensable quand le tracker est sur un autre serveur que le dépôt d'équipe** (voir ci-dessous) | `benjamin.datiche` |
 
 #### Votre fiche de membre
@@ -279,7 +279,10 @@ webhook_url = "https://hooks.slack.com/services/T.../B.../..."
 [[notification.destinations]]
 type = "discord"
 webhook_url = "https://discord.com/api/webhooks/.../..."
+events = ["*"]                        # facultatif : par défaut la revue et le wiki
 ```
+
+Chaque destination choisit les événements qu'elle reçoit (`events`, par défaut `review.*` et `wiki.*`) et si les personnes concernées sont mentionnées (`mention`, vrai par défaut : le relecteur demandé, l'auteur d'une revue, le membre qui reçoit un ticket, avec le `mattermost_username` de leur fiche). Voir le [guide des notifications](notifications.fr.md).
 
 Commite et push :
 

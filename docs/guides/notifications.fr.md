@@ -2,149 +2,186 @@
 
 # Notifications — Guide de configuration
 
-## Présentation
+## Trois canaux, un seul réglage personnel
 
-openhub peut envoyer des notifications vers les plateformes de messagerie d'équipe lorsque des événements clés surviennent pendant les sessions IA. Les notifications sont envoyées vers Slack, Discord, Mattermost ou Microsoft Teams via des webhooks entrants.
+oh vous prévient de trois façons, qui ne se confondent pas :
 
-### Plateformes supportées
+| Canal | Qui le voit | Où se règle-t-il ? |
+|-------|-------------|--------------------|
+| **Notification système** (centre de notifications de macOS, `notify-send`…) | vous, même si oh est fermé : c'est le **démon** qui l'affiche | `hub.toml` `[notifications]`, Réglages › Notifications |
+| **Toast de la TUI** (et son historique, `~/.oh/notifications.jsonl`) | vous, quand la TUI est ouverte | le même réglage |
+| **Webhook d'équipe** (Mattermost, Slack, Discord, Teams) | toute l'équipe | `config.toml` du team-state, `[notification]` |
 
-| Plateforme | Format du payload | Nom du bot | Redirection de canal |
-|------------|-------------------|------------|---------------------|
-| Slack | `{"text", "username"}` | Oui | Non |
-| Discord | `{"content", "username"}` | Oui | Non |
-| Mattermost | `{"text", "username", "channel"}` | Oui | Oui |
-| Microsoft Teams | MessageCard (`@type: MessageCard`) | Non | Non |
-
----
-
-## Événements
-
-Tous les événements d'équipe ne déclenchent pas de notifications. Le tableau ci-dessous indique quels événements sont automatiquement envoyés :
-
-| Événement | Type | Auto-notifie | Description |
-|-----------|------|:---:|-------------|
-| Revue prête | `review.ready` | Oui | Revue IA terminée, MR prête pour revue humaine |
-| Revue approuvée | `review.approved` | Oui | Le relecteur humain a approuvé la MR |
-| Revue rejetée | `review.rejected` | Oui | Le relecteur humain a rejeté la MR |
-| Proposition wiki | `wiki.proposal` | Oui | L'agent a proposé une mise à jour de page wiki |
-| Notification personnalisee | `custom.notification` | Oui | L'agent a envoyé un message personnalisé via `team_notify` |
-| Session terminée | `session.complete` | Non | Session IA terminée (journalisé uniquement) |
-| Ticket pris en charge | `claim.taken` | Non | L'agent a pris en charge un ticket (journalisé uniquement) |
-| Conflit de prise en charge | `claim.conflict` | Non | Deux agents ont tenté de prendre le même ticket (journalisé uniquement) |
-| Ticket transféré | `claim.transferred` | Non | Ticket transféré entre agents (journalisé uniquement) |
-| Ticket libéré | `claim.released` | Non | L'agent a libéré un ticket (journalisé uniquement) |
-| Wiki accepté | `wiki.accepted` | Non | Proposition wiki acceptée (journalisé uniquement) |
-| Wiki rejeté | `wiki.rejected` | Non | Proposition wiki rejetée (journalisé uniquement) |
-| Constat d'audit | `audit.finding` | Non | L'audit a rapporté des constats (journalisé uniquement) |
-
-> **Note :** Les événements « journalisé uniquement » sont enregistrés dans le journal d'événements du team-state et visibles dans l'historique des notifications du TUI, mais ne sont pas envoyés vers les plateformes externes.
+Les deux premiers sont **personnels** (votre `hub.toml`) ; le troisième est **partagé** (le dépôt team-state). Ce guide décrit les trois.
 
 ---
 
-## Configuration
+## Qui est prévenu, de quoi, et comment (réglages par défaut)
 
-Les notifications sont configurées dans le fichier `config.toml` du dépôt **team-state** (PAS dans `hub.toml`).
+● activé par défaut · ○ disponible, désactivé par défaut.
 
-### Destination unique
+| Événement | Pour | Système | Toast | Webhook | Mention | Dédup / rappel |
+|---|---|:-:|:-:|:-:|:-:|---|
+| Checkpoint / question / permission | moi | ● (sauf session attachée) | ● | ○ | ○ | notification « mise en veille avec une décision en attente » ; la décision est reprise au réveil ; rappel unique au redémarrage du démon |
+| Budget épuisé | moi | ● | ● | ○ | — | une fois par session et par plafond, pas à chaque étape |
+| Échec ou plantage de session | moi | ● | ● | ○ | — | une notification par session et par 10 minutes |
+| Identifiant refusé, jeton expiré (LLM, tracker, git), serveur SSH inconnu | moi | ● avec la cause | ● | — | — | une par clé |
+| Étape terminée (session non attachée) | moi | ○ | ● | — | — | regroupé |
+| Session ou workflow terminé | moi | ● | ● | ○ `session.complete` | — | — |
+| Session distante prête ou en échec | moi | ● | ● | — | — | — |
+| MR ou revue prête | l'équipe et le relecteur | — | ○ | ● | ● relecteur | — |
+| Verdict de revue | l'équipe et l'auteur | — | ○ | ● | ● auteur | — |
+| Réservation transférée à moi | le destinataire | ○ | ● | ○ | ● | — |
+| Réservation prise, libérée, en conflit | l'équipe | — | — | ○ | — | — |
+| Réservation expirée ou bientôt | le propriétaire | ● | ● | ○ | ● | une par réservation |
+| Synchro du tracker | moi | — | récapitulatif | — | — | un échec répété n'est dit qu'une fois |
+| Wiki proposé, accepté, rejeté | l'équipe et l'auteur | — | ○ | ● | ○ | même chemin dans la TUI et en CLI |
+| Configuration d'équipe modifiée (`config_changed`) | l'équipe | — | ○ | ○ | — | — |
+
+> Les colonnes « Toast » des événements d'équipe (revue, wiki, réservation, configuration) disent ce que **vous** pouvez choisir de voir sur votre écran ; l'annonce à l'équipe passe par le webhook.
+
+---
+
+## Vos réglages : `hub.toml` `[notifications]`
+
+Visibles dans **Réglages › Notifications** ; **rechargés à chaud** : le démon et la TUI relisent `hub.toml` quand il change, sans redémarrage.
 
 ```toml
-[notification]
-enabled = true
-type = "slack"                    # slack | discord | mattermost | teams
-webhook_url = "https://hooks.slack.com/services/T.../B.../..."
-bot_name = "OpenHub"
+[notifications]
+system = true              # notifications système du démon (faux : seuls les toasts restent)
+sound = true               # son du système avec la notification
+quiet_hours = "22:00-08:00" # pas de notification système ni de son (peut passer minuit) ; les toasts restent
+when_attached = false      # notifier aussi une session à laquelle un terminal est attaché
+when_tui_focused = true    # notifier aussi quand une TUI est ouverte (oh ne voit pas quelle fenêtre est devant)
+
+[notifications.events]     # system | toast | off, par type d'événement
+step_done = "system"
+claim = "toast"
 ```
 
-### Destinations multiples
+Valeurs de `events.<type>` : `system` (notification système **et** toast), `toast` (toast seulement), `off` (rien). Types : `checkpoint`, `question`, `permission`, `sleep`, `budget`, `error`, `credential`, `step_done`, `session_complete`, `remote`, `memory`, `review`, `verdict`, `claim_transferred`, `claim`, `claim_expired`, `tracker_sync`, `wiki`, `config_changed`. Seuls les choix différents du défaut sont écrits.
+
+L'ancien `[session] notify = "off"` éteint toujours les notifications système tant que `[notifications] system` n'est pas écrit.
+
+Une notification système par famille (décisions, budget, erreurs, alertes, fin d'étape…) : une famille ne remplace pas l'autre dans le centre de notifications. Les alertes disent leur **cause** dans le titre (« Clé Bedrock refusée par AWS », « Accès au team-state refusé », « Serveur SSH inconnu »…), une notification par clé.
+
+### Décision en attente, TUI fermée
+
+La veille d'un serveur reste à `idle_sleep_minutes` (5 min). Si une décision (permission, question, checkpoint) attend à ce moment, oh la **garde** dans « À traiter » (marquée en veille), vous prévient (« mise en veille avec une décision en attente ») et, au réveil de la session :
+
+- si l'outil repose la demande, elle redevient une décision normale ;
+- sinon la demande est perdue avec le serveur : oh la clôt et **demande à l'agent de la reposer** (une consigne mise en file).
+
+Tant que la session dort, répondre à la décision est refusé avec un message qui dit de reprendre la session (`oh session resume`). Les décisions encore ouvertes depuis plus d'une minute au démarrage du démon (et de moins de 24 h) sont rappelées **une fois**.
+
+---
+
+## Le webhook d'équipe
+
+### Événements envoyés
+
+Chaque destination reçoit, par défaut, la **revue** (`review.*`), le **wiki** (`wiki.*`) et les messages des agents (`custom.notification`). Les autres événements sont envoyés si la destination les demande avec `events` : un type (`claim.transferred`), une famille (`claim.*`) ou `*`.
+
+| Événement | Type | Par défaut |
+|-----------|------|:---:|
+| Revue prête / approuvée / rejetée | `review.ready`, `review.approved`, `review.rejected` | Oui |
+| Wiki proposé / accepté / rejeté | `wiki.proposal`, `wiki.accepted`, `wiki.rejected` | Oui |
+| Message d'un agent | `custom.notification` | Oui |
+| Réservation prise / libérée / transférée / en conflit | `claim.taken`, `claim.released`, `claim.transferred`, `claim.conflict` | Non |
+| Réservation bientôt expirée / expirée | `claim.expiring`, `claim.expired` | Non |
+| Session terminée | `session.complete` | Non |
+| Constat d'audit | `audit.finding` | Non |
+| Workflow publié, restauré, archivé | `workflow.published`, `workflow.restored`, `workflow.archived` | Non |
+| Configuration d'équipe modifiée | `config_changed` | Non |
+
+Tout événement écrit dans l'activité de l'équipe est annoncé **une fois, quand sa transaction est validée**, quel que soit l'auteur (une commande, le démon, un agent, la TUI). Une MR créée par un agent (`gitlab_create_mr`) annonce `review.ready` comme `oh mr create`.
+
+### Mentions
+
+Le relecteur demandé (`oh mr create --reviewer`), l'auteur d'une revue ou d'une proposition de wiki, le membre à qui un ticket est transféré, le propriétaire d'une réservation qui expire sont **mentionnés** avec le `mattermost_username` de leur fiche (`oh team profile`), sur Mattermost et Slack. Sur Discord et Teams le texte donne leur nom, sans mention. `mention = false` les coupe. Une personne sans `mattermost_username` n'est pas mentionnée.
+
+### Configuration
+
+Dans le `config.toml` du team-state (pas dans `hub.toml`) :
+
+```toml
+[notification]
+enabled = true                    # sans cet interrupteur, rien n'est envoyé
+type = "slack"                    # slack | discord | mattermost | teams ; déduit du webhook s'il manque
+webhook_url = "https://hooks.slack.com/services/T.../B.../..."
+bot_name = "OpenHub"
+events = ["review.*", "wiki.*", "claim.transferred"]   # facultatif
+mention = true                    # facultatif (vrai par défaut)
+```
+
+Plusieurs destinations, chacune avec ses `events` et son `mention` :
 
 ```toml
 [notification]
 enabled = true
-bot_name = "OpenHub"              # Valeur par defaut pour toutes les destinations
+bot_name = "OpenHub"
 
 [[notification.destinations]]
 type = "slack"
 webhook_url = "https://hooks.slack.com/services/T.../B.../..."
 
 [[notification.destinations]]
-type = "discord"
-webhook_url = "https://discord.com/api/webhooks/.../..."
-
-[[notification.destinations]]
 type = "mattermost"
 webhook_url = "https://mattermost.example.com/hooks/..."
-channel = "#dev-ai"               # Mattermost uniquement
-bot_name = "MattermostBot"        # Redefinition par destination
+channel = "dev-ai"
+events = ["*"]
 ```
+
+Sans terminal : `oh team config set notification.events "review.*, claim.*"`, `oh team config set notification.destinations.0.mention false`. Dans la TUI : détail de l'équipe › Notifications (publié par Ctrl+S).
+
+**Le webhook est un secret** : il est écrit dans le dépôt team-state, donc masqué dans tous les écrans, récapitulatifs, événements et messages d'erreur ; `oh doctor` avertit si ce dépôt est lisible par tout le monde.
 
 ### Configuration par plateforme
 
-**Slack :** Créez un [Incoming Webhook](https://api.slack.com/messaging/webhooks) dans les paramètres de votre espace de travail Slack.
+| Plateforme | Format du payload | Nom du bot | Canal | Mention |
+|------------|-------------------|------------|-------|---------|
+| Slack | `{"text", "username", "link_names"}` | Oui | Non | `@nom` |
+| Discord | `{"content", "username"}` (aucune mention analysée) | Oui | Non | Non |
+| Mattermost | `{"text", "username", "channel"}` | Oui | Oui | `@nom` |
+| Microsoft Teams | MessageCard | Non | Non | Non |
 
-**Discord :** Dans les paramètres du canal > Intégrations > Webhooks > Nouveau Webhook. Copiez l'URL du webhook.
+**Slack :** créez un [Incoming Webhook](https://api.slack.com/messaging/webhooks). **Discord :** canal › Intégrations › Webhooks. **Mattermost :** Console Système › Intégrations › Incoming Webhooks. **Teams :** un [workflow Power Automate](https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook) ou un connecteur entrant.
 
-**Mattermost :** Dans la Console Système > Intégrations > Incoming Webhooks. Vous pouvez optionnellement spécifier une redefinition de `channel`.
+### Texte et fiabilité
 
-**Microsoft Teams :** Créez un [workflow Power Automate](https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook) ou utilisez un connecteur de webhook entrant legacy.
-
----
-
-## Processus d'installation
-
-1. **Pendant `oh team init`** — L'assistant interactif propose la configuration des notifications comme étape optionnelle
-2. **Manuellement** — Editez directement `~/.oh/team-state/config.toml`
-3. **Commitez** — Poussez la configuration pour la partager avec l'équipe :
-   ```bash
-   cd ~/.oh/team-state && git add config.toml && git commit -m "feat: ajout des notifications" && git push
-   ```
+- Le texte est écrit **dans la langue de l'expéditeur**, avec les noms des membres et des projets (pas leurs identifiants) et les symboles de l'activité (`✔ ✗ ●`), valables sur toutes les plateformes.
+- Les destinations sont jointes **en parallèle** (8 s au plus chacune).
+- Un message qui n'atteint pas son webhook (serveur arrêté, réseau coupé, 5xx, 429) est **gardé** dans `~/.oh/notify/outbox/` ; le démon le renvoie après 1 min, 5 min, 15 min, 1 h, 3 h puis 6 h, puis abandonne et le dit dans l'historique des notifications. Un webhook révoqué (404, 403…) n'est pas renvoyé : l'erreur est dite tout de suite.
+- Les erreurs ne contiennent jamais l'adresse du webhook.
 
 ---
 
-## Test
+## L'outil MCP `notify` des agents
+
+Un agent peut écrire à l'équipe avec `team_notify`. Le message est **signé** (membre et projet), limité à 1000 caractères et à 5 messages par 10 minutes, et ne peut pas appeler `@channel`, `@all`, `@here`. Si les notifications sont désactivées, sans destination, ou en échec, l'outil **répond une erreur** : l'agent ne croit plus avoir prévenu l'équipe.
+
+---
+
+## Test et diagnostic
 
 ```bash
-oh team notify test                      # Envoyer une notification de test
-oh team notify test --message "Bonjour!" # Message de test personnalise
+oh team notify test                      # envoie un message de test aux destinations
+oh team notify test --message "Bonjour!" # message personnalisé
+oh doctor                                # contrôle « Notifications »
 ```
 
----
+`oh doctor` vérifie l'outil de notification système (oh ne peut pas savoir si le système l'autorise : si rien ne s'affiche, autorisez les notifications de votre terminal), signale les messages qui attendent un nouvel essai, et que le serveur de chaque webhook répond (sans y envoyer de message).
 
-## Intégration TUI
-
-Les notifications apparaissent également dans le TUI :
-
-- **Notifications toast** — Apparaissent en temps réel pour tous les événements
-- **Historique des notifications** — Tapez `notifications` (ou `notif`, `logs`, `messages`, `toasts`) dans l'omnibar
-- **Persistance** — Les 50 dernières notifications sont stockées dans `~/.oh/notifications.jsonl`
-- **Erreurs** — Les notifications de niveau erreur sont écrites sur stderr
+L'historique (`notifications` dans l'omnibar) garde les 500 dernières lignes de `~/.oh/notifications.jsonl` : les toasts, les synchros du tracker faites par le démon, les réservations qui expirent, les webhooks abandonnés. Un même message n'est pas affiché ni enregistré deux fois en 5 secondes.
 
 ---
 
 ## Dépannage
 
-### Notifications non envoyées
-
-1. Vérifiez que `enabled = true` est présent dans `[notification]`
-2. Vérifiez que l'URL du webhook est correcte et accessible
-3. Testez avec `oh team notify test`
-4. Consultez les logs : les URLs de webhook sont masquées dans les logs pour des raisons de sécurité (`httplog.WithMaskURL`)
-
-### Mauvais format de plateforme
-
-Chaque plateforme attend un format de payload spécifique. Si vous obtenez `400 Bad Request`, vérifiez que le champ `type` correspond bien à la plateforme du webhook.
-
-### Canal Mattermost introuvable
-
-Le champ `channel` doit inclure le préfixe `#` (par exemple `#dev-ai`). S'il est omis, le canal par défaut du webhook est utilisé.
-
----
-
-## Limitations connues
-
-- **Messages de notification en français uniquement** — Toutes les chaînes de formatage des événements sont actuellement codées en dur en français. L'internationalisation des messages de notification est prévue mais pas encore implémentée.
-- **Pas de filtrage par événement** — Tous les événements auto-notifies sont envoyés à toutes les destinations. Le filtrage par événement ou par destination n'est pas supporté.
-- **Pas de renvoi en cas d'échec** — Si un appel webhook échoue, l'erreur est journalisée mais la notification n'est pas renvoyee.
-- **Timeout de 10 secondes** — Les appels HTTP de webhook expirent après 10 secondes.
+1. Rien n'arrive sur le webhook : `enabled = true` ? un `type` et un `webhook_url` ? l'événement est-il dans `events` (revue et wiki seulement par défaut) ? `oh team notify test`, puis `oh doctor`.
+2. Pas de notification système : `[notifications] system`, `quiet_hours`, le type d'événement (`events.<type>` à `system`), une session attachée (`when_attached`), une TUI ouverte (`when_tui_focused`), et l'autorisation du système.
+3. `400 Bad Request` : le `type` ne correspond pas à la plateforme du webhook.
+4. Canal Mattermost introuvable : le champ `channel` est le nom du canal.
 
 ---
 
@@ -153,14 +190,5 @@ Le champ `channel` doit inclure le préfixe `#` (par exemple `#dev-ai`). S'il es
 - [Guide de configuration d'équipe](team-setup.fr.md)
 - [Référence du serveur MCP Team](../reference/mcp-team.fr.md) — outil `team_notify`
 - [Référence de configuration](../reference/config.fr.md)
-
----
-
-## Support
-
-```bash
-oh team notify test      # Tester l'envoi de notifications
-oh team status           # Verifier la configuration d'equipe
-```
 
 Pour signaler un problème : [GitHub Issues](https://github.com/datichb/openhub/issues)

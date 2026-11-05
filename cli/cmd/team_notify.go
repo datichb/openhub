@@ -73,7 +73,12 @@ func runTeamNotifyTest(cmd *cobra.Command, args []string) error {
 		Data:      map[string]interface{}{"message": message},
 	}
 
-	// No outbox: a test says at once whether the webhook answers.
+	// No outbox: a test says at once whether the webhook answers. It goes to
+	// every destination, whatever events each one chose.
+	teamCfg.Notification.Events = nil
+	for i := range teamCfg.Notification.Destinations {
+		teamCfg.Notification.Destinations[i].Events = nil
+	}
 	d := notify.NewDispatcher(teamCfg)
 	if !d.Enabled() {
 		return errors.New(i18n.T("v54n.notify.test_no_destination"))

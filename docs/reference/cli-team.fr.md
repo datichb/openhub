@@ -318,7 +318,7 @@ La commande, la touche de synchronisation (`s`) des écrans d'équipe et la sync
 
 ### oh team notify test
 
-Envoie un message de test au(x) webhook(s) configuré(s) dans le team-state.
+Envoie un message de test au(x) webhook(s) configuré(s) dans le team-state (sans file d'attente : une erreur est dite tout de suite, sans l'adresse du webhook). Les événements que reçoit chaque destination se règlent avec `oh team config set notification.events …` ; voir le [guide des notifications](../guides/notifications.fr.md).
 
 ```
 oh team notify test [-m <message>]

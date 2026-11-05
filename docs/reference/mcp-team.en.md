@@ -186,7 +186,7 @@ List recent team activity events.
 
 ### `team_notify`
 
-Send a custom notification to the team channel (supports Mattermost, Slack, Discord, Teams).
+Send a message to the team channel (supports Mattermost, Slack, Discord, Teams). The message is **signed** (member and project), limited to 1000 characters and 5 messages per 10 minutes, and cannot call `@channel`, `@all` or `@here`.
 
 **Input:**
 ```json
@@ -195,7 +195,7 @@ Send a custom notification to the team channel (supports Mattermost, Slack, Disc
 }
 ```
 
-**Output:** Confirmation
+**Output:** « Notification sent to N destination(s). »; when some destinations did not answer, the message is kept and sent again by the daemon (the answer says so). **Error** (nothing was sent): empty or too long message, notifications off (`notification.enabled`), no valid destination, too many messages, or a failing webhook (without its address).
 
 **Access:** `orchestrator-dev`, `reviewer`, `auditor`
 
