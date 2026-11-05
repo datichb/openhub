@@ -134,3 +134,38 @@ func TestInferNotifierType(t *testing.T) {
 	assert.Equal(t, "teams", NotificationConfig{Type: "teams", WebhookURL: "https://x/y"}.EffectiveType())
 	assert.Empty(t, NotificationConfig{}.EffectiveType())
 }
+
+func TestSettings_NotificationEventsAndMention(t *testing.T) {
+	i18ntest.Set(t, "en")
+	cfg := &TeamConfig{}
+	require.NoError(t, cfg.Set("notification.events", "review.*, claim.*"))
+	require.NoError(t, cfg.Set("notification.destinations.0.type", "mattermost"))
+	require.NoError(t, cfg.Set("notification.destinations.1.type", "slack"))
+	require.NoError(t, cfg.Set("notification.destinations.1.events", "session.complete"))
+	require.NoError(t, cfg.Set("notification.destinations.1.mention", "false"))
+	assert.Equal(t, []string{"review.*", "claim.*"}, cfg.Notification.Events)
+	assert.True(t, cfg.Notification.WantsEvent("claim.taken"))
+	assert.False(t, cfg.Notification.WantsEvent("session.complete"))
+	assert.True(t, cfg.Notification.MentionOn())
+	d := cfg.Notification.Destinations[1]
+	assert.True(t, d.WantsEvent("session.complete"))
+	assert.False(t, d.WantsEvent("review.ready"))
+	assert.False(t, d.MentionOn())
+
+	v, err := cfg.Get("notification.destinations.1.mention")
+	require.NoError(t, err)
+	assert.Equal(t, "false", v)
+	require.NoError(t, cfg.Unset("notification.destinations.1.mention"))
+	assert.True(t, cfg.Notification.Destinations[1].MentionOn())
+
+	// The defaults when nothing is chosen: the review, the wiki and the messages.
+	var none NotificationConfig
+	for _, typ := range []string{EventReviewReady, EventReviewApproved, EventReviewRejected, EventWikiProposal, EventWikiAccepted, EventWikiRejected, EventCustomNotification} {
+		assert.True(t, none.WantsEvent(typ), typ)
+	}
+	for _, typ := range []string{EventClaimTaken, EventClaimTransferred, EventSessionComplete, EventConfigChanged} {
+		assert.False(t, none.WantsEvent(typ), typ)
+	}
+	assert.True(t, ValidEventPattern("*") && ValidEventPattern("claim.*") && ValidEventPattern("config_changed"))
+	assert.False(t, ValidEventPattern("claims") || ValidEventPattern("nothing.*"))
+}

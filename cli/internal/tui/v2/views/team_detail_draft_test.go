@@ -278,3 +278,41 @@ func TestTeamDetailOpenSectionAndEmptyStateNewTeam(t *testing.T) {
 	assert.Equal(t, 1, opened)
 	assert.Contains(t, v.StatusHints(), "n")
 }
+
+// The events and the mention of the webhook, and of each destination, are
+// edited in the draft (published with Ctrl+S) — the destinations were only counted.
+func TestTeamDetailEditsTheEventsAndTheMentionOfTheDestinations(t *testing.T) {
+	e := newTokenEnv(t, "gitlab")
+	e.v.teamCfg.Notification.Destinations = []teamstate.NotificationDestination{
+		{Type: "mattermost", WebhookURL: "https://chat.example.com/hooks/aaa"},
+		{Type: "slack", WebhookURL: "https://hooks.slack.com/services/T/B/bbb"},
+	}
+	e.v.buildFields()
+
+	events := e.field(t, "notif_events")
+	events.Set("review.*, claim.*")
+	assert.Equal(t, []string{"review.*", "claim.*"}, e.v.teamCfg.Notification.Events)
+	assert.Equal(t, "review.*, claim.*", events.Get())
+	assert.True(t, e.v.dirtyTeam)
+	assert.Error(t, events.Validator.Validate("review.*, claims"), "a typo would silence the destination")
+	assert.NoError(t, events.Validator.Validate("*"))
+	assert.NoError(t, events.Validator.Validate(""))
+	events.Set("")
+	assert.Empty(t, e.v.teamCfg.Notification.Events, "empty puts the default back")
+
+	e.field(t, "notif_dest_1_events").Set("session.complete")
+	assert.Equal(t, []string{"session.complete"}, e.v.teamCfg.Notification.Destinations[1].Events)
+	assert.Empty(t, e.v.teamCfg.Notification.Destinations[0].Events)
+
+	mention := e.field(t, "notif_dest_0_mention")
+	assert.Equal(t, CfgFieldTriBool, mention.Kind)
+	mention.Set("false")
+	require.NotNil(t, e.v.teamCfg.Notification.Destinations[0].Mention)
+	assert.False(t, *e.v.teamCfg.Notification.Destinations[0].Mention)
+	assert.True(t, e.v.teamCfg.Notification.Destinations[1].MentionOn(), "on by default")
+	mention.Set("")
+	assert.Nil(t, e.v.teamCfg.Notification.Destinations[0].Mention)
+
+	e.field(t, "notif_mention").Set("false")
+	assert.False(t, e.v.teamCfg.Notification.MentionOn())
+}

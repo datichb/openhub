@@ -6642,8 +6642,6 @@
   "v54c.field.board_edit.label": "Columns and mappings…",
   "v54c.field.board_edit.desc": "Opens the editor of the columns and of the tracker label/status mappings.",
   "v54c.field.board_edit.publish_first": "Publish your changes first (%s): the editor starts from the published configuration.",
-  "v54c.field.destinations.label": "Several destinations",
-  "v54c.field.destinations.desc": "List of webhooks of notification.destinations; edit with oh team config set notification.destinations.0.type …",
   "v54c.field.notif_type.auto": "Deduced from the webhook",
   "v54c.field.webhook.invalid": "%s: a webhook starts with https:// (or http://).",
   "v54c.field.member_role.label": "Role",
@@ -6769,5 +6767,11 @@
   "v54n.settings.kind.wiki.label": "Wiki",
   "v54n.settings.kind.wiki.desc": "A wiki proposal, accepted or rejected.",
   "v54n.settings.kind.config_changed.label": "Team config changed",
-  "v54n.settings.kind.config_changed.desc": "A member published the team configuration."
+  "v54n.settings.kind.config_changed.desc": "A member published the team configuration.",
+  "v54n.field.destination": "Destination %d · %s",
+  "v54n.field.events.label": "Events sent",
+  "v54n.field.events.desc": "Event types this webhook receives, comma-separated: review.ready, claim.*, session.complete, config_changed, * … Empty = review and wiki (the default). To add or remove a destination: oh team config set notification.destinations.N.…",
+  "v54n.field.events.placeholder": "review.*, wiki.*",
+  "v54n.field.mention.label": "Mention the person concerned",
+  "v54n.field.mention.desc": "Mentions (@mattermost_username of their card) the reviewer asked, the author of a review, the member a claim is handed to, the owner of a claim that expires. On by default."
 }

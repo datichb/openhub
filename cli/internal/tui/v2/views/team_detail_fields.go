@@ -387,13 +387,43 @@ func (v *TeamDetailView) notificationFields() []configField {
 	channel := v.sharedSetting("channel", "notification.channel", "tui.config.field.channel", CfgFieldString)
 	bot := v.sharedSetting("bot_name", "notification.bot_name", "tui.config.field.bot_name", CfgFieldString)
 	bot.Get = func() string { return v.teamCfg.Notification.BotName }
-	return []configField{
-		v.header("v54c.section.notifications"), enabled, kind, hook, channel, bot,
-		{
-			Key: "notif_destinations", Kind: CfgFieldReadonly, Label: i18n.T("v54c.field.destinations.label"), Description: i18n.T("v54c.field.destinations.desc"),
-			Scope: ScopeTeamShared, Get: func() string { return strconv.Itoa(len(v.teamCfg.Notification.Destinations)) },
-		},
+	events := v.eventsField("notif_events", "notification.events")
+	mention := v.mentionField("notif_mention", "notification.mention")
+	out := []configField{v.header("v54c.section.notifications"), enabled, kind, hook, channel, bot, events, mention}
+	for i, d := range v.teamCfg.Notification.Destinations {
+		name := d.Type
+		if name == "" {
+			name = "?"
+		}
+		out = append(out,
+			configField{Kind: CfgFieldSubHeader, Label: i18n.Tf("v54n.field.destination", i+1, name)},
+			v.eventsField("notif_dest_"+strconv.Itoa(i)+"_events", "notification.destinations."+strconv.Itoa(i)+".events"),
+			v.mentionField("notif_dest_"+strconv.Itoa(i)+"_mention", "notification.destinations."+strconv.Itoa(i)+".mention"))
 	}
+	return out
+}
+
+// eventsField is the list of events a destination receives (types, families
+// « claim.* », « * »); empty puts the default back (review and wiki).
+func (v *TeamDetailView) eventsField(key, setting string) configField {
+	f := v.sharedSetting(key, setting, "v54n.field.events", CfgFieldString)
+	f.Placeholder = i18n.T("v54n.field.events.placeholder")
+	f.Validator = &FieldValidator{AllowEmpty: true, Check: func(val string) error {
+		for _, p := range strings.Split(val, ",") {
+			if p = strings.TrimSpace(p); p != "" && !teamstate.ValidEventPattern(p) {
+				return errors.New(i18n.Tf("v54n.config.unknown_event", p, strings.Join(teamstate.NotificationEvents, ", ")))
+			}
+		}
+		return nil
+	}}
+	return f
+}
+
+// mentionField says whether the person an event is for is mentioned
+// (mattermost_username of their card): on unless the team turned it off.
+func (v *TeamDetailView) mentionField(key, setting string) configField {
+	f := v.sharedSetting(key, setting, "v54n.field.mention", CfgFieldTriBool)
+	return f
 }
 
 // promptWebhook asks the webhook in a window that hides what is typed; an

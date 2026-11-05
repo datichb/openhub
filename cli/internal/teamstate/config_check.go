@@ -150,7 +150,17 @@ func notificationIssues(n *NotificationConfig) []ConfigIssue {
 	if !validNotifierType(n.Type) {
 		out = append(out, ConfigIssue{Kind: IssueNotification, Key: "notification.type", Detail: i18n.Tf("v54c.check.notif_type", n.Type, strings.Join(NotifierTypes, ", "))})
 	}
+	for _, p := range n.Events {
+		if !ValidEventPattern(strings.TrimSpace(p)) {
+			out = append(out, ConfigIssue{Kind: IssueNotification, Key: "notification.events", Detail: i18n.Tf("v54n.config.unknown_event", p, strings.Join(NotificationEvents, ", "))})
+		}
+	}
 	for i, d := range n.Destinations {
+		for _, p := range d.Events {
+			if !ValidEventPattern(strings.TrimSpace(p)) {
+				out = append(out, ConfigIssue{Kind: IssueNotification, Key: fmt.Sprintf("notification.destinations[%d].events", i), Detail: i18n.Tf("v54n.config.unknown_event", p, strings.Join(NotificationEvents, ", "))})
+			}
+		}
 		switch {
 		case d.WebhookURL == "":
 			out = append(out, ConfigIssue{Kind: IssueNotification, Key: fmt.Sprintf("notification.destinations[%d]", i), Detail: i18n.Tf("v54c.check.notif_dest_empty", i+1)})

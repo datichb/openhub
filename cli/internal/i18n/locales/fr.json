@@ -6642,8 +6642,6 @@
   "v54c.field.board_edit.label": "Colonnes et mappings…",
   "v54c.field.board_edit.desc": "Ouvre l'éditeur des colonnes et des correspondances labels/statuts du tracker.",
   "v54c.field.board_edit.publish_first": "Publiez d'abord vos modifications (%s) : l'éditeur part de la configuration publiée.",
-  "v54c.field.destinations.label": "Destinations multiples",
-  "v54c.field.destinations.desc": "Liste de webhooks de notification.destinations ; à modifier avec oh team config set notification.destinations.0.type …",
   "v54c.field.notif_type.auto": "Déduit du webhook",
   "v54c.field.webhook.invalid": "%s : un webhook commence par https:// (ou http://).",
   "v54c.field.member_role.label": "Rôle",
@@ -6769,5 +6767,11 @@
   "v54n.settings.kind.wiki.label": "Wiki",
   "v54n.settings.kind.wiki.desc": "Proposition de wiki, acceptée ou rejetée.",
   "v54n.settings.kind.config_changed.label": "Configuration d'équipe modifiée",
-  "v54n.settings.kind.config_changed.desc": "Un membre a publié la configuration de l'équipe."
+  "v54n.settings.kind.config_changed.desc": "Un membre a publié la configuration de l'équipe.",
+  "v54n.field.destination": "Destination %d · %s",
+  "v54n.field.events.label": "Événements envoyés",
+  "v54n.field.events.desc": "Types d'événements reçus par ce webhook, séparés par des virgules : review.ready, claim.*, session.complete, config_changed, * … Vide = revue et wiki (par défaut). Ajouter ou retirer une destination : oh team config set notification.destinations.N.…",
+  "v54n.field.events.placeholder": "review.*, wiki.*",
+  "v54n.field.mention.label": "Mentionner la personne concernée",
+  "v54n.field.mention.desc": "Mentionne (@mattermost_username de sa fiche) le relecteur demandé, l'auteur d'une revue, le membre qui reçoit un ticket, le propriétaire d'une réservation qui expire. Par défaut oui."
 }
