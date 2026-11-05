@@ -397,7 +397,7 @@ func TestEscapeOnAListLeavesTheActionKeysFree(t *testing.T) {
 	i18ntest.Set(t, "en")
 	var mu sync.Mutex
 	var claimed []string
-	tickets := []TeamTicket{{ID: "1", Title: "One", Status: "todo", Project: "p2", AssigneeID: "alice", Assignee: "Alice"}}
+	tickets := []TeamTicket{{ID: "1", Title: "One", Status: "todo", Project: "p2"}} // a ticket of the pool
 	board := NewTeamBoardView(TeamBoardViewConfig{
 		Tickets: tickets, IsConfigured: func() bool { return true },
 		Actions: &BoardActions{

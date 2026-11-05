@@ -29,6 +29,7 @@ type teamBoardRepo interface {
 	teamstate.MemberReader
 	teamstate.ClaimReader
 	teamstate.ClaimWriter
+	teamstate.ClaimLifecycle
 }
 
 // buildTeamBoardViewConfig builds the full TeamBoardViewConfig for the shell TUI,
@@ -209,11 +210,11 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 
-				// A claim someone holds is left as it is; any other one is one
-				// more ticket in progress for the member: refused past
-				// max_in_progress_per_member.
+				// A claim someone holds is left as it is, and the board says who
+				// holds it; any other one is one more ticket in progress for the
+				// member: refused past max_in_progress_per_member.
 				if held, gerr := repo.GetClaim(ctx, projectID, ticketID); gerr == nil && held.ClaimedBy != "" {
-					return nil // already owned, idempotent
+					return claimHeldBy(ctx, repo, held, memberID)
 				}
 				if err := checkInProgressRoom(ctx, repo, trackerLocalOf(ctx, a), memberID, teamstate.ClaimRef{Project: projectID, TicketID: ticketID}); err != nil {
 					return err
@@ -227,6 +228,8 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				//
 				// Try creating a new claim first.
 				workStatus := layout.Load().Board.DefaultWorkStatus()
+				// The claim.taken event goes in the commit of the claim.
+				ctx = teamstate.WithClaimEvent(ctx, memberID)
 				_, err := repo.CreateClaim(ctx, teamstate.Claim{
 					TicketID:  ticketID,
 					Project:   projectID,
@@ -246,7 +249,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 					return nil //nolint:nilerr // can't read claim, treat as idempotent
 				}
 				if existing.ClaimedBy != "" {
-					return nil // already owned, idempotent
+					return claimHeldBy(ctx, repo, existing, memberID)
 				}
 
 				// Pool ticket: claim it for ourselves.
@@ -268,6 +271,39 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				})
 				return nil
 			},
+			OnTakeOver: func(cardProject, ticketID string) error {
+				repo := resolveRepo()
+				if repo == nil {
+					return errors.New(i18n.T("tui.team_board.team_not_configured"))
+				}
+				projectID := boardProjectID(a, cardProject)
+				memberID := boardMember()
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				// Judged again on the claim as it is now: it may have been
+				// renewed since the board read it.
+				c, err := repo.GetClaim(ctx, projectID, ticketID)
+				if err != nil {
+					return err
+				}
+				if c.ClaimedBy == memberID {
+					return nil
+				}
+				cfg, _ := repo.LoadConfig(ctx)
+				if c.ClaimedBy != "" && (!c.HasLease(cfg) || !c.IsExpired(time.Now(), cfg)) {
+					return claimHeldBy(ctx, repo, c, memberID)
+				}
+				if err := checkTransferToSelfRoom(ctx, repo, trackerLocalOf(ctx, a), memberID, c); err != nil {
+					return err
+				}
+				reason := "stale"
+				if !c.LeaseUntil.IsZero() {
+					reason = "expired"
+				}
+				_, err = repo.TransferClaimWith(teamstate.WithActor(ctx, memberID), projectID, ticketID, memberID,
+					teamstate.TransferOpts{Reason: reason, BriefReason: reason})
+				return explainHandOver(err, memberID)
+			},
 			OnRelease: func(cardProject, ticketID string) error {
 				repo := resolveRepo()
 				if repo == nil {
@@ -276,7 +312,19 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				projectID := boardProjectID(a, cardProject)
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
-				return repo.ReleaseClaim(ctx, projectID, ticketID)
+				// The owner the board showed must still be the owner: a claim
+				// that changed hands meanwhile is not released under the feet of
+				// its new owner.
+				owner := ""
+				if c, gerr := repo.GetClaim(ctx, projectID, ticketID); gerr == nil {
+					owner = c.ClaimedBy
+				}
+				_, err := repo.ReleaseClaimAs(teamstate.WithActor(ctx, boardMember()), projectID, ticketID, teamstate.ReleaseOpts{Owner: owner})
+				var moved *teamstate.ClaimNotOwnedError
+				if errors.As(err, &moved) {
+					return claimHeldBy(ctx, repo, &teamstate.Claim{ClaimedBy: moved.Owner}, boardMember())
+				}
+				return err
 			},
 			OnTransfer: func(cardProject, ticketID, toMember string) error {
 				repo := resolveRepo()
@@ -287,14 +335,19 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 				// A claim in progress handed to oneself is one more ticket in progress.
-				if me := boardMember(); toMember == me {
+				me := boardMember()
+				if toMember == me {
 					if c, gerr := repo.GetClaim(ctx, projectID, ticketID); gerr == nil {
 						if err := checkTransferToSelfRoom(ctx, repo, trackerLocalOf(ctx, a), me, c); err != nil {
 							return err
 						}
 					}
 				}
-				return repo.TransferClaim(ctx, projectID, ticketID, toMember)
+				// The claim, the takeover brief and the claim.transferred event
+				// (signed by the member who hands it over) are one commit.
+				_, err := repo.TransferClaimWith(teamstate.WithActor(ctx, me), projectID, ticketID, toMember,
+					teamstate.TransferOpts{BriefReason: "transfer"})
+				return explainHandOver(err, toMember)
 			},
 			OnStatus: func(cardProject, ticketID, newStatus string) error {
 				repo := resolveRepoWithBoard()
@@ -323,6 +376,23 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 		},
 		QuickActions: buildBoardQuickActions(a),
 	}
+}
+
+// claimHeldBy is what taking a ticket answers when a claim holds it: nothing
+// when the claim is the member's own, else a *views.ClaimHeldError that names
+// the owner (the display name of their card) and says whether the claim has
+// expired, so that the board tells who holds the ticket instead of announcing
+// a claim that was not made.
+func claimHeldBy(ctx context.Context, repo teamBoardRepo, held *teamstate.Claim, me string) error {
+	if held.ClaimedBy == me {
+		return nil
+	}
+	name := held.ClaimedBy
+	if m, err := repo.GetMember(ctx, held.ClaimedBy); err == nil && m != nil && m.DisplayName != "" {
+		name = m.DisplayName
+	}
+	cfg, _ := repo.LoadConfig(ctx)
+	return &views.ClaimHeldError{Owner: name, Expired: held.HasLease(cfg) && held.IsExpired(time.Now(), cfg)}
 }
 
 // boardProjectID is the project an action of the team board works on: the one

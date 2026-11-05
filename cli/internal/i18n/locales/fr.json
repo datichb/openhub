@@ -6800,5 +6800,22 @@
   "v54l.team.member.remove.done": "Membre %s retiré de l'équipe.",
   "v54l.team.member.remove.done_to": "%[1]d réservation(s) transférée(s) à %[2]s.",
   "v54l.team.member.remove.done_released": "%d réservation(s) libérée(s).",
-  "v54l.team.member.remove.done_kept": "%d réservation(s) terminée(s) restent en place."
+  "v54l.team.member.remove.done_kept": "%d réservation(s) terminée(s) restent en place.",
+  "v54l.board.held": "Déjà pris par %s",
+  "v54l.board.held_toast": "%[1]s est déjà pris par %[2]s.",
+  "v54l.board.yours": "%s est déjà à vous.",
+  "v54l.board.takeover.title": "Reprendre %s ?",
+  "v54l.board.takeover.detail": "La réservation de %s a expiré : son bail est terminé. Elle vous sera transférée avec un brief de reprise ; l'événement de l'activité est signé de vous.",
+  "v54l.board.takeover.failed": "Reprise échouée : ",
+  "v54l.board.takeover.done": "%s repris : brief de reprise écrit.",
+  "v54l.board.release.other_title": "Libérer la réservation de %s ?",
+  "v54l.board.release.other_detail": "%[1]s est réservé par %[2]s, pas par vous. Sa réservation sera supprimée : un autre membre pourra le prendre.",
+  "v54l.board.transfer.other_title": "Transférer la réservation de %s ?",
+  "v54l.board.transfer.other_detail": "%[1]s est réservé par %[2]s. Il change de main sans son accord ; l'événement est signé de vous.",
+  "v54l.board.badge.expired": "expiré",
+  "v54l.board.badge.lease": "bail %s",
+  "v54l.board.badge.session_ended": "session terminée",
+  "v54l.board.detail.lease": "Bail :",
+  "v54l.board.detail.expired": "expiré le %s",
+  "v54l.board.detail.session_ended": "la session a pris fin, la réservation est restée"
 }

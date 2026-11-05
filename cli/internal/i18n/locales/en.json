@@ -6800,5 +6800,22 @@
   "v54l.team.member.remove.done": "Member %s removed from the team.",
   "v54l.team.member.remove.done_to": "%[1]d claim(s) handed to %[2]s.",
   "v54l.team.member.remove.done_released": "%d claim(s) released.",
-  "v54l.team.member.remove.done_kept": "%d finished claim(s) stay where they are."
+  "v54l.team.member.remove.done_kept": "%d finished claim(s) stay where they are.",
+  "v54l.board.held": "Already held by %s",
+  "v54l.board.held_toast": "%[1]s is already held by %[2]s.",
+  "v54l.board.yours": "%s is already yours.",
+  "v54l.board.takeover.title": "Take over %s?",
+  "v54l.board.takeover.detail": "The claim of %s has expired: its lease is over. It will be handed to you with a takeover brief; the event in the activity is signed by you.",
+  "v54l.board.takeover.failed": "Takeover failed: ",
+  "v54l.board.takeover.done": "%s taken over: takeover brief written.",
+  "v54l.board.release.other_title": "Release the claim of %s?",
+  "v54l.board.release.other_detail": "%[1]s is claimed by %[2]s, not by you. Their claim will be removed: another member will be able to take it.",
+  "v54l.board.transfer.other_title": "Hand over the claim of %s?",
+  "v54l.board.transfer.other_detail": "%[1]s is claimed by %[2]s. It changes hands without their consent; the event is signed by you.",
+  "v54l.board.badge.expired": "expired",
+  "v54l.board.badge.lease": "lease %s",
+  "v54l.board.badge.session_ended": "session ended",
+  "v54l.board.detail.lease": "Lease:",
+  "v54l.board.detail.expired": "expired on %s",
+  "v54l.board.detail.session_ended": "the session ended, the claim stayed"
 }

@@ -196,6 +196,7 @@ func TestTeamBoardTransferToastNamesTheMember(t *testing.T) {
 	var transferred string
 	board := NewTeamBoardView(TeamBoardViewConfig{
 		Tickets: tickets, IsConfigured: func() bool { return true },
+		MemberID: func() string { return "alice" }, // the claim is the member's own: no confirmation first
 		Actions: &BoardActions{
 			Members: func() []SelectOption {
 				return []SelectOption{{Label: "Bob Builder", Value: "bob"}, {Label: "Alice", Value: "alice"}}
