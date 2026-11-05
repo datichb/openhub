@@ -10,9 +10,12 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"regexp"
 	"slices"
+	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
@@ -633,6 +636,61 @@ func handleTeamEvents(ctx context.Context, params json.RawMessage) (*protocol.To
 	}, nil
 }
 
+// Limits of the notify tool: an agent can say a few short things, not flood
+// the channel of a team.
+const (
+	maxNotifyRunes   = 1000
+	notifyBurst      = 5
+	notifyBurstEvery = 10 * time.Minute
+)
+
+// notifyLimit is the rate limit of the notify tool, per server process (one
+// per session).
+var notifyLimit = &rateLimit{max: notifyBurst, window: notifyBurstEvery}
+
+// rateLimit allows max calls per window.
+type rateLimit struct {
+	mu     sync.Mutex
+	max    int
+	window time.Duration
+	calls  []time.Time
+	now    func() time.Time
+}
+
+// take records a call; false (and the time to wait) when the window is full.
+func (r *rateLimit) take() (bool, time.Duration) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	now := time.Now()
+	if r.now != nil {
+		now = r.now()
+	}
+	kept := r.calls[:0]
+	for _, c := range r.calls {
+		if now.Sub(c) < r.window {
+			kept = append(kept, c)
+		}
+	}
+	r.calls = kept
+	if len(r.calls) >= r.max {
+		return false, r.window - now.Sub(r.calls[0])
+	}
+	r.calls = append(r.calls, now)
+	return true, 0
+}
+
+// toolError is an error result the agent reads (not a failure of the server).
+func toolError(text string) *protocol.ToolResult {
+	return &protocol.ToolResult{Content: []protocol.ContentBlock{{Type: "text", Text: text}}, IsError: true}
+}
+
+// neutralizeBroadcast keeps a message of an agent from pinging a whole channel.
+var broadcastMention = regexp.MustCompile(`(?i)@(channel|all|here|everyone)\b`)
+
+func neutralizeBroadcast(s string) string {
+	return broadcastMention.ReplaceAllString(s, "@\u200b$1")
+}
+
 func handleTeamNotify(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Message string `json:"message"`
@@ -640,29 +698,61 @@ func handleTeamNotify(ctx context.Context, params json.RawMessage) (*protocol.To
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
+	text := strings.TrimSpace(args.Message)
+	switch {
+	case text == "":
+		return toolError("Nothing to send: the message is empty."), nil
+	case utf8.RuneCountInString(text) > maxNotifyRunes:
+		return toolError(fmt.Sprintf("Message too long (%d characters, at most %d): shorten it.", utf8.RuneCountInString(text), maxNotifyRunes)), nil
+	}
 
 	repo, err := getRepo()
 	if err != nil {
 		return nil, err
 	}
-
 	teamCfg, err := repo.LoadConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("loading team config: %w", err)
 	}
-
-	d := notify.NewDispatcher(teamCfg)
-	if err := d.Dispatch(ctx, teamstate.Event{
-		Type:    "custom.notification",
-		Project: "team",
-		Data:    map[string]interface{}{"message": args.Message},
-	}); err != nil {
-		return nil, fmt.Errorf("sending notification: %w", err)
+	if !teamCfg.Notification.Enabled {
+		return toolError("Notifications are disabled for this team (notification.enabled is false in config.toml): nothing was sent. A team member can enable them with `oh team config set notification.enabled true`."), nil
+	}
+	d := notify.ForTeam(ctx, repo, teamCfg, os.Getenv(EnvTeamID), notify.NewOutbox(notify.OutboxDir(config.HubDir())), nil)
+	if !d.Enabled() {
+		return toolError("Notifications are enabled but the team has no valid destination (webhook_url and type): nothing was sent."), nil
+	}
+	if ok, wait := notifyLimit.take(); !ok {
+		return toolError(fmt.Sprintf("Too many notifications: at most %d every %d minutes. Wait %d seconds, or group what you have to say in one message.",
+			notifyBurst, int(notifyBurstEvery.Minutes()), int(wait.Seconds())+1)), nil
 	}
 
-	return &protocol.ToolResult{
-		Content: []protocol.ContentBlock{{Type: "text", Text: "Notification sent."}},
-	}, nil
+	// The message is signed: who asked for it, from which project.
+	member, project := "agent", os.Getenv(EnvProjectID)
+	if team, terr := loadEffectiveTeamConfig(); terr == nil && team.MemberID != "" {
+		member = team.MemberID
+	}
+	signature := fmt.Sprintf("🤖 %s", member)
+	if project != "" {
+		signature += " · " + project
+	}
+	rep := d.Send(ctx, teamstate.Event{
+		Type:    teamstate.EventCustomNotification,
+		Actor:   member,
+		Project: project,
+		Data:    map[string]interface{}{"message": signature + " — " + neutralizeBroadcast(text)},
+	})
+	switch {
+	case rep.Sent == 0 && rep.Queued == 0:
+		msg := "The notification was not delivered"
+		if rep.Err != nil {
+			msg += ": " + rep.Err.Error()
+		}
+		return toolError(msg + "."), nil
+	case rep.Queued > 0:
+		return &protocol.ToolResult{Content: []protocol.ContentBlock{{Type: "text", Text: fmt.Sprintf(
+			"Notification sent to %d destination(s); %d could not be reached and will be tried again.", rep.Sent, rep.Queued)}}}, nil
+	}
+	return &protocol.ToolResult{Content: []protocol.ContentBlock{{Type: "text", Text: fmt.Sprintf("Notification sent to %d destination(s).", rep.Sent)}}}, nil
 }
 
 func handleTeamPolicies(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {

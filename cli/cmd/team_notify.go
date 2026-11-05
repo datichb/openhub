@@ -56,7 +56,7 @@ func runTeamNotifyTest(cmd *cobra.Command, args []string) error {
 	// Build test message
 	message, _ := cmd.Flags().GetString("message")
 	if message == "" {
-		message = "Test de notification OpenHub — webhook fonctionnel !"
+		message = i18n.T("v54n.notify.test_message")
 	}
 
 	// Resolve member ID for the actor field
@@ -66,15 +66,23 @@ func runTeamNotifyTest(cmd *cobra.Command, args []string) error {
 	}
 
 	event := teamstate.Event{
-		Type:      "custom.notification",
+		Type:      teamstate.EventCustomNotification,
 		Actor:     memberID,
 		Project:   "openhub",
 		Timestamp: time.Now(),
 		Data:      map[string]interface{}{"message": message},
 	}
 
+	// No outbox: a test says at once whether the webhook answers.
 	d := notify.NewDispatcher(teamCfg)
-	if err := d.Dispatch(ctx, event); err != nil {
+	if !d.Enabled() {
+		return errors.New(i18n.T("v54n.notify.test_no_destination"))
+	}
+	if rep := d.Send(ctx, event); rep.Err != nil || rep.Sent == 0 {
+		err := rep.Err
+		if err == nil {
+			err = errors.New(i18n.T("v54n.notify.test_no_destination"))
+		}
 		fmt.Fprint(a.IO.ErrOut, i18n.Tf("cmd.team_notify.error", theme.ErrorStyle.Render(glyph.Failure), err))
 		return err
 	}
