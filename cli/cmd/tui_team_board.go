@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -170,6 +171,19 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				_, err = runSyncTrackerForTUI(a, ctx)
 			}()
 			return err
+		},
+		OpenSyncFunc: func() (summary string, err error) {
+			// Same guard as the manual sync: a panic of a half-initialized app
+			// must not take the board down.
+			defer func() {
+				if r := recover(); r != nil {
+					summary, err = "", fmt.Errorf(i18n.T("cmd.tui_team_board.tracker_sync_panic"), r)
+					safego.LogRecovered("tracker_sync.panic", r)
+				}
+			}()
+			ctx, cancel := context.WithTimeout(tuiContext(), tracker.RunTimeout)
+			defer cancel()
+			return autoSyncForTUI(a, ctx)
 		},
 		Actions: &views.BoardActions{
 			Members: func() []views.SelectOption {

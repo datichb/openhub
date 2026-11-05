@@ -110,6 +110,12 @@ type ClaimRemovalJudge interface {
 	ClaimRemovedOnPurpose(ctx context.Context, project, ticketID string) bool
 }
 
+// SyncLockReader reads the lease of the automatic tracker sync (sync.lock)
+// from the clone, without network.
+type SyncLockReader interface {
+	ReadSyncLock() (*SyncLock, error)
+}
+
 // MemberReader reads the members of the team.
 type MemberReader interface {
 	HasMember(ctx context.Context, id string) bool
@@ -284,6 +290,7 @@ var (
 	_ ClaimCleaner            = (*Repo)(nil)
 	_ ClaimExpirer            = (*Repo)(nil)
 	_ ClaimRemovalJudge       = (*Repo)(nil)
+	_ SyncLockReader          = (*Repo)(nil)
 	_ ClaimHeartbeater        = (*Repo)(nil)
 	_ ClaimRehomer            = (*Repo)(nil)
 	_ ClaimRenewer            = (*Repo)(nil)

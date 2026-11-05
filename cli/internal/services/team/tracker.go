@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -78,6 +79,13 @@ func (s *Service) TrackerEngine(ctx context.Context, project *domain.Project) (*
 type SyncOptions struct {
 	// Project selects the team (nil: the hub team).
 	Project *domain.Project
+	// Auto is the automatic sync (daemon, opening of the board) and not a
+	// request of the user: it fails with tracker.ErrAutoSyncDisabled when the
+	// team did not turn auto_sync on, tracker.ErrAutoSyncMuted when the
+	// server refused the token three times in a row and a
+	// *tracker.LeaseHeldError when another sync holds the lease of this
+	// interval (one member synchronizes per interval).
+	Auto bool
 	// OnRun, if set, is called when the sync is about to start with the
 	// tracker type; the function it returns is called when the sync is over
 	// (progress display).
@@ -100,7 +108,25 @@ func (s *Service) SyncTracker(ctx context.Context, opts SyncOptions) (*tracker.S
 			defer done()
 		}
 	}
+	if opts.Auto {
+		return b.engine.RunAuto(ctx)
+	}
 	return b.engine.Run(ctx)
+}
+
+// TeamSyncInterval is the interval of the automatic sync of the team of
+// project, and whether it is on: auto_sync of the team config or of hub.toml,
+// with the tracker enabled. It reads the clone, not the network.
+func (s *Service) TeamSyncInterval(ctx context.Context, project *domain.Project) (interval time.Duration, on bool, err error) {
+	set, err := s.loadTracker(ctx, project)
+	if err != nil {
+		return 0, false, err
+	}
+	interval = time.Duration(set.eff.SyncIntervalMinutes) * time.Minute
+	if interval <= 0 {
+		interval = tracker.DefaultSyncInterval
+	}
+	return interval, set.eff.AutoSync, nil
 }
 
 // trackerSetup is what the tracker of the team of project is built from: the

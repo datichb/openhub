@@ -155,5 +155,6 @@ func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Op
 		Adapter: detectedAdapters(ctx),
 	}
 	claimsDaemonOptions(ctx, a, &opts)
+	trackerSyncDaemonOptions(a, &opts)
 	return opts
 }

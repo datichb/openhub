@@ -50,6 +50,12 @@ type TeamBoardViewConfig struct {
 	// Called on manual refresh ('r' key) BEFORE SyncFunc+RefreshFunc, but NOT
 	// on the auto-refresh timer. If nil, only git pull + local refresh is performed.
 	TrackerSyncFunc func() error
+	// OpenSyncFunc is the automatic tracker sync, run in the background when
+	// the board opens (once the pull is done): it returns a one-line summary of
+	// what the sync did ("" when it did nothing: auto_sync off, the lease of
+	// another member's sync, no tracker). An error is shown once per mount (a
+	// toast), then silent. If nil, the board does not synchronize by itself.
+	OpenSyncFunc func() (string, error)
 	// BoardConfig holds the team's custom board column layout.
 	// When empty (no custom columns), DefaultColumns() is used.
 	BoardConfig teamstate.BoardConfig
@@ -153,6 +159,7 @@ type TeamBoardView struct {
 	// Stores a map[string]BeadsSummary keyed by external ref (e.g. "gitlab-693").
 	beadsSummary atomic.Value // holds map[string]BeadsSummary
 
+	openSyncs    loadSlot // the automatic sync of the opening of the board
 	loaded       bool     // the tickets were read at least once since the mount
 	configured   bool     // the team-state is resolved (else the empty state says so)
 	loads        loadSlot // the reads of the tickets: only the latest is applied
@@ -277,6 +284,7 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 		// Async pull on entry so the board starts with fresh data.
 		syncFuncAsync(v.app, v.cfg.SyncFunc, v.shell, func(_ error) {
 			v.reload(nil)
+			v.syncOnOpen()
 		})
 		if app != nil {
 			everyOnLoop(shellContext(v.shell), app, rate, v.done, v.refreshIfIdle)
@@ -290,6 +298,34 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 			everyOnLoop(shellContext(v.shell), app, 30*time.Second, v.done, v.loadSummary)
 		}
 	}
+}
+
+// syncOnOpen is the automatic tracker sync of the opening of the board
+// (OpenSyncFunc), off the event loop: the board reads its tickets again when
+// it did something, and says so in a toast. A failure is told once per mount.
+func (v *TeamBoardView) syncOnOpen() {
+	openSync := v.cfg.OpenSyncFunc
+	if openSync == nil || v.app == nil {
+		return
+	}
+	load(v.app, shellContext(v.shell), &v.openSyncs, func(context.Context) (string, error) {
+		return openSync()
+	}, func(summary string, err error) {
+		if v.columnCards == nil {
+			return // unmounted meanwhile
+		}
+		switch {
+		case err != nil:
+			if v.shell != nil {
+				v.shell.ShowToastMsg(i18n.T("tui.team.sync.error_prefix")+err.Error(), false)
+			}
+		case summary != "":
+			if v.shell != nil {
+				v.shell.ShowToastMsg(summary, true)
+			}
+			v.reload(nil)
+		}
+	})
 }
 
 // setColumns replaces the columns of the board: one card column each, the
@@ -361,6 +397,7 @@ func (v *TeamBoardView) Unmount() {
 	v.loads.Invalidate()
 	v.summaryReads.Invalidate()
 	v.detailReads.Invalidate()
+	v.openSyncs.Invalidate()
 	v.actionInProgress.Store(false)
 	v.once.Do(func() {
 		if v.done != nil {

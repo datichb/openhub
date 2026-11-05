@@ -99,6 +99,7 @@ type Store interface {
 	teamstate.ClaimCleaner
 	teamstate.ClaimExpirer
 	teamstate.ClaimRemovalJudge
+	teamstate.SyncLockReader
 }
 
 // Engine reconciles team-state claims with an external tracker.
@@ -155,7 +156,53 @@ func NewEngine(t Tracker, repo Store, cfg teamstate.TrackerConfig, stateDir stri
 	}
 }
 
-// Run executes a full sync cycle and returns the aggregated result.
+// RunTimeout bounds a run: the wait for the lock of the team-state clone (a
+// background writer) and the sync itself. A caller that wants the run to be
+// cut earlier gives a context that is.
+const RunTimeout = teamstate.BackgroundLockWait + 60*time.Second
+
+// DefaultSyncInterval is sync_interval_minutes when the team sets none.
+const DefaultSyncInterval = 5 * time.Minute
+
+var (
+	// ErrAutoSyncDisabled: an automatic run was asked while the team has not
+	// turned auto_sync on.
+	ErrAutoSyncDisabled = errors.New("tracker: automatic sync is not enabled (auto_sync = false)")
+	// ErrAutoSyncMuted: the server refused the token three times in a row; the
+	// automatic sync waits for another token (a manual sync still tries).
+	ErrAutoSyncMuted = errors.New("tracker: automatic sync stopped after repeated refusals of the token")
+)
+
+// LeaseHeldError: the automatic sync of another run holds the lease of the
+// team (sync.lock) and it has not expired: that run synchronizes this interval.
+type LeaseHeldError struct {
+	// Member is the member whose sync holds the lease.
+	Member string
+	// Until is the end of the lease.
+	Until time.Time
+}
+
+func (e *LeaseHeldError) Error() string {
+	return fmt.Sprintf("tracker: the sync of %s holds the lease until %s", e.Member, e.Until.Local().Format("15:04:05"))
+}
+
+// SyncInterval is the interval of the automatic sync (sync_interval_minutes, 5
+// minutes when unset) and the length of the lease the sync takes.
+func (e *Engine) SyncInterval() time.Duration {
+	if m := e.cfg.SyncIntervalMinutes; m > 0 {
+		return time.Duration(m) * time.Minute
+	}
+	return DefaultSyncInterval
+}
+
+// AutoSyncEnabled reports whether the team asked for the automatic sync
+// (auto_sync).
+func (e *Engine) AutoSyncEnabled() bool { return e.cfg.AutoSync }
+
+// Run executes a full sync cycle on request (oh team sync-tracker, the r key of
+// the board) and returns the aggregated result. It does not wait for the
+// lease of the automatic sync and, when the team has auto_sync on, takes it
+// (the others leave the next interval to this sync).
 //
 // Strategy:
 //  1. Pull the team-state repo to get the latest claims.
@@ -166,13 +213,39 @@ func NewEngine(t Tracker, repo Store, cfg teamstate.TrackerConfig, stateDir stri
 // The single commit approach minimises round-trips and reduces the concurrency
 // window for conflicts — if two members sync simultaneously, at most one of them
 // will encounter a non-fast-forward push and retry with rebase.
-func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
-	slog.Debug("tracker.sync.start", "projects", len(e.cfg.Projects), "autoplan", e.cfg.AutoPlanAssigned) //nolint:staticcheck // backward compat: deprecated field
+func (e *Engine) Run(ctx context.Context) (*SyncResult, error) { return e.run(ctx, false) }
+
+// RunAuto is the run of the automatic sync (daemon, opening of the board). It
+// fails with ErrAutoSyncDisabled when the team did not turn auto_sync on, with
+// ErrAutoSyncMuted when the server refused the token three times in a row, and
+// with a *LeaseHeldError when the sync of another run (a colleague, another
+// machine) holds the lease of this interval: one member synchronizes per
+// interval. The lease is a sync.lock of the team-state (member and expiry),
+// written by the sync itself in its commit, so that two members who start
+// together are told apart by the push: the second one finds the lease of the
+// first when it runs its transaction again.
+func (e *Engine) RunAuto(ctx context.Context) (*SyncResult, error) { return e.run(ctx, true) }
+
+func (e *Engine) run(ctx context.Context, auto bool) (*SyncResult, error) {
+	slog.Debug("tracker.sync.start", "projects", len(e.cfg.Projects), "autoplan", e.cfg.AutoPlanAssigned, "auto", auto) //nolint:staticcheck // backward compat: deprecated field
 	start := time.Now()
+
+	if auto {
+		if !e.cfg.AutoSync {
+			return nil, ErrAutoSyncDisabled
+		}
+		if !e.ShouldAutoSync() {
+			return nil, ErrAutoSyncMuted
+		}
+		// Off the network: a lease the clone already shows is a lease.
+		if lock, err := e.repo.ReadSyncLock(); err == nil && lock.Held(start) {
+			return nil, &LeaseHeldError{Member: lock.Member, Until: lock.ExpiresAt.Time()}
+		}
+	}
 
 	// Global timeout to bound the total sync wall time (plus the wait for
 	// the lock of the team-state clone: a background writer).
-	ctx, cancel := context.WithTimeout(teamstate.WithLockWait(ctx, teamstate.BackgroundLockWait), teamstate.BackgroundLockWait+60*time.Second)
+	ctx, cancel := context.WithTimeout(teamstate.WithLockWait(ctx, teamstate.BackgroundLockWait), RunTimeout)
 	defer cancel()
 
 	// Load (or initialise) the local sync state.
@@ -196,8 +269,19 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 	// again on top of it.
 	var result *SyncResult
 	var fatal, abort error
-	txErr := e.repo.Transact(ctx, func(ctx context.Context, _ *teamstate.Tx) (teamstate.TxResult, error) {
-		result = &SyncResult{SyncedAt: time.Now().UTC()}
+	var held *LeaseHeldError
+	txErr := e.repo.Transact(ctx, func(ctx context.Context, tx *teamstate.Tx) (teamstate.TxResult, error) {
+		now := time.Now().UTC()
+		held = nil
+		if auto {
+			// The latest state of the team-state: a colleague may have taken
+			// the lease since the clone was read.
+			if lock, err := tx.ReadSyncLock(); err == nil && lock.Held(now) {
+				held = &LeaseHeldError{Member: lock.Member, Until: lock.ExpiresAt.Time()}
+				return teamstate.TxResult{}, held
+			}
+		}
+		result = &SyncResult{SyncedAt: now}
 		fatal, abort = e.reconcileAll(ctx, result)
 		if abort != nil {
 			return teamstate.TxResult{}, abort
@@ -205,6 +289,12 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 		e.released = nil
 		e.cleanupDone(ctx, result)
 		e.releaseExpired(ctx, result)
+		if e.cfg.AutoSync && fatal == nil {
+			member := firstNonEmptyStr(e.identity.MemberID, "unknown")
+			if err := tx.WriteSyncLock(teamstate.NewSyncLock(member, now, e.SyncInterval())); err != nil {
+				slog.Warn("tracker.sync.lease_failed", "error", err)
+			}
+		}
 		msg := fmt.Sprintf("sync: %d created, %d updated, %d labels pushed, %d released",
 			result.ClaimsCreated, result.ClaimsUpdated, result.LabelsPushed, result.ClaimsReleased)
 		if result.ClaimsExpired > 0 {
@@ -214,6 +304,9 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 	})
 	if abort != nil {
 		return nil, abort
+	}
+	if held != nil && errors.Is(txErr, held) {
+		return nil, held
 	}
 	if txErr != nil {
 		// Nothing reached the team-state: neither a result nor the sync

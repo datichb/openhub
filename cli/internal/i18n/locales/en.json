@@ -6421,5 +6421,6 @@
   "v533a.teams.duplicate_repo": "This repository is already configured: team %[1]s.",
   "v54y.tracker.token.forbidden": "the server %s refused access (HTTP %d): the token is known but has no right on this resource — source: %s. Check its scope (api, read_api) and your role in the project; the token does not need replacing.",
   "v54y.tracker.token.forbidden_unknown": "the server %s refused access (HTTP %d): the token is known but has no right on this resource. Check its scope (api, read_api) and your role in the project; the token does not need replacing.",
-  "v54y.tracker.sync.assignee_changed": "ticket %[1]s: assigned to %[2]s on the tracker (member %[3]s) but claimed by %[4]s — the claim is not changed (oh team claim transfer)"
+  "v54y.tracker.sync.assignee_changed": "ticket %[1]s: assigned to %[2]s on the tracker (member %[3]s) but claimed by %[4]s — the claim is not changed (oh team claim transfer)",
+  "v54y.sync.summary": "Tracker sync: %d created, %d updated, %d released, %d warning(s)"
 }
