@@ -440,3 +440,90 @@ Une modification de `config.toml` (TUI, assistants, `oh team config`) est appliq
 Une équipe sans `state_path` prend maintenant le chemin de son clone à la lecture de `hub.toml` (l'ancien clone du bon dépôt s'il existe) : plus aucune commande git n'est lancée dans le dossier courant. Les nouveaux clones vont dans `~/.oh/team-states/<hôte>/<groupe>/<dépôt>`. Deux dépôts de même nom (`acme/team-state`, `beta/team-state`) coexistent : le second reçoit l'identifiant `beta-team-state`. Un identifiant choisi avec `--id` n'est plus réécrit, et une équipe n'en remplace jamais une autre. Aucun clone n'est déplacé ni cloné de nouveau.
 
 **À faire** : rien ; si un script supposait que l'identifiant d'une équipe est le nom du dépôt, lire `oh teams list`.
+
+## Depuis la 5.3 vers la 5.4
+
+La 5.4 rend le mode équipe cohérent de bout en bout : une seule règle pour choisir l'équipe, l'accès vérifié avant le clone, la synchro du tracker automatique, la configuration gouvernée, des notifications réglables et un vrai cycle de vie (quitter une équipe, retirer un membre). Plusieurs commandes qu'un script appelle changent de comportement (**ruptures légères** signalées ci-dessous). La base de données ne change pas, aucun fichier n'est migré. Sans mode équipe, rien à faire.
+
+**1. Équipes : une seule règle pour « quelle équipe ? »**
+
+| En 5.3 | Depuis la 5.4 |
+|---|---|
+| Les commandes et la TUI visaient chacune « l'équipe active » ou la première équipe de `hub.toml` ; le dépôt et le membre pouvaient venir de deux équipes différentes | `--team`, puis l'équipe choisie dans la TUI, puis l'équipe du **projet** (`-p`, sinon le dossier courant), puis l'équipe par défaut, puis la première équipe activée. Le dépôt et le membre viennent toujours de la même équipe. `--team` est accepté par toutes les sous-commandes de `oh team` (`oh team profile --team` et `oh team promote --team` sont inchangés) |
+| L'équipe par défaut était la première de `hub.toml`, archivée à défaut d'autre | `oh teams default <id>` écrit `default = true` dans `[[teams]]` ; sans cela, la première équipe **activée**, comme avant. Une équipe archivée n'est plus jamais l'équipe par défaut (toutes archivées : aucune équipe par défaut) |
+| `oh team init` configurait l'équipe existante, ou en créait une | **Rupture légère** : `oh team init` crée toujours une nouvelle équipe sur un nouveau dépôt. Reconfigurer : `oh team init --reconfigure [--team <id>]` (palette : « Reconfigurer l'équipe »). `oh team init` et `oh team rejoin` **refusent** `--team` (il était ignoré) |
+
+Dans le dossier d'un projet de l'équipe B, `oh team status` agit maintenant sur B, et non sur la première équipe. Un projet se rattache à une équipe par `oh project set-team <projet> <équipe>` (ou `oh project add --team`), ou dans la TUI par « Rattacher le projet à une équipe ».
+
+**À faire** : plusieurs équipes, `oh teams default <id>`. Un script qui relançait `oh team init` pour reconfigurer ajoute `--reconfigure` ; un script qui visait la première équipe depuis un dossier de projet ajoute `--team <id>`.
+
+**2. Accès au team-state et SSH**
+
+| En 5.3 | Depuis la 5.4 |
+|---|---|
+| `oh team rejoin --repo` clonait avant toute sonde et ne demandait que le token d'API | Il sonde l'accès **avant** de cloner : pour HTTPS, nom d'utilisateur et token git demandés, vérifiés, gardés dans le trousseau. Il peut créer votre fiche (`--new-member` avec `--member-id`, `--display-name`, `--gitlab-username`, `--role`) |
+| `oh teams add` n'écrivait que `hub.toml`, avec un `member_id` non vérifié | Alias de `oh team rejoin` (sonde, clone, fiche vérifiée) ; `--member-id` est facultatif. `oh teams set <id> repo <url>` suit un dépôt déplacé ou renommé, après vérification |
+| « Créer » et `oh team promote` sondaient en lecture seule : un token `read_repository` passait, le push échouait | Un push à blanc vérifie le droit d'écrire, dès la sonde |
+| Un token git expiré remplissait le journal du démon sans alerte | Une alerte « À traiter » par dépôt, plus d'essai tant que le token ne change pas ; contrôle `oh doctor` « Accès au team-state » |
+| Un serveur SSH absent de `~/.ssh/known_hosts` était accepté en silence (`accept-new`) | **Rupture légère** : les assistants (`oh init`, `oh team init`, `oh team rejoin`, `oh teams add`, `oh teams set <id> repo`, `oh team promote --remote`, palette) affichent l'empreinte SHA256 et demandent confirmation, une fois par serveur. **Sans terminal, la commande est refusée.** Le démon ne se connecte plus à un tel serveur (équipe ajoutée à la main dans `hub.toml`) : alerte « À traiter », puis reprise dès que le serveur est connu |
+
+**À faire** : en CI ou dans un script, vérifier l'empreinte du serveur puis lancer une fois `ssh -T git@<hôte>` (ou `ssh-keyscan <hôte> >> ~/.ssh/known_hosts`). `oh doctor` signale les serveurs inconnus (« Serveur SSH connu ») sans les contacter. Les hôtes déjà connus, `@cert-authority` et les `pull`/`push` courants ne changent pas. Limites : `ProxyJump`/`ProxyCommand`, `GIT_SSH` et `core.sshCommand` ne sont pas pris en charge par la confirmation. Un token git expiré se renouvelle par `oh team rejoin --repo <url>`.
+
+**3. Synchro du tracker**
+
+| En 5.3 | Depuis la 5.4 |
+|---|---|
+| `auto_sync` et `sync_interval_minutes` n'étaient lus que pour l'affichage | Le démon synchronise toutes les `sync_interval_minutes` (5 par défaut) et le board à son ouverture. Un seul membre par intervalle (`sync.lock` à la racine du team-state, ignoré par les `oh` plus anciens) |
+| Tous les projets actifs du hub étaient liés au tracker de l'équipe | **Rupture légère** : seuls les projets rattachés à l'équipe (`team_id`) le sont. « Aucun projet du hub n'est lié au tracker » : `oh project set-team`. Les claims déjà présents restent |
+| Un ticket s'appelait `42` | Il porte l'identifiant de `ticket_pattern` (`SRU-42`) ; les claims existants gardent le leur, sans doublon |
+| Un 403 arrêtait toute la synchro et demandait de remplacer le jeton | Un 403 est une erreur du projet de tracker : les autres projets sont synchronisés |
+| Colonne TODO du board par défaut : `todo` (déplacement refusé) | Statut `planned` ; le menu `s` ne propose que les déplacements autorisés ; le verdict MCP suit les colonnes du board et signe du membre |
+
+**À faire** : si `auto_sync = true` était réglé sans effet, la synchro se met à tourner : vérifier le réglage. Rattacher les projets à leur équipe.
+
+**4. TUI**
+
+L'accueil a toujours une section Équipes avec « ➕ Nouvelle équipe » (Créer, Rejoindre, Espace solo). Vue Équipes : `p` (vue Équipe), `*` (par défaut), `e` (renommer), `x` (archiver), `R` (restaurer) ; **`d` détache aussi les projets** de l'équipe retirée (rupture légère) et, pour une équipe qui a un team-state, propose de la quitter. « Équipe du projet » devient « Rattacher le projet à une équipe » (vue Projet) et le champ Équipe de la configuration du projet est une liste. « Historique Équipe » disparaît : utilisez « Activité ». Les commandes d'équipe sont dans la catégorie « Équipe » et disponibles sans redémarrer après une création ou une adhésion. `Ctrl+T` n'offre plus les espaces solo.
+
+**À faire** : rien.
+
+**5. Configuration d'équipe**
+
+| En 5.3 | Depuis la 5.4 |
+|---|---|
+| Webhook : `mattermost_webhook`, affiché en clair, parfois sans effet | `webhook_url` + `type` + `enabled = true` ; sans `enabled = true`, rien n'est envoyé. `mattermost_webhook` reste lu, `oh doctor --fix` le migre. Webhook masqué partout ; `oh doctor` avertit si le dépôt team-state est public |
+| Tout membre pouvait modifier les réglages imposés, sans trace | **Rupture légère** : `*_enforced`, `[limits.enforced]` et `[governance]` sont réservés au rôle `lead` (`role` de `members.toml`) ; seul un lead change un rôle. Équipe sans lead : non verrouillée ; `[governance] config = "any_member"` rouvre à tous. Chaque publication laisse un événement `config_changed` (clés et auteur, jamais les valeurs) dans `oh team activity` |
+| `[tracker]` de `hub.toml` s'appliquait à toutes les équipes ; un membre pouvait dépasser ou lever `max_in_progress_per_member` | **Rupture légère** : `[teams.tracker]` sous un `[[teams]]` l'emporte sur `[tracker]` (qui reste le défaut) ; assistants et détail écrivent la section de l'équipe. Le plafond d'équipe ne peut plus être dépassé ni levé ; une équipe qui n'a rien choisi laisse le choix |
+| `config.toml` perdait ses clés inconnues et gardait des valeurs par défaut, `[parallel]` et `type_enforced` | Les clés inconnues sont conservées ; valeurs par défaut, `[parallel]` et `type_enforced` ne sont plus écrits. Un 5.4 qui publie retire ces clés d'un fichier écrit par un 5.3 |
+| TUI : plusieurs modes d'enregistrement dans un écran | Partagé : brouillon publié par `Ctrl+S` ; personnel : enregistré seul ; `Échap` avec un brouillon demande quoi faire |
+| `oh teams set <id> repo <url>` seulement | `oh teams set <id> repo|name|member-id|enabled|default [valeur]` (2 ou 3 arguments) ; `oh team config get|set|unset|show [--origin]` règle toute clé sans terminal |
+
+`max_ticket_wip` ne compte plus les réservations terminées. `oh doctor` gagne un contrôle « Configuration d'équipe » (clés anciennes, valeurs hors bornes, `--fix`).
+
+**À faire** : ajouter `enabled = true` aux webhooks ; donner le rôle `lead` à qui règle les clés imposées (ou `any_member`) ; un script qui lit `oh team activity` tolère le type `config_changed`.
+
+**6. Notifications**
+
+| En 5.3 | Depuis la 5.4 |
+|---|---|
+| Un webhook pouvait recevoir (en théorie) tous les événements | **Rupture légère** : par défaut seulement la revue (`review.*`), le wiki (`wiki.*`) et les messages des agents. Pour `claim.*`, `session.complete` ou `config_changed` : `events = [...]` sur `[notification]` ou la destination (`oh team config set notification.events "review.*, claim.*"`). Ces événements n'étaient en pratique jamais envoyés |
+| Pas de destinataire personnel | Mentions avec le `mattermost_username` des fiches (Mattermost, Slack) ; `mention = false` les coupe |
+| Texte du webhook en français, avec des identifiants | Langue de l'expéditeur, noms des membres et des projets |
+| Un seul interrupteur `[session] notify` | `hub.toml [notifications]` (Réglages › Notifications), relu à chaud ; `[session] notify = "off"` éteint toujours les notifications système tant que `[notifications] system` n'est pas écrit |
+| Fin d'étape : notification système ; chaque notification remplaçait la précédente | Fin d'étape : toast (`events.step_done = "system"` pour la retrouver) ; une notification par famille (décisions, budget, erreurs, alertes…) |
+| Décision ouverte à la mise en veille : perdue (`gone`) | Conservée (marquée en veille), notification « mise en veille avec une décision en attente », reprise au réveil |
+| Un webhook en échec perdait le message | Message gardé dans `~/.oh/notify/outbox/` et renvoyé par le démon |
+| Outil MCP `team_notify` : « Notification sent. » même sans envoi | Erreur si rien n'est parti ; message signé, limité à 1000 caractères et 5 par 10 minutes |
+
+**À faire** : lister dans `events` les familles que le webhook doit recevoir.
+
+**7. Cycle de vie de l'équipe et des réservations**
+
+| En 5.3 | Depuis la 5.4 |
+|---|---|
+| Aucun moyen de quitter une équipe : `oh teams remove` ne touchait que `hub.toml` | `oh teams leave <id>` libère vos réservations, supprime le clone et les clés du trousseau, retire l'équipe de `hub.toml` ; la fiche reste sauf `--remove-member`. `oh teams remove` ne touche toujours que `hub.toml` |
+| Retirer un membre : impossible | `oh team member remove <membre> [--to <membre> \| --release]` (rôle `lead` ; équipe sans lead non verrouillée). `oh team claim transfer --from … (--to \| --release)` déplace toutes les réservations d'un membre |
+| Libérer ou transférer la réservation d'un autre : sans contrôle | **Rupture légère** : confirmation nommant le propriétaire ; sans terminal, `--force`. Un transfert vers un membre sans fiche, ou d'un ticket terminé, est refusé |
+| `claim.transferred` signé de l'ancien propriétaire ; peu d'événements | Signé de celui qui transfère. Nouveaux événements dans `oh team activity` : `member.removed`, `claim.released` et `claim.taken` (synchro, board, lancements, fins de session) |
+
+**À faire** : les scripts qui libèrent ou transfèrent la réservation d'un autre membre ajoutent `--force` ; ceux qui lisent l'activité tolèrent les nouveaux types.
