@@ -255,3 +255,40 @@ func TestPendingWorkSeesWhatTheRemoteLacks(t *testing.T) {
 	assert.Empty(t, p.Uncommitted)
 	assert.False(t, p.None())
 }
+
+func TestQueuedCreateTakesAFreeTicketOnly(t *testing.T) {
+	t.Parallel()
+	repo, _ := lifecycleTeam(t)
+	ctx := context.Background()
+
+	queued, err := repo.QueueCreateClaim("api", "NEW-1", "ana", "ses_1", "")
+	require.NoError(t, err)
+	assert.True(t, queued)
+	queued, err = repo.QueueCreateClaim("api", "NEW-1", "ana", "ses_1", "")
+	require.NoError(t, err)
+	assert.True(t, queued, "queuing it twice queues it once")
+	queued, err = repo.QueueCreateClaim("api", "1", "ana", "ses_1", "")
+	require.NoError(t, err)
+	assert.False(t, queued, "a ticket with a claim in the clone is not queued")
+	queued, err = repo.QueueCreateClaim("api", "NEW-2", "bob", "ses_2", "")
+	require.NoError(t, err)
+	assert.True(t, queued)
+	// bob's NEW-2 is taken by lea before the flush
+	other := NewRepo(repo.Remote(), repo.Path()+"-other")
+	require.NoError(t, other.Clone(ctx))
+	_, err = other.CreateClaim(ctx, Claim{TicketID: "NEW-2", Project: "api", ClaimedBy: "lea", Status: ClaimStatusInProgress})
+	require.NoError(t, err)
+
+	applied, dropped, err := repo.FlushClaimQueue(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, applied)
+	assert.Equal(t, 1, dropped)
+	c, err := repo.GetClaim(ctx, "api", "NEW-1")
+	require.NoError(t, err)
+	assert.Equal(t, "ana", c.ClaimedBy)
+	assert.Equal(t, "ses_1", c.Session)
+	assert.Equal(t, ClaimStatusInProgress, c.Status)
+	c, err = repo.GetClaim(ctx, "api", "NEW-2")
+	require.NoError(t, err)
+	assert.Equal(t, "lea", c.ClaimedBy)
+}

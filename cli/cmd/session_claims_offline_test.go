@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
@@ -71,4 +72,46 @@ func TestPreviousSessionEndingAfterTheOfflineAdoptionLeavesTheClaim(t *testing.T
 	f := flushClaimQueue(ctx, repo, time.Second, 30*time.Second)
 	require.NoError(t, f.Err)
 	assert.Equal(t, "ses_2", claimsOnDisk(t, repo, "pt-open").Session)
+}
+
+// A session launched offline on a ticket nobody holds says it, and takes the
+// ticket when the network is back — if it is still free then.
+func TestOfflineLaunchOnANewTicketQueuesTheClaim(t *testing.T) {
+	i18ntest.Set(t, "en")
+	ctx := context.Background()
+	_, repo, _ := setupClaimTestApp(t)
+	addTeamMembers(t, repo, "bob")
+
+	online := goOffline(t, repo)
+	note := startTicketClaim(runsvc.WithStartedSession(ctx, "ses_1"), repo, claimsProject, "testuser", "NEW-1")
+	assert.Contains(t, note, "will be claimed in your name when the network is back")
+	note = startTicketClaim(runsvc.WithStartedSession(ctx, "ses_1"), repo, claimsProject, "testuser", "NEW-2")
+	assert.Contains(t, note, "will be claimed")
+	_, err := repo.GetClaim(ctx, claimsProject, "NEW-1")
+	require.ErrorIs(t, err, teamstate.ErrClaimNotFound, "nothing yet")
+
+	online()
+	// meanwhile a colleague took NEW-2
+	other := freshClone(t, repo.Remote())
+	_, err = other.CreateClaim(ctx, teamstate.Claim{TicketID: "NEW-2", Project: claimsProject, ClaimedBy: "bob", Status: teamstate.ClaimStatusInProgress})
+	require.NoError(t, err)
+
+	f := flushClaimQueue(ctx, repo, time.Second, 30*time.Second)
+	require.NoError(t, f.Err)
+	c := claimsOnDisk(t, repo, "NEW-1")
+	assert.Equal(t, "testuser", c.ClaimedBy)
+	assert.Equal(t, "ses_1", c.Session)
+	assert.Equal(t, "bob", claimsOnDisk(t, repo, "NEW-2").ClaimedBy, "a claim taken meanwhile is left to its owner")
+	events := eventsOn(t, repo, claimsProject)
+	taken := 0
+	for _, e := range events {
+		if e.Type == teamstate.EventClaimTaken && e.Ticket == "NEW-1" {
+			taken++
+			assert.Equal(t, "testuser", e.Actor)
+		}
+	}
+	assert.Equal(t, 1, taken)
+	ops, err := repo.ClaimQueue()
+	require.NoError(t, err)
+	assert.Empty(t, ops)
 }

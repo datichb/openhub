@@ -47,6 +47,12 @@ const (
 	// condition. Queuing it cancels the queued operations of the other
 	// sessions on the claim (see EnqueueClaimOp).
 	ClaimOpAdopt = "adopt"
+	// ClaimOpCreate takes a ticket nobody holds for the member (Status is the
+	// status of the new claim, Session the session that works on it), when the
+	// remote could not be reached at launch. It applies only if the ticket
+	// still has no claim: another member's claim, or the member's own, is left
+	// as it is.
+	ClaimOpCreate = "create"
 )
 
 const (
@@ -197,7 +203,7 @@ func (r *Repo) writeClaimQueue(ops []ClaimOp) error {
 
 func (op *ClaimOp) validate() error {
 	switch op.Kind {
-	case ClaimOpRelease, ClaimOpTouch:
+	case ClaimOpRelease, ClaimOpTouch, ClaimOpCreate:
 	case ClaimOpAdopt:
 		if op.Session == "" {
 			return fmt.Errorf("%w: adopt operation without session", ErrInvalidClaimOp)
@@ -384,6 +390,9 @@ func (r *Repo) applyClaimOp(tx *Tx, cfg *TeamConfig, op *ClaimOp) (ok, changed b
 	if err := op.validate(); err != nil {
 		return false, false, err.Error()
 	}
+	if op.Kind == ClaimOpCreate {
+		return r.applyCreate(tx, cfg, op)
+	}
 	c, err := r.getClaim(op.Project, op.TicketID)
 	switch {
 	case errors.Is(err, ErrClaimNotFound):
@@ -471,6 +480,71 @@ func (r *Repo) applyClaimOp(tx *Tx, cfg *TeamConfig, op *ClaimOp) (ok, changed b
 		return write()
 	}
 	return false, false, "unknown kind " + op.Kind
+}
+
+// applyCreate takes the ticket of a queued create operation if it still has
+// no claim, with the claim.taken event in the same commit.
+func (r *Repo) applyCreate(tx *Tx, cfg *TeamConfig, op *ClaimOp) (ok, changed bool, reason string) {
+	c, err := r.getClaim(op.Project, op.TicketID)
+	switch {
+	case err == nil && c.ClaimedBy == op.ClaimedBy:
+		return true, false, "" // already the member's
+	case err == nil:
+		return false, false, fmt.Sprintf("claim now owned by %q", c.ClaimedBy)
+	case !errors.Is(err, ErrClaimNotFound):
+		return false, false, err.Error()
+	}
+	status := op.Status
+	if status == "" || !IsValidBoardStatus(status, cfg.Board.AllStatuses()) {
+		status = cfg.Board.DefaultWorkStatus()
+	}
+	at := op.QueuedAt
+	if at.IsZero() {
+		at = time.Now().UTC()
+	}
+	claim := &Claim{TicketID: op.TicketID, Project: op.Project, ClaimedBy: op.ClaimedBy, ClaimedAt: at.UTC(), Status: status}
+	r.stampLease(claim, op.Session, time.Now().UTC())
+	data, err := marshalClaim(claim)
+	if err != nil {
+		return false, false, "marshaling claim: " + err.Error()
+	}
+	if err := tx.WriteFile(r.claimRelPath(op.Project, op.TicketID), data); err != nil {
+		return false, false, "writing claim: " + err.Error()
+	}
+	if err := tx.AppendEvent(Event{Actor: op.ClaimedBy, Type: EventClaimTaken, Project: op.Project, Ticket: op.TicketID}); err != nil {
+		return false, false, "writing the claim event: " + err.Error()
+	}
+	slog.Info("teamstate.claim.create", "project", op.Project, "ticket", op.TicketID, "member", op.ClaimedBy, "queued", true)
+	return true, true, ""
+}
+
+// QueueCreateClaim queues the taking of a ticket for the member (a launch that
+// could not reach the remote), after checking in the clone that the ticket has
+// no claim: queued is false, without error, when the clone already has one.
+func (r *Repo) QueueCreateClaim(project, ticketID, member, session, status string) (queued bool, err error) {
+	if member == "" {
+		return false, nil
+	}
+	if _, err := SafeName(project); err != nil {
+		return false, fmt.Errorf("invalid project name: %w", err)
+	}
+	if _, err := SafeName(ticketID); err != nil {
+		return false, fmt.Errorf("invalid ticket ID: %w", err)
+	}
+	r.mu.RLock()
+	_, getErr := r.getClaim(project, ticketID)
+	r.mu.RUnlock()
+	if getErr == nil {
+		return false, nil
+	}
+	if !errors.Is(getErr, ErrClaimNotFound) {
+		return false, getErr
+	}
+	op := ClaimOp{Kind: ClaimOpCreate, Project: project, TicketID: ticketID, ClaimedBy: member, Session: session, Status: status}
+	if err := r.EnqueueClaimOp(op); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // HeartbeatResult is what one beat of the claims heartbeat did.

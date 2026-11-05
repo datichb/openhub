@@ -263,6 +263,8 @@ type ClaimRehomer interface {
 type ClaimAdopter interface {
 	AdoptClaimDurable(ctx context.Context, project, ticketID, member, session string) (adopted, queued bool, err error)
 	QueueAdoptClaim(project, ticketID, member, session string) (queued bool, err error)
+	// QueueCreateClaim queues the taking of a ticket that has no claim yet.
+	QueueCreateClaim(project, ticketID, member, session, status string) (queued bool, err error)
 }
 
 // ClaimAdoptionReader tells the session a queued adoption gave a claim to.
