@@ -71,6 +71,11 @@ enabled = false
 enabled = false
 token_key = "openhub.mcp.gslides.token"
 
+[mcp.github]
+enabled = false
+token_key = "openhub.mcp.github.token"   # name of the key in the keychain (NOT the token)
+write_enabled = false              # write tool create_issue (read only otherwise)
+
 [mcp.linear]
 enabled = false
 token_key = "openhub.mcp.linear.token"   # name of the key in the keychain (NOT the API key)
@@ -169,8 +174,12 @@ Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `
 | | `projects` | — | oh project → target name |
 | `[limits]` | `max_active_sessions`, `session_budget_usd`, `daily_budget_usd`, `memory_mb`, `models` | not set | Hub I6 restrictions (`oh budget set`) |
 | `[deploy]` | `instruction_files` | `[]` | Project files added to the instructions of the bundle agents |
+| `[mcp.github]` | `enabled` | `false` | Turns on the GitHub MCP server (repositories, issues, pull requests, Actions) in the session bundles. Written by hand in `hub.toml` ([details](#github-and-linear-mcp-servers)) |
+| | `token_key` | empty | Name of the keychain key that holds the GitHub token, never the token itself (`openhub.mcp.github.token`). **Write it**: without it, the server is not placed in the bundle |
+| | `write_enabled` | `false` | Adds the write tool `create_issue` (opt-in, `GITHUB_WRITE_ENABLED` in the server); read only without it |
+| | `url`, `trusted_url` | empty | No effect for GitHub: the server always calls `https://api.github.com` |
 | `[mcp.linear]` | `enabled` | `false` | Turns on the Linear MCP server (issues, cycles, projects, Linear GraphQL API) in the session bundles. Written by hand in `hub.toml`: `oh mcp setup` and `oh config set` do not know Linear ([guide](../guides/linear-integration.en.md)) |
-| | `token_key` | `openhub.mcp.linear.token` (when empty) | Name of the keychain key that holds the Linear personal API key, never the key itself (`oh secrets set --global openhub.mcp.linear.token`). A `LINEAR_API_KEY` variable that is already set takes precedence over the keychain key |
+| | `token_key` | empty | Name of the keychain key that holds the Linear personal API key, never the key itself (`openhub.mcp.linear.token`, stored by `oh secrets set --global openhub.mcp.linear.token`). **Write it**: without it, the server is not placed in the bundle. A `LINEAR_API_KEY` variable already set in the server process takes precedence over the keychain key |
 | | `write_enabled` | `false` | Adds the write tools `create_issue` and `update_issue` to the server (opt-in, `LINEAR_WRITE_ENABLED` in the server); read only without it |
 | | `url`, `trusted_url` | empty | No effect for Linear: the server always calls `https://api.linear.app/graphql` |
 | `[websearch]` | `enabled` | `false` | WebSearch / WebFetch permissions |
@@ -184,6 +193,30 @@ Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `
 | | `log_max_mb`, `log_keep` | `20`, `3` | Size above which a log is shifted, copies kept |
 
 See [container](../guides/container.en.md), [remote runners](../guides/remote-runners.en.md) and [v5 sessions](../guides/sessions-v5.en.md#restrictions).
+
+### GitHub and Linear MCP servers
+
+`[mcp.github]` and `[mcp.linear]` have the same keys as `[mcp.gitlab]`, but `oh mcp setup` and `oh config set` do not know them: write them by hand in `hub.toml` (`oh mcp enable|disable github` only changes `enabled`, with `-p <project>` for one project). The token goes in the keychain, `token_key` holds its **name**:
+
+```bash
+oh secrets set --global openhub.mcp.github.token
+```
+
+```toml
+[mcp.github]
+enabled = true
+token_key = "openhub.mcp.github.token"
+write_enabled = false
+```
+
+| Key | Value | Default | Effect |
+|---|---|---|---|
+| `enabled` | boolean | `false` | Puts `oh mcp serve github` in the session bundle (a project can override it: `oh mcp enable github -p <project>`) |
+| `token_key` | text | empty | Keychain key of the token (PAT or GitHub App; scopes `repo`, `workflow`). Empty: the server is not placed in the bundle, with no message, even with `enabled = true` |
+| `write_enabled` | boolean | `false` | Adds `create_issue`; personal, never recommended by the team |
+| `url`, `trusted_url` | text | empty | No effect: the address of the GitHub API is fixed |
+
+A `GITHUB_TOKEN` variable exported in your shell does not reach the sessions: the environment of the agents is filtered, and `GITHUB_TOKEN` and `LINEAR_API_KEY` never pass, even with `env_allow`. Server pages: [GitHub](mcp-github.en.md), [Linear](mcp-linear.en.md); guide: [Linear](../guides/linear-integration.en.md).
 
 ### Strict reading of `hub.toml`
 
