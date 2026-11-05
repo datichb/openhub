@@ -47,6 +47,12 @@ type HomeViewConfig struct {
 	// the host opens the window that creates a team, joins one or opens a solo
 	// space.
 	OnNewTeam func()
+	// SoloSpaces returns the number of solo spaces (local team-states without
+	// a remote). While it is 0 (or the field nil) the Teams section has no
+	// « N espaces solo » row; otherwise that row, after « Nouvelle équipe »,
+	// opens the Teams view, which lists them. It reads the configuration: it
+	// is called off the event loop, with the teams.
+	SoloSpaces func() int
 	// Sessions shows the "Sessions" section.
 	Sessions SessionsSectionConfig
 	// ToolLine returns the tool line of the header (« <tool> v<version> ·
@@ -92,6 +98,7 @@ type HomeView struct {
 type homeData struct {
 	teams    []TeamEntry
 	projects []ProjectEntry
+	solo     int
 }
 
 var _ View = (*HomeView)(nil)
@@ -214,12 +221,15 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 	})
 }
 
-// readHomeData reads the teams and the projects of the landing. It does I/O:
+// readHomeData reads the teams, the solo spaces and the projects of the landing. It does I/O:
 // call it off the event loop.
 func readHomeData(cfg HomeViewConfig) homeData {
 	var d homeData
 	if cfg.ListTeams != nil {
 		d.teams = cfg.ListTeams()
+	}
+	if cfg.SoloSpaces != nil {
+		d.solo = cfg.SoloSpaces()
 	}
 	if cfg.ListProjects != nil {
 		d.projects = cfg.ListProjects()
@@ -307,7 +317,7 @@ func (v *HomeView) buildStaticItems() []homeItem {
 func (v *HomeView) assemble(d homeData, loaded bool) []homeItem {
 	items := v.buildStartItems()
 	items = append(items, v.buildProjectsSection(d.projects)...)
-	items = append(items, v.buildTeamsSection(d.teams, loaded)...)
+	items = append(items, v.buildTeamsSection(d.teams, d.solo, loaded)...)
 	return append(items, v.buildSystemItems()...)
 }
 
@@ -388,9 +398,12 @@ func (v *HomeView) buildProjectsSection(projects []ProjectEntry) []homeItem {
 // buildTeamsSection is the « Équipes » section: always there, as « Projets »
 // is. One row per team (`👥 name  ★ par défaut · 3 membres · 2 en cours`), then
 // « ➕ Nouvelle équipe », whose text explains the teams while there is none.
+// When there are solo spaces (solo > 0) a last, discreet row, `🧑 2 espaces
+// solo ›`, opens the Teams view, which lists them: it comes after « Nouvelle
+// équipe » so that appearing does not move the team rows nor that action.
 // loaded is false before the teams are read: the section then only has its
 // action.
-func (v *HomeView) buildTeamsSection(teams []TeamEntry, loaded bool) []homeItem {
+func (v *HomeView) buildTeamsSection(teams []TeamEntry, solo int, loaded bool) []homeItem {
 	items := []homeItem{{Icon: "─", Label: i18n.T("tui.home.section.teams"), Desc: ""}}
 	for _, t := range teams {
 		team := t // capture
@@ -409,11 +422,24 @@ func (v *HomeView) buildTeamsSection(teams []TeamEntry, loaded bool) []homeItem 
 	if loaded && len(teams) == 0 {
 		desc = i18n.T("v54u.home.team_empty")
 	}
-	return append(items, homeItem{Icon: "➕", Label: i18n.T("v54u.home.team_new"), Desc: desc, Action: func() {
+	items = append(items, homeItem{Icon: "➕", Label: i18n.T("v54u.home.team_new"), Desc: desc, Action: func() {
 		if v.cfg.OnNewTeam != nil {
 			v.cfg.OnNewTeam()
 		}
 	}})
+	if loaded && solo > 0 {
+		items = append(items, homeItem{Icon: "🧑", Label: soloSpacesLabel(solo), ViewID: "teams"})
+	}
+	return items
+}
+
+// soloSpacesLabel is the text of the solo spaces row: `1 espace solo ›`, `2
+// espaces solo ›`.
+func soloSpacesLabel(n int) string {
+	if n == 1 {
+		return i18n.Tf("v541b.home.solo_one", n)
+	}
+	return i18n.Tf("v541b.home.solo_many", n)
 }
 
 // teamEntryDesc is the description of a team row: `★ par défaut · 3 membres ·
