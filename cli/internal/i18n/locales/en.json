@@ -6563,5 +6563,7 @@
   "v54z.doctor.ssh_host.ok": "%s is in known_hosts",
   "v54z.doctor.ssh_host.ca": "%s is covered by a certificate authority of known_hosts",
   "v54z.doctor.ssh_host.unchecked": "%s: the check of the servers is turned off in ~/.ssh/config (UserKnownHostsFile none)",
-  "v54z.doctor.ssh_host.unknown": "The SSH server %[1]s is not in known_hosts: the daemon does not connect to it (claims not renewed, automatic sync stopped). Check its fingerprint with the administrator of the server, then run: %[2]s"
+  "v54z.doctor.ssh_host.unknown": "The SSH server %[1]s is not in known_hosts: the daemon does not connect to it (claims not renewed, automatic sync stopped). Check its fingerprint with the administrator of the server, then run: %[2]s",
+  "v54z.host.alert.title": "Unknown SSH server",
+  "v54z.host.alert.message": "The SSH server %[1]s (%[2]s) is not in your known_hosts: this machine has never connected to it, and the daemon does not connect to it without your consent. The claims of your sessions are no longer renewed and the automatic sync is stopped.\nCheck the fingerprint of the server with its administrator, then run:\n    %[3]s\n(compare the fingerprint ssh shows, answer yes) or, once you have checked it:\n    %[4]s\nThe daemon picks the repository up by itself, nothing else to do. Check with: oh doctor."
 }

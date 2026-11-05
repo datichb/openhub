@@ -6563,5 +6563,7 @@
   "v54z.doctor.ssh_host.ok": "%s est dans known_hosts",
   "v54z.doctor.ssh_host.ca": "%s est couvert par une autorité de certification de known_hosts",
   "v54z.doctor.ssh_host.unchecked": "%s : la vérification des serveurs est désactivée dans ~/.ssh/config (UserKnownHostsFile none)",
-  "v54z.doctor.ssh_host.unknown": "Le serveur SSH %[1]s n'est pas dans known_hosts : le démon ne s'y connecte pas (claims non renouvelés, synchro automatique à l'arrêt). Vérifiez son empreinte auprès de l'administrateur du serveur, puis lancez : %[2]s"
+  "v54z.doctor.ssh_host.unknown": "Le serveur SSH %[1]s n'est pas dans known_hosts : le démon ne s'y connecte pas (claims non renouvelés, synchro automatique à l'arrêt). Vérifiez son empreinte auprès de l'administrateur du serveur, puis lancez : %[2]s",
+  "v54z.host.alert.title": "Serveur SSH inconnu",
+  "v54z.host.alert.message": "Le serveur SSH %[1]s (%[2]s) n'est pas dans votre known_hosts : cette machine ne s'y est jamais connectée, et le démon ne s'y connecte pas sans votre accord. Les claims de vos sessions ne sont plus renouvelés et la synchro automatique est à l'arrêt.\nVérifiez l'empreinte du serveur auprès de son administrateur, puis lancez :\n    %[3]s\n(comparez l'empreinte affichée, répondez yes) ou, une fois vérifiée :\n    %[4]s\nLe démon reprend de lui-même, sans autre action. Contrôle : oh doctor."
 }
