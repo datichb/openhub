@@ -78,7 +78,7 @@ func TestTeamsViewDeleteOffersToLeave(t *testing.T) {
 		onLoop(app, func() { yes = sh.yes })
 		return yes != nil
 	}, 3*time.Second, 20*time.Millisecond)
-	assert.Equal(t, "Leave Core?", sh.teamsShell.title)
+	assert.Equal(t, "Leave Core?", sh.title)
 	assert.Contains(t, sh.detail, "release the 2 open claim(s) of alice")
 	mu.Lock()
 	assert.Empty(t, left, "nothing runs before the confirmation")
@@ -121,7 +121,7 @@ func TestTeamsViewDeleteStillRemovesFromHubToml(t *testing.T) {
 	require.NotNil(t, sh.pick)
 	sh.pick("remove")
 	require.NotNil(t, sh.yes, "the removal is confirmed as before")
-	assert.Contains(t, sh.teamsShell.title, "side")
+	assert.Contains(t, sh.title, "side")
 
 	// a solo space has no team-state to leave: the removal is asked at once
 	sh.yes, sh.pick = nil, nil
