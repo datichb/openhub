@@ -430,7 +430,7 @@ func (v *TeamDetailView) memberFields() []configField {
 			[]SelectOption{{Label: "lead", Value: "lead"}, {Label: "dev", Value: "dev"}, {Label: "reviewer", Value: "reviewer"}}, true),
 		v.memberSelect(MemberFieldDefaultMode, "v54c.field.member_mode.label", "v54c.field.member_mode.desc",
 			func(m *teamstate.Member) string { return m.DefaultMode },
-			[]SelectOption{{Label: "manual", Value: "manual"}, {Label: "semi-auto", Value: "semi-auto"}, {Label: "auto", Value: "auto"}}, false),
+			plainOptions("manual", "semi-auto", "auto"), false),
 	}
 }
 
@@ -488,4 +488,14 @@ func (v *TeamDetailView) saveMemberField(field, value string) {
 		v.renderFields()
 		v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.member.saved", field, strings.TrimSpace(value)), true)
 	})
+}
+
+// plainOptions are choices whose label is their value (names of the files,
+// not prose).
+func plainOptions(values ...string) []SelectOption {
+	out := make([]SelectOption, len(values))
+	for i, v := range values {
+		out[i] = SelectOption{Label: v, Value: v}
+	}
+	return out
 }
