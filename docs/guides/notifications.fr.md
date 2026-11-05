@@ -93,6 +93,7 @@ Chaque destination reçoit, par défaut, la **revue** (`review.*`), le **wiki** 
 | Constat d'audit | `audit.finding` | Non |
 | Workflow publié, restauré, archivé | `workflow.published`, `workflow.restored`, `workflow.archived` | Non |
 | Configuration d'équipe modifiée | `config_changed` | Non |
+| Membre retiré de l'équipe | `member.removed` | Non |
 
 Tout événement écrit dans l'activité de l'équipe est annoncé **une fois, quand sa transaction est validée**, quel que soit l'auteur (une commande, le démon, un agent, la TUI). Une MR créée par un agent (`gitlab_create_mr`) annonce `review.ready` comme `oh mr create`.
 

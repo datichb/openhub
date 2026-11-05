@@ -144,7 +144,7 @@ The wizard automatically detects the repository state and adapts behavior:
 #### Your member card
 
 Everyone creates **their own card** when joining: no lead validates it. The five paths ("Create" and
-"Rejoin" of `oh init`, `oh team init`, "Initialize the team" and "Rejoin a team" of the palette) ask
+"Rejoin" of `oh init`, `oh team init`, "Create a team" and "Rejoin a team" of the palette) ask
 the same form and write the same card. The defaults are aligned: the **creator** of the team is
 `lead` (as the member of a solo space is: the first one, who sets the team up); whoever **joins** is
 `dev` (the least power, one drop-down away from another role); the default mode of every new card is

@@ -148,7 +148,7 @@ Le wizard détecte automatiquement l'état du repo et adapte le comportement :
 #### Votre fiche de membre
 
 Chacun crée **sa propre fiche** en rejoignant : aucun responsable ne la valide. Les cinq parcours
-(« Créer » et « Rejoindre » de `oh init`, `oh team init`, « Initialiser l'équipe » et
+(« Créer » et « Rejoindre » de `oh init`, `oh team init`, « Créer une équipe » et
 « Rejoindre une équipe » de la palette) posent le même formulaire et écrivent la même fiche. Les
 valeurs par défaut sont alignées : le **créateur** de l'équipe est `lead` (comme le membre d'un
 espace solo, il est le premier et règle l'équipe) ; qui **rejoint** est `dev` (le moins de

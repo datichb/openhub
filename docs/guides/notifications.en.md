@@ -93,6 +93,7 @@ By default each destination receives the **review** (`review.*`), the **wiki** (
 | Audit finding | `audit.finding` | No |
 | Workflow published, restored, archived | `workflow.published`, `workflow.restored`, `workflow.archived` | No |
 | Team config changed | `config_changed` | No |
+| Member removed from the team | `member.removed` | No |
 
 Every event written to the activity of the team is announced **once, when its transaction is committed**, whoever wrote it (a command, the daemon, an agent, the TUI). A merge request created by an agent (`gitlab_create_mr`) announces `review.ready` like `oh mr create`.
 
