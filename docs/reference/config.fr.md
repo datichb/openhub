@@ -464,7 +464,7 @@ project.TeamID == "acme"     →  recherche dans teams[] par id, config de cette
 project.TeamID inconnu       →  dégradation douce (équipe désactivée)
 ```
 
-Pour une commande qui agit sur « une équipe » sans projet précis (`oh team status`, `oh team board`…), l'équipe est choisie par `--team`, puis l'équipe choisie dans la TUI, puis l'équipe du projet (`-p` ou dossier courant), puis l'équipe par défaut (`default = true`), puis la première équipe activée : voir [Quelle équipe ?](cli-team.fr.md#quelle-équipe---team).
+Pour une commande qui agit sur « une équipe » sans projet précis (`oh team status`, `oh team board`…), l'équipe est choisie par `--team`, puis l'équipe choisie dans la TUI, puis l'équipe du projet (`-p` ou dossier courant), puis l'équipe par défaut (`default = true`), puis la première équipe activée : voir [Quelle équipe ?](cli-team.fr.md#quelle-équipe----team).
 
 ### Migration depuis `[team]` (ancien format)
 

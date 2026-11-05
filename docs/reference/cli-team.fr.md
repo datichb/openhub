@@ -95,7 +95,7 @@ oh team profile [--team <id>] [--display-name <nom>] [--gitlab-username <nom>] [
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--team` | string | Équipe (identifiant) ; par défaut l'équipe choisie [comme ci-dessus](#quelle-équipe---team) |
+| `--team` | string | Équipe (identifiant) ; par défaut l'équipe choisie [comme ci-dessus](#quelle-équipe----team) |
 | `--display-name` | string | Nom affiché (ne peut pas être vide) |
 | `--gitlab-username` | string | Nom d'utilisateur sur le GitLab du dépôt d'équipe (vérification d'identité au rejoin) |
 | `--mattermost-username` | string | Nom d'utilisateur Mattermost (mentions des notifications) |
@@ -319,7 +319,7 @@ Refuser une proposition (`r`) demande un **motif** (obligatoire : un motif vide 
 
 Un utilisateur peut appartenir à plusieurs équipes ; chaque projet est rattaché à 0 ou 1 équipe.
 
-`oh teams` gère les équipes de cette machine (lister, ajouter, retirer, détacher un projet, archiver, restaurer, choisir l'équipe par défaut) ; `oh team` (au singulier) agit sur une équipe, choisie comme [ci-dessus](#quelle-équipe---team) (statut, board, activité, config, synchronisation du tracker). Les deux commandes n'ont aucune sous-commande en commun : `oh teams` n'est donc pas un alias de `oh team`.
+`oh teams` gère les équipes de cette machine (lister, ajouter, retirer, détacher un projet, archiver, restaurer, choisir l'équipe par défaut) ; `oh team` (au singulier) agit sur une équipe, choisie comme [ci-dessus](#quelle-équipe----team) (statut, board, activité, config, synchronisation du tracker). Les deux commandes n'ont aucune sous-commande en commun : `oh teams` n'est donc pas un alias de `oh team`.
 
 ### oh teams list
 
