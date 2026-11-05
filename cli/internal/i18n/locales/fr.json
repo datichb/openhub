@@ -6437,5 +6437,15 @@
   "v54a.doctor.team_access.not_cloned": "%s répond (pas encore cloné : oh team rejoin --repo %s)",
   "v54a.doctor.team_access.refused": "%s refuse l'accès (%s). Renouvelez-le : oh team rejoin --repo %s (étape « Accès »)",
   "v54a.doctor.team_access.unreachable": "%s ne répond pas (%s)",
-  "v54a.claims.start.access": "L'accès au team-state de %s est refusé : le claim de %s n'a pas été pris (oh doctor)."
+  "v54a.claims.start.access": "L'accès au team-state de %s est refusé : le claim de %s n'a pas été pris (oh doctor).",
+  "v54a.teams.set.short": "Change un réglage d'une équipe (repo : le dépôt a déménagé)",
+  "v54a.teams.set.long": "Change un réglage d'une équipe de hub.toml. « oh teams set <id> repo <url> » pointe l'équipe vers la nouvelle adresse de son dépôt (déplacé ou renommé sur le serveur) : l'accès est vérifié d'abord (le token est demandé et gardé comme pour oh team rejoin), puis que le dépôt contient bien le même team-state ; le clone, votre fiche, les claims et les clés de l'équipe restent tels quels.",
+  "v54a.teams.set.unknown_field": "Réglage %q inconnu (pris en charge : %s)",
+  "v54a.teams.set.solo": "L'équipe %s est un espace solo : elle n'a pas de dépôt. Partagez-la avec %s.",
+  "v54a.teams.set.repo_required": "L'URL du dépôt est obligatoire : oh teams set <id> repo <url>",
+  "v54a.teams.set.same": "L'équipe %s utilise déjà %s.",
+  "v54a.teams.set.unrelated": "Le dépôt %s ne contient pas le même team-state (son historique n'est pas celui de votre clone) : c'est une autre équipe. Rejoignez-la avec oh team rejoin --repo, ou vérifiez l'URL.",
+  "v54a.teams.set.empty": "Le dépôt %s est vide : le team-state n'y a pas été déplacé.",
+  "v54a.teams.set.member_missing": "La fiche %s n'est pas dans le team-state de %s : vérifiez votre identifiant de membre (oh team profile).",
+  "v54a.teams.set.done": "L'équipe %s utilise maintenant %s."
 }

@@ -6437,5 +6437,15 @@
   "v54a.doctor.team_access.not_cloned": "%s answers (not cloned yet: oh team rejoin --repo %s)",
   "v54a.doctor.team_access.refused": "%s refuses the access (%s). Renew it: oh team rejoin --repo %s (step « Access »)",
   "v54a.doctor.team_access.unreachable": "%s does not answer (%s)",
-  "v54a.claims.start.access": "The access to the team-state of %s is refused: the claim of %s was not taken (oh doctor)."
+  "v54a.claims.start.access": "The access to the team-state of %s is refused: the claim of %s was not taken (oh doctor).",
+  "v54a.teams.set.short": "Change a setting of a team (repo: the repository moved)",
+  "v54a.teams.set.long": "Change a setting of a team of hub.toml. \"oh teams set <id> repo <url>\" points the team at the new address of its repository (moved or renamed on the server): the access to it is checked first (the token is asked and kept as for oh team rejoin), then that it holds the same team-state; the clone, your card, the claims and the keys of the team stay as they are.",
+  "v54a.teams.set.unknown_field": "Unknown setting %q (supported: %s)",
+  "v54a.teams.set.solo": "The team %s is a solo space: it has no repository. Share it with %s.",
+  "v54a.teams.set.repo_required": "The URL of the repository is required: oh teams set <id> repo <url>",
+  "v54a.teams.set.same": "The team %s already uses %s.",
+  "v54a.teams.set.unrelated": "The repository %s does not hold the same team-state (its history is not the one of your clone): it is another team. Join it with oh team rejoin --repo, or check the URL.",
+  "v54a.teams.set.empty": "The repository %s is empty: the team-state was not moved there.",
+  "v54a.teams.set.member_missing": "The card %s is not in the team-state of %s: check your member ID (oh team profile).",
+  "v54a.teams.set.done": "Team %s now uses %s."
 }
