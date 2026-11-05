@@ -20,6 +20,14 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 ### Changed
 
 - Le garde-fou d'architecture sur `ActiveTeam()` analyse maintenant les types : il voit tout usage de la méthode sur un `*config.Config` (champ, variable, paramètre, retour de fonction), et plus seulement la forme `x.Config.ActiveTeam()`. Un seul usage a été trouvé en plus, dans la vue Réglages : il est autorisé jusqu'à la 5.6.
+- Un texte de toast qui contient `[mot]` n'est plus pris pour une balise de couleur.
+
+### Fixed
+
+- **L'événement d'équipe `audit.finding` est enfin émis.** Il était déclaré, avec son texte et son format de notification, mais rien ne l'émettait. Maintenant, la fin d'une session d'audit qui a déposé son rapport l'écrit dans l'activité de l'équipe, juste après `session.complete`. Comme `session.complete`, un webhook ne le reçoit que si sa destination le demande dans `events` (`"audit.finding"` ou `"*"`).
+- **Un avertissement de log (`slog.Warn`) s'affiche en avertissement, sur une ligne lisible.** Il ne montre plus les attributs bruts `clé=valeur` (ils restent dans la vue Notifications) et il n'est plus enregistré deux fois. Les erreurs restent en rouge.
+- **La TUI n'affiche jamais plus de 5 toasts à la fois.** Au-delà, le plus récent remplace le plus ancien, qui reste dans l'historique ; avant, c'est le nouveau message qui était perdu. Un toast fermé au milieu de la pile libère sa ligne : le suivant ne vient plus la chevaucher.
+- **La rotation de `notifications.jsonl` ne fait plus perdre de lignes** quand deux TUI ou le démon écrivent en même temps : l'écriture et la rotation prennent un verrou de fichier (`notifications.jsonl.lock`). Une TUI d'une version antérieure, ouverte en même temps, n'utilise pas ce verrou.
 
 ## [5.4.0] — 2026-11-05
 
