@@ -480,8 +480,21 @@ func ParseScope(s string) (WorkflowScope, error) {
 func (tx *Tx) Config() (*TeamConfig, error) { return tx.r.loadConfig() }
 
 // WriteConfig writes config.toml within the transaction.
-func (tx *Tx) WriteConfig(cfg *TeamConfig) error {
-	data, err := marshalConfig(cfg)
+func (tx *Tx) WriteConfig(cfg *TeamConfig) error { return tx.WriteConfigWithout(cfg) }
+
+// WriteConfigWithout is WriteConfig, dropping the dotted keys given from the
+// file even though this version of oh does not know them (WriteConfig keeps
+// the unknown keys): a migration that moved a section elsewhere removes it.
+func (tx *Tx) WriteConfigWithout(cfg *TeamConfig, drop ...string) error {
+	existing, _ := tx.ReadFile("config.toml")
+	if len(drop) > 0 && len(existing) > 0 {
+		kept, err := dropKeys(existing, drop...)
+		if err != nil {
+			return err
+		}
+		existing = kept
+	}
+	data, err := marshalConfig(cfg, existing)
 	if err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package teamstate
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -161,8 +162,12 @@ func (r *Repo) UpdateMember(ctx context.Context, m Member) error {
 		if err != nil {
 			return err
 		}
-		if _, exists := mf.Members[m.ID]; !exists {
+		cur, exists := mf.Members[m.ID]
+		if !exists {
 			return ErrMemberNotFound
+		}
+		if err := checkHandleChange(mf.Members, m, cur.GitLabUsername); err != nil {
+			return err
 		}
 		mf.Members[m.ID] = m
 		if err := r.writeMembersFile(mf); err != nil {
@@ -189,7 +194,14 @@ func (r *Repo) PatchMember(ctx context.Context, id string, fn func(*Member) erro
 			return ErrMemberNotFound
 		}
 		m.ID = id
+		before, role := m.GitLabUsername, m.Role
 		if err := fn(&m); err != nil {
+			return err
+		}
+		if err := checkHandleChange(mf.Members, m, before); err != nil {
+			return err
+		}
+		if err := checkRoleChange(ActorOf(ctx), mf.Members, role, m.Role); err != nil {
 			return err
 		}
 		mf.Members[id] = m
@@ -226,4 +238,63 @@ func (r *Repo) writeMembersFile(mf *membersFile) error {
 		return fmt.Errorf("marshaling members.toml: %w", err)
 	}
 	return os.WriteFile(r.membersFilePath(), data, 0o644)
+}
+
+// checkHandleChange refuses a GitLab handle that another member already has
+// (the handle is unique in a team: the sync maps the issues by it). Only a
+// handle that changes is checked: a duplicate that was already there does not
+// block the edit of another field.
+func checkHandleChange(members map[string]Member, m Member, before string) error {
+	h := NormalizeHandle(m.GitLabUsername)
+	if h == "" || strings.EqualFold(h, NormalizeHandle(before)) {
+		return nil
+	}
+	for id, o := range members {
+		if id != m.ID && strings.EqualFold(NormalizeHandle(o.GitLabUsername), h) {
+			o.ID = id
+			return &HandleTakenError{Handle: h, Member: o}
+		}
+	}
+	return nil
+}
+
+// ErrRoleNeedsLead is returned when a member who is not a lead changes a role
+// (their own included): the role lead is what the enforced settings are
+// reserved to, so it cannot be taken by anyone. A team with no lead is not
+// locked: anyone may then give the role.
+var ErrRoleNeedsLead = errors.New("only a lead can change a role")
+
+// ValidRoles are the roles of a member.
+var ValidRoles = []string{RoleLead, "dev", "reviewer"}
+
+// checkRoleChange refuses to a member who is not a lead (actor, the member who
+// asks; "" for the code that has no member to blame, which is not checked) a
+// change of role. Roles other than ValidRoles are refused.
+func checkRoleChange(actor string, members map[string]Member, before, after string) error {
+	if after == before {
+		return nil
+	}
+	ok := after == ""
+	for _, r := range ValidRoles {
+		ok = ok || after == r
+	}
+	if !ok {
+		return fmt.Errorf("role %q: possible values %s", after, strings.Join(ValidRoles, ", "))
+	}
+	if actor == "" {
+		return nil
+	}
+	hasLead := false
+	for id, m := range members {
+		if m.Role == RoleLead {
+			hasLead = true
+			if id == actor {
+				return nil
+			}
+		}
+	}
+	if hasLead {
+		return ErrRoleNeedsLead
+	}
+	return nil
 }

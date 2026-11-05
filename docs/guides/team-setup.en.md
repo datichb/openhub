@@ -125,7 +125,7 @@ The wizard automatically detects the repository state and adapts behavior:
 |------|------------------------------|---------------------------|
 | **Global config** | Creates `config.toml` (stale_days, sessions) | Updates if changed |
 | **Identity** | Registration of your card + commit-and-push | Update of **your** card (the one in `hub.toml`) + commit-and-push |
-| **Notifications** | Mattermost webhook configuration | Updates if changed |
+| **Notifications** | Webhook (Mattermost, Slack, Discord or Teams, typed hidden): `enabled`, `type` and `webhook_url` | Updates if changed |
 | **Policies** | Multi-select of recommended policies | Merges with existing |
 
 #### Profile fields (Identity step)
@@ -212,10 +212,16 @@ Edit `config.toml` in the team-state repo (or `hub.toml` for hub-level config).
 [notification]
 enabled = true
 type = "mattermost"
-mattermost_webhook = "https://mattermost.example.com/hooks/..."
+webhook_url = "https://mattermost.example.com/hooks/..."
 channel = "#dev-ai"
 bot_name = "OpenHub"
 ```
+
+> **`enabled = true` is required**: without it no message is sent, even with a webhook. `type` can be missing (it is deduced from the webhook server). Older teams that have `mattermost_webhook`: `oh doctor --fix` rewrites it as `webhook_url` + `type`.
+>
+> **The webhook is a secret written in clear text in the team-state repository.** `oh` masks it on all its screens and summaries, and `oh doctor` warns when the repository can be read by anybody: keep that repository private.
+>
+> Without editing the file: `oh team config set notification.enabled true`, `oh team config set notification.webhook_url <url>`, or the team detail of the TUI (Notifications section, `Ctrl+S` to publish).
 
 To get the webhook URL: Mattermost > Integrations > Incoming Webhooks > Add.
 

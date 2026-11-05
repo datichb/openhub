@@ -188,7 +188,7 @@ func checkCardRoom(ctx context.Context, repo wipStore, a *app.App, member, proje
 			return nil // already started or in review
 		}
 	}
-	return checkInProgressRoom(ctx, repo, a.Config.Tracker, member, teamstate.ClaimRef{Project: projectID, TicketID: ticketID})
+	return checkInProgressRoom(ctx, repo, trackerLocalOf(ctx, a), member, teamstate.ClaimRef{Project: projectID, TicketID: ticketID})
 }
 
 // cardClaimStore is what moving the claim of a card in progress asks of the

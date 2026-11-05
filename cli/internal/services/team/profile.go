@@ -31,11 +31,18 @@ type ProfilePatch struct {
 	// when the tracker is on another server than the team-state repository
 	// (the name on one is not the name on the other).
 	TrackerUsername *string
+	// Role is the role of the member (lead, dev, reviewer): only a lead can
+	// change it (teamstate.ErrRoleNeedsLead).
+	Role *string
+	// DefaultMode is the way the member starts their sessions by default
+	// (manual, semi-auto, auto).
+	DefaultMode *string
 }
 
 // Empty reports whether the patch changes nothing.
 func (p ProfilePatch) Empty() bool {
-	return p.DisplayName == nil && p.GitLabUsername == nil && p.MattermostUsername == nil && p.TrackerUsername == nil
+	return p.DisplayName == nil && p.GitLabUsername == nil && p.MattermostUsername == nil && p.TrackerUsername == nil &&
+		p.Role == nil && p.DefaultMode == nil
 }
 
 // Apply changes m as the patch says (names are trimmed; the « @ » of a
@@ -56,6 +63,12 @@ func (p ProfilePatch) Apply(m *teamstate.Member) error {
 	}
 	if p.TrackerUsername != nil {
 		m.TrackerUsername = CleanUsername(*p.TrackerUsername)
+	}
+	if p.Role != nil {
+		m.Role = strings.TrimSpace(*p.Role)
+	}
+	if p.DefaultMode != nil {
+		m.DefaultMode = strings.TrimSpace(*p.DefaultMode)
 	}
 	return nil
 }
@@ -108,7 +121,7 @@ func (s *Service) UpdateProfile(ctx context.Context, teamID string, patch Profil
 	if err != nil {
 		return nil, err
 	}
-	if err := repo.PatchMember(ctx, id, patch.Apply); err != nil {
+	if err := repo.PatchMember(teamstate.WithActor(ctx, id), id, patch.Apply); err != nil {
 		return nil, err
 	}
 	return repo.GetMember(ctx, id)

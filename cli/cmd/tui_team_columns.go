@@ -154,6 +154,7 @@ func actionBoardColumnConfig(afterSave func()) {
 		return
 	}
 
+	ctx = teamstate.WithActor(ctx, activeTeam.MemberID)
 	statePath := activeTeam.StatePath
 	repo := teamstate.NewRepo(activeTeam.StateRepo, statePath)
 	if !repo.IsCloned() {

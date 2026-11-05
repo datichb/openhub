@@ -138,7 +138,7 @@ func TestEventsTable(t *testing.T) {
 		"claim.taken": "●", "claim.released": "○", "claim.transferred": "→", "claim.conflict": "✗",
 		"session.complete": "✔", "review.ready": "◐", "review.approved": "✔", "review.rejected": "✗",
 		"audit.finding": "⚠", "wiki.proposal": "✎", "wiki.accepted": "✔", "wiki.rejected": "✗",
-		"workflow.published": "✔", "workflow.restored": "↺", "workflow.archived": "○",
+		"workflow.published": "✔", "workflow.restored": "↺", "workflow.archived": "○", "config_changed": "✎",
 	}
 	if len(Events) != len(want) {
 		t.Fatalf("%d events in the table, %d expected", len(Events), len(want))

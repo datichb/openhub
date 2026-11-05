@@ -86,7 +86,7 @@ func TestEveryEventTypeHasASymbol(t *testing.T) {
 		EventSessionComplete, EventReviewReady, EventReviewApproved, EventReviewRejected, EventAuditFinding,
 		EventClaimTaken, EventClaimConflict, EventClaimTransferred, EventClaimReleased,
 		EventWikiProposal, EventWikiAccepted, EventWikiRejected,
-		EventWorkflowPublished, EventWorkflowRestored, EventWorkflowArchived,
+		EventWorkflowPublished, EventWorkflowRestored, EventWorkflowArchived, EventConfigChanged,
 	}
 	known := map[string]bool{}
 	for _, e := range glyph.Events {

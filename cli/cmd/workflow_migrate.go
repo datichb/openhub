@@ -271,8 +271,8 @@ func migrateTeamWorkflowConfig(ctx context.Context, svc *workflowsvc.Service, t 
 		if draftCreated, err = writeMigrationDraft(tx, teamstate.TeamScope(), t.MemberID, id, patch.YAML); err != nil {
 			return teamstate.TxResult{}, err
 		}
-		// Writing the configuration drops [workflow] (no such field any more).
-		if err := tx.WriteConfig(cfg); err != nil {
+		// [workflow] moved to the draft: the configuration is written without it.
+		if err := tx.WriteConfigWithout(cfg, "workflow"); err != nil {
 			return teamstate.TxResult{}, err
 		}
 		return teamstate.TxResult{Message: "workflow: migrate the team workflow configuration to team:" + id + " (v38)"}, nil

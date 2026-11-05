@@ -78,6 +78,10 @@ type configField struct {
 	// Warn returns a warning about a value that was just accepted ("" =
 	// none); it is shown as a toast, the value is kept.
 	Warn func(value string) string
+	// Immediate marks a field that is written at once when it is edited, outside
+	// the draft, the undo and the save of its view (the profile of a member, a
+	// field of a team in hub.toml).
+	Immediate bool
 	// Locked returns true if the field is enforced and cannot be edited.
 	// nil means always editable.
 	Locked func() bool

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -40,6 +39,9 @@ func (e *TrackerCredentialsError) Unwrap() error { return e.Err }
 // accept in the key convention).
 var discoverKey = keys.Own("team.discover", 'T', "tui.team.detail.hint_discover")
 
+// newTeamKey opens the creation of a team from the detail that has none.
+var newTeamKey = keys.Create
+
 // teamLLMKey stores the LLM credential of the team for a provider.
 var teamLLMKey = keys.Own("team.llm_key", 'K', "tui.team.llm_key.hint")
 
@@ -49,9 +51,31 @@ var teamLLMKey = keys.Own("team.llm_key", 'K', "tui.team.llm_key.hint")
 
 // TeamDetailViewConfig holds the external dependencies for TeamDetailView.
 type TeamDetailViewConfig struct {
-	GetMCPConfig          func() config.MCPConfig
+	GetMCPConfig func() config.MCPConfig
+	// GetTrackerLocalConfig is the [tracker] of hub.toml: the default of every
+	// team (and, without GetTeamTrackerConfig, the only personal settings).
 	GetTrackerLocalConfig func() config.TrackerLocalConfig
-	ResolveTeam           ResolveTeamFunc
+	// GetTeamTrackerConfig is the section of this team in hub.toml
+	// ([teams.tracker]): what the member sets for this team only. Nil: the
+	// personal settings are the ones of GetTrackerLocalConfig.
+	GetTeamTrackerConfig func() config.TrackerLocalConfig
+	ResolveTeam          ResolveTeamFunc
+	// CanEnforce says whether the member may change the settings that bind the
+	// others (*_enforced, [limits.enforced], [governance]: for the leads). Nil:
+	// they may; the team-state refuses the others anyway.
+	CanEnforce func(ctx context.Context, teamID string) bool
+	// GetTeamInfo is the entry of the team in hub.toml, for its identity lines.
+	GetTeamInfo func(teamID string) TeamInfo
+	// SetTeamField changes a field of the team in hub.toml (TeamField* keys):
+	// the display name, the member id, the default mark. Written at once.
+	SetTeamField func(teamID, field, value string) error
+	// OnReconfigure opens the assistant on the team (« Reconfigurer »).
+	OnReconfigure func(teamID string)
+	// OnEditBoard opens the editor of the columns and of the mappings.
+	OnEditBoard func()
+	// OnNewTeam opens the window that creates or joins a team: offered by the
+	// detail that has no team to show (the n key).
+	OnNewTeam func()
 	// SaveTeamConfig is called on the event loop and gives the function that
 	// writes the config of the team to its team-state (a commit and a push),
 	// which the view runs off the loop. Nil: nothing to save with.
@@ -110,15 +134,38 @@ type TeamDetailView struct {
 	baseTeam *teamstate.TeamConfig
 	// cfgErr is why the team config could not be read: the view shows it and
 	// nothing can be saved until a read succeeds.
-	cfgErr     error
-	member     teamstate.Member // the profile of the current member, as read or last saved
-	localMCP   config.MCPConfig
-	localTrk   config.TrackerLocalConfig
-	baseMCP    config.MCPConfig          // localMCP as loaded or last saved
-	baseTrk    config.TrackerLocalConfig // localTrk as loaded or last saved
-	fields     []configField
+	cfgErr   error
+	member   teamstate.Member // the profile of the current member, as read or last saved
+	localMCP config.MCPConfig
+	localTrk config.TrackerLocalConfig // the personal tracker settings of this team ([teams.tracker])
+	hubTrk   config.TrackerLocalConfig // the [tracker] default of hub.toml, under localTrk
+	baseMCP  config.MCPConfig          // localMCP as loaded or last saved
+	baseTrk  config.TrackerLocalConfig // localTrk as loaded or last saved
+	fields   []configField
+	// dirtyTeam: the shared config has edits that are not published (Ctrl+S);
+	// dirtyLocal: hub.toml has edits that the autosave has not written yet.
 	dirtyTeam  bool
 	dirtyLocal bool
+	// fileKeys are the settings config.toml writes (the others are defaults);
+	// canEnforce says whether the member may change the settings that bind the
+	// others; info is the entry of the team in hub.toml.
+	fileKeys   map[string]bool
+	canEnforce bool
+	info       TeamInfo
+	// autosave writes the personal settings (hub.toml) a moment after an edit.
+	autosave *AutoSaver
+	// section is the section the next render puts the cursor on (OpenSection).
+	section string
+	// leadKeys are the keys of the fields only a lead may change.
+	leadKeys map[string]bool
+	// kept is the unpublished draft of a visit that left without publishing
+	// (a link to MCP, the models, the workflows): it is put back on the fresh
+	// config at the next Mount.
+	kept *keptDraft
+	// localAgain: a personal edit came while a write ran; afterWrite runs when
+	// the write is over (publish and leave).
+	localAgain bool
+	afterWrite func(ok bool)
 	// noTeam is true when no team (nor solo space) could be resolved: the
 	// view shows an empty state and nothing can be edited or saved.
 	noTeam bool
@@ -151,6 +198,9 @@ func (v *TeamDetailView) Title() string          { return i18n.T("tui.team.detai
 
 func (v *TeamDetailView) StatusHints() string {
 	if v.noTeam {
+		if v.cfg.OnNewTeam != nil {
+			return keys.Hints(newTeamKey.HintAs(i18n.T("v54c.hint.new_team")), keys.Back.Hint())
+		}
 		return keys.Back.Hint()
 	}
 	if v.cfgErr != nil {
@@ -158,10 +208,10 @@ func (v *TeamDetailView) StatusHints() string {
 	}
 	if v.solo() {
 		return keys.Hints(keys.Navigate.Hint(), keys.Open.HintAs(i18n.T("tui.hints.edit")),
-			keys.Save.Hint(), cfgUndoKey.Hint())
+			keys.Save.HintAs(i18n.T("v54c.hint.publish")), cfgUndoKey.Hint())
 	}
 	return keys.Hints(keys.Navigate.Hint(), toggleHint(),
-		keys.Open.HintAs(i18n.T("tui.hints.edit")), keys.Save.Hint(),
+		keys.Open.HintAs(i18n.T("tui.hints.edit")), keys.Save.HintAs(i18n.T("v54c.hint.publish")),
 		cfgSyncKey.Hint(), cfgTestKey.Hint(), cfgUndoKey.Hint(),
 		keys.Refresh.Hint(), discoverKey.Hint(), teamLLMKey.Hint())
 }
@@ -173,9 +223,10 @@ func (v *TeamDetailView) StatusHints() string {
 func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 	v.app = app
 
-	// Nothing carries over from a previous visit (another team, an edit left
-	// unpublished): a stale flag would show « unpublished changes » on every
-	// exit and eat the next Esc.
+	// Nothing carries over from a previous visit but the draft that was left
+	// unpublished for the same team (v.kept, put back by setData): another
+	// team's draft, or a stale flag, would show « unpublished changes » on
+	// every exit.
 	v.dirtyTeam, v.dirtyLocal = false, false
 	v.undoStack.Clear()
 	v.teamCfg, v.baseTeam, v.cfgErr, v.member, v.fields = nil, nil, nil, teamstate.Member{}, nil
@@ -183,7 +234,11 @@ func (v *TeamDetailView) Mount(content *tview.Flex, app *tview.Application) {
 	if v.cfg.ResolveTeam != nil {
 		team = v.cfg.ResolveTeam()
 	}
+	if v.kept != nil && v.kept.teamID != team.TeamID {
+		v.kept = nil
+	}
 	v.noTeam = !team.hasState()
+	v.autosave = NewAutoSaver(SaveDelay, app, func() { v.write(false) })
 	title := v.Title()
 	if team.TeamID != "" {
 		title += " · " + team.TeamID
@@ -223,7 +278,11 @@ func (v *TeamDetailView) showNoTeam() {
 	var d detailText
 	d.title(i18n.T("v532k.team_detail.empty"))
 	d.para(i18n.T("v532k.team_detail.empty_hint"))
-	d.keys(keys.Pairs(keys.Back)...)
+	if v.cfg.OnNewTeam != nil {
+		d.keys(keys.Pairs(newTeamKey, keys.Back)...)
+	} else {
+		d.keys(keys.Pairs(keys.Back)...)
+	}
 	v.page.SetDetail(d.String())
 }
 
@@ -243,8 +302,19 @@ func (v *TeamDetailView) Unmount() {
 	v.loads.Invalidate() // drop the loads in flight
 	v.syncs.Invalidate()
 	v.checks.Invalidate()
-	if (v.dirtyTeam || v.dirtyLocal) && v.shell != nil {
-		v.shell.ShowToastMsg(i18n.T("tui.save.unpublished_left"), false)
+	// what is personal is written now; what is shared stays a draft of this
+	// view, put back on the next visit: leaving for MCP, the models or the
+	// workflows does not throw the edits away.
+	if v.autosave != nil {
+		v.autosave.Flush()
+		v.autosave = nil
+	}
+	v.kept = nil
+	if v.dirtyTeam && v.teamCfg != nil && v.baseTeam != nil && v.cfg.ResolveTeam != nil {
+		v.kept = &keptDraft{teamID: v.cfg.ResolveTeam().TeamID, base: v.baseTeam, draft: teamstate.CloneConfig(v.teamCfg)}
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.Tf("v54c.save.draft_kept", keys.Save.Keys()), false)
+		}
 	}
 	v.app = nil
 	v.list = nil
@@ -256,6 +326,10 @@ func (v *TeamDetailView) Unmount() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (v *TeamDetailView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
+	if v.list != nil && v.noTeam && v.cfg.OnNewTeam != nil && newTeamKey.Matches(event) {
+		v.cfg.OnNewTeam()
+		return nil
+	}
 	if v.list == nil || v.noTeam {
 		return event
 	}
@@ -314,6 +388,7 @@ func (v *TeamDetailView) reload() {
 	if v.noTeam || !v.cfg.ResolveTeam().hasState() {
 		return
 	}
+	v.kept = nil
 	v.open(func() {
 		v.buildFields()
 		v.renderFields()
@@ -343,9 +418,11 @@ func (v *TeamDetailView) showConfigError() {
 
 // teamDetailRead is what the view reads of the team-state, off the event loop.
 type teamDetailRead struct {
-	teamCfg *teamstate.TeamConfig
-	cfgErr  error // why teamCfg could not be read
-	member  *teamstate.Member
+	teamCfg    *teamstate.TeamConfig
+	cfgErr     error // why teamCfg could not be read
+	member     *teamstate.Member
+	keys       map[string]bool // the settings config.toml writes
+	canEnforce bool
 }
 
 // open reads what the view shows: the personal settings (taken on the event
@@ -353,22 +430,34 @@ type teamDetailRead struct {
 // (pulled and read off the loop). then runs on the loop once they are in; the
 // latest request wins, Unmount drops the one in flight.
 func (v *TeamDetailView) open(then func()) {
-	localMCP, localTrk := v.cfg.GetMCPConfig(), v.cfg.GetTrackerLocalConfig()
+	localMCP, localTrk, hubTrk := v.cfg.GetMCPConfig(), v.cfg.GetTrackerLocalConfig(), config.TrackerLocalConfig{}
+	if v.cfg.GetTeamTrackerConfig != nil {
+		hubTrk, localTrk = localTrk, v.cfg.GetTeamTrackerConfig()
+	}
 	tc := v.cfg.ResolveTeam()
+	var info TeamInfo
+	if v.cfg.GetTeamInfo != nil {
+		info = v.cfg.GetTeamInfo(tc.TeamID)
+	}
 	fetch := func(ctx context.Context) (teamDetailRead, error) {
 		var r teamDetailRead
 		r.teamCfg, r.cfgErr = readTeamConfig(ctx, tc)
 		if v.cfg.GetMember != nil {
 			r.member = v.cfg.GetMember(ctx, tc.TeamID)
 		}
+		if r.cfgErr == nil && tc.hasState() {
+			r.keys, _ = teamstate.NewRepo(tc.StateRepo, tc.StatePath).ConfigKeysSet()
+		}
+		r.canEnforce = v.cfg.CanEnforce == nil || v.cfg.CanEnforce(ctx, tc.TeamID)
 		return r, nil
 	}
 	apply := func(r teamDetailRead, err error) {
 		if err != nil && r.cfgErr == nil {
 			r.cfgErr = err
 		}
-		v.localMCP, v.localTrk = localMCP, localTrk
+		v.localMCP, v.localTrk, v.hubTrk, v.info = localMCP, localTrk, hubTrk, info
 		v.baseMCP, v.baseTrk = localMCP, localTrk
+		v.fileKeys, v.canEnforce = r.keys, r.canEnforce
 		v.setData(r)
 		if v.cfgErr != nil {
 			v.showConfigError()
@@ -420,227 +509,12 @@ func (v *TeamDetailView) setData(r teamDetailRead) {
 		v.teamCfg.Models.Agents = make(map[string]string)
 	}
 	v.baseTeam = teamstate.CloneConfig(v.teamCfg)
+	v.putBackDraft()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Build config lines
 // ─────────────────────────────────────────────────────────────────────────────
-
-func (v *TeamDetailView) buildFields() {
-	v.fields = nil
-	v.buildWorkflowFields()
-	if v.solo() {
-		// Team features are off in a solo space (tracker, notifications,
-		// collaboration): only what applies to it is shown.
-		v.appendLinks()
-		return
-	}
-
-	v.fields = append(v.fields, v.memberFields()...)
-
-	// ── Tracker ──────────────────────────────────────────────────────────
-	v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.tracker")})
-	v.fields = append(v.fields, configField{
-		Key: "type", Kind: CfgFieldSelect, Label: i18n.T("tui.config.field.tracker_type.label"),
-		Description: i18n.T("tui.config.field.tracker_type.desc"), Scope: ScopeTeamShared,
-		Options: []SelectOption{{Label: "GitLab", Value: "gitlab"}, {Label: "Jira", Value: "jira"}},
-		Locked:  func() bool { return v.teamCfg.Tracker.IsTypeEnforced() },
-		Get:     func() string { return v.teamCfg.Tracker.Type },
-		Set:     func(val string) { v.teamCfg.Tracker.Type = val; v.dirtyTeam = true },
-	})
-	v.fields = append(v.fields, configField{
-		Key: "type_enforced", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.type_enforced.label"),
-		Description: i18n.T("tui.config.field.type_enforced.desc"), Scope: ScopeTeamShared,
-		Get: func() string { return tdBoolToStr(v.teamCfg.Tracker.IsTypeEnforced()) },
-		Set: func(val string) {
-			b := val == "true"
-			v.teamCfg.Tracker.TypeEnforced = &b
-			v.dirtyTeam = true
-		},
-	})
-	v.fields = append(v.fields, configField{
-		Key: "tracker_url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.tracker_url.label"),
-		Description: i18n.T("tui.config.field.tracker_url.desc"), Scope: ScopeTeamShared,
-		Placeholder: i18n.T("tui.config.field.tracker_url.placeholder"),
-		Get:         func() string { return v.teamCfg.Tracker.TrackerURL },
-		Set:         func(val string) { v.teamCfg.Tracker.TrackerURL = val; v.dirtyTeam = true },
-	})
-	v.fields = append(v.fields, v.tokenFields()...)
-	v.fields = append(v.fields, configField{
-		Key: "tracker_project", Kind: CfgFieldString, Label: i18n.T("tui.config.field.tracker_project.label"),
-		Description: i18n.T("tui.config.field.tracker_project.desc"), Scope: ScopeTeamShared,
-		Placeholder: i18n.T("tui.config.field.tracker_project.placeholder"),
-		Get:         func() string { return v.teamCfg.Tracker.TrackerProject },
-		Set:         func(val string) { v.teamCfg.Tracker.TrackerProject = val; v.dirtyTeam = true },
-	})
-	v.fields = append(v.fields, configField{
-		Key: "enabled", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.tracker_enabled.label"),
-		Description: i18n.T("tui.config.field.tracker_enabled.desc"), Scope: ScopeTeamShared,
-		Get: func() string { return tdBoolToStr(v.teamCfg.Tracker.Enabled) },
-		Set: func(val string) { v.teamCfg.Tracker.Enabled = val == "true"; v.dirtyTeam = true },
-	})
-	v.fields = append(v.fields, configField{
-		Key: "auto_sync", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.auto_sync.label"),
-		Description: i18n.T("tui.config.field.auto_sync.desc"), Scope: ScopeTeamShared,
-		Get: func() string { return tdBoolToStr(v.teamCfg.Tracker.AutoSync) },
-		Set: func(val string) { v.teamCfg.Tracker.AutoSync = val == "true"; v.dirtyTeam = true },
-	})
-	v.fields = append(v.fields, configField{
-		Key: "push_labels", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.push_labels.label"),
-		Description: i18n.T("tui.config.field.push_labels.desc"), Scope: ScopeTeamShared,
-		Locked: func() bool { return v.teamCfg.Tracker.IsPushLabelsEnforced() },
-		Get:    func() string { return tdBoolToStr(v.teamCfg.Tracker.PushLabels) },
-		Set:    func(val string) { v.teamCfg.Tracker.PushLabels = val == "true"; v.dirtyTeam = true },
-	})
-	v.fields = append(v.fields, configField{
-		Key: "push_labels_enforced", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.push_labels_enforced.label"),
-		Description: i18n.T("tui.config.field.push_labels_enforced.desc"), Scope: ScopeTeamShared,
-		Get: func() string { return tdBoolToStr(v.teamCfg.Tracker.IsPushLabelsEnforced()) },
-		Set: func(val string) {
-			b := val == "true"
-			v.teamCfg.Tracker.PushLabelsEnforced = &b
-			v.dirtyTeam = true
-		},
-	})
-	v.fields = append(v.fields, configField{
-		Key: "auto_plan_assigned", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.auto_plan_assigned.label"),
-		Description: i18n.T("tui.config.field.auto_plan_assigned.desc"), Scope: ScopeTeamShared,
-		Get: func() string { return tdBoolToStr(v.teamCfg.Tracker.AutoPlanAssigned) },
-		Set: func(val string) { v.teamCfg.Tracker.AutoPlanAssigned = val == "true"; v.dirtyTeam = true },
-	})
-	v.fields = append(v.fields, configField{
-		Key: "max_in_progress", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.max_in_progress.label"),
-		Description: i18n.T("tui.config.field.max_in_progress.desc"), Scope: ScopeTeamShared,
-		Placeholder: i18n.T("tui.config.field.max_in_progress.placeholder"),
-		Validator:   &FieldValidator{Numeric: true, MinInt: intPtr(0), MaxInt: intPtr(100)},
-		Get:         func() string { return strconv.Itoa(v.teamCfg.Tracker.InProgressLimit()) },
-		Set: func(val string) {
-			if n, err := strconv.Atoi(val); err == nil {
-				v.teamCfg.Tracker.MaxInProgressPerMember = &n
-				v.dirtyTeam = true
-			}
-		},
-	})
-	v.fields = append(v.fields, configField{
-		Key: "sync_interval", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.sync_interval.label"),
-		Description: i18n.T("tui.config.field.sync_interval.desc"), Scope: ScopeTeamShared,
-		Validator: &FieldValidator{Numeric: true, MinInt: intPtr(0), MaxInt: intPtr(60)},
-		Get:       func() string { return strconv.Itoa(v.teamCfg.Tracker.SyncIntervalMinutes) },
-		Set: func(val string) {
-			if n, err := strconv.Atoi(val); err == nil {
-				v.teamCfg.Tracker.SyncIntervalMinutes = n
-				v.dirtyTeam = true
-			}
-		},
-	})
-
-	// ── Notifications ────────────────────────────────────────────────────
-	v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.notifications")})
-	v.fields = append(v.fields, configField{
-		Key: "type", Kind: CfgFieldSelect, Label: i18n.T("tui.config.field.notif_type.label"),
-		Description: i18n.T("tui.config.field.notif_type.desc"), Scope: ScopeTeamShared,
-		Options: []SelectOption{
-			{Label: "Mattermost", Value: "mattermost"},
-			{Label: "Slack", Value: "slack"},
-			{Label: "Discord", Value: "discord"},
-			{Label: "Teams", Value: "teams"},
-		},
-		Get: func() string { return v.teamCfg.Notification.Type },
-		Set: func(val string) { v.teamCfg.Notification.Type = val; v.dirtyTeam = true },
-	})
-	v.fields = append(v.fields, configField{
-		Key: "webhook_url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.webhook_url.label"),
-		Description: i18n.T("tui.config.field.webhook_url.desc"), Scope: ScopeTeamShared,
-		Placeholder: i18n.T("tui.config.field.webhook_url.placeholder"),
-		Get:         func() string { return v.teamCfg.Notification.WebhookURL },
-		Set:         func(val string) { v.teamCfg.Notification.WebhookURL = val; v.dirtyTeam = true },
-	})
-	v.fields = append(v.fields, configField{
-		Key: "channel", Kind: CfgFieldString, Label: i18n.T("tui.config.field.channel.label"),
-		Description: i18n.T("tui.config.field.channel.desc"), Scope: ScopeTeamShared,
-		Get: func() string { return v.teamCfg.Notification.Channel },
-		Set: func(val string) { v.teamCfg.Notification.Channel = val; v.dirtyTeam = true },
-	})
-	v.fields = append(v.fields, configField{
-		Key: "bot_name", Kind: CfgFieldString, Label: i18n.T("tui.config.field.bot_name.label"),
-		Description: i18n.T("tui.config.field.bot_name.desc"), Scope: ScopeTeamShared,
-		Get: func() string { return v.teamCfg.Notification.BotName },
-		Set: func(val string) { v.teamCfg.Notification.BotName = val; v.dirtyTeam = true },
-	})
-
-	// ── Collaboration ────────────────────────────────────────────────────
-	v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.collaboration")})
-	v.fields = append(v.fields, configField{
-		Key: "stale_days", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.stale_days.label"),
-		Description: i18n.T("tui.config.field.stale_days.desc"), Scope: ScopeTeamShared,
-		Placeholder: i18n.T("tui.config.field.stale_days.placeholder"),
-		Validator:   &FieldValidator{Numeric: true, MinInt: intPtr(1), MaxInt: intPtr(30)},
-		Get:         func() string { return strconv.Itoa(v.teamCfg.Takeover.StaleDays) },
-		Set: func(val string) {
-			if n, err := strconv.Atoi(val); err == nil {
-				v.teamCfg.Takeover.StaleDays = n
-				v.dirtyTeam = true
-			}
-		},
-	})
-	v.fields = append(v.fields, configField{
-		Key: "done_retention_days", Kind: CfgFieldInt, Label: i18n.T("tui.config.field.done_retention.label"),
-		Description: i18n.T("tui.config.field.done_retention.desc"), Scope: ScopeTeamShared,
-		Placeholder: i18n.T("tui.config.field.done_retention.placeholder"),
-		Validator:   &FieldValidator{Numeric: true, MinInt: intPtr(1), MaxInt: intPtr(90)},
-		Get:         func() string { return strconv.Itoa(v.teamCfg.Claim.DoneRetentionDays) },
-		Set: func(val string) {
-			if n, err := strconv.Atoi(val); err == nil {
-				v.teamCfg.Claim.DoneRetentionDays = n
-				v.dirtyTeam = true
-			}
-		},
-	})
-
-	v.fields = append(v.fields, v.claimFields()...)
-
-	// ── Surcharges locales ───────────────────────────────────────────────
-	v.fields = append(v.fields, configField{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.local_overrides")})
-	v.fields = append(v.fields, configField{
-		Key: "tracker_enabled", Kind: CfgFieldTriBool, Label: i18n.T("tui.config.field.tracker_enabled.label"),
-		Description: i18n.T("tui.config.field.tracker_enabled.desc"), Scope: ScopeTeamLocal,
-		Get: func() string { return ptrBoolToTriState(v.localTrk.Enabled) },
-		Set: func(val string) { v.localTrk.Enabled = triStateToPtrBool(val); v.dirtyLocal = true },
-	})
-	v.fields = append(v.fields, configField{
-		Key: "auto_sync", Kind: CfgFieldTriBool, Label: i18n.T("tui.config.field.auto_sync.label"),
-		Description: i18n.T("tui.config.field.auto_sync.desc"), Scope: ScopeTeamLocal,
-		Get: func() string { return ptrBoolToTriState(v.localTrk.AutoSync) },
-		Set: func(val string) { v.localTrk.AutoSync = triStateToPtrBool(val); v.dirtyLocal = true },
-	})
-	v.fields = append(v.fields, configField{
-		Key: "push_labels", Kind: CfgFieldTriBool, Label: i18n.T("tui.config.field.push_labels.label"),
-		Description: i18n.T("tui.config.field.push_labels.desc"), Scope: ScopeTeamLocal,
-		Locked: func() bool { return v.teamCfg.Tracker.IsPushLabelsEnforced() },
-		Get:    func() string { return ptrBoolToTriState(v.localTrk.PushLabels) },
-		Set:    func(val string) { v.localTrk.PushLabels = triStateToPtrBool(val); v.dirtyLocal = true },
-	})
-
-	v.appendLinks()
-}
-
-// solo reports whether the detail is the one of a solo space.
-func (v *TeamDetailView) solo() bool {
-	return v.cfg.ResolveTeam != nil && v.cfg.ResolveTeam().Solo
-}
-
-// appendLinks adds the links at the bottom.
-func (v *TeamDetailView) appendLinks() {
-	v.fields = append(v.fields, configField{
-		Key: "mcp", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.mcp"), LinkTarget: "team.mcp",
-		Get: func() string { return "" }})
-	v.fields = append(v.fields, configField{
-		Key: "models", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.models"), LinkTarget: "team.models",
-		Get: func() string { return "" }})
-	v.fields = append(v.fields, configField{
-		Key: "workflow", Kind: CfgFieldLink, Label: i18n.T("tui.config.link.workflow"), LinkTarget: "workflows",
-		Get: func() string { return "" }})
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Rendering
@@ -652,7 +526,7 @@ func (v *TeamDetailView) syncBadge() {
 		v.badge.set(saveStatusPending) // the write runs: not published yet
 		return
 	}
-	v.badge.settle(v.dirtyTeam || v.dirtyLocal)
+	v.badge.settle(v.dirtyTeam)
 }
 
 func (v *TeamDetailView) renderFields() {
@@ -660,11 +534,15 @@ func (v *TeamDetailView) renderFields() {
 	if v.list == nil {
 		return
 	}
-	savedIdx := v.list.GetCurrentItem()
+	savedItem, _, hasCursor := v.list.CurrentItem() // the index of the item, not the row (spacers)
 
 	v.list.SetItems(configItems(v.fields, 28))
-	if savedIdx >= 0 {
-		v.list.SelectIndex(savedIdx)
+	switch idx := v.sectionItem(); {
+	case idx >= 0:
+		v.list.SelectIndex(idx)
+		v.section = ""
+	case hasCursor:
+		v.list.SelectIndex(savedItem)
 	}
 	showCurrentFieldDetail(v.page, v.list, v.fields, v.extraKeys()...)
 }
@@ -695,17 +573,32 @@ func (v *TeamDetailView) toggleSelected() {
 		return
 	}
 	if f.Locked != nil && f.Locked() {
-		if v.shell != nil {
-			v.shell.ShowToastMsg(i18n.T("tui.config.enforced_toast"), false)
-		}
+		v.lockedToast(f)
 		return
 	}
 	if !isToggleable(f.Kind) {
 		return
 	}
+	if f.Immediate {
+		toggleConfigField(f)
+		return
+	}
 	v.pushUndo()
 	toggleConfigField(f)
 	v.renderFields()
+}
+
+// lockedToast says why a field cannot be edited: reserved to the leads, or
+// imposed by the team.
+func (v *TeamDetailView) lockedToast(f *configField) {
+	if v.shell == nil {
+		return
+	}
+	if v.leadKeys[f.Key] {
+		v.shell.ShowToastMsg(i18n.T("v54c.governance.lead_only"), false)
+		return
+	}
+	v.shell.ShowToastMsg(i18n.T("tui.config.enforced_toast"), false)
 }
 
 func (v *TeamDetailView) editSelected() {
@@ -714,7 +607,7 @@ func (v *TeamDetailView) editSelected() {
 		return
 	}
 	if f.Locked != nil && f.Locked() {
-		v.shell.ShowToastMsg(i18n.T("tui.config.enforced_toast"), false)
+		v.lockedToast(f)
 		return
 	}
 	if !isEditable(f.Kind) {
@@ -734,8 +627,13 @@ func (v *TeamDetailView) editSelected() {
 	}
 	// Written to hub.toml (or to the profile in the team-state) at once,
 	// outside the save/undo of the other fields
-	if f.Key == fieldTeamGitLabURL || isMemberField(f.Key) {
+	if f.Key == fieldTeamGitLabURL || isMemberField(f.Key) || f.Immediate {
 		editConfigField(v.shell, f, v.renderFields)
+		return
+	}
+	// The webhook is a secret: typed in a window that hides it, shown masked.
+	if f.Key == fieldWebhookURL {
+		v.promptWebhook(f)
 		return
 	}
 
@@ -754,6 +652,10 @@ func (v *TeamDetailView) editSelected() {
 	v.pushUndo()
 	editConfigField(v.shell, f, func() {
 		v.renderFields()
+		// a personal setting is written by itself a moment later
+		if f.Scope == ScopeTeamLocal {
+			v.touchLocal()
+		}
 	})
 }
 
@@ -788,8 +690,8 @@ func (v *TeamDetailView) undo() {
 	// the key of the tracker is written to hub.toml as soon as it is set: an
 	// older snapshot must not bring back the declaration it replaced
 	v.localTrk.SetTokenDecl(v.baseTrk.TokenDecl())
-	v.dirtyTeam = v.undoStack.Len() > 0
-	v.dirtyLocal = v.undoStack.Len() > 0
+	v.dirtyTeam = v.teamCfg != nil && v.baseTeam != nil && !teamstate.DiffConfig(v.baseTeam, v.teamCfg).Empty()
+	v.touchLocal() // the personal settings are put back by the autosave
 	v.buildFields()
 	v.renderFields()
 	if v.shell != nil {
@@ -811,17 +713,35 @@ type TeamConfigWriter func(ctx context.Context, base, edited *teamstate.TeamConf
 // local settings to hub.toml, off the event loop, one save at a time (the
 // edits made meanwhile wait for the next one). What the write needs from the
 // view and the app is taken here, on the loop.
-func (v *TeamDetailView) save() {
+func (v *TeamDetailView) save() { v.write(true) }
+
+// write is save; without includeTeam only the personal settings are written
+// (the autosave of hub.toml): the draft of the shared config is published by
+// Ctrl+S alone.
+func (v *TeamDetailView) write(includeTeam bool) {
 	if v.shell == nil || v.noTeam {
 		return
 	}
 	if v.cfgErr != nil || v.teamCfg == nil { // never write what was not read
-		v.shell.ShowToastMsg(saveRefusedText(v.cfgErr), false)
+		if includeTeam {
+			v.shell.ShowToastMsg(saveRefusedText(v.cfgErr), false)
+		}
 		return
 	}
 	if v.saving {
-		v.saveAgain = true
+		if includeTeam {
+			v.saveAgain = true
+		} else {
+			v.localAgain = true
+		}
 		return
+	}
+	teamID := ""
+	if v.cfg.ResolveTeam != nil {
+		teamID = v.cfg.ResolveTeam().TeamID
+	}
+	if v.autosave != nil && includeTeam {
+		v.autosave.Cancel() // written now
 	}
 	var (
 		writeTeam TeamConfigWriter
@@ -832,13 +752,15 @@ func (v *TeamDetailView) save() {
 		newMCP    = v.localMCP
 		newTrk    = v.localTrk
 	)
-	saveTeam := v.dirtyTeam && v.cfg.SaveTeamConfig != nil
+	saveTeam := includeTeam && v.dirtyTeam && v.cfg.SaveTeamConfig != nil
+	var publishedKeys []string
 	if saveTeam {
 		if writeTeam = v.cfg.SaveTeamConfig(); writeTeam == nil {
 			saveTeam = false
 		} else {
 			teamCopy = deepCopyTeamConfig(v.teamCfg)
 			baseCopy = teamstate.CloneConfig(v.baseTeam)
+			publishedKeys = teamstate.DiffConfig(baseCopy, &teamCopy).Keys()
 		}
 	}
 	saveLocal := v.dirtyLocal
@@ -869,7 +791,7 @@ func (v *TeamDetailView) save() {
 		if writeLocal {
 			localErr = v.cfg.UpdateHubConfig(func(c *config.Config) error {
 				patchMCP(&c.MCP)
-				patchTrk(&c.Tracker)
+				patchTrk(c.TrackerForWrite(teamID))
 				return nil
 			})
 			if localErr != nil {
@@ -880,25 +802,38 @@ func (v *TeamDetailView) save() {
 		return nil
 	}, func(error) {
 		v.saving = false
-		again := v.saveAgain
-		v.saveAgain = false
+		again, localAgain, after := v.saveAgain, v.localAgain, v.afterWrite
+		v.saveAgain, v.localAgain, v.afterWrite = false, false, nil
 		var saved []string
 		switch {
 		case teamErr != nil:
 			v.dirtyTeam = true
 			v.dirtyLocal = v.dirtyLocal || saveLocal // not tried
-			v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.save_team_error", teamErr.Error()), false)
+			v.shell.ShowToastMsg(teamSaveErrorText(teamErr), false)
 			v.badge.set(saveStatusFailed)
 			confirmReloadOnConflict(v.shell, teamErr, v.reload)
+			if after != nil {
+				after(false)
+			}
 			return
 		case localErr != nil:
 			v.dirtyLocal = true
 			v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.save_local_error", localErr.Error()), false)
 			v.badge.set(saveStatusFailed)
+			if after != nil {
+				after(false)
+			}
 			return
 		}
 		if teamDone {
 			v.baseTeam = teamstate.CloneConfig(&teamCopy)
+			v.undoStack.Clear() // what was published is no longer an edit to take back
+			if v.fileKeys == nil {
+				v.fileKeys = map[string]bool{}
+			}
+			for _, k := range publishedKeys {
+				v.fileKeys[k] = true
+			}
 			saved = append(saved, i18n.T("tui.team.detail.saved_team"))
 		}
 		if saveLocal {
@@ -907,16 +842,42 @@ func (v *TeamDetailView) save() {
 			}
 			saved = append(saved, i18n.T("tui.team.detail.saved_local"))
 		}
-		if len(saved) == 0 {
+		switch {
+		case !includeTeam: // the autosave of hub.toml is silent
+		case len(saved) == 0:
 			v.shell.ShowToastMsg(i18n.T("tui.team.detail.nothing_to_save"), false)
-		} else {
+		default:
 			v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.saved", strings.Join(saved, " + ")), true)
 		}
 		v.syncBadge()
 		if again {
 			v.save()
+		} else if localAgain {
+			v.write(false)
 		}
+		if after != nil {
+			after(true)
+		}
+		v.renderFields()
 	})
+}
+
+// teamSaveErrorText is the toast of a publication that failed: a refusal for
+// want of the lead role says so, the rest is the error.
+func teamSaveErrorText(err error) string {
+	if nl, ok := teamstate.IsNotLead(err); ok {
+		return i18n.Tf("v54c.save.not_lead", strings.Join(nl.Keys, ", "))
+	}
+	return i18n.Tf("tui.team.detail.save_team_error", err.Error())
+}
+
+// touchLocal records an edit of the personal settings: written by itself a
+// moment later.
+func (v *TeamDetailView) touchLocal() {
+	v.dirtyLocal = true
+	if v.autosave != nil {
+		v.autosave.Schedule()
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -992,7 +953,7 @@ func (v *TeamDetailView) testConnection() {
 
 	// What the test needs of the view is taken here, on the event loop: the
 	// effective tracker config and the sources of the credentials.
-	effTracker := tracker.ResolveTrackerConfig(&v.teamCfg.Tracker, v.cfg.GetTrackerLocalConfig())
+	effTracker := v.effectiveTracker()
 	src := tracker.NewCredentialSource(effTracker, v.cfg.GetSecrets())
 	// Same GitLab token cascade as the sync: the team and the MCP key count,
 	// each for its own server.

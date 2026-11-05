@@ -2,6 +2,7 @@ package teamstate
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -175,6 +176,28 @@ func (t *TrackerConfig) NormalizeMappings(board BoardConfig) []MappingIssue {
 	return issues
 }
 
+// DropStaleMappings removes from the mappings the values that stand for
+// nothing on board (a column the team no longer has), after having read the
+// migratable ones as the status they stand for. It returns what it dropped:
+// the caller says so. A board that was just replaced calls it, so that the old
+// mappings do not make the new config invalid.
+func (t *TrackerConfig) DropStaleMappings(board BoardConfig) []MappingIssue {
+	var dropped []MappingIssue
+	for _, issue := range t.NormalizeMappings(board) {
+		if issue.Migrated() {
+			continue
+		}
+		switch issue.Table {
+		case MappingTableLabelStatus:
+			delete(t.LabelStatusMapping, issue.Key)
+		case MappingTableStatus:
+			delete(t.StatusMapping, issue.Key)
+		}
+		dropped = append(dropped, issue)
+	}
+	return dropped
+}
+
 // MappingIssues lists the values of the mappings that are not statuses of the
 // board, without changing anything.
 func (t TrackerConfig) MappingIssues(board BoardConfig) []MappingIssue {
@@ -244,11 +267,13 @@ func (r *Repo) RepairTrackerMappings(ctx context.Context) (migrated, unknown []M
 		if len(migrated) == 0 {
 			return nil
 		}
-		data, err := marshalConfig(cfg)
+		path := filepath.Join(r.path, "config.toml")
+		existing, _ := os.ReadFile(path)
+		data, err := marshalConfig(cfg, existing)
 		if err != nil {
 			return err
 		}
-		if err := fsutil.WriteFileAtomic(filepath.Join(r.path, "config.toml"), data, 0o644); err != nil {
+		if err := fsutil.WriteFileAtomic(path, data, 0o644); err != nil {
 			return err
 		}
 		return r.commitAndPush(ctx, "config: tracker mappings use claim statuses", "config.toml")

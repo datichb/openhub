@@ -53,7 +53,7 @@ func teamConfigWriter(a *app.App) views.TeamConfigWriter {
 		if !tc.Enabled {
 			return errors.New(i18n.T("tui.views.team_not_configured"))
 		}
-		return teamstate.NewRepo(tc.StateRepo, tc.StatePath).UpdateConfigFrom(ctx, base, edited)
+		return teamstate.NewRepo(tc.StateRepo, tc.StatePath).UpdateConfigFrom(teamstate.WithActor(ctx, tc.MemberID), base, edited)
 	}
 }
 

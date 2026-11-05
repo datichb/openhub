@@ -140,6 +140,23 @@ oh team config
 oh team config status
 ```
 
+### oh team config get / set / unset / show
+
+Lisent et changent les réglages de `config.toml` du team-state **un par un**, sans terminal, par leur clé pointée.
+
+```bash
+oh team config get claim.lease_hours
+oh team config set notification.enabled true
+oh team config set tracker.unassigned_labels "ready, bug"
+oh team config set notification.destinations.0.type slack
+oh team config unset notification.webhook_url
+oh team config show --origin
+```
+
+La valeur est lue avec le type de la clé (booléen, entier, nombre, liste séparée par des virgules, texte) et vérifiée (bornes, valeurs possibles) : une valeur refusée est dite avec sa raison et rien n'est écrit. Une entrée de liste se désigne par son rang (`notification.destinations.0.type`), une entrée de table par son nom (`mcp.gitlab.url`, `models.families.opus`). `unset` remet la valeur par défaut (la clé n'est plus écrite) ou retire l'entrée. `show` liste les réglages avec leur valeur ; `--origin` dit d'où elle vient : `défaut`, `équipe` (écrit dans `config.toml`), `moi, pour cette équipe` (`[teams.tracker]` de `hub.toml`) ou `moi, hub.toml` (`[tracker]`). Les webhooks sont affichés masqués.
+
+Changer un réglage est une **publication** : un commit, et un événement `config_changed` (les clés et l'auteur) dans `oh team activity`. Les réglages `*_enforced`, `[limits.enforced]` et `[governance]` sont réservés au rôle `lead` (voir [`[governance]`](config.fr.md#section-governance)). `--team <id>` vise une autre équipe.
+
 ---
 
 ### oh team status
@@ -377,12 +394,17 @@ Les autres options de `oh team rejoin` (`--new-member`, `--display-name`, `--git
 
 ### oh teams set
 
-Change un réglage d'une équipe. Aujourd'hui : `repo`, quand le dépôt a déménagé ou été renommé sur le serveur.
+Change un réglage d'une équipe de `hub.toml` : `repo`, `name`, `member-id`, `enabled`, `default`.
 
 ```bash
 oh teams set <id> repo <url> [--gitlab-url <url>]
+oh teams set <id> name "Équipe API"       # nom affiché (vide : l'identifiant)
+oh teams set <id> member-id ben           # votre fiche dans le team-state
+oh teams set <id> enabled false           # archive (true : restaure)
+oh teams set <id> default                 # équipe par défaut (default false : retire la marque)
 ```
 
+`member-id` doit être une fiche du team-state quand le clone est là (l'identifiant d'un collègue ferait de sa fiche la vôtre). `repo` :
 L'URL est vérifiée avant que `hub.toml` change : l'accès (sonde, token demandé et gardé comme pour un rejoin) puis le **même team-state** (le dépôt doit partager l'historique de votre clone, sinon c'est une autre équipe ; un dépôt vide est refusé). Le clone, son dossier, votre fiche, les claims et les clés de l'équipe restent tels quels ; seul l'`origin` du clone et `state_repo` changent.
 
 ### oh teams remove

@@ -158,7 +158,7 @@ func (s *Service) loadTracker(ctx context.Context, project *domain.Project) (*tr
 	}
 
 	// Shared team-state config merged with the local hub.toml overrides.
-	eff := tracker.ResolveTrackerConfig(&teamCfg.Tracker, s.Config.Tracker)
+	eff := tracker.ResolveTrackerConfig(&teamCfg.Tracker, s.Config.TrackerFor(tc.TeamID))
 	if !eff.Enabled {
 		return nil, ErrTrackerDisabled
 	}

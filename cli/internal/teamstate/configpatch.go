@@ -37,24 +37,41 @@ func IsConfigConflict(err error) (*ErrConfigConflict, bool) {
 // older copy. An unreadable config.toml is an error, not an empty
 // configuration: nothing is written over it.
 //
-// The result is validated (lease settings, mappings of the tracker) before it
-// is written.
+// ctx carries the member who changes it (WithActor): the settings that bind
+// the others (ChangeNeedsLead) are refused to a member who is not a lead
+// (ErrNotLead), and the publication leaves a config_changed event with the
+// keys it changed and the member (never the values: some are secrets). The
+// sections the change touches are validated (ValidateTouched) before it is
+// written; the others are left as they are, so a setting that is wrong
+// somewhere else does not block an unrelated edit.
 func (r *Repo) UpdateConfig(ctx context.Context, patch func(*TeamConfig) error) error {
+	by := ActorOf(ctx)
 	return r.Transact(ctx, func(_ context.Context, tx *Tx) (TxResult, error) {
 		cfg, err := tx.Config()
 		if err != nil {
 			return TxResult{}, err
 		}
+		before := CloneConfig(cfg)
 		if err := patch(cfg); err != nil {
 			return TxResult{}, err
 		}
-		if err := cfg.Claim.Validate(); err != nil {
+		keys := DiffConfig(before, cfg).Keys()
+		if err := cfg.ValidateTouched(keys); err != nil {
 			return TxResult{}, err
 		}
-		if err := cfg.Tracker.ValidateMappings(cfg.Board); err != nil {
+		if err := tx.checkConfigRights(before.Governance, by, keys); err != nil {
 			return TxResult{}, err
+		}
+		if len(keys) == 0 {
+			return TxResult{}, nil
 		}
 		if err := tx.WriteConfig(cfg); err != nil {
+			return TxResult{}, err
+		}
+		if err := tx.AppendEvent(Event{
+			Actor: by, Type: EventConfigChanged, Project: TeamEventsProject,
+			Data: map[string]any{"keys": keys},
+		}); err != nil {
 			return TxResult{}, err
 		}
 		return TxResult{Message: "config: update team config"}, nil

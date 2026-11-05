@@ -378,8 +378,13 @@ See the [team setup guide](../guides/team-setup.en.md) and the [configuration gu
 ```toml
 # team-state config.toml (NOT hub.toml)
 [notification]
-enabled = true
+enabled = true                 # without this switch nothing is sent, even with a webhook
+type = "slack"                 # mattermost | slack | discord | teams; deduced from the webhook server when missing
+webhook_url = "https://hooks.slack.com/services/..."
+channel = "dev"                # Mattermost only
+bot_name = "OpenHub"
 
+# or several destinations:
 [[notification.destinations]]
 type = "slack"           # mattermost | slack | discord | teams
 webhook_url = "https://hooks.slack.com/services/..."
@@ -392,11 +397,16 @@ webhook_url = "https://discord.com/api/webhooks/..."
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enabled` | bool | false | Enable notifications |
+| `enabled` | bool | false | Enable notifications (set from the team detail of the TUI or with `oh team config set notification.enabled true`) |
+| `type` | string | deduced | Backend of the single webhook: mattermost, slack, discord, teams. When missing it is deduced from the server of `webhook_url` (`hooks.slack.com`, `discord.com`, `*.webhook.office.com`, otherwise Mattermost) |
+| `webhook_url` | string | — | URL of the single webhook. **Secret**: it is written in clear text in the team-state repository, so it is masked on every screen, summary and event, and `oh doctor` warns when that repository can be read by anybody |
+| `mattermost_webhook` | string | — | Former key of `webhook_url`: still read; `oh doctor --fix` rewrites it as `webhook_url` + `type` |
 | `destinations[].type` | string | — | Backend: mattermost, slack, discord, teams |
 | `destinations[].webhook_url` | string | — | Incoming webhook URL |
 | `destinations[].channel` | string | — | Channel name (Mattermost only) |
 | `destinations[].bot_name` | string | "OpenHub" | Bot display name |
+
+All of these are set without a terminal: `oh team config set notification.enabled true`, `oh team config set notification.webhook_url <url>`, `oh team config set notification.destinations.0.type slack`, and `oh team config unset notification.webhook_url` removes the webhook.
 
 ---
 
@@ -612,7 +622,7 @@ Links the team-state to an external tracker (GitLab or Jira).
 [tracker]
 enabled = true
 type = "gitlab"              # "gitlab" or "jira"
-tracker_url = ""             # tracker instance; empty = MCP URL
+tracker_url = ""             # tracker instance; empty = GITLAB_URL (JIRA_URL for Jira), else gitlab.com (Jira: required)
 tracker_project = "group/app"   # GitLab project (ID or path) or Jira key
 ticket_pattern = "APP-(\\d+)"   # regex with one capture group → external IID
 auto_sync = true             # automatic sync (daemon + board opening)
@@ -631,8 +641,8 @@ write_enabled = false        # tracker writes (labels, assignment)
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | bool | `false` | Enable the integration |
-| `type` | string | — | `"gitlab"` or `"jira"` (`type_enforced` to enforce it) |
-| `tracker_url` | string | empty | Tracker instance, independent from the MCP |
+| `type` | string | — | `"gitlab"` or `"jira"` (the former `type_enforced` had no effect: it is removed, `oh doctor --fix` deletes it) |
+| `tracker_url` | string | empty | Tracker instance, independent from the MCP (the MCP URL is never taken over). Empty: `GITLAB_URL` (`JIRA_URL` for Jira), else `https://gitlab.com`; Jira has no default |
 | `tracker_token_key` | string | empty | Keychain key of the token, declared by the user: nothing is filled in for them. Without a key, GitLab reads `openhub.tracker.gitlab.token` for the tracker's server (then the token of the team or of the MCP, for their own server); Jira only reads the declared key. Set in `oh init`, `oh team rejoin`, `oh team config` and `team-detail` |
 | `tracker_token_url` | string | empty | Server the token of `tracker_token_key` (and of the former tracker key) is valid for, e.g. `https://gitlab.example.com`. Without it the key is valid for the tracker (see [the server of each token](#the-server-of-each-gitlab-token)) |
 | `tracker_project` | string | empty | Default tracker project (overridable per project) |
@@ -658,7 +668,20 @@ write_enabled = false        # tracker writes (labels, assignment)
 - **`todo` is not a claim status** unless `[board]` declares a column with that ID: the initial column of a board without columns is `planned`. A value of `status_mapping` or `label_status_mapping` that is not a status of the board is treated as follows. `todo`, or the ID of a column, is **read** as the status of the initial column (`planned`), with one warning line per team and per process (the detail of each value is in the log, `oh -v`) and in `oh doctor`, which rewrites the file with `--fix`. Anything else (a typo, a column that no longer exists) is **ignored** by the sync, which says so in its summary. **Saving** the team config (`oh team config`, the TUI) is **refused** while such a value is there, with its name and the valid statuses. The `oh team config` assistant writes `planned`, or the ID of the initial column when the board declares its columns.
 - **Automatic sync (`auto_sync = true`)**: the daemon of each member looks at the team every minute and starts a sync when `sync_interval_minutes` has passed since its last attempt; the board starts one when it opens, and updates itself (a light, quiet pull every minute, the summary of the sync in a toast). **One member synchronizes per interval**: the sync takes a **lease** in the `sync.lock` file of the team-state (the member and the expiry, written in the commit of the sync). While the lease runs, the automatic sync of the other members (and of one's other machines) does nothing; when it expires the first one to come takes it over, and if two members start together the push decides (the second one finds the lease of the first). A member without a valid token never takes the lease. A requested sync (`oh team sync-tracker`, the `r` key) does not wait for the lease and takes it in turn. Without `auto_sync`, nothing is written to `sync.lock`. After **three refusals of the same token in a row** (HTTP 401), the automatic sync stops until the token changes (the count is kept in `~/.oh/sync-state.json`; a requested sync still tries). A refusal of access (HTTP 403) concerns one tracker project, not the token: it is reported in the summary and the other projects are synchronized.
 - **Which projects, which tickets**: only the hub projects attached to the team (`team_id`) are linked to its tracker project; a project of another team, or of no team, has no claims in this team-state. An issue has **one** claim per tracker project: two hub projects linked to the same tracker project do not both take it (the first in alphabetical order keeps it), and `42` and `SRU-42` do not coexist. The ID of a ticket the sync creates follows `ticket_pattern` (`SRU-(\d+)` gives `SRU-42`); without a pattern it is the number. A claim released on purpose (`oh team release`, end of a session, the clean-up of done claims by the sync) is not made again by the sync, other machines included; it comes back if the issue is updated on the tracker.
-- The `hub.toml` `[tracker]` section lets a member turn off `enabled`, `auto_sync`, `push_labels`, `auto_plan_assigned`, etc. locally, and set their own token key (`tracker_token_key` + `tracker_token_url`, which go together).
+- The `hub.toml` `[tracker]` section lets a member turn off `enabled`, `auto_sync`, `push_labels`, `auto_plan_assigned`, etc. locally, and set their own token key (`tracker_token_key` + `tracker_token_url`, which go together). It is the **default of every team** of the member; for one team only, the `[teams.tracker]` section under its `[[teams]]` entry (`oh config set teams.<id>.tracker.auto_sync false`) wins, key by key. The `max_in_progress_per_member` limit the team chose is a **ceiling**: a member asks for less, never for more nor for "no limit"; a team that chose nothing (the default 5) leaves the choice.
+
+```toml
+# hub.toml
+[tracker]                 # default of every team
+auto_sync = true
+
+[[teams]]
+id = "acme"
+# ...
+[teams.tracker]           # this team only
+auto_sync = false
+max_in_progress_per_member = 3
+```
 
 ### The server of each GitLab token
 
@@ -733,9 +756,12 @@ Team model recommendations, edited in the TUI (Team › Models). Applied at laun
 ```toml
 [governance]
 publish = "any_member"   # default value, the only one supported
+config = "lead"          # default; "any_member": every member changes the enforced settings
 ```
 
-Who may publish the team workflows. An unknown value blocks publication. See [team workflows](../guides/team-workflows.en.md#governance).
+`publish`: who may publish the team workflows. An unknown value blocks publication. See [team workflows](../guides/team-workflows.en.md#governance).
+
+`config`: who may change the settings that bind the other members — the `*_enforced` keys (`push_labels_enforced`, `mcp.<service>.enabled_enforced`, `url_enforced`), the `[limits.enforced]` ceilings and the `[governance]` section itself. By default **the `lead` role** (the `role` field of the member card in `members.toml`): another member is refused with the list of keys. A team that has no lead at all is not locked. Only a lead changes the role of a member. The rest of the configuration is open to every member; each publication leaves a **`config_changed`** event (the keys changed and the author, never the values) in `oh team activity`.
 
 ### `[limits]` section
 
@@ -750,12 +776,20 @@ models = ["eu.anthropic.claude-*"]
 
 Keys: `max_active_sessions`, `session_budget_usd`, `daily_budget_usd`, `memory_mb`, `models`. Cascade: hub → team (recommended / enforced) → project → workflow (`limits:`). See [ADR-044](../architecture/adr/044-credential-proxy-session-limits.en.md) and `oh budget show`.
 
-### `[takeover]` and `[parallel]` sections
+### `[takeover]` section
 
 | Field | Default | Description |
 |---|---|---|
-| `takeover.stale_days` | `3` | Days of inactivity before a claim is considered stale (takeover briefs) |
-| `parallel.max_sessions` | `5` | Left over from the former parallel mode (removed in v5); read but without effect, no longer editable in the team detail (to limit sessions: `[limits]`, `oh budget`) |
+| `takeover.stale_days` | `3` | Days of inactivity (1 to 30) before a claim is considered stale (takeover briefs) |
+
+The `[parallel]` section of the former parallel mode (removed in v5) is neither read nor written any more: to limit sessions, use `[limits]` and `oh budget`. `oh doctor --fix` removes it.
+
+### What `oh` writes to `config.toml`
+
+- **Keys this `oh` does not know are kept** (a newer `oh`, a typo): a publication no longer erases them. `oh doctor` reports them.
+- **Values equal to their default are not written** (`stale_days = 3`, `lease_hours = 24`, `done_retention_days = 7`, `bot_name = "OpenHub"`, `sync_interval_minutes = 5`, `max_unassigned_issues = 20`): the file only holds what the team chose. `heartbeat_minutes = 0` (heartbeat off) stays written.
+- **Only the sections a change touches are validated**: a wrong mapping elsewhere does not block an unrelated setting. Bounds: `stale_days` 1–30, `done_retention_days` 1–90, `max_in_progress_per_member` 0–100, `sync_interval_minutes` 0–60, `max_unassigned_issues` 1–200, `lease_hours` 1–168 (see `[claim]`).
+- `oh team config get|set|unset <section.key>` and `oh team config show [--origin]` read and change these settings one by one; `oh doctor` checks the file (former or unknown keys, values out of bounds, board, notifications) and `--fix` repairs what can be.
 
 ---
 

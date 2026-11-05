@@ -65,6 +65,7 @@ var Events = []EventGlyph{
 	{"workflow.published", Success, ToneInfo},
 	{"workflow.restored", Restored, ToneInfo},
 	{"workflow.archived", Inactive, ToneMuted},
+	{"config_changed", Modified, ToneInfo},
 }
 
 // ForEvent is the row of an event type; an unknown type gets a neutral dot
