@@ -229,3 +229,20 @@ func writeFixtureConfig(t *testing.T, repo *Repo) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(repo.path, "config.toml"), data, 0o644))
 }
+
+// A board that was replaced does not keep the mappings to the columns it lost.
+func TestDropStaleMappings(t *testing.T) {
+	t.Parallel()
+	board := BoardConfig{Columns: []BoardColumnConfig{
+		{ID: "backlog", Name: "B", Role: ColumnRoleInitial}, {ID: "doing", Name: "D", Role: ColumnRoleActive}, {ID: "done", Name: "X", Role: ColumnRoleTerminal},
+	}}
+	tr := TrackerConfig{
+		LabelStatusMapping: map[string]string{"Todo": "todo", "WIP": "doing", "QA": "validation", "Fini": "done"},
+		StatusMapping:      map[string]string{"Open": "todo", "Gone": "nowhere"},
+	}
+	dropped := tr.DropStaleMappings(board)
+	assert.Len(t, dropped, 2, "what stands for nothing; todo is the initial column, read as backlog")
+	assert.Equal(t, map[string]string{"Todo": "backlog", "WIP": "doing", "Fini": "done"}, tr.LabelStatusMapping)
+	assert.Equal(t, map[string]string{"Open": "backlog"}, tr.StatusMapping)
+	require.NoError(t, tr.ValidateMappings(board))
+}

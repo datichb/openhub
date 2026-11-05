@@ -663,6 +663,10 @@ func applyDiscovery(cfg *teamstate.TeamConfig, r discoveryResult) {
 		}
 	}
 
+	// The mappings the team had to columns it no longer has stand for
+	// nothing on the new board: they are dropped, not left to refuse the save.
+	cfg.Tracker.DropStaleMappings(cfg.Board)
+
 	// Pool labels
 	if len(r.pool) > 0 {
 		cfg.Tracker.AutoPlanUnassigned = true

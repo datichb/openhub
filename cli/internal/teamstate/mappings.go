@@ -176,6 +176,28 @@ func (t *TrackerConfig) NormalizeMappings(board BoardConfig) []MappingIssue {
 	return issues
 }
 
+// DropStaleMappings removes from the mappings the values that stand for
+// nothing on board (a column the team no longer has), after having read the
+// migratable ones as the status they stand for. It returns what it dropped:
+// the caller says so. A board that was just replaced calls it, so that the old
+// mappings do not make the new config invalid.
+func (t *TrackerConfig) DropStaleMappings(board BoardConfig) []MappingIssue {
+	var dropped []MappingIssue
+	for _, issue := range t.NormalizeMappings(board) {
+		if issue.Migrated() {
+			continue
+		}
+		switch issue.Table {
+		case MappingTableLabelStatus:
+			delete(t.LabelStatusMapping, issue.Key)
+		case MappingTableStatus:
+			delete(t.StatusMapping, issue.Key)
+		}
+		dropped = append(dropped, issue)
+	}
+	return dropped
+}
+
 // MappingIssues lists the values of the mappings that are not statuses of the
 // board, without changing anything.
 func (t TrackerConfig) MappingIssues(board BoardConfig) []MappingIssue {
