@@ -226,3 +226,23 @@ func gitCommitCount(t *testing.T, dir string) int {
 	require.NoError(t, err)
 	return n
 }
+
+// The policy max_ticket_wip counts the reservations the member holds that are
+// not finished: a done ticket that is waiting for the cleanup is no work.
+func TestMaxTicketWipIgnoresFinishedClaims(t *testing.T) {
+	i18ntest.Set(t, "en")
+	_, repo, _ := setupClaimTestApp(t)
+	ctx := context.Background()
+	require.NoError(t, repo.SavePolicies(ctx, map[string]teamstate.Policy{
+		"max_ticket_wip": {Type: teamstate.PolicyTypeLimit, Max: 2, Enforcement: teamstate.EnforcementRefuse, Message: "too many"},
+	}))
+	for _, id := range []string{"D-1", "D-2", "D-3"} {
+		_, err := repo.CreateClaim(ctx, teamstate.Claim{TicketID: id, Project: claimsProject, ClaimedBy: "testuser", Status: teamstate.ClaimStatusDone})
+		require.NoError(t, err)
+	}
+	claimsCreate(t, repo, "W-1", "testuser", "")
+
+	require.NoError(t, runClaim(newClaimCmd(t, claimsProject), []string{"NEW-1"}), "three done claims and one open: room for one more")
+	err := runClaim(newClaimCmd(t, claimsProject), []string{"NEW-2"})
+	require.Error(t, err, "two open claims is the limit")
+}

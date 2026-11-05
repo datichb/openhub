@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -65,11 +66,20 @@ func runClaim(cmd *cobra.Command, args []string) error {
 			theme.Bold.Render("oh team init")))
 	}
 
-	// Check max_ticket_wip policy before claiming
+	// Check max_ticket_wip policy before claiming. It counts the reservations
+	// the member holds that are not finished (planned, in progress, in review…):
+	// a finished one stays on the board until its retention but is no longer
+	// work. (max_in_progress_per_member counts the work in progress only.)
 	activeClaims := 0
 	allClaims, _ := repo.ListClaims(ctx, "")
+	var terminals []string
+	if cfg, cerr := repo.LoadConfig(ctx); cerr == nil && cfg != nil {
+		terminals = cfg.Board.TerminalStatuses()
+	} else {
+		terminals = teamstate.BoardConfig{}.TerminalStatuses()
+	}
 	for _, c := range allClaims {
-		if c.ClaimedBy == memberID {
+		if c.ClaimedBy == memberID && !slices.Contains(terminals, c.Status) {
 			activeClaims++
 		}
 	}
