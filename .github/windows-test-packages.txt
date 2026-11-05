@@ -66,6 +66,7 @@
 ./internal/mcpresolve
 ./internal/modelcheck
 ./internal/notify
+./internal/notifypolicy
 ./internal/peercheck
 ./internal/platform
 ./internal/prefsvc
