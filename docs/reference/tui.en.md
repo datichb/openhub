@@ -93,7 +93,7 @@ A key has the same meaning in every view. A view may give a free letter to an ac
 
 `w` has one meaning only: open in the browser (Sessions). Saving is `Ctrl+S`.
 
-**Saving**: the Settings and the Project pages (config, models, MCP) save by themselves after **one delay** (500 ms, the same everywhere) and say so in the title of the page: `✎ saving…` then `✔ saved` (`✗ not saved` when the save failed). The team pages (team detail, team models, team MCP) publish to the team-state, shared with the team: they do not save on their own, the title says `✎ not published — Ctrl+S` as long as a change waits, `✔ saved` once `Ctrl+S` published it.
+**Saving**: the Settings and the Project pages (config, models, MCP) save by themselves after **one delay** (500 ms, the same everywhere) and say so in the title of the page: `✎ saving…` then `✔ saved` (`✗ not saved` when the save failed). The team pages (team detail, team models, team MCP) publish to the team-state, shared with the team: what is shared is not saved on its own (the personal settings of `hub.toml` are: see the team detail), the title says `✎ not published — Ctrl+S` as long as a change waits, `✔ saved` once `Ctrl+S` published it.
 
 ### Changed keys
 
@@ -456,6 +456,16 @@ The tracker discovery wizard ("Discover the tracker") uses the same editor for i
 | Policies | `Enter` detail, `n` create, `t` template, `e` edit, `d` delete (confirmed), `c` check |
 | Status, Activity, Metrics | `c` check the conventions · `t` / `s` / `0` today, week, all (Activity) · `7` / `3` / `0` period, `Tab` usage by agent |
 | Briefs | `Enter` see the brief, `e` enrich (workflow `brief-enrich`) |
+
+**Team detail.** Three kinds of setting, said in the title of each section:
+
+| Section title | Where it is written | When |
+|---|---|---|
+| "… shared with the team (Ctrl+S to publish)": Tracker, Pool and auto-plan, Board, Claims, Notifications, Restrictions, Governance | `config.toml` of the team-state | **draft** published as a whole by `Ctrl+S` (one commit, one `config_changed` event) |
+| "… saved automatically (hub.toml)": My overrides for this team | the `[teams.tracker]` section of the team | **by itself** after each edit |
+| "… written at once": This team on this machine (name, member id, default, GitLab) and My member profile (profile, role, mode) | `hub.toml` or `members.toml` | **when the field is validated** |
+
+Each shared setting says whether it comes from the `team` or is a `default`; an **empty** answer to a number or text field puts the default back. The `*_enforced` settings, the `Restrictions › Enforced` ceilings, the role and the governance are **reserved to the leads** (locked, with a message). The notification webhook is typed in a window that hides the input and shown masked. `Esc` with an unpublished draft asks: **publish and leave**, **drop**, **stay**; a link to MCP, Models or Workflows keeps the draft and puts it back on return (dropped, with the names of the keys, if a colleague changed the same setting meanwhile). "Reconfigure the team…" reopens the assistant; "Columns and mappings…" opens the board editor (after the draft is published). With no team, `n` opens the creation of a team.
 
 ## Wizards
 

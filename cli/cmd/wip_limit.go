@@ -113,7 +113,7 @@ func ticketRoom(a *app.App, project *domain.Project) func(ctx context.Context, p
 	statePath := tc.StatePath
 	repo := teamstate.NewRepo(tc.StateRepo, statePath)
 	member := tc.MemberID
-	local := a.Config.Tracker
+	local := a.Config.TrackerFor(tc.TeamID)
 	return func(ctx context.Context, projectID string, tickets []string) error {
 		if !repo.IsCloned() {
 			return nil

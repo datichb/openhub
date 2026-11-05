@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -59,6 +60,7 @@ func runTeamConfigWizard(cmd *cobra.Command, _ []string) error {
 		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_config.team_not_configured_run_first", cliout.WarnIcon(), theme.Bold.Render("oh team init")))
 		return nil
 	}
+	ctx = teamstate.WithActor(ctx, team.MemberID)
 	repo := teamstate.NewRepo(team.StateRepo, team.StatePath)
 	if !repo.IsCloned() {
 		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_config.team_state_not_cloned_run_first", cliout.WarnIcon(), theme.Bold.Render("oh team init")))
@@ -343,6 +345,7 @@ func configureFigma(ctx context.Context, a *app.App, p *prompter, repo teamstate
 
 func configureTrackerSync(ctx context.Context, a *app.App, p *prompter, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
+	teamID := teamIDOf(ctx, a)
 
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.tracker_sync_configuration", theme.Title.Render(glyph.Current)))
 
@@ -564,8 +567,12 @@ func configureTrackerSync(ctx context.Context, a *app.App, p *prompter, repo tea
 	if configLocal {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.local_configuration_overrides", theme.Bold.Render("→")))
 		fmt.Fprint(out, i18n.T("v533b.team_config.local_hint"))
-		edits := &localEdits{}
-		local := a.Config.Tracker
+		edits := &localEdits{team: teamID}
+		// the settings asked about are the ones of the section of this team
+		// ([teams.tracker]); the default [tracker] and the team's own are
+		// merged to know what is in force
+		local := a.Config.TeamTracker(teamID)
+		merged := a.Config.TrackerFor(teamID)
 
 		// enabled override
 		edits.tri("tracker.enabled", local.Enabled,
@@ -577,7 +584,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, p *prompter, repo tea
 
 		// push_labels override
 		sharedPush := teamCfg.Tracker.PushLabels
-		effLocal := tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker)
+		effLocal := tracker.ResolveTrackerConfig(&teamCfg.Tracker, merged)
 		writeEnabled := effLocal.WriteEnabled
 		if !writeEnabled && sharedPush {
 			fmt.Fprint(out, i18n.Tf("cmd.team_config.push_labels_is_recommended_by_the", cliout.WarnIcon()))
@@ -588,12 +595,12 @@ func configureTrackerSync(ctx context.Context, a *app.App, p *prompter, repo tea
 		}
 
 		// the personal declaration of the token (key and server together)
-		curKey, curServer := local.TokenDecl()
+		curKey, curServer := merged.TokenDecl()
 		key, server := askTrackerTokenDecl(out, func(prompt, def string) string { return askInput(p, prompt, def) },
 			declLocal, teamCfg.Tracker.Type, curKey, curServer)
 		if key != curKey || server != curServer {
 			edits.change(func(c *config.Config) error {
-				c.Tracker.SetTokenDecl(key, server)
+				c.TrackerForWrite(teamID).SetTokenDecl(key, server)
 				return nil
 			})
 		}
@@ -647,9 +654,11 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 	// Load team-state config (optional — degrades gracefully if not configured).
 	// This command only reads: it writes nothing, to the team-state nor to hub.toml.
 	var teamCfg *teamstate.TeamConfig
+	var issues configIssuer
 	if tc.Enabled && tc.StatePath != "" {
 		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 		if repo.IsCloned() {
+			issues = repo
 			var err error
 			if teamCfg, err = repo.LoadConfig(ctx); err != nil {
 				fmt.Fprint(out, i18n.Tf("v533b.team_config.status_unreadable", cliout.WarnIcon(), err))
@@ -691,12 +700,14 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 	if teamCfg == nil || teamCfg.Tracker.Type == "" {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.not_configured", theme.Subtitle.Render(glyph.Absent)))
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.run_to_configure", theme.Bold.Render("oh team config")))
+		printTeamConfigStatus(ctx, out, issues, teamCfg)
 		return nil
 	}
 
-	eff := tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker)
+	local := trackerLocalOf(ctx, a)
+	eff := tracker.ResolveTrackerConfig(&teamCfg.Tracker, local)
 
-	printTrackerStatus(out, teamCfg, a.Config.Tracker, eff)
+	printTrackerStatus(out, teamCfg, local, eff)
 
 	// ── Connection tests ─────────────────────────────────────────────────────
 	fmt.Fprintf(out, "\n%s\n", theme.Bold.Render("Test de connexion"))
@@ -724,9 +735,50 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
+	printTeamConfigStatus(ctx, out, issues, teamCfg)
 	fmt.Fprintln(out)
 
 	return nil
+}
+
+// printTeamConfigStatus is the rest of the configuration of the team: the
+// notifications (the webhook masked), the claims, the governance and what
+// oh doctor finds in config.toml. Nothing when the config is not there.
+// configIssuer is the clone of a team as printTeamConfigStatus reads it.
+type configIssuer interface {
+	ConfigIssues(ctx context.Context) ([]teamstate.ConfigIssue, error)
+}
+
+func printTeamConfigStatus(ctx context.Context, out io.Writer, repo configIssuer, cfg *teamstate.TeamConfig) {
+	if cfg == nil {
+		return
+	}
+	n := cfg.Notification
+	fmt.Fprintf(out, "\n%s\n", theme.Bold.Render(i18n.T("v54c.status.notifications")))
+	target := i18n.T("v54c.status.no_target")
+	switch {
+	case len(n.Destinations) > 0:
+		target = i18n.Tf("v54c.status.destinations", len(n.Destinations))
+	case n.EffectiveURL() != "":
+		target = n.EffectiveType() + " · " + teamstate.MaskWebhook(n.EffectiveURL())
+	}
+	fmt.Fprintf(out, "  enabled:       %s\n  target:        %s\n", fmtBool(n.Enabled), target)
+
+	fmt.Fprintf(out, "\n%s\n", theme.Bold.Render(i18n.T("v54c.status.team")))
+	fmt.Fprint(out, i18n.Tf("v54c.status.claims", cfg.Claim.LeaseHours, cfg.Takeover.StaleDays, cfg.Claim.DoneRetentionDays))
+	fmt.Fprint(out, i18n.Tf("v54c.status.governance", cfg.Governance.PublishPolicy(), cfg.Governance.ConfigPolicy()))
+	if repo != nil {
+		issues, err := repo.ConfigIssues(ctx)
+		switch {
+		case err != nil:
+			fmt.Fprint(out, i18n.Tf("v533b.team_config.status_unreadable", cliout.WarnIcon(), err))
+		case len(issues) > 0:
+			for _, i := range issues {
+				fmt.Fprintf(out, "  %s %s\n", cliout.WarnIcon(), i.Detail)
+			}
+			fmt.Fprint(out, i18n.T("v54c.doctor.team_config.fix_hint")+"\n")
+		}
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -850,7 +902,7 @@ func printTrackerStatus(out interface{ Write([]byte) (int, error) },
 // so that the GitLab token is found with the unified cascade like everywhere
 // else, and only for the server of the tracker.
 func trackerCredentials(ctx context.Context, a *app.App, teamCfg *teamstate.TeamConfig) tracker.CredentialSource {
-	return buildCredentialSource(ctx, a, tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker))
+	return buildCredentialSource(ctx, a, tracker.ResolveTrackerConfig(&teamCfg.Tracker, trackerLocalOf(ctx, a)))
 }
 
 // mcpGitLabCredentials is the credential source for the GitLab of the MCP

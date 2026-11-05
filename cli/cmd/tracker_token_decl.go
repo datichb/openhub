@@ -123,7 +123,7 @@ type trackerTokenCheck struct {
 // checkTrackerToken runs the cascade of the token of the tracker of the team
 // teamID, whose config.toml is teamCfg, against the keychain of the app.
 func checkTrackerToken(ctx context.Context, a *app.App, teamID string, teamCfg *teamstate.TeamConfig) trackerTokenCheck {
-	eff := tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker)
+	eff := tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.TrackerFor(teamID))
 	c := trackerTokenCheck{Eff: eff}
 	if eff.Type == string(tracker.TypeJira) {
 		c.Server = eff.TrackerURL
@@ -145,12 +145,12 @@ func checkTrackerToken(ctx context.Context, a *app.App, teamID string, teamCfg *
 // declareLocalTrackerToken writes key and server to the [tracker] of hub.toml
 // when the configuration in force does not already say so, and reports whether
 // it did.
-func declareLocalTrackerToken(a *app.App, eff tracker.EffectiveTrackerConfig, key, server string) (bool, error) {
+func declareLocalTrackerToken(a *app.App, teamID string, eff tracker.EffectiveTrackerConfig, key, server string) (bool, error) {
 	if !eff.NeedsTokenDecl(key, server) {
 		return false, nil
 	}
 	err := updateHubConfig(a, func(c *config.Config) error {
-		c.Tracker.SetTokenDecl(key, server)
+		c.TrackerForWrite(teamID).SetTokenDecl(key, server)
 		return nil
 	})
 	return err == nil, err
@@ -258,7 +258,7 @@ func buildTrackerTokenStep(c trackerTokenStep) views.WizardStep {
 			if a == nil || teamCfg == nil {
 				return nil
 			}
-			eff := tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker)
+			eff := tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.TrackerFor(teamIDFor(c.App(), c.Repo())))
 			tokenKey := firstNonEmpty(strings.TrimSpace(key), tracker.DefaultTokenKey(eff.Type))
 			tokenServer := strings.TrimSpace(server)
 			if eff.Type == string(tracker.TypeJira) {
@@ -274,7 +274,7 @@ func buildTrackerTokenStep(c trackerTokenStep) views.WizardStep {
 				}
 			}
 			if token != "" || changed {
-				did, err := declareLocalTrackerToken(a, eff, tokenKey, tokenServer)
+				did, err := declareLocalTrackerToken(a, teamIDFor(c.App(), c.Repo()), eff, tokenKey, tokenServer)
 				if err != nil {
 					return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
 				}

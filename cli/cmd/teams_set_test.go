@@ -65,3 +65,55 @@ func TestTeamsSetRepo(t *testing.T) {
 		assert.Equal(t, moved, gittest.Run(t, clonePath, "remote", "get-url", "origin"))
 	})
 }
+
+// oh teams set <id> name|member-id|enabled|default.
+func TestTeamsSetFields(t *testing.T) {
+	i18ntest.Set(t, "en")
+	configtest.Home(t)
+	a, repo, out := setupClaimTestApp(t)
+	a.Config.Teams = append(a.Config.Teams, config.TeamConfig{ID: "b", Enabled: true, StateRepo: "git@h:o/b.git", MemberID: "bob"})
+	require.NoError(t, config.Save(a.Config))
+	_ = repo
+
+	require.NoError(t, runTeamsSetArgs(t, "test-team", "name", "Équipe Test"))
+	got, err := config.Read()
+	require.NoError(t, err)
+	assert.Equal(t, "Équipe Test", got.FindTeam("test-team").Name)
+	require.NoError(t, runTeamsSetArgs(t, "test-team", "name", ""))
+	got, _ = config.Read()
+	assert.Empty(t, got.FindTeam("test-team").Name)
+
+	// default: on, then another, then off
+	out.Reset()
+	require.NoError(t, runTeamsSetArgs(t, "b", "default"))
+	got, _ = config.Read()
+	assert.True(t, got.FindTeam("b").Default)
+	require.NoError(t, runTeamsSetArgs(t, "test-team", "default", "true"))
+	got, _ = config.Read()
+	assert.True(t, got.FindTeam("test-team").Default)
+	assert.False(t, got.FindTeam("b").Default, "a single default")
+	require.NoError(t, runTeamsSetArgs(t, "test-team", "default", "false"))
+	got, _ = config.Read()
+	assert.False(t, got.FindTeam("test-team").Default)
+
+	// enabled false archives, true restores
+	require.NoError(t, runTeamsSetArgs(t, "b", "enabled", "false"))
+	got, _ = config.Read()
+	assert.False(t, got.FindTeam("b").Enabled)
+	require.NoError(t, runTeamsSetArgs(t, "b", "enabled", "true"))
+	got, _ = config.Read()
+	assert.True(t, got.FindTeam("b").Enabled)
+	require.Error(t, runTeamsSetArgs(t, "b", "enabled", "perhaps"))
+
+	// member-id: a card of the team-state, not a colleague's invention
+	err = runTeamsSetArgs(t, "test-team", "member-id", "ghost")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no card")
+	require.NoError(t, runTeamsSetArgs(t, "test-team", "member-id", "testuser"))
+	require.Error(t, runTeamsSetArgs(t, "test-team", "member-id", "bad id"))
+
+	// the rest: a value is required, a field is known, a team exists
+	require.Error(t, runTeamsSetArgs(t, "b", "name"))
+	require.Error(t, runTeamsSetArgs(t, "b", "color", "red"))
+	require.Error(t, runTeamsSetArgs(t, "nope", "name", "x"))
+}

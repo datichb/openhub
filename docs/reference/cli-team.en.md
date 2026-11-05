@@ -141,6 +141,23 @@ oh team config
 oh team config status
 ```
 
+### oh team config get / set / unset / show
+
+Read and change the settings of the team-state `config.toml` **one by one**, without a terminal, by their dotted key.
+
+```bash
+oh team config get claim.lease_hours
+oh team config set notification.enabled true
+oh team config set tracker.unassigned_labels "ready, bug"
+oh team config set notification.destinations.0.type slack
+oh team config unset notification.webhook_url
+oh team config show --origin
+```
+
+The value is read with the type of the key (boolean, integer, number, comma separated list, text) and checked (bounds, possible values): a refused value is said with its reason and nothing is written. A list item is named by its rank (`notification.destinations.0.type`), a table entry by its name (`mcp.gitlab.url`, `models.families.opus`). `unset` puts the default back (the key is no longer written) or removes the entry. `show` lists the settings with their value; `--origin` says where it comes from: `default`, `team` (written in `config.toml`), `me, for this team` (`[teams.tracker]` of `hub.toml`) or `me, hub.toml` (`[tracker]`). Webhooks are shown masked.
+
+Changing a setting is a **publication**: a commit, and a `config_changed` event (the keys and the author) in `oh team activity`. The `*_enforced` settings, `[limits.enforced]` and `[governance]` are reserved to the `lead` role (see [`[governance]`](config.en.md#governance-section)). `--team <id>` targets another team.
+
 ---
 
 ### oh team status
@@ -378,12 +395,17 @@ The other options of `oh team rejoin` (`--new-member`, `--display-name`, `--gitl
 
 ### oh teams set
 
-Change a setting of a team. Today: `repo`, when the repository was moved or renamed on the server.
+Change a setting of a team of `hub.toml`: `repo`, `name`, `member-id`, `enabled`, `default`.
 
 ```bash
 oh teams set <id> repo <url> [--gitlab-url <url>]
+oh teams set <id> name "API team"         # display name (empty: the id)
+oh teams set <id> member-id ben           # your card in the team-state
+oh teams set <id> enabled false           # archive (true: restore)
+oh teams set <id> default                 # default team (default false: remove the mark)
 ```
 
+`member-id` must be a card of the team-state when the clone is there (a colleague's id would make their card yours). `repo`:
 The URL is checked before `hub.toml` changes: the access (probe, token asked and kept as for a rejoin) then the **same team-state** (the repository must share the history of your clone, otherwise it is another team; an empty repository is refused). The clone, its folder, your card, the claims and the keys of the team stay as they are; only the `origin` of the clone and `state_repo` change.
 
 ### oh teams remove

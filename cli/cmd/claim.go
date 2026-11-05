@@ -135,7 +135,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 	// new work (claimExists answers it).
 	if !planned {
 		if _, gerr := repo.GetClaim(ctx, project, ticketID); errors.Is(gerr, teamstate.ErrClaimNotFound) {
-			if err := checkInProgressRoom(ctx, repo, a.Config.Tracker, memberID, teamstate.ClaimRef{Project: project, TicketID: ticketID}); err != nil {
+			if err := checkInProgressRoom(ctx, repo, trackerLocalOf(ctx, a), memberID, teamstate.ClaimRef{Project: project, TicketID: ticketID}); err != nil {
 				return err
 			}
 		}
@@ -233,7 +233,7 @@ func claimExists(cmd *cobra.Command, a *app.App, repo claimConflictStore, existi
 
 	if expired && existing.ClaimedBy != "" && existing.ClaimedBy != memberID {
 		// The claim comes to the member as it is: in progress, it is one more.
-		if err := checkTransferToSelfRoom(ctx, repo, a.Config.Tracker, memberID, existing); err != nil {
+		if err := checkTransferToSelfRoom(ctx, repo, trackerLocalOf(ctx, a), memberID, existing); err != nil {
 			return err
 		}
 		return takeOverExpiredClaim(cmd, a, repo, existing, project, ticketID, memberID)
@@ -369,7 +369,7 @@ func runClaimTransfer(cmd *cobra.Command, args []string) error {
 
 	// Handing a claim in progress to oneself is one more ticket in progress.
 	if me := commandMember(ctx, a); to == me {
-		if err := checkTransferToSelfRoom(ctx, repo, a.Config.Tracker, me, existingClaim); err != nil {
+		if err := checkTransferToSelfRoom(ctx, repo, trackerLocalOf(ctx, a), me, existingClaim); err != nil {
 			return err
 		}
 	}

@@ -40,7 +40,7 @@ func serverCheck(value string) error {
 // effectiveTracker is the tracker configuration in force: the team config as
 // edited merged with the local overrides as edited.
 func (v *TeamDetailView) effectiveTracker() tracker.EffectiveTrackerConfig {
-	return tracker.ResolveTrackerConfig(&v.teamCfg.Tracker, v.localTrk)
+	return tracker.ResolveTrackerConfig(&v.teamCfg.Tracker, v.hubTrk.Overlay(v.localTrk))
 }
 
 // tokenFields are the fields that say where the token of the tracker is:
@@ -84,14 +84,20 @@ func (v *TeamDetailView) tokenFields() []configField {
 			// the flow of editSelected asks the key, the server and the token
 			Set: func(string) {},
 		},
-		{
-			Key: fieldTeamGitLabURL, Kind: CfgFieldString, Label: i18n.T("tui.team.detail.team_gitlab.label"),
-			Description: i18n.T("tui.team.detail.team_gitlab.desc"), Scope: ScopeTeamLocal,
-			Placeholder: i18n.T("tui.team.detail.team_gitlab.placeholder"),
-			Validator:   urlRule,
-			Get:         func() string { return v.cfg.ResolveTeam().GitLabURL },
-			Set:         v.setTeamGitLabURL,
-		},
+	}
+}
+
+// teamGitLabField is the GitLab server of the team-state repository, declared
+// by the member when the repository goes through an SSH alias (hub.toml, at
+// once).
+func (v *TeamDetailView) teamGitLabField() configField {
+	return configField{
+		Key: fieldTeamGitLabURL, Kind: CfgFieldString, Label: i18n.T("tui.team.detail.team_gitlab.label"),
+		Description: i18n.T("tui.team.detail.team_gitlab.desc"), Scope: ScopeTeamLocal,
+		Placeholder: i18n.T("tui.team.detail.team_gitlab.placeholder"),
+		Validator:   &FieldValidator{Check: serverCheck, AllowEmpty: true},
+		Get:         func() string { return v.cfg.ResolveTeam().GitLabURL },
+		Set:         v.setTeamGitLabURL,
 	}
 }
 
@@ -223,7 +229,7 @@ func (v *TeamDetailView) renewalDaysField(key, prefix string, check func(func(*t
 // setTeamGitLabURL declares the GitLab of the team-state repository in the
 // team of hub.toml. It is written at once: it is a setting of the machine
 // (the alias it replaces is a name of ~/.ssh/config), not part of the team
-// config that « w » publishes.
+// config that Ctrl+S publishes.
 func (v *TeamDetailView) setTeamGitLabURL(val string) {
 	if v.shell == nil || v.cfg.UpdateHubConfig == nil {
 		return
@@ -369,6 +375,8 @@ const (
 	MemberFieldGitLabUsername     = "gitlab_username"
 	MemberFieldMattermostUsername = "mattermost_username"
 	MemberFieldTrackerUsername    = "tracker_username"
+	MemberFieldRole               = "role"
+	MemberFieldDefaultMode        = "default_mode"
 )
 
 // memberKeyPrefix distinguishes the keys of the profile fields from the
@@ -380,7 +388,7 @@ func isMemberField(key string) bool { return strings.HasPrefix(key, memberKeyPre
 // memberFields are the fields of the profile of the current member: shared
 // with the team (members.toml of the team-state), written at once (one commit,
 // like a setting of hub.toml), outside the save/undo of the team config that
-// « w » publishes. The section is shown for a member of a team.
+// Ctrl+S publishes. The section is shown for a member of a team.
 func (v *TeamDetailView) memberFields() []configField {
 	if v.cfg.GetMember == nil || v.cfg.SaveMemberField == nil || v.cfg.ResolveTeam == nil || v.cfg.ResolveTeam().MemberID == "" {
 		return nil
@@ -395,7 +403,7 @@ func (v *TeamDetailView) memberFields() []configField {
 	}
 	optional := &FieldValidator{AllowEmpty: true}
 	return []configField{
-		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.team.detail.member.section")},
+		{Key: TeamSectionMember, Kind: CfgFieldSectionHeader, Label: i18n.T("tui.team.detail.member.section")},
 		{
 			Key: memberKeyPrefix + "id", Kind: CfgFieldReadonly, Label: i18n.T("tui.team.detail.member.id.label"),
 			Description: i18n.T("tui.team.detail.member.id.desc"), Scope: ScopeTeamShared,
@@ -417,7 +425,28 @@ func (v *TeamDetailView) memberFields() []configField {
 			func(m *teamstate.Member) string { return m.MattermostUsername }, optional),
 		field(MemberFieldTrackerUsername, "tui.team.detail.member.tracker.label", "tui.team.detail.member.tracker.desc",
 			func(m *teamstate.Member) string { return m.TrackerUsername }, optional),
+		v.memberSelect(MemberFieldRole, "v54c.field.member_role.label", "v54c.field.member_role.desc",
+			func(m *teamstate.Member) string { return m.Role },
+			[]SelectOption{{Label: "lead", Value: "lead"}, {Label: "dev", Value: "dev"}, {Label: "reviewer", Value: "reviewer"}}, true),
+		v.memberSelect(MemberFieldDefaultMode, "v54c.field.member_mode.label", "v54c.field.member_mode.desc",
+			func(m *teamstate.Member) string { return m.DefaultMode },
+			plainOptions("manual", "semi-auto", "auto"), false),
 	}
+}
+
+// memberSelect is a field of the profile chosen among a few values; the role
+// is for the leads to give (leadOnly).
+func (v *TeamDetailView) memberSelect(key, labelKey, descKey string, get func(*teamstate.Member) string, options []SelectOption, role bool) configField {
+	f := configField{
+		Key: memberKeyPrefix + key, Kind: CfgFieldSelect, Label: i18n.T(labelKey), Description: i18n.T(descKey),
+		Scope: ScopeTeamShared, Options: options,
+		Get: func() string { return get(&v.member) },
+		Set: func(val string) { v.saveMemberField(key, val) },
+	}
+	if role {
+		f = v.leadOnly(f)
+	}
+	return f
 }
 
 func roleSuffix(role string) string {
@@ -459,4 +488,14 @@ func (v *TeamDetailView) saveMemberField(field, value string) {
 		v.renderFields()
 		v.shell.ShowToastMsg(i18n.Tf("tui.team.detail.member.saved", field, strings.TrimSpace(value)), true)
 	})
+}
+
+// plainOptions are choices whose label is their value (names of the files,
+// not prose).
+func plainOptions(values ...string) []SelectOption {
+	out := make([]SelectOption, len(values))
+	for i, v := range values {
+		out[i] = SelectOption{Label: v, Value: v}
+	}
+	return out
 }

@@ -131,7 +131,7 @@ Le wizard détecte automatiquement l'état du repo et adapte le comportement :
 |-------|---------------------------|------------------------|
 | **Config globale** | Création `config.toml` (stale_days, sessions) | Mise à jour si modifié |
 | **Identité** | Enregistrement de votre fiche + commit-and-push | Mise à jour de **votre** fiche (celle de `hub.toml`) + commit-and-push |
-| **Notifications** | Configuration webhook Mattermost | Mise à jour si modifié |
+| **Notifications** | Webhook (Mattermost, Slack, Discord ou Teams, saisi masqué) : `enabled`, `type` et `webhook_url` | Mise à jour si modifié |
 | **Policies** | Multi-select de policies recommandées | Merge avec existantes |
 
 #### Champs du profil (étape Identité)
@@ -223,10 +223,16 @@ de naviguer vers la vue de détail équipe (`Enter`) ou de retourner à l'accuei
 [notification]
 enabled = true
 type = "mattermost"
-mattermost_webhook = "https://mattermost.example.com/hooks/..."
+webhook_url = "https://mattermost.example.com/hooks/..."
 channel = "#dev-ai"
 bot_name = "OpenHub"
 ```
+
+> **`enabled = true` est obligatoire** : sans lui, aucun message n'est envoyé, même avec un webhook. `type` peut manquer (il est déduit du serveur du webhook). Les anciennes équipes qui ont `mattermost_webhook` : `oh doctor --fix` le réécrit en `webhook_url` + `type`.
+>
+> **Le webhook est un secret écrit en clair dans le dépôt team-state.** `oh` le masque dans tous ses écrans et récapitulatifs, et `oh doctor` avertit si le dépôt est lisible par tout le monde : gardez ce dépôt privé.
+>
+> Sans éditer le fichier : `oh team config set notification.enabled true`, `oh team config set notification.webhook_url <url>`, ou le détail d'équipe de la TUI (section Notifications, `Ctrl+S` pour publier).
 
 Pour obtenir l'URL du webhook : Mattermost > Intégrations > Webhooks entrants > Ajouter.
 

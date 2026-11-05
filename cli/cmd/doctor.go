@@ -80,6 +80,8 @@ func doctorRegistry() []doctor.Check {
 		{ID: "setup", Name: i18n.T("cmd.doctor.check.setup"), Run: setupDoctorChecks},
 		{ID: doctorIDTeamAccess, Name: i18n.T("v54a.doctor.team_access.check"), Run: teamAccessDoctorChecks},
 		{ID: doctorIDSSHHost, Name: i18n.T("v54z.doctor.ssh_host.check"), Run: sshHostDoctorChecks},
+		{ID: doctorIDTeamConfig, Name: i18n.T("v54c.doctor.team_config.check"), Run: teamConfigDoctorChecks},
+		{ID: doctorIDHubTeams, Name: i18n.T("v54c.doctor.hub_teams.check"), Run: hubTeamsDoctorChecks},
 		{ID: doctorIDTrackerTokens, Name: i18n.T("cmd.doctor.check.tracker_tokens"), Run: trackerTokensChecks},
 		{ID: doctorIDTrackerConnection, Name: i18n.T("cmd.doctor.check.tracker_connection"), Run: trackerConnectionChecks},
 		{ID: doctorIDTrackerUsername, Name: i18n.T("cmd.doctor.check.tracker_username"), Run: trackerUsernameChecks},
@@ -100,7 +102,7 @@ func collectDoctorChecks() []doctor.Result {
 	if err != nil {
 		panic(err) // a duplicated identifier: caught by TestDoctorRegistryIDs
 	}
-	return reg.Run(context.Background())
+	return reg.Run(withDoctorRun(context.Background()))
 }
 
 func runDoctor(cmd *cobra.Command, args []string) error {
@@ -128,6 +130,12 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		if err := fixTrackerMappings(cmd); err != nil {
 			return err
 		}
+		if err := fixHubTeams(cmd); err != nil {
+			return err
+		}
+		if err := fixTeamConfig(cmd); err != nil {
+			return err
+		}
 		if err := fixOrphanServers(cmd); err != nil {
 			return err
 		}
@@ -140,10 +148,11 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 // (container engine, bd…), are reported as passed checks (U-05).
 func runDoctorChecks(w io.Writer, checks []doctor.Check) error {
 	allPassed := true
+	run := withDoctorRun(context.Background())
 	for _, c := range checks {
 		s := progress.NewSpinner(c.Name)
 		s.Start()
-		res := c.Results(context.Background())
+		res := c.Results(run)
 		s.Stop()
 
 		for _, r := range res {

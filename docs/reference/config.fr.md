@@ -378,8 +378,13 @@ Voir le [guide de configuration d'équipe](../guides/team-setup.fr.md) et le [gu
 ```toml
 # config.toml du team-state (PAS hub.toml)
 [notification]
-enabled = true
+enabled = true                 # sans cet interrupteur, rien n'est envoyé, même avec un webhook
+type = "slack"                 # mattermost | slack | discord | teams ; déduit du serveur du webhook s'il manque
+webhook_url = "https://hooks.slack.com/services/..."
+channel = "dev"                # Mattermost seulement
+bot_name = "OpenHub"
 
+# ou plusieurs destinations :
 [[notification.destinations]]
 type = "slack"           # mattermost | slack | discord | teams
 webhook_url = "https://hooks.slack.com/services/..."
@@ -392,11 +397,16 @@ webhook_url = "https://discord.com/api/webhooks/..."
 
 | Champ | Type | Défaut | Description |
 |-------|------|--------|-------------|
-| `enabled` | bool | false | Activer les notifications |
+| `enabled` | bool | false | Activer les notifications (le détail d'équipe de la TUI et `oh team config set notification.enabled true` le règlent) |
+| `type` | string | déduit | Backend du webhook unique : mattermost, slack, discord, teams. Absent, il est déduit du serveur de `webhook_url` (`hooks.slack.com`, `discord.com`, `*.webhook.office.com`, sinon Mattermost) |
+| `webhook_url` | string | — | URL du webhook unique. **Secrète** : elle est écrite en clair dans le dépôt team-state, donc masquée dans tous les écrans, récapitulatifs et événements, et `oh doctor` avertit si ce dépôt est lisible par tout le monde |
+| `mattermost_webhook` | string | — | Ancienne clé de `webhook_url` : toujours lue ; `oh doctor --fix` la réécrit en `webhook_url` + `type` |
 | `destinations[].type` | string | — | Backend : mattermost, slack, discord, teams |
 | `destinations[].webhook_url` | string | — | URL du webhook entrant |
 | `destinations[].channel` | string | — | Nom du canal (Mattermost uniquement) |
 | `destinations[].bot_name` | string | "OpenHub" | Nom d'affichage du bot |
+
+Toutes ces clés se règlent sans terminal avec `oh team config set notification.enabled true`, `oh team config set notification.webhook_url <url>`, `oh team config set notification.destinations.0.type slack`, et `oh team config unset notification.webhook_url` pour retirer le webhook.
 
 ---
 
@@ -612,7 +622,7 @@ Relie le team-state à un tracker externe (GitLab ou Jira).
 [tracker]
 enabled = true
 type = "gitlab"              # "gitlab" ou "jira"
-tracker_url = ""             # instance du tracker ; vide = URL du MCP
+tracker_url = ""             # instance du tracker ; vide = GITLAB_URL (JIRA_URL pour Jira), sinon gitlab.com (Jira : obligatoire)
 tracker_project = "group/app"   # projet GitLab (ID ou chemin) ou clé Jira
 ticket_pattern = "APP-(\\d+)"   # regex à un groupe de capture → IID externe
 auto_sync = true             # synchro automatique (démon + ouverture du board)
@@ -631,8 +641,8 @@ write_enabled = false        # écritures tracker (labels, assignation)
 | Champ | Type | Défaut | Description |
 |-------|------|--------|-------------|
 | `enabled` | bool | `false` | Activer l'intégration |
-| `type` | string | — | `"gitlab"` ou `"jira"` (`type_enforced` pour l'imposer) |
-| `tracker_url` | string | vide | Instance du tracker, indépendante du MCP |
+| `type` | string | — | `"gitlab"` ou `"jira"` (l'ancien `type_enforced` n'avait aucun effet : il est retiré, `oh doctor --fix` le supprime) |
+| `tracker_url` | string | vide | Instance du tracker, indépendante du MCP (l'URL du MCP n'est jamais reprise). Vide : `GITLAB_URL` (`JIRA_URL` pour Jira), à défaut `https://gitlab.com` ; Jira n'a pas de défaut |
 | `tracker_token_key` | string | vide | Clé du token dans le trousseau, déclarée par l'utilisateur : rien n'est rempli à sa place. Sans clé, GitLab lit `openhub.tracker.gitlab.token` pour le serveur du tracker (puis le jeton de l'équipe ou du MCP, pour leur serveur) ; Jira ne lit que la clé déclarée. Se règle dans `oh init`, `oh team rejoin`, `oh team config` et `team-detail` |
 | `tracker_token_url` | string | vide | Serveur pour lequel le jeton de `tracker_token_key` (et l'ancienne clé du tracker) est valable, ex. `https://gitlab.example.com`. Sans lui, la clé est valable pour le tracker (voir [le serveur de chaque jeton](#le-serveur-de-chaque-jeton-gitlab)) |
 | `tracker_project` | string | vide | Projet du tracker par défaut (surchargeable par projet) |
@@ -658,7 +668,20 @@ write_enabled = false        # écritures tracker (labels, assignation)
 - **`todo` n'est pas un statut de claim**, sauf si `[board]` déclare une colonne de cet ID : la colonne initiale d'un board sans colonnes propres est `planned`. Une valeur de `status_mapping` ou de `label_status_mapping` qui n'est pas un statut du board est traitée ainsi. `todo`, ou l'ID d'une colonne, est **lu** comme le statut de la colonne initiale (`planned`), avec une ligne d'avertissement par équipe et par processus (le détail de chaque valeur est dans le journal, `oh -v`) et dans `oh doctor`, qui réécrit le fichier avec `--fix`. Toute autre valeur (faute de frappe, colonne qui n'existe plus) est **ignorée** par la synchro, qui le dit dans son résumé. **Enregistrer** la configuration d'équipe (`oh team config`, la TUI) est **refusé** tant qu'une telle valeur s'y trouve, avec son nom et les statuts valides. L'assistant de `oh team config` écrit `planned`, ou l'ID de la colonne initiale quand le board déclare ses colonnes.
 - **Synchronisation automatique (`auto_sync = true`)** : le démon de chaque membre regarde l'équipe chaque minute et lance une synchro quand `sync_interval_minutes` est écoulé depuis sa dernière tentative ; le board en lance une à son ouverture, et se met à jour tout seul (pull léger et silencieux toutes les minutes, résumé de la synchro dans un toast). **Un seul membre synchronise par intervalle** : la synchro prend un **bail** dans le fichier `sync.lock` du team-state (le membre et l'échéance, écrits dans le commit de la synchro). Tant que le bail court, la synchro automatique des autres membres (et de ses autres machines) ne fait rien ; à l'échéance, la première qui passe le reprend, et si deux membres partent ensemble le push tranche (le second trouve le bail du premier). Un membre qui n'a pas de jeton valide ne prend jamais le bail. Une synchro demandée (`oh team sync-tracker`, touche `r`) n'attend pas le bail et le prend à son tour. Sans `auto_sync`, rien n'est écrit dans `sync.lock`. Après **trois refus du même jeton en suivant** (HTTP 401), la synchro automatique s'arrête jusqu'à ce que le jeton change (le compte est gardé dans `~/.oh/sync-state.json` ; une synchro demandée essaie toujours). Un refus d'accès (HTTP 403) concerne un projet du tracker, pas le jeton : il est signalé dans le résumé et les autres projets sont synchronisés.
 - **Quels projets, quels tickets** : seuls les projets du hub rattachés à l'équipe (`team_id`) sont liés à son projet de tracker ; un projet d'une autre équipe ou sans équipe n'a pas ses claims dans ce team-state. Une issue n'a qu'**un** claim par projet de tracker : deux projets du hub liés au même projet de tracker ne la prennent pas tous les deux (le premier par ordre alphabétique la garde), et `42` et `SRU-42` ne coexistent pas. L'identifiant d'un ticket créé par la synchro suit `ticket_pattern` (`SRU-(\d+)` donne `SRU-42`) ; sans motif, c'est le numéro. Un claim libéré volontairement (`oh team release`, fin de session, nettoyage des claims faits par la synchro) n'est pas recréé par la synchro, y compris par une autre machine ; il revient si l'issue est mise à jour sur le tracker.
-- `hub.toml` `[tracker]` permet à un membre de désactiver localement `enabled`, `auto_sync`, `push_labels`, `auto_plan_assigned`, etc., et de régler sa propre clé de jeton (`tracker_token_key` + `tracker_token_url`, qui passent ensemble).
+- `hub.toml` `[tracker]` permet à un membre de désactiver localement `enabled`, `auto_sync`, `push_labels`, `auto_plan_assigned`, etc., et de régler sa propre clé de jeton (`tracker_token_key` + `tracker_token_url`, qui passent ensemble). C'est le **défaut de toutes les équipes** du membre ; pour une seule équipe, la section `[teams.tracker]` sous son `[[teams]]` (`oh config set teams.<id>.tracker.auto_sync false`) l'emporte, clé par clé. La limite `max_in_progress_per_member` que l'équipe a choisie est un **plafond** : un membre demande moins, jamais plus ni « aucune limite » ; une équipe qui n'a rien choisi (le défaut 5) laisse le choix.
+
+```toml
+# hub.toml
+[tracker]                 # défaut de toutes les équipes
+auto_sync = true
+
+[[teams]]
+id = "acme"
+# ...
+[teams.tracker]           # cette équipe seulement
+auto_sync = false
+max_in_progress_per_member = 3
+```
 
 ### Le serveur de chaque jeton GitLab
 
@@ -733,9 +756,12 @@ Recommandations de modèles de l'équipe, éditées dans la TUI (Équipe › Mod
 ```toml
 [governance]
 publish = "any_member"   # valeur par défaut, seule prise en charge
+config = "lead"          # défaut ; "any_member" : tout membre change les réglages imposés
 ```
 
-Qui peut publier les workflows de l'équipe. Une valeur inconnue bloque la publication. Voir [workflows d'équipe](../guides/team-workflows.fr.md#gouvernance).
+`publish` : qui peut publier les workflows de l'équipe. Une valeur inconnue bloque la publication. Voir [workflows d'équipe](../guides/team-workflows.fr.md#gouvernance).
+
+`config` : qui peut changer les réglages qui lient les autres membres — les clés `*_enforced` (`push_labels_enforced`, `mcp.<service>.enabled_enforced`, `url_enforced`), les plafonds `[limits.enforced]` et la section `[governance]` elle-même. Par défaut, **le rôle `lead`** (champ `role` de la fiche du membre dans `members.toml`) : un autre membre est refusé avec la liste des clés. Une équipe qui n'a aucun lead n'est pas verrouillée. Seul un lead change le rôle d'un membre. Le reste de la configuration est ouvert à tout membre ; chaque publication laisse un événement **`config_changed`** (les clés changées et l'auteur, jamais les valeurs) dans `oh team activity`.
 
 ### Section `[limits]`
 
@@ -750,12 +776,20 @@ models = ["eu.anthropic.claude-*"]
 
 Clés : `max_active_sessions`, `session_budget_usd`, `daily_budget_usd`, `memory_mb`, `models`. Cascade : hub → équipe (recommandé / imposé) → projet → workflow (`limits:`). Voir [ADR-044](../architecture/adr/044-credential-proxy-session-limits.fr.md) et `oh budget show`.
 
-### Sections `[takeover]` et `[parallel]`
+### Section `[takeover]`
 
 | Champ | Défaut | Description |
 |---|---|---|
-| `takeover.stale_days` | `3` | Jours d'inactivité avant qu'un claim soit considéré comme abandonné (briefs de reprise) |
-| `parallel.max_sessions` | `5` | Hérité de l'ancien mode parallèle (supprimé en v5) ; lu mais sans effet, plus modifiable dans le détail d'équipe (limiter les sessions : `[limits]`, `oh budget`) |
+| `takeover.stale_days` | `3` | Jours d'inactivité (1 à 30) avant qu'un claim soit considéré comme abandonné (briefs de reprise) |
+
+La section `[parallel]` de l'ancien mode parallèle (supprimé en v5) n'est plus lue ni écrite : limiter les sessions, c'est `[limits]` et `oh budget`. `oh doctor --fix` la retire.
+
+### Ce que `oh` écrit dans `config.toml`
+
+- **Les clés que cet `oh` ne connaît pas sont conservées** (un `oh` plus récent, une faute de frappe) : une publication ne les efface plus. `oh doctor` les signale.
+- **Les valeurs égales au défaut ne sont pas écrites** (`stale_days = 3`, `lease_hours = 24`, `done_retention_days = 7`, `bot_name = "OpenHub"`, `sync_interval_minutes = 5`, `max_unassigned_issues = 20`) : le fichier ne contient que ce que l'équipe a choisi. `heartbeat_minutes = 0` (battement désactivé) reste écrit.
+- **Seules les sections touchées par un changement sont validées** : un mapping faux ailleurs ne bloque pas un réglage sans rapport. Bornes : `stale_days` 1–30, `done_retention_days` 1–90, `max_in_progress_per_member` 0–100, `sync_interval_minutes` 0–60, `max_unassigned_issues` 1–200, `lease_hours` 1–168 (voir `[claim]`).
+- `oh team config get|set|unset <section.clé>` et `oh team config show [--origin]` lisent et changent ces réglages un par un ; `oh doctor` vérifie le fichier (clés anciennes ou inconnues, valeurs hors bornes, board, notifications) et `--fix` répare le réparable.
 
 ---
 

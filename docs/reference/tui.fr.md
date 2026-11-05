@@ -93,7 +93,7 @@ Une touche a le même sens dans toutes les vues. Une vue peut donner une lettre 
 
 `w` n'a qu'un sens : ouvrir dans le navigateur (Sessions). Enregistrer, c'est `Ctrl+S`.
 
-**Enregistrer** : les pages Réglages et Projet (config, modèles, MCP) enregistrent seules après **un seul délai** (500 ms, le même partout) et le disent dans le titre de la page : `✎ enregistrement…` puis `✔ enregistré` (`✗ non enregistré` si l'enregistrement a échoué). Les pages d'équipe (détail d'équipe, modèles d'équipe, MCP d'équipe) publient dans le team-state, partagé avec l'équipe : elles n'enregistrent pas seules, le titre dit `✎ non publié — Ctrl+S` tant qu'un changement attend, `✔ enregistré` une fois que `Ctrl+S` l'a publié.
+**Enregistrer** : les pages Réglages et Projet (config, modèles, MCP) enregistrent seules après **un seul délai** (500 ms, le même partout) et le disent dans le titre de la page : `✎ enregistrement…` puis `✔ enregistré` (`✗ non enregistré` si l'enregistrement a échoué). Les pages d'équipe (détail d'équipe, modèles d'équipe, MCP d'équipe) publient dans le team-state, partagé avec l'équipe : le partagé n'est pas enregistré seul, le titre dit `✎ non publié — Ctrl+S` tant qu'un changement attend, `✔ enregistré` une fois que `Ctrl+S` l'a publié (le personnel de `hub.toml` s'enregistre seul : voir le détail d'équipe).
 
 ### Touches changées
 
@@ -456,6 +456,16 @@ L'assistant de découverte du tracker (« Découvrir le tracker ») utilise le m
 | Policies | `Entrée` détail, `n` créer, `t` modèle, `e` éditer, `d` supprimer (confirmé), `c` vérifier |
 | Statut, Activité, Métriques | `c` vérifier les conventions · `t` / `s` / `0` aujourd'hui, semaine, tout (Activité) · `7` / `3` / `0` période, `Tab` usage par agent |
 | Reprises | `Entrée` voir le brief, `e` enrichir (workflow `brief-enrich`) |
+
+**Détail d'équipe.** Trois sortes de réglages, dites dans le titre de chaque section :
+
+| Titre de section | Où ça s'écrit | Quand |
+|---|---|---|
+| « … partagé avec l'équipe (Ctrl+S pour publier) » : Tracker, Réserve et auto-plan, Board, Claims, Notifications, Restrictions, Gouvernance | `config.toml` du team-state | **brouillon** publié d'un bloc par `Ctrl+S` (un commit, un événement `config_changed`) |
+| « … enregistré automatiquement (hub.toml) » : Mes surcharges pour cette équipe | la section `[teams.tracker]` de l'équipe | **tout seul** après chaque modification |
+| « … enregistré aussitôt » : Cette équipe sur ce poste (nom, identifiant de membre, défaut, GitLab) et Ma fiche (profil, rôle, mode) | `hub.toml` ou `members.toml` | **à la validation** du champ |
+
+Chaque réglage partagé indique s'il vient de l'`équipe` ou du `défaut` ; une réponse **vide** à un champ numérique ou texte remet le défaut. Les réglages `*_enforced`, les plafonds `Restrictions › Imposé`, le rôle et la gouvernance sont **réservés aux leads** (cadenas et message sinon). Le webhook de notification se saisit dans une fenêtre qui masque la saisie et s'affiche masqué. `Échap` avec un brouillon non publié demande : **publier et quitter**, **abandonner**, **rester** ; un lien vers MCP, Modèles ou Workflows garde le brouillon et le remet au retour (abandonné, avec le nom des clés, si un collègue a changé le même réglage entre-temps). « Reconfigurer l'équipe… » rouvre l'assistant ; « Colonnes et mappings… » ouvre l'éditeur du board (après publication du brouillon). Sans équipe, `n` ouvre la création d'une équipe.
 
 ## Assistants
 

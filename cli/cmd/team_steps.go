@@ -94,7 +94,7 @@ func (s *teamStepState) useRepo(repo teamStepStore) {
 	s.ExistingCfg, _ = repo.LoadConfig(s.Ctx)
 	if s.HasConfig && s.ExistingCfg != nil {
 		s.StaleDaysStr = strconv.Itoa(s.ExistingCfg.Takeover.StaleDays)
-		s.WebhookURL = s.ExistingCfg.Notification.MattermostWebhook
+		s.WebhookURL = s.ExistingCfg.Notification.EffectiveURL()
 		s.Channel = s.ExistingCfg.Notification.Channel
 		s.BotName = s.ExistingCfg.Notification.BotName
 	}
@@ -156,19 +156,8 @@ func buildTeamConfigStep(s *teamStepState, opts teamStepOpts) views.WizardStep {
 			// The one setting of the step, on top of the latest config.toml:
 			// what the others changed in it meanwhile is kept. A team without
 			// config.toml gets the defaults of a new team around it.
-			return s.Repo.UpdateConfig(s.Ctx, func(cfg *teamstate.TeamConfig) error {
+			return s.Repo.UpdateConfig(teamstate.WithActor(s.Ctx, s.MemberID), func(cfg *teamstate.TeamConfig) error {
 				cfg.Takeover.StaleDays = days
-				if !s.HasConfig && cfg.Parallel == (teamstate.ParallelConfig{}) {
-					cfg.Parallel = teamstate.ParallelConfig{
-						MaxSessions:            5,
-						MaxBudgetMinutes:       180,
-						DefaultTicketWeightMin: 60,
-						PortRangeStart:         4100,
-						AutoMergeBeads:         true,
-						MaxRetries:             2,
-						RetryDelaySeconds:      5,
-					}
-				}
 				return nil
 			})
 		},
@@ -275,9 +264,9 @@ func buildTeamNotifStep(s *teamStepState, opts teamStepOpts) views.WizardStep {
 		SkipIf:     func() bool { return opts.shouldSkip(s) },
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
-			form.AddInputField(
+			form.AddPasswordField(
 				i18n.T("cmd.team.init.notif_webhook"),
-				s.WebhookURL, 0, nil,
+				s.WebhookURL, 0, '•',
 				func(text string) { s.WebhookURL = text })
 			form.AddInputField(
 				i18n.T("cmd.team.init.notif_channel"),
@@ -294,8 +283,10 @@ func buildTeamNotifStep(s *teamStepState, opts teamStepOpts) views.WizardStep {
 			if s.WebhookURL == "" {
 				return nil
 			}
-			return s.Repo.UpdateConfig(s.Ctx, func(cfg *teamstate.TeamConfig) error {
-				cfg.Notification.MattermostWebhook = s.WebhookURL
+			return s.Repo.UpdateConfig(teamstate.WithActor(s.Ctx, s.MemberID), func(cfg *teamstate.TeamConfig) error {
+				cfg.Notification.WebhookURL = s.WebhookURL
+				cfg.Notification.Type = teamstate.InferNotifierType(s.WebhookURL)
+				cfg.Notification.MattermostWebhook = ""
 				cfg.Notification.Channel = s.Channel
 				cfg.Notification.BotName = s.BotName
 				cfg.Notification.Enabled = true
@@ -307,7 +298,7 @@ func buildTeamNotifStep(s *teamStepState, opts teamStepOpts) views.WizardStep {
 				return []views.InfoField{{Label: i18n.T("cmd.init.wizard_team_info_notifs"), Value: i18n.T("cmd.init.wizard_team_info_skipped")}}
 			}
 			return []views.InfoField{
-				{Label: i18n.T("cmd.init.wizard_team_info_webhook"), Value: s.WebhookURL},
+				{Label: i18n.T("cmd.init.wizard_team_info_webhook"), Value: teamstate.MaskWebhook(s.WebhookURL)},
 				{Label: i18n.T("cmd.init.wizard_team_info_channel"), Value: s.Channel},
 				{Label: i18n.T("cmd.init.wizard_team_info_bot"), Value: s.BotName},
 			}

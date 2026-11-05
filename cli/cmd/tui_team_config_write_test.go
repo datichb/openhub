@@ -88,3 +88,24 @@ func TestApplyDiscoveryLeavesTheOtherSettings(t *testing.T) {
 	assert.Equal(t, "a/b", got.Tracker.TrackerProject)
 	assert.Equal(t, []string{"ready"}, got.Tracker.UnassignedLabels)
 }
+
+// A discovery that replaces the board does not leave the old mappings to
+// columns that are gone: they would make the new config refuse to be saved.
+func TestApplyDiscoveryDropsTheMappingsOfLostColumns(t *testing.T) {
+	repo := soloTeamState(t)
+	require.NoError(t, repo.UpdateConfig(t.Context(), func(c *teamstate.TeamConfig) error {
+		c.Board.Columns = []teamstate.BoardColumnConfig{
+			{ID: "todo", Name: "TODO", Role: teamstate.ColumnRoleInitial}, {ID: "qa", Name: "QA", Role: teamstate.ColumnRoleActive},
+			{ID: "done", Name: "DONE", Role: teamstate.ColumnRoleTerminal},
+		}
+		c.Tracker.LabelStatusMapping = map[string]string{"In QA": "qa", "Done": "done"}
+		return nil
+	}))
+	require.NoError(t, repo.UpdateConfig(t.Context(), func(c *teamstate.TeamConfig) error {
+		applyDiscovery(c, discoveryResult{trackerType: "gitlab", projectID: "a/b", columns: editorColumns})
+		return nil
+	}), "the old mapping to qa does not block the save")
+	got, err := repo.LoadConfig(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"Done": "done"}, got.Tracker.LabelStatusMapping)
+}

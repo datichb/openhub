@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
@@ -15,14 +16,27 @@ import (
 // the typed setters of `oh config set` (configFieldMap), so a value is never
 // written with another type than the one the key has.
 type localEdits struct {
+	// team, when set, makes the [tracker] keys the ones of that team
+	// ([teams.tracker], teams.<id>.tracker.<key>): the settings the
+	// assistant asks about are those of the team it configures.
+	team string
 	ops  []func(*config.Config) error
 	said []string // what to tell the user once it is written
 }
 
+// keyOf is the key as written for the team of the edits.
+func (l *localEdits) keyOf(key string) string {
+	if l.team != "" && strings.HasPrefix(key, "tracker.") {
+		return "teams." + l.team + "." + key
+	}
+	return key
+}
+
 // set changes the key of hub.toml to value (configFieldMap).
 func (l *localEdits) set(key, value string) {
+	key = l.keyOf(key)
 	l.ops = append(l.ops, func(c *config.Config) error {
-		f, ok := configFieldMap[key]
+		f, ok := lookupConfigField(key)
 		if !ok {
 			return fmt.Errorf("%s", i18n.Tf("cmd.config.unknown_key", key))
 		}
@@ -33,8 +47,9 @@ func (l *localEdits) set(key, value string) {
 
 // unset removes the key from hub.toml: the setting is inherited again.
 func (l *localEdits) unset(key string) {
+	key = l.keyOf(key)
 	l.ops = append(l.ops, func(c *config.Config) error {
-		f, ok := configFieldMap[key]
+		f, ok := lookupConfigField(key)
 		if !ok {
 			return fmt.Errorf("%s", i18n.Tf("cmd.config.unknown_key", key))
 		}
