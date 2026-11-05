@@ -122,8 +122,11 @@ func (w *teamAssistant) saveTeam(memberID string) error {
 func (w *teamAssistant) steps() []views.WizardStep {
 	var steps []views.WizardStep
 	if w.team == nil {
-		steps = append(steps, w.access.RepoStep(), w.access.ProbeStep(), w.access.AccessStep(), w.cloneStep())
+		steps = append(steps, w.access.RepoStep())
+		steps = append(steps, w.access.HostSteps()...)
+		steps = append(steps, w.access.ProbeStep(), w.access.AccessStep(), w.cloneStep())
 	} else {
+		steps = append(steps, w.access.HostSteps()...)
 		steps = append(steps, w.access.ProbeStep(), w.access.AccessStep(), w.syncStep())
 	}
 	opts := teamStepOpts{}

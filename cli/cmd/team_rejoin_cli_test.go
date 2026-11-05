@@ -90,6 +90,7 @@ func TestTeamRejoinAsksTheTokenBeforeTheClone(t *testing.T) {
 // An SSH repository whose key is refused: the command says what to check, and
 // asks no token.
 func TestTeamRejoinSSHRefusedAsksNoToken(t *testing.T) {
+	fakeSSHServers(t, "gitlab.example.com") // known: the server is not what this test is about
 	fakeSSHRefusing(t)
 	_, out, err := rejoinOn(t, "git@gitlab.example.com:org/team.git", "token\n", "--member-id=testuser")
 	require.Error(t, err)

@@ -97,6 +97,9 @@ const maxTokenAttempts = 3
 // is the text version of the probe and access steps of the assistants
 // (teamAccess), run before anything is cloned.
 func (p *cliPrompter) ensureAccess(ctx context.Context, a *app.App, repo string) error {
+	if err := p.ensureSSHHost(ctx, repo); err != nil {
+		return err
+	}
 	err := teamstate.ProbeRemote(ctx, repo)
 	if err == nil {
 		return nil

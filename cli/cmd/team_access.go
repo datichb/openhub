@@ -20,6 +20,11 @@ import (
 // is cloned and before the identity of the member is asked: a repository that
 // asks for a token or a key is known before the work of the assistant.
 //
+// A repository over SSH whose server the machine does not know yet adds two
+// steps in front of the probe (HostSteps): the keys of the server are read and
+// shown, and the user trusts the server or refuses it. Nothing connects to it
+// before.
+//
 // The four assistants (oh init « Créer » and « Rejoindre », the palette's
 // « Initialiser l'équipe » and « Rejoindre une équipe ») build them with the
 // same teamAccess, then go on with their own steps; an error of their own
@@ -27,9 +32,11 @@ import (
 
 // Step IDs the buttons of the error screens go back to.
 const (
-	stepTeamRepo   = "team_repo"
-	stepTeamProbe  = "team_probe"
-	stepTeamAccess = "team_access"
+	stepTeamRepo     = "team_repo"
+	stepTeamHostScan = "team_host_scan"
+	stepTeamHost     = "team_host"
+	stepTeamProbe    = "team_probe"
+	stepTeamAccess   = "team_access"
 )
 
 // teamAccess is the state and the steps of the repository and access part of
@@ -78,6 +85,13 @@ type teamAccess struct {
 	// ProbeErr is the last refusal, for the words of the access step.
 	ProbeErr error
 	probed   string
+
+	// The SSH server the host steps ask about: read for hostFor, with its keys.
+	host        *teamstate.SSHHost
+	hostKeys    []teamstate.HostKey
+	hostFor     string
+	hostRefused bool
+	hostTrusted string // the server the user trusted, for the summary
 }
 
 func (a *teamAccess) ctx() context.Context {
@@ -160,6 +174,89 @@ func (a *teamAccess) RepoStep() views.WizardStep {
 			return []views.InfoField{{Label: i18n.T("cmd.init.wizard_team_info_repo"), Value: *a.Repo}}
 		},
 	}
+}
+
+// HostSteps are the two steps that come before the probe when the repository is
+// over SSH and its server is not in known_hosts: reading the keys of the
+// server, then the confirmation. Both skip themselves otherwise. They cannot be
+// skipped by Esc: skipping would let the first connection accept the server
+// without a word.
+func (a *teamAccess) HostSteps() []views.WizardStep {
+	return []views.WizardStep{a.hostScanStep(), a.hostStep()}
+}
+
+func (a *teamAccess) hostScanStep() views.WizardStep {
+	return views.WizardStep{
+		ID:            stepTeamHostScan,
+		Label:         i18n.T("v54a2.host.scan_label"),
+		Processing:    i18n.T("v54a2.host.scan_processing"),
+		SidebarHidden: true,
+		BackSkip:      true,
+		Required:      true,
+		SkipIf: func() bool {
+			return !a.active() || teamstate.UnknownSSHHost(a.ctx(), a.repo()) == nil
+		},
+		OnDone: func() error {
+			a.host, a.hostKeys, a.hostFor = nil, nil, ""
+			host := teamstate.UnknownSSHHost(a.ctx(), a.repo())
+			if host == nil {
+				return nil
+			}
+			keys, err := host.Scan(a.ctx())
+			if err != nil {
+				return err
+			}
+			a.host, a.hostKeys, a.hostFor = host, keys, a.repo()
+			return nil
+		},
+		ErrorActions: a.ErrorActions,
+	}
+}
+
+func (a *teamAccess) hostStep() views.WizardStep {
+	return views.WizardStep{
+		ID:            stepTeamHost,
+		Label:         i18n.T("v54a2.host.label"),
+		Processing:    i18n.T("v54a2.host.processing"),
+		SidebarHidden: true,
+		Required:      true,
+		SkipIf:        func() bool { return !a.active() || a.host == nil || a.hostFor != a.repo() },
+		Form: func(_ *tview.Application, onDone func()) *tview.Form {
+			text := i18n.Tf("v54a2.host.form_intro", a.host.Display(), hostFingerprintLines(a.hostKeys), a.host.WriteTo)
+			form := tview.NewForm()
+			form.AddTextView("", text, 70, textHeight(text, 70)+1, true, false)
+			// the safe answer comes first: Enter does not trust a server by reflex
+			form.AddButton(i18n.T("v54a2.host.refuse"), func() { a.hostRefused = true; onDone() })
+			form.AddButton(i18n.T("v54a2.host.trust"), func() { a.hostRefused = false; onDone() })
+			return form
+		},
+		OnDone: func() error {
+			if a.hostRefused {
+				a.hostRefused = false
+				sshCmd, _ := a.host.ManualCommands()
+				return errors.New(i18n.Tf("v54a2.host.refused", a.host.Display(), sshCmd))
+			}
+			if err := a.host.Trust(a.hostKeys); err != nil {
+				return fmt.Errorf(i18n.T("v54a2.host.write_failed"), a.host.WriteTo, err)
+			}
+			a.hostTrusted = a.host.Display()
+			a.host = nil
+			return nil
+		},
+		ErrorActions: a.ErrorActions,
+		InfoFields: func() []views.InfoField {
+			return []views.InfoField{{Label: i18n.T("v54a2.host.field"), Value: i18n.Tf("v54a2.host.trusted", a.hostTrusted)}}
+		},
+	}
+}
+
+// textHeight is the number of lines text takes in a view width columns wide.
+func textHeight(text string, width int) int {
+	n := 0
+	for _, line := range strings.Split(text, "\n") {
+		n += max(1, (len([]rune(line))+width-1)/width)
+	}
+	return n
 }
 
 // ProbeStep reads the repository (git ls-remote) with what git has and the
