@@ -230,11 +230,27 @@ func (cfg *TeamConfig) ValidateTouched(keys []string) error {
 			if !validNotifierType(d.Type) {
 				return fmt.Errorf("notification.destinations[%d].type: %s", i, i18n.Tf("v54c.config.one_of", strings.Join(NotifierTypes, ", "), d.Type))
 			}
+			if err := validEvents(fmt.Sprintf("notification.destinations[%d].events", i), d.Events); err != nil {
+				return err
+			}
+		}
+		if err := validEvents("notification.events", cfg.Notification.Events); err != nil {
+			return err
 		}
 	}
 	if touches(keys, "governance") {
 		if p := cfg.Governance.Config; p != "" && p != GovernanceConfigLead && p != GovernanceConfigAnyMember {
 			return fmt.Errorf("governance.config: %s", i18n.Tf("v54c.config.one_of", GovernanceConfigLead+", "+GovernanceConfigAnyMember, p))
+		}
+	}
+	return nil
+}
+
+// validEvents refuses a pattern that selects no known event.
+func validEvents(key string, patterns []string) error {
+	for _, p := range patterns {
+		if !ValidEventPattern(strings.TrimSpace(p)) {
+			return fmt.Errorf("%s: %s", key, i18n.Tf("v54n.config.unknown_event", p, strings.Join(NotificationEvents, ", ")))
 		}
 	}
 	return nil

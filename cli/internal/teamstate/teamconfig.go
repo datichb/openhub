@@ -343,6 +343,15 @@ type NotificationConfig struct {
 	// Generic webhook URL — used by slack, discord, teams
 	WebhookURL string `toml:"webhook_url,omitempty"`
 
+	// Events lists the events sent to the webhook above: event types
+	// ("review.ready"), families ("claim.*") or "*". Empty = the events of the
+	// matrix that are on by default (review, wiki and the messages of agents).
+	Events []string `toml:"events,omitempty"`
+	// Mention names the person an event is for (the reviewer, the author of
+	// a reviewed MR, the member a claim went to) with the mattermost_username
+	// of their card. Default: true; false = the text only says their name.
+	Mention *bool `toml:"mention,omitempty"`
+
 	// Optional: multiple destinations
 	Destinations []NotificationDestination `toml:"destinations,omitempty"`
 }
@@ -353,6 +362,9 @@ type NotificationDestination struct {
 	WebhookURL string `toml:"webhook_url,omitempty"` // Webhook URL
 	Channel    string `toml:"channel,omitempty"`     // Channel (Mattermost only)
 	BotName    string `toml:"bot_name,omitempty"`    // Bot display name
+	// Events and Mention are those of NotificationConfig, for this destination.
+	Events  []string `toml:"events,omitempty"`
+	Mention *bool    `toml:"mention,omitempty"`
 }
 
 // TakeoverConfig holds settings for the takeover brief system.

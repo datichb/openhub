@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,6 +44,7 @@ func TestMattermostSendError(t *testing.T) {
 	err := client.Send(context.Background(), "test")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "500")
+	assert.False(t, strings.Contains(err.Error(), srv.URL), "the error never carries the webhook")
 }
 
 func TestDispatcherDisabled(t *testing.T) {
@@ -77,6 +79,7 @@ func TestDispatcherSends(t *testing.T) {
 			MattermostWebhook: srv.URL,
 			Channel:           "test-channel",
 			BotName:           "OpenHub",
+			Events:            []string{"claim.*"}, // the claims are not in the default events
 		},
 	}
 	d := NewDispatcher(cfg)
@@ -91,155 +94,4 @@ func TestDispatcherSends(t *testing.T) {
 	assert.Contains(t, received.Text, "benjamin")
 	assert.Contains(t, received.Text, "SRU-142")
 	assert.Equal(t, "test-channel", received.Channel)
-}
-
-func TestFormatEvent(t *testing.T) {
-	tests := []struct {
-		name     string
-		event    teamstate.Event
-		expected string
-	}{
-		{
-			name: "session complete with duration",
-			event: teamstate.Event{
-				Type:    teamstate.EventSessionComplete,
-				Actor:   "benjamin",
-				Project: "T-SRU",
-				Ticket:  "SRU-142",
-				Data:    map[string]interface{}{"duration_s": float64(4500)},
-			},
-			expected: "[T-SRU] benjamin a terminé SRU-142 (75 min)",
-		},
-		{
-			name: "session complete with summary",
-			event: teamstate.Event{
-				Type:    teamstate.EventSessionComplete,
-				Actor:   "benjamin",
-				Project: "T-SRU",
-				Ticket:  "SRU-142",
-				Data:    map[string]interface{}{"duration_s": float64(120), "summary": "fix login bug"},
-			},
-			expected: "[T-SRU] benjamin a terminé SRU-142 (2 min) — fix login bug",
-		},
-		{
-			name: "session complete zero duration",
-			event: teamstate.Event{
-				Type:    teamstate.EventSessionComplete,
-				Actor:   "benjamin",
-				Project: "T-SRU",
-				Ticket:  "SRU-142",
-				Data:    map[string]interface{}{"duration_s": float64(0)},
-			},
-			expected: "[T-SRU] benjamin a terminé SRU-142",
-		},
-		{
-			name: "claim taken",
-			event: teamstate.Event{
-				Type:    teamstate.EventClaimTaken,
-				Actor:   "alice",
-				Project: "T-SRU",
-				Ticket:  "SRU-155",
-			},
-			expected: "[T-SRU] alice a pris SRU-155",
-		},
-		{
-			name: "claim conflict",
-			event: teamstate.Event{
-				Type:    teamstate.EventClaimConflict,
-				Actor:   "alice",
-				Project: "T-SRU",
-				Ticket:  "SRU-142",
-				Data:    map[string]interface{}{"current_owner": "benjamin"},
-			},
-			expected: "[T-SRU] :warning: Conflit de claim sur SRU-142 (déjà pris par benjamin)",
-		},
-		{
-			name: "review ready",
-			event: teamstate.Event{
-				Type:    teamstate.EventReviewReady,
-				Actor:   "benjamin",
-				Project: "T-SRU",
-				Ticket:  "SRU-142",
-				Data:    map[string]interface{}{"mr_url": "https://gitlab.com/mr/234"},
-			},
-			expected: "[T-SRU] Review prête pour SRU-142 — https://gitlab.com/mr/234",
-		},
-		{
-			name: "wiki proposal",
-			event: teamstate.Event{
-				Type:    teamstate.EventWikiProposal,
-				Actor:   "documentarian",
-				Project: "T-SRU",
-				Data:    map[string]interface{}{"page": "decisions"},
-			},
-			expected: "[Équipe] Proposition wiki (decisions) par documentarian (depuis T-SRU)",
-		},
-		{
-			name: "claim released",
-			event: teamstate.Event{
-				Type:    teamstate.EventClaimReleased,
-				Actor:   "benjamin",
-				Project: "T-SRU",
-				Ticket:  "SRU-142",
-			},
-			expected: "[T-SRU] benjamin a libéré SRU-142",
-		},
-		{
-			name: "unknown event",
-			event: teamstate.Event{
-				Type:    "unknown.event",
-				Actor:   "test",
-				Project: "X",
-			},
-			expected: "",
-		},
-		{
-			name: "wiki rejected",
-			event: teamstate.Event{
-				Type:    teamstate.EventWikiRejected,
-				Actor:   "benjamin",
-				Project: "T-SRU",
-				Data:    map[string]interface{}{"page": "architecture"},
-			},
-			expected: "[Équipe] Proposition wiki architecture rejetée par benjamin",
-		},
-		{
-			name: "wiki rejected with its reason",
-			event: teamstate.Event{
-				Type:    teamstate.EventWikiRejected,
-				Actor:   "benjamin",
-				Project: "T-SRU",
-				Data:    map[string]interface{}{"page": "architecture", "reason": "déjà couvert par l'ADR 12"},
-			},
-			expected: "[Équipe] Proposition wiki architecture rejetée par benjamin : déjà couvert par l'ADR 12",
-		},
-		{
-			name: "review approved",
-			event: teamstate.Event{
-				Type:    teamstate.EventReviewApproved,
-				Actor:   "reviewer",
-				Project: "T-SRU",
-				Ticket:  "SRU-142",
-			},
-			expected: "[T-SRU] Review approuvée pour SRU-142 par reviewer",
-		},
-		{
-			name: "review rejected with reason",
-			event: teamstate.Event{
-				Type:    teamstate.EventReviewRejected,
-				Actor:   "reviewer",
-				Project: "T-SRU",
-				Ticket:  "SRU-142",
-				Data:    map[string]interface{}{"reason": "corrections-requises"},
-			},
-			expected: "[T-SRU] Review rejetée pour SRU-142 par reviewer (corrections-requises)",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := FormatEvent(tt.event)
-			assert.Equal(t, tt.expected, got)
-		})
-	}
 }

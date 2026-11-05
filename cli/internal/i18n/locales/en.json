@@ -6701,5 +6701,14 @@
   "v54n.decision.resume_after_sleep": "The session was put to sleep while you were waiting for an answer (permission, question or checkpoint); it is lost. Pick up where you stopped and ask again if it is still needed.",
   "v54n.notify.title.sleep": "oh · ⏾ asleep with a decision waiting",
   "v54n.notify.title.reminder": "oh · ⏸ decision still waiting",
-  "v54n.notify.many_sleeping": "%d sessions put to sleep with a decision waiting"
+  "v54n.notify.many_sleeping": "%d sessions put to sleep with a decision waiting",
+  "v54n.event.claim_expiring": "the lease of %s ends soon",
+  "v54n.event.claim_expired": "the lease of %s has expired",
+  "v54n.notify.bad_webhook": "The %s webhook address is not valid.",
+  "v54n.notify.minutes": "%d min",
+  "v54n.notify.already_taken_by": "already taken by %s",
+  "v54n.config.unknown_event": "\"%s\" matches no event (%s, a family such as \"claim.*\", or \"*\")",
+  "v54n.notify.test_message": "OpenHub notification test: the webhook answers.",
+  "v54n.notify.test_no_destination": "No destination receives the test messages: check webhook_url and type (oh team config status).",
+  "v54n.notify.gave_up": "✗ webhook · %s · message given up after several attempts: %s (%v)"
 }

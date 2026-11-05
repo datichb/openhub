@@ -45,6 +45,10 @@ func (e Event) DescribeAs(names EventNames) string {
 		return i18n.Tf("teamstate.event.claim_transferred", subject)
 	case EventClaimConflict:
 		return i18n.Tf("teamstate.event.claim_conflict", subject)
+	case EventClaimExpiring:
+		return i18n.Tf("v54n.event.claim_expiring", subject)
+	case EventClaimExpired:
+		return i18n.Tf("v54n.event.claim_expired", subject)
 	case EventSessionComplete:
 		if subject != "" {
 			return i18n.Tf("teamstate.event.session_complete", subject)
