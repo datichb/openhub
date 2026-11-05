@@ -1,11 +1,14 @@
 == list
 Équipes | 
-core  Core | @alice · git@example.com:core/state.git · [#a6e3a1]✔[-] active
+core  Core  ★ | @alice · git@example.com:core/state.git · [#a6e3a1]✔[-] active
 solo  solo | @bob · espace solo (local) · inactive
+➕  Nouvelle équipe | Créer, rejoindre une équipe ou ouvrir un espace solo
 == commands
-Ajouter une équipe | Référencer un dépôt d'équipe existant | Équipes
-Rafraîchir | Recharger la liste des équipes | Équipes
-Synchroniser Core | Récupérer le dépôt d'équipe de Core | Équipes
-Synchroniser solo | Récupérer le dépôt d'équipe de solo | Équipes
+Nouvelle équipe… | Créer une équipe, en rejoindre une ou ouvrir un espace solo | Équipe
+Ouvrir la vue Équipe | La vue Équipe de l'équipe sélectionnée | Équipe
+Définir par défaut | L'équipe sélectionnée devient l'équipe par défaut | Équipe
+Rafraîchir | Recharger la liste des équipes | Équipe
+Synchroniser Core | Récupérer le dépôt d'équipe de Core | Équipe
+Synchroniser solo | Récupérer le dépôt d'équipe de solo | Équipe
 == empty
-Aucune équipe | n ajouter une équipe · oh team init pour en créer une
+➕  Nouvelle équipe | Partagez board et réservations : créez une équipe ou rejoignez celle de vos collègues

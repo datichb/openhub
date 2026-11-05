@@ -41,9 +41,15 @@ func TestBuildCommands(t *testing.T) {
 	assert.False(t, ids["board"], "board should not be registered without projects")
 	assert.False(t, ids["deploy"], "deploy should not be registered without projects")
 
-	// Team commands should not be registered without a team configured.
-	assert.False(t, ids["team.board"], "team.board should not be registered without team")
-	assert.False(t, ids["team-detail"], "team-detail should not be registered without team")
+	// The team commands are always registered (a team created in the TUI brings
+	// them without a restart); they show in the team mode only.
+	assert.True(t, ids["team.board"], "team.board is registered without team")
+	assert.True(t, ids["team-detail"], "team-detail is registered without team")
+	for _, cmd := range commands {
+		if cmd.ID == "team.board" || cmd.ID == "team-detail" {
+			assert.Equal(t, modeTeam, cmd.Modes, cmd.ID)
+		}
+	}
 }
 
 func TestBuildCommands_HasCategories(t *testing.T) {

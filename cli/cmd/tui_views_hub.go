@@ -157,11 +157,22 @@ func buildTeamsView(a *app.App) views.View {
 		},
 		OnUpdate:     func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
 		OnSelectTeam: func(teamID string) { pickTeam(a, teamID) },
-		// n joins a team with the assistant of « Rejoindre une équipe »: the
-		// repository, its access, the clone, the card of the member and the
-		// state_path in hub.toml (the form that only wrote hub.toml left a
-		// team with no clone, no card and no state_path)
-		OnAdd: actionTeamRejoin,
+		// n opens the window that starts a team: create, rejoin (the assistant
+		// of « Rejoindre une équipe » does the repository, its access, the clone,
+		// the card of the member and the state_path in hub.toml) or a solo space
+		OnAdd:        actionTeamNew,
+		OnOpen:       func(teamID string) { enterTeamMode(a, teamID) },
+		OnSetDefault: func(teamID string) error { return setDefaultTeam(a, teamID) },
+		OnArchive: func(teamID string, archive bool) (string, error) {
+			if archive {
+				return archiveTeam(a, teamID)
+			}
+			return "", restoreTeam(a, teamID)
+		},
+		OnRemove: func(teamID string) ([]string, string, error) {
+			return removeTeam(context.Background(), a, teamID)
+		},
+		ProjectsOf: func(teamID string) []string { return teamProjectNames(context.Background(), a, teamID) },
 		OnNavigate: func(viewID string) {
 			if tuiShell != nil {
 				tuiShell.NavigateTo(viewID)

@@ -1,11 +1,14 @@
 == list
 Teams | 
-core  Core | @alice · git@example.com:core/state.git · [#a6e3a1]✔[-] active
+core  Core  ★ | @alice · git@example.com:core/state.git · [#a6e3a1]✔[-] active
 solo  solo | @bob · solo space (local) · inactive
+➕  New team | Create, join a team or open a solo space
 == commands
-Add a team | Reference an existing team repository | Teams
-Refresh | Reload the team list | Teams
-Sync Core | Pull the team repository of Core | Teams
-Sync solo | Pull the team repository of solo | Teams
+New team… | Create a team, join one or open a solo space | Team
+Open the Team view | The Team view of the selected team | Team
+Set as default | The selected team becomes the default team | Team
+Refresh | Reload the team list | Team
+Sync Core | Pull the team repository of Core | Team
+Sync solo | Pull the team repository of solo | Team
 == empty
-No team | n add a team · oh team init to create one
+➕  New team | Share a board and claims: create a team or join your colleagues'
