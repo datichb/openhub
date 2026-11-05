@@ -68,6 +68,18 @@ func toastMaxLen(level ToastLevel) int {
 // The message is always persisted to the in-memory notification store and the
 // JSONL file, regardless of whether the visual toast is displayed.
 func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) {
+	s.presentToast(msg, msg, true, level, duration)
+}
+
+// showLogToast displays the toast of a log record: shown is its text, full is
+// what the notification centre keeps (with the attributes of the record).
+// record is false when the log handler already put full in the store.
+func (s *Shell) showLogToast(shown, full string, level ToastLevel, record bool) {
+	s.presentToast(shown, full, record, level, ToastDurationForLevel(level))
+}
+
+// presentToast is showToast with a displayed text and a recorded one.
+func (s *Shell) presentToast(msg, full string, record bool, level ToastLevel, duration time.Duration) {
 	if s.repeatedToast(msg, level) {
 		return
 	}
@@ -75,11 +87,13 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 
 	// Persist the FULL message before any truncation:
 	// 1. In-memory store (current session, 50 entries max) — synchronous, safe.
-	s.notifications.Add(level, msg)
+	if record {
+		s.notifications.Add(level, full)
+	}
 	// 2. Persistent JSONL file — asynchronous.
-	//    The goroutine gets its own copy of msg: it must not read the variable
+	//    The goroutine gets its own copy of the text: it must not read msg
 	//    after it has been reassigned below to the display-truncated version.
-	fullMsg := msg
+	fullMsg := full
 	safego.Go(func() {
 		_ = AppendToFile(NotificationsFilePath(), level, fullMsg)
 	})
@@ -97,7 +111,7 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 		toast := tview.NewTextView().
 			SetDynamicColors(true).
 			SetTextAlign(tview.AlignCenter).
-			SetText(fmt.Sprintf(" %s %s ", icon, msg))
+			SetText(fmt.Sprintf(" %s %s ", icon, tview.Escape(msg)))
 		toast.SetBackgroundColor(theme.BgElement)
 		toast.SetBorder(true)
 		toast.SetBorderColor(borderColor)
