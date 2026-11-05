@@ -28,6 +28,7 @@ Version de correctifs, faite avant le gel du branchement de la TUI prévu pour l
 
 ### Fixed
 
+- **La liste des membres d'une équipe garde le même ordre** (par identifiant). Elle venait d'une table lue sans tri : l'ordre changeait à chaque lecture, dans le choix de la fiche de « Rejoindre une équipe » comme dans les commandes.
 - **L'événement d'équipe `audit.finding` est enfin émis.** Il était déclaré, avec son texte et son format de notification, mais rien ne l'émettait. Maintenant, la fin d'une session d'audit qui a déposé son rapport l'écrit dans l'activité de l'équipe, juste après `session.complete`. Comme `session.complete`, un webhook ne le reçoit que si sa destination le demande dans `events` (`"audit.finding"` ou `"*"`).
 - **Un avertissement de log (`slog.Warn`) s'affiche en avertissement, sur une ligne lisible.** Il ne montre plus les attributs bruts `clé=valeur` (ils restent dans la vue Notifications) et il n'est plus enregistré deux fois. Les erreurs restent en rouge.
 - **La TUI n'affiche jamais plus de 5 toasts à la fois.** Au-delà, le plus récent remplace le plus ancien, qui reste dans l'historique ; avant, c'est le nouveau message qui était perdu. Un toast fermé au milieu de la pile libère sa ligne : le suivant ne vient plus la chevaucher.
