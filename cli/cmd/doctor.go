@@ -81,6 +81,7 @@ func doctorRegistry() []doctor.Check {
 		{ID: doctorIDTeamAccess, Name: i18n.T("v54a.doctor.team_access.check"), Run: teamAccessDoctorChecks},
 		{ID: doctorIDTeamConfig, Name: i18n.T("v54c.doctor.team_config.check"), Run: teamConfigDoctorChecks},
 		{ID: doctorIDHubTeams, Name: i18n.T("v54c.doctor.hub_teams.check"), Run: hubTeamsDoctorChecks},
+		{ID: doctorIDNotifications, Name: i18n.T("v54n.doctor.check"), Run: notificationsDoctorChecks},
 		{ID: doctorIDTrackerTokens, Name: i18n.T("cmd.doctor.check.tracker_tokens"), Run: trackerTokensChecks},
 		{ID: doctorIDTrackerConnection, Name: i18n.T("cmd.doctor.check.tracker_connection"), Run: trackerConnectionChecks},
 		{ID: doctorIDTrackerUsername, Name: i18n.T("cmd.doctor.check.tracker_username"), Run: trackerUsernameChecks},

@@ -6773,5 +6773,21 @@
   "v54n.field.events.desc": "Types d'événements reçus par ce webhook, séparés par des virgules : review.ready, claim.*, session.complete, config_changed, * … Vide = revue et wiki (par défaut). Ajouter ou retirer une destination : oh team config set notification.destinations.N.…",
   "v54n.field.events.placeholder": "review.*, wiki.*",
   "v54n.field.mention.label": "Mentionner la personne concernée",
-  "v54n.field.mention.desc": "Mentionne (@mattermost_username de sa fiche) le relecteur demandé, l'auteur d'une revue, le membre qui reçoit un ticket, le propriétaire d'une réservation qui expire. Par défaut oui."
+  "v54n.field.mention.desc": "Mentionne (@mattermost_username de sa fiche) le relecteur demandé, l'auteur d'une revue, le membre qui reçoit un ticket, le propriétaire d'une réservation qui expire. Par défaut oui.",
+  "v54n.sync.title": "Synchro du tracker · %s",
+  "v54n.sync.failed_title": "Synchro du tracker en échec · %s",
+  "v54n.claim.expiring.title": "Réservation bientôt expirée",
+  "v54n.claim.expiring.text": "Le bail de %s se termine à %s : renouvelez-le (oh team claim) ou libérez-le.",
+  "v54n.claim.expired.title": "Réservation expirée",
+  "v54n.claim.expired.text": "Le bail de %s a expiré : un collègue peut la reprendre. Renouvelez-la (oh team claim) ou libérez-la.",
+  "v54n.doctor.check": "Notifications",
+  "v54n.doctor.system.name": "Notifications système",
+  "v54n.doctor.system.off": "Désactivées (hub.toml [notifications] system) : seuls les toasts de la TUI restent.",
+  "v54n.doctor.system.none": "Aucun outil de notification trouvé (terminal-notifier ou osascript sur macOS, notify-send sur Linux) : le démon ne peut rien afficher.",
+  "v54n.doctor.system.ok": "Outil de notification présent. oh ne peut pas savoir si le système les autorise : si rien ne s'affiche, autorisez les notifications de votre terminal (Réglages Système › Notifications).",
+  "v54n.doctor.outbox.name": "Messages webhook en attente",
+  "v54n.doctor.outbox.detail": "%d message(s) n'ont pas atteint leur webhook ; le démon réessaie (1 min, 5 min, 15 min, 1 h, 3 h, 6 h) puis abandonne. Vérifiez que le démon tourne (oh daemon status).",
+  "v54n.doctor.webhook.name": "Webhook de l'équipe %s",
+  "v54n.doctor.webhook.ok": "%d serveur(s) répondent (aucun message envoyé : oh team notify test envoie un test).",
+  "v54n.doctor.webhook.unreachable": "Le serveur du webhook ne répond pas :"
 }

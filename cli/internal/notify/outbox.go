@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -168,4 +170,26 @@ func (o *Outbox) Flush(ctx context.Context) Flushed {
 		o.mu.Unlock()
 	}
 	return res
+}
+
+// Reachable checks that the server of a webhook answers, without sending
+// anything: any HTTP answer (even a refusal of a GET) says the server is
+// there. The error never carries the URL.
+func Reachable(ctx context.Context, webhook string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, webhook, http.NoBody)
+	if err != nil {
+		return errors.New("invalid webhook address")
+	}
+	resp, err := (&http.Client{Timeout: 5 * time.Second}).Do(req)
+	if err != nil {
+		var ue *url.Error
+		if errors.As(err, &ue) {
+			err = ue.Err
+		}
+		return err
+	}
+	_ = resp.Body.Close()
+	return nil
 }

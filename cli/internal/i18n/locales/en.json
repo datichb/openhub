@@ -6773,5 +6773,21 @@
   "v54n.field.events.desc": "Event types this webhook receives, comma-separated: review.ready, claim.*, session.complete, config_changed, * … Empty = review and wiki (the default). To add or remove a destination: oh team config set notification.destinations.N.…",
   "v54n.field.events.placeholder": "review.*, wiki.*",
   "v54n.field.mention.label": "Mention the person concerned",
-  "v54n.field.mention.desc": "Mentions (@mattermost_username of their card) the reviewer asked, the author of a review, the member a claim is handed to, the owner of a claim that expires. On by default."
+  "v54n.field.mention.desc": "Mentions (@mattermost_username of their card) the reviewer asked, the author of a review, the member a claim is handed to, the owner of a claim that expires. On by default.",
+  "v54n.sync.title": "Tracker sync · %s",
+  "v54n.sync.failed_title": "Tracker sync failed · %s",
+  "v54n.claim.expiring.title": "Claim about to expire",
+  "v54n.claim.expiring.text": "The lease of %s ends at %s: renew it (oh team claim) or release it.",
+  "v54n.claim.expired.title": "Claim expired",
+  "v54n.claim.expired.text": "The lease of %s has expired: a colleague can take it over. Renew it (oh team claim) or release it.",
+  "v54n.doctor.check": "Notifications",
+  "v54n.doctor.system.name": "System notifications",
+  "v54n.doctor.system.off": "Off (hub.toml [notifications] system): only the toasts of the TUI stay.",
+  "v54n.doctor.system.none": "No notification tool found (terminal-notifier or osascript on macOS, notify-send on Linux): the daemon cannot show anything.",
+  "v54n.doctor.system.ok": "Notification tool found. oh cannot tell whether the system allows them: if nothing shows, allow the notifications of your terminal (System Settings › Notifications).",
+  "v54n.doctor.outbox.name": "Webhook messages waiting",
+  "v54n.doctor.outbox.detail": "%d message(s) did not reach their webhook; the daemon tries again (1 min, 5 min, 15 min, 1 h, 3 h, 6 h) then gives up. Check that the daemon runs (oh daemon status).",
+  "v54n.doctor.webhook.name": "Webhook of team %s",
+  "v54n.doctor.webhook.ok": "%d server(s) answer (no message sent: oh team notify test sends one).",
+  "v54n.doctor.webhook.unreachable": "The webhook server does not answer:"
 }

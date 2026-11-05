@@ -13,6 +13,8 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/daemon"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
+	"github.com/datichb/openhub/cli/internal/notifypolicy"
 	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
 	"github.com/datichb/openhub/cli/internal/tracker"
 )
@@ -105,7 +107,7 @@ func TestTrackerSyncTaskSaysAFailureOnce(t *testing.T) {
 	s, _ := newTestSyncer(svc, syncTeam("core"))
 	s.syncTeam(t.Context(), svc, syncTeam("core"))
 	assert.Equal(t, "boom", s.failed["core"])
-	s.report("core", &tracker.SyncResult{}, nil)
+	s.report(t.Context(), "core", &tracker.SyncResult{}, nil)
 	assert.Empty(t, s.failed, "a sync that gets through forgets the failure")
 }
 
@@ -115,4 +117,38 @@ func TestTrackerSyncTaskIsRegisteredInTheDaemon(t *testing.T) {
 	require.Len(t, opts.Tasks, 1)
 	assert.Equal(t, "tracker-sync", opts.Tasks[0].Name)
 	assert.Equal(t, trackerSyncTick, opts.Tasks[0].Every)
+}
+
+// tellingDaemon is a daemon that records what a task tells the user.
+type tellingDaemon struct{ told [][2]string }
+
+func (d *tellingDaemon) RaiseAlert(context.Context, daemon.Alert) bool { return false }
+func (d *tellingDaemon) NotifyUser(_ notifypolicy.Kind, title, message string) {
+	d.told = append(d.told, [2]string{title, message})
+}
+
+// The summary of an automatic sync that changed something is told to the user,
+// a failure once (then silence), and a sync that did nothing not at all.
+func TestTrackerSyncTaskTellsTheUser(t *testing.T) {
+	i18ntest.Set(t, "fr")
+	svc := &fakeSyncService{intervals: map[string]time.Duration{"core": time.Minute}}
+	s, _ := newTestSyncer(svc, syncTeam("core"))
+	d := &tellingDaemon{}
+	ctx := daemon.WithAlerts(t.Context(), d)
+
+	s.report(ctx, "core", &tracker.SyncResult{}, nil)
+	assert.Empty(t, d.told, "nothing changed: nothing to say")
+
+	s.report(ctx, "core", &tracker.SyncResult{ClaimsCreated: 2, ClaimsUpdated: 1}, nil)
+	require.Len(t, d.told, 1)
+	assert.Equal(t, "Synchro du tracker · core", d.told[0][0])
+	assert.Equal(t, syncSummary(&tracker.SyncResult{ClaimsCreated: 2, ClaimsUpdated: 1}), d.told[0][1])
+
+	boom := errors.New("boom")
+	s.report(ctx, "core", nil, boom)
+	s.report(ctx, "core", nil, boom)
+	s.report(ctx, "core", nil, boom)
+	require.Len(t, d.told, 2, "a failure that repeats is said once")
+	assert.Equal(t, "Synchro du tracker en échec · core", d.told[1][0])
+	assert.Equal(t, "boom", d.told[1][1])
 }

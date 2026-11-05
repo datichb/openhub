@@ -274,7 +274,7 @@ func (n *notifier) direct(kind notifypolicy.Kind, title, message string) {
 	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	n.enqueueLocked(note{kind: kind, class: classDirect + ":" + string(kind), title: title, message: message})
+	n.enqueueLocked(note{kind: kind, class: classDirect + ":" + string(kind) + ":" + title, title: title, message: message})
 }
 
 func (n *notifier) enqueueLocked(nt note) {

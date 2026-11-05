@@ -145,5 +145,7 @@ func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Op
 	}
 	claimsDaemonOptions(ctx, a, &opts)
 	trackerSyncDaemonOptions(a, &opts)
+	claimExpiryDaemonOptions(a, &opts)
+	notifyOutboxDaemonOptions(&opts)
 	return opts
 }

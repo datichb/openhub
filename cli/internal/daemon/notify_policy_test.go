@@ -181,3 +181,24 @@ func (f *fakeSessions) Get(context.Context, string) (*domain.Session, error) {
 	s := f.s
 	return &s, nil
 }
+
+// A job of the daemon tells the user a text of its own, as they chose for its kind.
+func TestNotifyUserFromATask(t *testing.T) {
+	var sent notes
+	p := &livePolicy{s: notifypolicy.Settings{Events: map[string]string{"tracker_sync": "system"}}}
+	n := policyNotifier(t, p, &sent, nil)
+	d := n.d
+	d.notes = n
+	ctx := WithAlerts(context.Background(), d)
+
+	assert.True(t, NotifyUser(ctx, notifypolicy.KindTrackerSync, "Synchro du tracker", "2 créées"))
+	require.Eventually(t, func() bool { return len(sent.list()) == 1 }, time.Second, 5*time.Millisecond)
+	assert.Equal(t, [2]string{"Synchro du tracker", "2 créées"}, sent.list()[0])
+	assert.Equal(t, []string{"oh-direct"}, sent.groups)
+
+	p.set(func(s *notifypolicy.Settings) { s.Events = nil }) // the default of tracker_sync is a toast
+	NotifyUser(ctx, notifypolicy.KindTrackerSync, "Synchro du tracker", "autre")
+	assert.Never(t, func() bool { return len(sent.list()) > 1 }, 100*time.Millisecond, 10*time.Millisecond)
+
+	assert.False(t, NotifyUser(context.Background(), notifypolicy.KindTrackerSync, "x", "y"), "no daemon around: false")
+}
