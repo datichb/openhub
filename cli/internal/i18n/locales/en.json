@@ -6418,5 +6418,8 @@
   "v533b.team_config.conflict_cli": "config.toml was changed meanwhile by a colleague (%s): nothing was overwritten. Run oh team config again to read their version.",
   "v533b.team_config.status_unreadable": "%s team config.toml unreadable: %v — oh doctor\n",
   "v533a.teams.duplicate_id": "The ID %[1]s is already the one of another team (%[2]s): choose another ID.",
-  "v533a.teams.duplicate_repo": "This repository is already configured: team %[1]s."
+  "v533a.teams.duplicate_repo": "This repository is already configured: team %[1]s.",
+  "v54y.tracker.token.forbidden": "the server %s refused access (HTTP %d): the token is known but has no right on this resource — source: %s. Check its scope (api, read_api) and your role in the project; the token does not need replacing.",
+  "v54y.tracker.token.forbidden_unknown": "the server %s refused access (HTTP %d): the token is known but has no right on this resource. Check its scope (api, read_api) and your role in the project; the token does not need replacing.",
+  "v54y.tracker.sync.assignee_changed": "ticket %[1]s: assigned to %[2]s on the tracker (member %[3]s) but claimed by %[4]s — the claim is not changed (oh team claim transfer)"
 }

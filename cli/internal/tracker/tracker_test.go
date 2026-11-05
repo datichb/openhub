@@ -126,6 +126,16 @@ func TestGitLab_FetchIssue(t *testing.T) {
 			},
 		},
 		{
+			name: "forbidden is not an invalid token", iid: 1, status: http.StatusForbidden,
+			check: func(t *testing.T, _ *tracker.IssueState, err error) {
+				assert.ErrorIs(t, err, tracker.ErrAccessDenied)
+				assert.NotErrorIs(t, err, tracker.ErrTokenInvalid)
+				var rejected *tracker.TokenRejectedError
+				require.ErrorAs(t, err, &rejected)
+				assert.Equal(t, http.StatusForbidden, rejected.Status)
+			},
+		},
+		{
 			name: "rate limited", iid: 1, status: http.StatusTooManyRequests, headers: map[string]string{"Retry-After": "30"},
 			check: func(t *testing.T, _ *tracker.IssueState, err error) {
 				assert.True(t, tracker.IsRateLimited(err), "expected a rate limit error, got %v", err)
@@ -608,4 +618,24 @@ func TestJira_Discovery(t *testing.T) {
 		assert.Contains(t, jql, `"backend"`, "JQL first label")
 		assert.Contains(t, jql, `"sprint-42"`, "JQL second label")
 	})
+}
+
+// The lists ask for the biggest pages GitLab gives: a project of a few hundred
+// issues is a few requests, not dozens. A small maximum asks for less.
+func TestGitLab_ListsAskForPagesOf100(t *testing.T) {
+	var perPage []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		perPage = append(perPage, r.URL.Query().Get("per_page"))
+		_, _ = w.Write([]byte("[]"))
+	}))
+	t.Cleanup(srv.Close)
+	c := newClient(t, tracker.TypeGitLab, srv.URL, false)
+
+	_, err := c.ListAssignedIssues(t.Context(), "grp/p", tracker.ListOpts{AssigneeUsername: "alice", MaxResults: 500})
+	require.NoError(t, err)
+	_, err = c.ListIssuesByLabels(t.Context(), "grp/p", tracker.ListByLabelsOpts{Labels: []string{"a"}, MaxResults: 500})
+	require.NoError(t, err)
+	_, err = c.ListUnassignedIssues(t.Context(), "grp/p", tracker.ListUnassignedOpts{MaxResults: 5})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"100", "100", "5"}, perPage)
 }

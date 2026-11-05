@@ -2,6 +2,8 @@ package tracker
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -40,6 +42,10 @@ type SyncState struct {
 	// never seen by the runs that did. A change of unassigned_labels scans
 	// again.
 	AutoPoolScanned map[string]PoolScan `json:"autopool_scanned,omitempty"`
+	// TokenFailures counts, per team and tracker ("team/type"), the runs that
+	// the server stopped with a refused token (HTTP 401). Three in a row mute
+	// the automatic sync until the token changes (see TokenMuted).
+	TokenFailures map[string]TokenFailure `json:"token_failures,omitempty"`
 	// LegacyAutoPlanHeld is what oh 5.1.0 wrote under "autoplan_held": the
 	// issues its per-member plan cap left off the board. They are not kept any
 	// more; reading the field only tells LoadSyncState that such issues exist,
@@ -48,6 +54,31 @@ type SyncState struct {
 	// since).
 	LegacyAutoPlanHeld json.RawMessage `json:"autoplan_held,omitempty"`
 }
+
+// TokenFailure is the run of consecutive refusals of one token by a tracker.
+type TokenFailure struct {
+	// Count is the number of runs in a row that the server stopped.
+	Count int `json:"count"`
+	// Token identifies the token that was refused (a fingerprint, never the
+	// token): another token starts again from zero.
+	Token string `json:"token,omitempty"`
+	// At is the time of the last refusal.
+	At time.Time `json:"at"`
+}
+
+// TokenFingerprint identifies a token without revealing it (the start of its
+// SHA-256): what the sync state keeps to know that the token changed.
+func TokenFingerprint(token string) string {
+	if token == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])[:12]
+}
+
+// maxTokenFailures is the number of refusals in a row after which the
+// automatic sync stops trying with the same token.
+const maxTokenFailures = 3
 
 // PoolScan records the scan of the pool of a project. The scan takes as many
 // runs as the pool needs (a run creates at most max_unassigned_issues claims):
@@ -190,6 +221,33 @@ func (s *SyncState) MarkAutoPlanScanned(t Type, projectID string, at time.Time) 
 	if k := syncStateKey(t, projectID); s.AutoPlanScanned[k].IsZero() {
 		s.AutoPlanScanned[k] = at
 	}
+}
+
+// NoteTokenFailure records a run stopped by a refused token. A different
+// token than the one refused before starts the count again.
+func (s *SyncState) NoteTokenFailure(key, token string, at time.Time) {
+	if s.TokenFailures == nil {
+		s.TokenFailures = make(map[string]TokenFailure)
+	}
+	f := s.TokenFailures[key]
+	if f.Token != token {
+		f = TokenFailure{Token: token}
+	}
+	f.Count++
+	f.At = at
+	s.TokenFailures[key] = f
+}
+
+// ClearTokenFailures forgets the refusals of key: a run got through.
+func (s *SyncState) ClearTokenFailures(key string) { delete(s.TokenFailures, key) }
+
+// TokenMuted reports whether the automatic sync of key stays off: the token
+// (by its fingerprint) was refused maxTokenFailures times in a row. A manual
+// sync still tries, and clears the count when it gets through; another token
+// is tried again by the automatic sync.
+func (s *SyncState) TokenMuted(key, token string) bool {
+	f, ok := s.TokenFailures[key]
+	return ok && f.Count >= maxTokenFailures && f.Token == token
 }
 
 // poolLabelsKey identifies a set of unassigned_labels: the same labels in any

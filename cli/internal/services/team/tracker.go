@@ -78,9 +78,6 @@ func (s *Service) TrackerEngine(ctx context.Context, project *domain.Project) (*
 type SyncOptions struct {
 	// Project selects the team (nil: the hub team).
 	Project *domain.Project
-	// Pull updates the local team-state before the sync (a failing pull is
-	// ignored: the local content is used).
-	Pull bool
 	// OnRun, if set, is called when the sync is about to start with the
 	// tracker type; the function it returns is called when the sync is over
 	// (progress display).
@@ -97,11 +94,6 @@ func (s *Service) SyncTracker(ctx context.Context, opts SyncOptions) (*tracker.S
 	}
 	if len(b.projects) == 0 {
 		return nil, ErrNoProjects
-	}
-	if opts.Pull {
-		if err := b.repo.Pull(ctx); err != nil {
-			slog.Debug("team.sync_tracker.pull_failed", "error", err)
-		}
 	}
 	if opts.OnRun != nil {
 		if done := opts.OnRun(b.trackerType); done != nil {
@@ -195,7 +187,8 @@ func (s *Service) build(ctx context.Context, project *domain.Project) (*built, e
 	engine := tracker.NewEngine(t, repo, engineConfig(eff, projects, patterns), hubDir)
 	engine.SetIdentity(tracker.Identity{
 		TeamID: tc.TeamID, MemberID: tc.MemberID,
-		CrossServer: crossServer(trackerBaseURL(eff), s.TeamRepoServer(project)),
+		CrossServer:      crossServer(trackerBaseURL(eff), s.TeamRepoServer(project)),
+		TokenFingerprint: tracker.TokenFingerprint(creds.Token),
 	})
 	return &built{
 		engine:      engine,

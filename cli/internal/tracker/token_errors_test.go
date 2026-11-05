@@ -66,7 +66,7 @@ func TestTokenRejectedErrorFrench(t *testing.T) {
 	assert.Equal(t, "le serveur gitlab.forge.example a refusé le jeton (HTTP 401) — source : jeton de l'équipe (clé openhub.team.core.gitlab.token). Remplacez-le : oh secrets set openhub.team.core.gitlab.token", err.Error())
 	assert.ErrorIs(t, err, ErrTokenInvalid, "the sync engine still recognizes a refused token")
 
-	env := &TokenRejectedError{Origin: TokenOrigin{Source: TokenSourceEnv, Key: "GITLAB_TOKEN", Server: "https://gitlab.forge.example"}, Status: 403}
+	env := &TokenRejectedError{Origin: TokenOrigin{Source: TokenSourceEnv, Key: "GITLAB_TOKEN", Server: "https://gitlab.forge.example"}, Status: 401}
 	assert.Contains(t, env.Error(), "variable d'environnement GITLAB_TOKEN")
 	assert.Contains(t, env.Error(), "Corrigez la variable GITLAB_TOKEN")
 
@@ -75,4 +75,31 @@ func TestTokenRejectedErrorFrench(t *testing.T) {
 
 	var target *TokenRejectedError
 	require.True(t, errors.As(err, &target))
+}
+
+// A 403 is not a refused token: the token is known and has no right on the
+// resource. It stops nothing but the resource, and does not tell the user to
+// replace the token.
+func TestForbiddenIsNotAnInvalidToken(t *testing.T) {
+	i18ntest.Set(t, "fr")
+	err := &TokenRejectedError{
+		Origin: TokenOrigin{Source: TokenSourceEnv, Key: "GITLAB_TOKEN", Server: "https://gitlab.forge.example"},
+		Status: 403,
+	}
+	assert.ErrorIs(t, err, ErrAccessDenied)
+	assert.NotErrorIs(t, err, ErrTokenInvalid)
+	assert.True(t, IsAccessDenied(err))
+	assert.Contains(t, err.Error(), "refusé l'accès (HTTP 403)")
+	assert.Contains(t, err.Error(), "variable d'environnement GITLAB_TOKEN")
+	assert.NotContains(t, err.Error(), "Corrigez la variable")
+
+	unauthorized := &TokenRejectedError{Origin: err.Origin, Status: 401}
+	assert.ErrorIs(t, unauthorized, ErrTokenInvalid)
+	assert.NotErrorIs(t, unauthorized, ErrAccessDenied)
+
+	unknown := &TokenRejectedError{Origin: TokenOrigin{Server: "https://gitlab.forge.example"}, Status: 403}
+	assert.NotContains(t, unknown.Error(), "— source")
+
+	i18ntest.Set(t, "en")
+	assert.Contains(t, err.Error(), "refused access (HTTP 403)")
 }

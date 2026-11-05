@@ -257,7 +257,7 @@ func TestTrackerEngineTypedErrors(t *testing.T) {
 		e.cfg.Tracker.Enabled = boolPtr(false)
 		_, err := e.service(linkedProjects(), fakeSecrets{}).TrackerEngine(t.Context(), nil)
 		assert.ErrorIs(t, err, ErrTrackerDisabled)
-		_, err = e.service(linkedProjects(), fakeSecrets{}).SyncTracker(t.Context(), SyncOptions{Pull: true})
+		_, err = e.service(linkedProjects(), fakeSecrets{}).SyncTracker(t.Context(), SyncOptions{})
 		assert.ErrorIs(t, err, ErrTrackerDisabled, "the sync (CLI and screen) honors enabled = false")
 		assert.Zero(t, e.requests.Load(), "nothing reaches the tracker")
 	})
@@ -308,7 +308,6 @@ func TestSyncTrackerRunsAgainstTheFakeServer(t *testing.T) {
 
 	var started, finished string
 	res, err := e.service(linkedProjects(), secrets).SyncTracker(t.Context(), SyncOptions{
-		Pull: true,
 		OnRun: func(trackerType string) func() {
 			started = trackerType
 			return func() { finished = trackerType }

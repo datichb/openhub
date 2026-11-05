@@ -6418,5 +6418,8 @@
   "v533b.team_config.conflict_cli": "config.toml a été modifié entre-temps par un collègue (%s) : rien n'a été écrasé. Relancez oh team config pour relire sa version.",
   "v533b.team_config.status_unreadable": "%s config.toml de l'équipe illisible : %v — oh doctor\n",
   "v533a.teams.duplicate_id": "L'identifiant %[1]s est déjà celui d'une autre équipe (%[2]s) : choisissez-en un autre.",
-  "v533a.teams.duplicate_repo": "Ce dépôt est déjà configuré : équipe %[1]s."
+  "v533a.teams.duplicate_repo": "Ce dépôt est déjà configuré : équipe %[1]s.",
+  "v54y.tracker.token.forbidden": "le serveur %s a refusé l'accès (HTTP %d) : le jeton est connu mais n'a pas le droit d'accéder à cette ressource — source : %s. Vérifiez sa portée (api, read_api) et votre rôle dans le projet ; le jeton n'est pas à remplacer.",
+  "v54y.tracker.token.forbidden_unknown": "le serveur %s a refusé l'accès (HTTP %d) : le jeton est connu mais n'a pas le droit d'accéder à cette ressource. Vérifiez sa portée (api, read_api) et votre rôle dans le projet ; le jeton n'est pas à remplacer.",
+  "v54y.tracker.sync.assignee_changed": "ticket %[1]s : assigné à %[2]s sur le tracker (membre %[3]s), mais réservé par %[4]s — la réservation n'est pas changée (oh team claim transfer)"
 }

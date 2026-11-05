@@ -109,8 +109,6 @@ type Engine struct {
 	boardCfg teamstate.BoardConfig
 	state    *SyncState
 	stateDir string
-	// consecutiveTokenErrors tracks auth failures to mute auto-sync after 3.
-	consecutiveTokenErrors int
 	// identity is who runs the sync (see SetIdentity); unknown holds, for the
 	// run in progress, the tracker names assigned to issues that match no
 	// member (lower case → name as the tracker writes it).
@@ -134,6 +132,10 @@ type Identity struct {
 	// CrossServer: the tracker is not on the server of the team-state
 	// repository, so the GitLab name of the member is not their name there.
 	CrossServer bool
+	// TokenFingerprint identifies the token of the tracker without being it
+	// (see TokenFingerprint): the refusals counted by the circuit breaker are
+	// those of that token.
+	TokenFingerprint string
 }
 
 // SetIdentity tells the engine who runs the sync. When issues of the tracker
@@ -220,6 +222,15 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 		return nil, fmt.Errorf("sync engine: %w", txErr)
 	}
 
+	// The refusals of the token, counted once per run (the transaction may
+	// have run its build more than once): a run that got through clears them.
+	switch {
+	case fatal == nil:
+		e.state.ClearTokenFailures(e.breakerKey())
+	case errors.Is(fatal, ErrTokenInvalid):
+		e.state.NoteTokenFailure(e.breakerKey(), e.identity.TokenFingerprint, time.Now().UTC())
+	}
+
 	// Persist the updated sync timestamps.
 	if err := e.state.Save(e.stateDir); err != nil {
 		slog.Warn("tracker.sync.state_save_failed", "error", err)
@@ -279,6 +290,9 @@ func (e *Engine) reconcileAll(ctx context.Context, result *SyncResult) (fatal, a
 		pr, projectErr := e.reconcileProject(ctx, hubProjectID, trackerProjectID, trackerType, memberByGitLab)
 		pr.Duration = time.Since(start)
 		result.Projects = append(result.Projects, pr)
+		for _, w := range pr.Warnings {
+			result.Warnings = append(result.Warnings, SyncWarning{ProjectID: hubProjectID, Message: w})
+		}
 		result.ClaimsCreated += pr.ClaimsCreated
 		result.ClaimsUpdated += pr.ClaimsUpdated
 		result.LabelsPushed += pr.LabelsPushed
@@ -286,7 +300,6 @@ func (e *Engine) reconcileAll(ctx context.Context, result *SyncResult) (fatal, a
 		if projectErr != nil {
 			// Fatal errors (token invalid, rate limit) abort the entire run.
 			if errors.Is(projectErr, ErrTokenInvalid) {
-				e.consecutiveTokenErrors++
 				return projectErr, nil
 			}
 			if IsRateLimited(projectErr) {
@@ -300,8 +313,6 @@ func (e *Engine) reconcileAll(ctx context.Context, result *SyncResult) (fatal, a
 		e.state.SetLastSync(trackerType, trackerProjectID, result.SyncedAt)
 	}
 
-	// Reset token error counter on a successful run.
-	e.consecutiveTokenErrors = 0
 	return nil, nil
 }
 
@@ -475,10 +486,27 @@ func (e *Engine) forgetKnown(released []teamstate.Claim) {
 	}
 }
 
-// ShouldAutoSync reports whether the engine is eligible for an automatic sync.
-// Returns false after 3 consecutive token errors to avoid spamming the UI.
+// breakerKey identifies the token failures of this engine in the sync state:
+// the team and the tracker it syncs.
+func (e *Engine) breakerKey() string {
+	return firstNonEmptyStr(e.identity.TeamID, "-") + "/" + e.cfg.Type
+}
+
+// ShouldAutoSync reports whether an automatic sync may try: false once the
+// server refused the same token three times in a row (the count is kept in the
+// sync state, so that it holds from one run, and one process, to the next). A
+// manual sync always tries; another token, or a run that gets through, lifts
+// the stop.
 func (e *Engine) ShouldAutoSync() bool {
-	return e.consecutiveTokenErrors < 3
+	state := e.state
+	if state == nil {
+		loaded, err := LoadSyncState(e.stateDir)
+		if err != nil {
+			return true
+		}
+		state = loaded
+	}
+	return !state.TokenMuted(e.breakerKey(), e.identity.TokenFingerprint)
 }
 
 // FetchTicketDetail fetches the full title and description of a ticket from the
@@ -662,7 +690,7 @@ func (e *Engine) reconcileProject(
 		if len(issue.Assignees) > 0 {
 			assignee := strings.ToLower(issue.Assignees[0])
 			if m, ok := memberByGitLab[assignee]; ok && m.ID != c.ClaimedBy {
-				pr.ClaimsUpdated++ // counted as a warning-producing update
+				pr.Warnings = append(pr.Warnings, i18n.Tf("v54y.tracker.sync.assignee_changed", c.TicketID, issue.Assignees[0], m.ID, c.ClaimedBy))
 			}
 		}
 		e.noteUnknownAssignees(issue.Assignees, memberByGitLab)
@@ -934,12 +962,8 @@ func (e *Engine) autoplan(
 		return nil
 	}
 
-	// Batch create: single pull → create all files → single commit+push
-	if err := e.repo.Pull(ctx); err != nil {
-		slog.Warn("tracker.autoplan.pull_failed", "error", err)
-		// Continue anyway — local creates may still succeed
-	}
-
+	// Batch create: all the files, one commit+push (the transaction of the run
+	// pulled when it started).
 	var relPaths []string
 	for i := range pending {
 		relPath, err := e.repo.CreateClaimLocal(pending[i])
@@ -1142,11 +1166,8 @@ func (e *Engine) autopoolUnassigned(
 		return nil
 	}
 
-	// Batch create: single pull → create all files → single commit+push
-	if err := e.repo.Pull(ctx); err != nil {
-		slog.Warn("tracker.autopool.pull_failed", "error", err)
-	}
-
+	// Batch create: all the files, one commit+push (the transaction of the run
+	// pulled when it started).
 	var relPaths []string
 	createFailed := false
 	for i := range pending {
