@@ -18,8 +18,12 @@ func runProfile(t *testing.T, args ...string) error {
 	c := &cobra.Command{Use: "profile", RunE: runTeamProfile}
 	f := teamProfileCmd.Flags()
 	f.VisitAll(func(fl *pflag.Flag) { c.Flags().String(fl.Name, fl.DefValue, fl.Usage) })
+	addTeamFlag(c) // --team is the persistent flag of oh team
 	c.SetContext(t.Context())
 	require.NoError(t, c.ParseFlags(args))
+	if err := teamPreRunE(c, nil); err != nil {
+		return err
+	}
 	return runTeamProfile(c, nil)
 }
 
@@ -58,5 +62,5 @@ func TestTeamProfileShowsAndChangesTheMemberProfile(t *testing.T) {
 
 	err = runProfile(t, "--team=ghost")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "No team")
+	assert.Contains(t, err.Error(), "not found")
 }
