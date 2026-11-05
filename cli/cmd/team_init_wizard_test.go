@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/spf13/cobra"
 	"testing"
 
 	"github.com/rivo/tview"
@@ -257,4 +258,28 @@ func TestTeamStepStateUseRepo(t *testing.T) {
 	fresh.useRepo(repo)
 	assert.False(t, fresh.HasMember, "no member id: no profile")
 	assert.Empty(t, fresh.DisplayName)
+}
+
+// --team (the persistent flag of oh team) names the team to reconfigure; an
+// unknown one is told.
+func TestTeamToReconfigure(t *testing.T) {
+	a := &app.App{Config: &config.Config{Teams: []config.TeamConfig{
+		{ID: "one", Enabled: true, StateRepo: "git@x:o/one.git"},
+		{ID: "two", Enabled: true, StateRepo: "git@x:o/two.git"},
+	}}}
+	c := &cobra.Command{}
+	got, err := teamToReconfigure(c, a)
+	require.NoError(t, err)
+	assert.Equal(t, "one", got.ID, "no --team: the team the commands work on")
+
+	c.Flags().String("team", "", "")
+	require.NoError(t, c.Flags().Set("team", "two"))
+	got, err = teamToReconfigure(c, a)
+	require.NoError(t, err)
+	assert.Equal(t, "two", got.ID)
+
+	require.NoError(t, c.Flags().Set("team", "nope"))
+	_, err = teamToReconfigure(c, a)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nope")
 }

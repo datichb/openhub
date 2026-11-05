@@ -18,9 +18,18 @@ func init() {
 	teamInitCmd.Flags().Bool("reconfigure", false, i18n.T("v54a.init.flags.reconfigure"))
 }
 
-// teamToReconfigure is the team `oh team init --reconfigure` works on.
-func teamToReconfigure(a *app.App) config.TeamConfig {
-	return a.Config.ActiveTeam()
+// teamToReconfigure is the team `oh team init --reconfigure` works on: the one
+// --team names (the persistent flag of oh team), else the team the commands
+// work on by default.
+func teamToReconfigure(cmd *cobra.Command, a *app.App) (config.TeamConfig, error) {
+	if f := cmd.Flags().Lookup("team"); f != nil && f.Value.String() != "" {
+		t := a.Config.FindTeam(f.Value.String())
+		if t == nil {
+			return config.TeamConfig{}, fmt.Errorf("%s", i18n.Tf("cmd.teams.not_found", f.Value.String(), theme.Bold.Render("oh teams list")))
+		}
+		return *t, nil
+	}
+	return a.Config.ActiveTeam(), nil
 }
 
 // runTeamInit is `oh team init`: the assistant that creates a team on a new
@@ -38,7 +47,10 @@ func runTeamInit(cmd *cobra.Command, _ []string) error {
 
 	var team *config.TeamConfig
 	if reconfigure, _ := cmd.Flags().GetBool("reconfigure"); reconfigure {
-		t := teamToReconfigure(a)
+		t, err := teamToReconfigure(cmd, a)
+		if err != nil {
+			return err
+		}
 		if !reconfigurable(t) {
 			return fmt.Errorf("%s", i18n.Tf("v54a.init.nothing_to_reconfigure", theme.Bold.Render("oh team init"), theme.Bold.Render("oh team rejoin --repo <url>")))
 		}
