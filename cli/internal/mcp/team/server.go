@@ -303,7 +303,7 @@ func Serve() error {
 //  1. the team of the session project, named by OH_TEAM_ID in the
 //     environment of the server declaration in the session bundle (set by
 //     oh at launch);
-//  2. the active team of hub.toml (server started outside a session).
+//  2. the default team of hub.toml (server started outside a session).
 //
 // Repo cache: avoids re-creating the Repo + pulling on every handler call.
 // The TTL ensures freshness while preventing redundant network I/O during
@@ -408,23 +408,26 @@ type effectiveTeam struct {
 	MemberID  string
 }
 
-// loadEffectiveTeamConfig reads the team of the session project (OH_TEAM_ID)
-// from hub.toml, else the active team. A solo space never enables the team
-// features.
+// loadEffectiveTeamConfig reads the team of the session from hub.toml with
+// the one rule of the commands (Config.PickTeam): the team of the session
+// project, named by OH_TEAM_ID (oh puts the team of the project there at
+// launch; the server has no project store to look it up), else the default
+// team. A solo space never enables the team features.
 func loadEffectiveTeamConfig() (effectiveTeam, error) {
 	cfg, err := config.Load()
 	if err != nil {
 		return effectiveTeam{}, fmt.Errorf("loading hub config: %w", err)
 	}
-	if id := os.Getenv(EnvTeamID); id != "" {
-		t := cfg.FindTeam(id)
-		if t == nil {
-			return effectiveTeam{}, fmt.Errorf("team %q of project %q not found in hub.toml", id, os.Getenv(EnvProjectID))
-		}
-		return effectiveTeam{Enabled: t.Enabled && !t.Solo, StateRepo: t.StateRepo, StatePath: t.StatePath, MemberID: t.MemberID}, nil
+	id := os.Getenv(EnvTeamID)
+	t, _, err := cfg.PickTeam(config.TeamSelection{Flag: id})
+	var unknown *config.UnknownTeamError
+	if errors.As(err, &unknown) {
+		return effectiveTeam{}, fmt.Errorf("team %q of project %q not found in hub.toml", id, os.Getenv(EnvProjectID))
 	}
-	t := cfg.ActiveTeam()
-	return effectiveTeam{Enabled: t.Enabled, StateRepo: t.StateRepo, StatePath: t.StatePath, MemberID: t.MemberID}, nil
+	if err != nil {
+		return effectiveTeam{}, err
+	}
+	return effectiveTeam{Enabled: t.Enabled && !t.Solo, StateRepo: t.StateRepo, StatePath: t.StatePath, MemberID: t.MemberID}, nil
 }
 
 func handleTeamMembers(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {

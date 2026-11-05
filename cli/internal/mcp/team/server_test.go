@@ -3,6 +3,7 @@ package team
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -71,4 +72,64 @@ func TestLoadEffectiveTeamConfig_NoSessionTeam_FallsBackToHub(t *testing.T) {
 	got, err := loadEffectiveTeamConfig()
 	require.NoError(t, err)
 	assert.False(t, got.Enabled, "hub has no team → Enabled=false")
+}
+
+// Outside of a session (no OH_TEAM_ID) the server takes the default team by
+// the rule of the commands: the one marked `default = true`, else the first
+// enabled one; an archived team or a solo space is never taken.
+func TestLoadEffectiveTeamConfig_NoSessionTeam_TakesTheDefaultTeam(t *testing.T) {
+	const teams = `
+[[teams]]
+id = "old"
+enabled = false
+state_repo = "git@x:o/old.git"
+member_id = "me-old"
+
+[[teams]]
+id = "mine"
+enabled = true
+solo = true
+state_path = "/solo"
+member_id = "me-solo"
+
+[[teams]]
+id = "first"
+enabled = true
+state_repo = "git@x:o/first.git"
+member_id = "me-first"
+
+[[teams]]
+id = "chosen"
+enabled = true
+default = true
+state_repo = "git@x:o/chosen.git"
+member_id = "me-chosen"
+`
+	useHub(t, teams)
+	t.Setenv(EnvTeamID, "")
+	got, err := loadEffectiveTeamConfig()
+	require.NoError(t, err)
+	assert.Equal(t, "me-chosen", got.MemberID, "the default team")
+	assert.True(t, got.Enabled)
+
+	// With no `default = true`, the first enabled team that is neither
+	// archived nor a solo space.
+	useHub(t, strings.Replace(teams, "default = true", "", 1))
+	t.Setenv(EnvTeamID, "")
+	got, err = loadEffectiveTeamConfig()
+	require.NoError(t, err)
+	assert.Equal(t, "me-first", got.MemberID)
+
+	// The team of the session project is the one OH_TEAM_ID names, an
+	// archived one included (the project says so), but its features stay off.
+	t.Setenv(EnvTeamID, "old")
+	got, err = loadEffectiveTeamConfig()
+	require.NoError(t, err)
+	assert.Equal(t, "me-old", got.MemberID)
+	assert.False(t, got.Enabled)
+
+	t.Setenv(EnvTeamID, "mine")
+	got, err = loadEffectiveTeamConfig()
+	require.NoError(t, err)
+	assert.False(t, got.Enabled, "a solo space never enables the team features")
 }

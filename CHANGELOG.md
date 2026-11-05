@@ -77,6 +77,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Impasses de la TUI** : le détail d'équipe vide n'annonce plus une touche `n` qu'il ignorait (il renvoie à la liste des équipes, où `n` marche) ; `Ctrl+T` sans équipe ouvre la fenêtre de création au lieu d'un toast sans suite ; la vue Équipe sans équipe liste des actions ; la vue Projet sans équipe a sa ligne « Équipe : aucune ».
 - **La palette garde les commandes d'un projet ajouté depuis la TUI.** Le Board, l'initialisation du board, le wiki du projet et la configuration du projet n'étaient enregistrés que s'il existait un projet au lancement ; ils le sont toujours et ne s'affichent que dans le mode Projet (comme les commandes d'équipe). Un premier projet ajouté dans la TUI apporte ses commandes sans redémarrer.
 - **`--team` n'est plus ignoré en silence par `oh team init` et `oh team rejoin`.** Flag persistant de `oh team`, il était accepté par ces deux commandes sans effet (seul `oh team init --reconfigure` le lit). Il est refusé avec le renvoi vers `--reconfigure` ou `--repo <url>`, avant toute question.
+- **Le serveur MCP d'équipe, lancé hors d'une session, prend l'équipe par défaut par la règle des commandes** (`default = true`, sinon la première équipe activée ; jamais une équipe archivée ni un espace solo), au lieu de relire `ActiveTeam()` ; `OH_TEAM_ID` (l'équipe du projet de la session) passe par la même règle.
 
 ## [5.3.3] — 2026-11-04
 
