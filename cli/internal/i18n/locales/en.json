@@ -6817,5 +6817,22 @@
   "v54l.board.badge.session_ended": "session ended",
   "v54l.board.detail.lease": "Lease:",
   "v54l.board.detail.expired": "expired on %s",
-  "v54l.board.detail.session_ended": "the session ended, the claim stayed"
+  "v54l.board.detail.session_ended": "the session ended, the claim stayed",
+  "v54l.doctor.daemon.name": "Daemon and claims",
+  "v54l.doctor.daemon.found": "The daemon is stopped and %[1]d claim(s) of %[2]d open session(s) are no longer renewed: their lease will run out. Start oh again (the daemon starts with it; status: oh daemon status).",
+  "v54l.doctor.sync.name": "Tracker sync",
+  "v54l.doctor.sync.never": "Team %[1]s: the tracker was never synchronized from this machine (%[2]s).",
+  "v54l.doctor.sync.old": "Team %[1]s: the tracker was last synchronized %[2]s ago (%[3]s).",
+  "v54l.doctor.age.days": "%d days",
+  "v54l.doctor.age.hours": "%d h",
+  "v54l.doctor.age.minutes": "%d min",
+  "v54l.doctor.board.name": "Claims outside the board",
+  "v54l.doctor.board.found": "Team %[1]s: %[2]d claim(s) in a status that is no column of the board (%[3]s). They show in no column: restore the column (oh team config) or change their status.",
+  "v54l.doctor.duplicates.name": "Duplicate claims",
+  "v54l.doctor.duplicates.found": "Team %[1]s: %[2]d tracker ticket(s) claimed twice (%[3]s). Release one of the two claims (oh team release <ticket> --force).",
+  "v54l.doctor.gone.name": "Claims of members who are gone",
+  "v54l.doctor.gone.found": "Team %[1]s: open claims of members who have no card any more: %[2]s. Hand them to a member (%[3]s) or release them (%[4]s).",
+  "v54l.doctor.member": "member",
+  "v54l.doctor.removed.name": "Member card removed",
+  "v54l.doctor.removed.found": "Team %[1]s: your card (%[2]s) is no longer in members.toml — a lead removed it. Join again (%[3]s) or leave the team (%[4]s)."
 }

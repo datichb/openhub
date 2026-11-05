@@ -6817,5 +6817,22 @@
   "v54l.board.badge.session_ended": "session terminée",
   "v54l.board.detail.lease": "Bail :",
   "v54l.board.detail.expired": "expiré le %s",
-  "v54l.board.detail.session_ended": "la session a pris fin, la réservation est restée"
+  "v54l.board.detail.session_ended": "la session a pris fin, la réservation est restée",
+  "v54l.doctor.daemon.name": "Démon et réservations",
+  "v54l.doctor.daemon.found": "Le démon est arrêté et %[1]d réservation(s) de %[2]d session(s) ouverte(s) ne sont plus renouvelées : leur bail va expirer. Relancez oh (le démon démarre avec lui ; état : oh daemon status).",
+  "v54l.doctor.sync.name": "Synchro du tracker",
+  "v54l.doctor.sync.never": "Équipe %[1]s : le tracker n'a jamais été synchronisé depuis cette machine (%[2]s).",
+  "v54l.doctor.sync.old": "Équipe %[1]s : dernière synchro du tracker il y a %[2]s (%[3]s).",
+  "v54l.doctor.age.days": "%d jours",
+  "v54l.doctor.age.hours": "%d h",
+  "v54l.doctor.age.minutes": "%d min",
+  "v54l.doctor.board.name": "Réservations hors board",
+  "v54l.doctor.board.found": "Équipe %[1]s : %[2]d réservation(s) dans un statut qui n'est pas une colonne du board (%[3]s). Elles n'apparaissent dans aucune colonne : rétablissez la colonne (oh team config) ou changez leur statut.",
+  "v54l.doctor.duplicates.name": "Doublons de réservations",
+  "v54l.doctor.duplicates.found": "Équipe %[1]s : %[2]d ticket(s) du tracker réservés deux fois (%[3]s). Libérez l'une des deux réservations (oh team release <ticket> --force).",
+  "v54l.doctor.gone.name": "Réservations de membres disparus",
+  "v54l.doctor.gone.found": "Équipe %[1]s : réservations ouvertes de membres qui n'ont plus de fiche : %[2]s. Passez-les à un membre (%[3]s) ou libérez-les (%[4]s).",
+  "v54l.doctor.member": "membre",
+  "v54l.doctor.removed.name": "Fiche de membre retirée",
+  "v54l.doctor.removed.found": "Équipe %[1]s : votre fiche (%[2]s) n'est plus dans members.toml — un lead l'a retirée. Rejoignez de nouveau (%[3]s) ou quittez l'équipe (%[4]s)."
 }
