@@ -5,7 +5,7 @@ cleanup | "Cleanup" | [nettoyage gc oh gc deploy-cleanup migrate garbage espace 
 bricks | "Bricks" | [briques agents skills catalogue des briques] | "Agents and skills catalogue (origin, cost, workflows)" | "Workflows" | prio=60 | view=project.agents | action=- | direct=false | enabled=false | modes=
 workflows | "Workflows" | [catalogue catalog wf workflow] | "Workflow catalogue" | "Workflows" | prio=75 | view=workflows | action=- | direct=false | enabled=false | modes=
 projects | "Projects" | [proj list] | "Project list" | "Projects" | prio=100 | view=projects.list | action=- | direct=false | enabled=false | modes=
-teams | "Teams" | [team equipe equipes teams] | "Team management" | "Configuration" | prio=85 | view=teams | action=- | direct=false | enabled=false | modes=
+teams | "Teams" | [team equipe equipes teams] | "Team management" | "Team" | prio=85 | view=teams | action=- | direct=false | enabled=false | modes=
 models | "Models" | [mod model llm] | "Model configuration" | "Configuration" | prio=50 | view=models | action=- | direct=false | enabled=false | modes=
 provider | "Provider" | [prov api] | "LLM provider configuration" | "Configuration" | prio=50 | view=provider | action=- | direct=false | enabled=false | modes=
 mcp | "MCP" | [servers] | "MCP servers" | "Configuration" | prio=50 | view=mcp | action=- | direct=false | enabled=false | modes=
@@ -22,8 +22,22 @@ home | "Home" | [accueil welcome] | "Back to home" | "Navigation" | prio=100 | v
 project.mode | "Project View" | [projet project focus] | "Switch to the Project view" | "Navigation" | prio=100 | view= | action=closure | direct=false | enabled=false | modes=hub,team
 hub.mode | "Hub View" | [hub complet retour] | "Return to full TUI (Hub view)" | "Navigation" | prio=95 | view= | action=closure | direct=false | enabled=false | modes=team,project
 quit | "Quit" | [exit q] | "Quit the TUI" | "Navigation" | prio=10 | view= | action=closure | direct=false | enabled=false | modes=
-team.init | "Create a team" | [team init initialiser] | "A new team-state repository (even if you already have a team)" | "Team" | prio=40 | view= | action=cmd.actionTeamInit | direct=false | enabled=false | modes=
-team.rejoin | "Rejoin a team" | [team rejoin rejoindre rejoin] | "Rejoin an existing team after reinstallation" | "Team" | prio=41 | view= | action=cmd.actionTeamRejoin | direct=false | enabled=false | modes=
+team-detail | "Team Configuration" | [tracker sync team detail profile profil] | "Team configuration (services, tracker, resolution)" | "Team" | prio=48 | view=team.detail | action=- | direct=false | enabled=false | modes=team
+team.discover | "Discover the tracker" | [tracker discovery discover configurer tracker discovery] | "Launch the tracker configuration wizard (label/status discovery)" | "Team" | prio=47 | view= | action=cmd.actionTrackerDiscovery | direct=false | enabled=false | modes=team
+team.board | "Team Board" | [team board team kanban equipe board] | "Team kanban board" | "Team" | prio=70 | view=team.board | action=- | direct=false | enabled=false | modes=team
+team.status | "Team status" | [team stat status team] | "Who is working on what" | "Team" | prio=70 | view=team.status | action=- | direct=false | enabled=false | modes=team
+team.activity | "Activity" | [activite feed activity historique equipe team history team sessions] | "Recent team activity" | "Team" | prio=65 | view=team.activity | action=- | direct=false | enabled=false | modes=team
+team.briefs | "Takeover Briefs" | [takeover briefs reprises] | "Context takeover briefs" | "Team" | prio=60 | view=team.briefs | action=- | direct=false | enabled=false | modes=team
+team.patterns | "Patterns" | [pat patterns] | "Team decomposition patterns" | "Team" | prio=50 | view=team.patterns | action=- | direct=false | enabled=false | modes=team
+team.policies | "Policies" | [pol rules policies] | "Team policies" | "Team" | prio=50 | view=team.policies | action=- | direct=false | enabled=false | modes=team
+team.wiki | "Team proposals (team-state)" | [wiki proposals pending team-state] | "Pages of the team wiki and proposals waiting in the team-state" | "Team" | prio=55 | view=team.wiki | action=- | direct=false | enabled=false | modes=team
+team.sync | "Sync Tracker" | [sync tracker sync-tracker synchroniser tracker] | "Synchronize claims with the external tracker" | "Team" | prio=60 | view= | action=cmd.actionSyncTracker | direct=false | enabled=false | modes=team
+team.reconfigure | "Reconfigure the team" | [reconfigure team team reconfigure reconfigurer equipe] | "Configuration, your card, notifications and policies of the team that is open" | "Team" | prio=52 | view= | action=cmd.actionTeamReconfigure | direct=false | enabled=false | modes=team
+team.switch | "Switch team…" | [switch team change team changer equipe autre equipe] | "Open the Team view of another team" | "Team" | prio=51 | view= | action=cmd.actionSwitchTeam | direct=false | enabled=false | modes=team
+team.new | "New team…" | [new team nouvelle equipe nouvelle équipe ajouter une equipe add team] | "Create a team, join one, or open a solo space" | "Team" | prio=43 | view= | action=cmd.actionTeamNew | direct=false | enabled=false | modes=
+team.init | "Create a team" | [team init create team créer creer initialiser] | "A new team-state repository (even if you already have a team)" | "Team" | prio=40 | view= | action=cmd.actionTeamInit | direct=false | enabled=false | modes=
+team.rejoin | "Rejoin a team" | [team rejoin rejoindre rejoin join team] | "Existing repository: new member or reinstall" | "Team" | prio=41 | view= | action=cmd.actionTeamRejoin | direct=false | enabled=false | modes=
+team.configure | "Attach the project to a team" | [attach project rattacher team config team projet configurer equipe] | "Team of the project: a team, a solo space or none" | "Team" | prio=50 | view= | action=cmd.actionTeamConfigure | direct=false | enabled=false | modes=project
 worktrees | "Worktrees" | [wt git worktree] | "Git worktree management" | "Git" | prio=100 | view=worktrees | action=- | direct=false | enabled=false | modes=
 review.publish | "Review Publish" | [publish mr] | "Publish for review (MR + notification)" | "Workflows" | prio=0 | view= | action=cmd.actionReviewPublish | direct=true | enabled=false | modes=project,team
 init | "Configure hub" | [init setup reconfigure configurer] | "Run the hub setup wizard (provider, credentials)" | "Hub" | prio=30 | view= | action=closure | direct=false | enabled=false | modes=

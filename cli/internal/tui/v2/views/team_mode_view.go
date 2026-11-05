@@ -28,6 +28,11 @@ type TeamModeConfig struct {
 	OnSyncTracker func()
 	// OnBoardConfig is called when the user wants to configure board columns.
 	OnBoardConfig func()
+	// OnSwitchTeam opens the choice of another team (« Changer d'équipe… »).
+	OnSwitchTeam func()
+	// OnNewTeam opens the window that creates a team, joins one or opens a
+	// solo space (« Nouvelle équipe… »).
+	OnNewTeam func()
 
 	// Sessions shows the "Sessions de l'équipe" section.
 	Sessions SessionsSectionConfig
@@ -135,21 +140,7 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	}
 
 	if v.team == nil {
-		tv := tview.NewTextView().
-			SetDynamicColors(true).
-			SetScrollable(false)
-		tv.SetBackgroundColor(theme.BgPanel)
-		tv.SetBorderPadding(1, 0, 2, 2)
-		tv.SetText(fmt.Sprintf(
-			"\n  %s\n\n  %s",
-			stateText(stateEmpty, i18n.T("tui.tm.no_team_active")),
-			i18n.Tf("tui.tm.hint_hub",
-				theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor,
-				theme.ColorTag(theme.ActiveMode.PrimaryHex), theme.TagColor,
-				theme.ColorTag(theme.ActiveMode.SecondaryHex), theme.TagColor,
-			),
-		))
-		content.AddItem(tv, 0, 1, true)
+		v.mountNoTeam(content, app)
 		return
 	}
 
@@ -281,6 +272,58 @@ func (v *TeamModeView) Mount(content *tview.Flex, app *tview.Application) {
 	}
 }
 
+// mountNoTeam is the team mode without a team: it says so, and offers what
+// can be done instead of leaving a text to read — start a team, choose one,
+// or go back to the hub.
+func (v *TeamModeView) mountNoTeam(content *tview.Flex, app *tview.Application) {
+	tv := tview.NewTextView().
+		SetDynamicColors(true).
+		SetScrollable(false)
+	tv.SetBackgroundColor(theme.BgPanel)
+	tv.SetBorderPadding(1, 0, 2, 2)
+	tv.SetText(fmt.Sprintf("%s\n\n%s", stateText(stateEmpty, i18n.T("tui.tm.no_team_active")), muted(i18n.T("v54u.tm.no_team_hint"))))
+
+	v.items = v.noTeamItems()
+	list := widgets.NewSectionedList()
+	list.SetApp(app)
+	list.SetBackgroundColor(theme.BgPanel)
+	list.SetBorderPadding(0, 0, 2, 2)
+	list.SetItemSelectedFunc(func(_ int, item widgets.SectionItem) {
+		if idx, ok := item.Reference.(int); ok {
+			v.executeItem(idx)
+		}
+	})
+	generic := make([]widgets.SectionItem, len(v.items))
+	for i, it := range v.items {
+		generic[i] = toSectionItem(homeSectionItem{Icon: it.Icon, Label: it.Label, Desc: it.Desc}, i)
+	}
+	list.SetItems(generic)
+	v.list, v.dual = list, nil
+
+	col := tview.NewFlex().SetDirection(tview.FlexRow)
+	col.SetBackgroundColor(theme.BgPanel)
+	col.AddItem(tv, 5, 0, false)
+	col.AddItem(list, 0, 1, true)
+	content.AddItem(col, 0, 1, true)
+	app.SetFocus(list)
+}
+
+// noTeamItems are the actions of the team mode without a team.
+func (v *TeamModeView) noTeamItems() []teamModeItem {
+	var items []teamModeItem
+	if v.cfg.OnNewTeam != nil {
+		items = append(items, teamModeItem{Icon: "➕", Label: i18n.T("v54u.home.team_new"), Desc: i18n.T("v54u.home.team_new_desc"), Action: v.cfg.OnNewTeam})
+	}
+	if v.cfg.OnSwitchTeam != nil {
+		items = append(items, teamModeItem{Icon: "👥", Label: i18n.T("v54u.team.switch"), Desc: i18n.T("v54u.team.switch.desc"), Action: v.cfg.OnSwitchTeam})
+	}
+	return append(items, teamModeItem{Icon: "🏠", Label: i18n.T("tui.tm.item.hub_mode"), Desc: i18n.T("tui.tm.item.hub_mode_desc"), Action: func() {
+		if v.cfg.OnExitTeamMode != nil {
+			v.cfg.OnExitTeamMode()
+		}
+	}})
+}
+
 // Unmount cleans up resources.
 func (v *TeamModeView) Unmount() {
 	v.loads.Invalidate() // drop the read in flight
@@ -381,12 +424,21 @@ func (v *TeamModeView) buildItems() []teamModeItem {
 		)
 	}
 
-	// ── Configuration section ──
+	// ── Équipe section: the pages of the team itself ──
+	items = append(items,
+		teamModeItem{Icon: "─", Label: i18n.T("v54u.tm.section.team"), SectionID: "team"},
+		teamModeItem{Icon: "👤", Label: i18n.T("v54u.tm.item.members"), Desc: i18n.T("v54u.tm.item.members_desc"), Action: navigate("team.detail")},
+		teamModeItem{Icon: "🔧", Label: i18n.T("tui.tm.item.config_team"), Desc: i18n.T("tui.tm.item.config_team_desc"), Action: navigate("team.detail")},
+		teamModeItem{Icon: "🔌", Label: i18n.T("v54u.tm.item.mcp"), Desc: i18n.T("v54u.tm.item.mcp_desc"), Action: navigate("team.mcp")},
+		teamModeItem{Icon: "🧠", Label: i18n.T("v54u.tm.item.models"), Desc: i18n.T("v54u.tm.item.models_desc"), Action: navigate("team.models")},
+		teamModeItem{Icon: "📜", Label: i18n.T("tui.tm.item.policies"), Desc: i18n.T("tui.tm.item.policies_desc"), Action: navigate("team.policies")},
+		teamModeItem{Icon: "🔗", Label: i18n.T("tui.tm.item.patterns"), Desc: i18n.T("tui.tm.item.patterns_desc"), Action: navigate("team.patterns")},
+		teamModeItem{Icon: "📚", Label: i18n.T("v54u.tm.item.wiki"), Desc: i18n.T("v54u.tm.item.wiki_desc"), Action: navigate("team.wiki")},
+	)
+
+	// ── Configuration section: what runs with the team ──
 	items = append(items,
 		teamModeItem{Icon: "─", Label: i18n.T("tui.tm.section.configuration"), SectionID: "configuration"},
-		teamModeItem{Icon: "🔗", Label: i18n.T("tui.tm.item.patterns"), Desc: i18n.T("tui.tm.item.patterns_desc"), Action: navigate("team.patterns")},
-		teamModeItem{Icon: "📜", Label: i18n.T("tui.tm.item.policies"), Desc: i18n.T("tui.tm.item.policies_desc"), Action: navigate("team.policies")},
-		teamModeItem{Icon: "🔧", Label: i18n.T("tui.tm.item.config_team"), Desc: i18n.T("tui.tm.item.config_team_desc"), Action: navigate("team.detail")},
 		teamModeItem{Icon: "🔗", Label: i18n.T("tui.tm.item.workflow"), Desc: i18n.T("tui.tm.item.workflow_desc"), Action: navigate("workflows")},
 	)
 
@@ -399,8 +451,14 @@ func (v *TeamModeView) buildItems() []teamModeItem {
 	}
 
 	// ── Navigation section ──
+	items = append(items, teamModeItem{Icon: "─", Label: i18n.T("tui.tm.section.navigation"), SectionID: "navigation"})
+	if v.cfg.OnSwitchTeam != nil {
+		items = append(items, teamModeItem{Icon: "👥", Label: i18n.T("v54u.team.switch"), Desc: i18n.T("v54u.team.switch.desc"), Action: v.cfg.OnSwitchTeam})
+	}
+	if v.cfg.OnNewTeam != nil {
+		items = append(items, teamModeItem{Icon: "➕", Label: i18n.T("v54u.home.team_new"), Desc: i18n.T("v54u.home.team_new_desc"), Action: v.cfg.OnNewTeam})
+	}
 	items = append(items,
-		teamModeItem{Icon: "─", Label: i18n.T("tui.tm.section.navigation"), SectionID: "navigation"},
 		teamModeItem{Icon: "📂", Label: i18n.T("tui.tm.item.projects"), Desc: i18n.T("tui.tm.item.projects_desc"), Action: navigate("projects.list")},
 		teamModeItem{Icon: "📊", Label: i18n.T("tui.tm.item.metrics"), Desc: i18n.T("tui.tm.item.metrics_desc"), Action: navigate("metrics")},
 		teamModeItem{Icon: "🏠", Label: i18n.T("tui.tm.item.hub_mode"), Desc: i18n.T("tui.tm.item.hub_mode_desc"), Action: func() {
@@ -425,11 +483,11 @@ func (v *TeamModeView) showOtherSession(s TeamMemberSession) {
 }
 
 // splitItems distributes team mode items into left/right columns for dual mode.
-// Left: Sessions + Board. Right: Configuration + Navigation.
+// Left: Démarrer, Sessions + Board. Right: Équipe + Configuration + Navigation.
 func (v *TeamModeView) splitItems() (left, right []widgets.SectionItem) {
 	generic := make([]homeSectionItem, len(v.items))
 	for i, it := range v.items {
 		generic[i] = homeSectionItem{Icon: it.Icon, Label: it.Label, Desc: it.Desc, SectionID: it.SectionID}
 	}
-	return splitBySectionID(generic, "configuration", toSectionItem)
+	return splitBySectionID(generic, "team", toSectionItem)
 }

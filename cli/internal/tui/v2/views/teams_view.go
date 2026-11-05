@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -16,6 +17,18 @@ import (
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
+
+// The keys of the Teams view that are not the ones of the convention: p opens
+// the Team view of the team under the cursor, * makes it the default team (★).
+// Archive is x and restore is R, rename is e (keys.Archive, keys.Resume,
+// keys.Edit).
+var (
+	teamsOpenKey    = keys.Own("teams.open", 'p', "v54u.teams.key.team_view")
+	teamsDefaultKey = keys.Own("teams.default", '*', "v54u.teams.key.default")
+)
+
+// newTeamRef is the Reference of the « Nouvelle équipe » row of the list.
+const newTeamRef = "\x00new"
 
 // TeamsView displays and manages the user's team memberships (ADR-029).
 // It shows all configured teams with their sync status and allows
@@ -31,6 +44,11 @@ type TeamsView struct {
 	onNavigate func(viewID string)
 	onSelect   func(teamID string)
 	onAdd      func()
+	onOpen     func(teamID string)
+	onDefault  func(teamID string) error
+	onArchive  func(teamID string, archive bool) (note string, err error)
+	onRemove   func(teamID string) (detached []string, note string, err error)
+	projectsOf func(teamID string) []string
 	undoStack  *widgets.UndoStack[[]config.TeamConfig]
 
 	// memberNames: the display name of the member of each team, by team ID,
@@ -59,6 +77,24 @@ type TeamsViewDeps struct {
 	// repository, the member and the team ID itself and only writes hub.toml
 	// (no clone, no card).
 	OnAdd func()
+	// OnOpen opens the Team view on the team p was pressed on. Nil: the key
+	// does nothing.
+	OnOpen func(teamID string)
+	// OnSetDefault makes the team the default team of hub.toml (« Définir par
+	// défaut »). Nil: the view marks it in its own list and saves it.
+	OnSetDefault func(teamID string) error
+	// OnArchive archives (or, archive false, restores) the team in hub.toml;
+	// the note tells where the default team went when it was that team. Nil:
+	// the view changes its own list and saves it.
+	OnArchive func(teamID string, archive bool) (note string, err error)
+	// OnRemove takes the team out of hub.toml and detaches its projects; it
+	// returns the names of the projects it detached and a note on the default
+	// team. Nil: the view only removes the team from its list and saves it
+	// (the projects stay attached).
+	OnRemove func(teamID string) (detached []string, note string, err error)
+	// ProjectsOf names the projects attached to a team, for the confirmation
+	// of a removal. Nil: none is announced.
+	ProjectsOf func(teamID string) []string
 	// MemberNames gives the display name of the member of each team (team ID →
 	// name) from the team-states. It reads files: called off the event loop.
 	// Nil: the member IDs.
@@ -77,6 +113,11 @@ func NewTeamsView(deps TeamsViewDeps) *TeamsView {
 		onNavigate: deps.OnNavigate,
 		onSelect:   deps.OnSelectTeam,
 		onAdd:      deps.OnAdd,
+		onOpen:     deps.OnOpen,
+		onDefault:  deps.OnSetDefault,
+		onArchive:  deps.OnArchive,
+		onRemove:   deps.OnRemove,
+		projectsOf: deps.ProjectsOf,
 		undoStack:  widgets.NewUndoStack[[]config.TeamConfig](10),
 
 		memberNames: deps.MemberNames,
@@ -93,7 +134,9 @@ func (v *TeamsView) ID() string    { return "teams" }
 func (v *TeamsView) Title() string { return i18n.T("tui.teams") }
 
 func (v *TeamsView) StatusHints() string {
-	return keys.Hints(keys.Open.HintAs(i18n.T("tui.hints.detail")), keys.Create.Hint(),
+	return keys.Hints(keys.Open.HintAs(i18n.T("tui.hints.detail")), teamsOpenKey.Hint(), keys.Create.Hint(),
+		teamsDefaultKey.Hint(), keys.Edit.HintAs(i18n.T("v54u.teams.key.rename")),
+		keys.Archive.HintAs(i18n.T("v54u.teams.key.archive")), keys.Resume.HintAs(i18n.T("v54u.teams.key.restore")),
 		keys.Delete.Hint(), cfgSyncKey.Hint(), keys.Refresh.Hint(), cfgUndoKey.Hint())
 }
 
@@ -151,21 +194,45 @@ func (v *TeamsView) teamName(id string) string {
 	return id
 }
 
+// teamByID is the team of hub.toml with this ID (nil when there is none, or
+// for the row of the new team).
+func (v *TeamsView) teamByID(id string) *config.TeamConfig {
+	if id == "" || id == newTeamRef {
+		return nil
+	}
+	for i := range v.cfg.Teams {
+		if v.cfg.Teams[i].ID == id {
+			return &v.cfg.Teams[i]
+		}
+	}
+	return nil
+}
+
+// currentTeam is the team under the cursor (nil on the row of the new team,
+// or without any).
+func (v *TeamsView) currentTeam() *config.TeamConfig {
+	_, it, ok := v.list.CurrentItem()
+	if !ok {
+		return nil
+	}
+	id, _ := it.Reference.(string)
+	return v.teamByID(id)
+}
+
 // showDetail fills the detail pane with the team of it.
 func (v *TeamsView) showDetail(it widgets.SectionItem) {
 	if v.page == nil {
 		return
 	}
 	id, _ := it.Reference.(string)
-	var team *config.TeamConfig
-	for i := range v.cfg.Teams {
-		if id != "" && v.cfg.Teams[i].ID == id {
-			team = &v.cfg.Teams[i]
-		}
-	}
+	team := v.teamByID(id)
 	if team == nil {
 		var d detailText
-		d.title(i18n.T("tui.teams.no_teams"))
+		if len(v.cfg.Teams) == 0 {
+			d.title(i18n.T("tui.teams.no_teams"))
+		} else {
+			d.title(i18n.T("v54u.home.team_new"))
+		}
 		d.para(i18n.T("tui.teams.no_teams_hint"))
 		d.keys(append(keys.Pairs(keys.Create), cfgUndoKey.Keys(), cfgUndoKey.Label())...)
 		v.page.SetDetail(d.String())
@@ -185,12 +252,37 @@ func (v *TeamsView) showDetail(it widgets.SectionItem) {
 	d.field("ID :", tview.Escape(team.ID))
 	d.field(i18n.T("tui.detail.member"), tview.Escape(v.memberOf(*team)))
 	d.field(i18n.T("tui.detail.status"), status)
+	d.field(i18n.T("v54u.teams.field_default"), v.defaultText(*team))
 	d.field(i18n.T("tui.detail.repo"), tview.Escape(repo))
 	d.field(i18n.T("tui.detail.path"), tview.Escape(team.StatePath))
-	pairs := []string{keys.Open.Keys(), i18n.T("tui.hints.detail"), cfgSyncKey.Keys(), cfgSyncKey.Label()}
+	pairs := []string{keys.Open.Keys(), i18n.T("tui.hints.detail"), teamsOpenKey.Keys(), teamsOpenKey.Label()}
+	pairs = append(pairs, cfgSyncKey.Keys(), cfgSyncKey.Label(), teamsDefaultKey.Keys(), teamsDefaultKey.Label(),
+		keys.Edit.Keys(), i18n.T("v54u.teams.key.rename"), keys.Archive.Keys(), i18n.T("v54u.teams.key.archive"),
+		keys.Resume.Keys(), i18n.T("v54u.teams.key.restore"))
 	pairs = append(pairs, keys.Pairs(keys.Create, keys.Delete, keys.Refresh)...)
 	d.keys(append(pairs, cfgUndoKey.Keys(), cfgUndoKey.Label())...)
 	v.page.SetDetail(d.String())
+}
+
+// isDefault reports whether t is the default team of hub.toml.
+func (v *TeamsView) isDefault(t config.TeamConfig) bool {
+	def := v.cfg.DefaultTeam()
+	return def != nil && def.ID == t.ID
+}
+
+// defaultText says in the detail whether the team is the default team.
+func (v *TeamsView) defaultText(t config.TeamConfig) string {
+	switch {
+	case v.isDefault(t) && t.Default:
+		return theme.Paint(theme.SuccessHex, theme.SymDefault) + " " + i18n.T("v54u.teams.default_yes")
+	case v.isDefault(t):
+		return theme.Paint(theme.SuccessHex, theme.SymDefault) + " " + i18n.Tf("v54u.teams.default_implicit", teamsDefaultKey.Keys())
+	case t.Solo:
+		return muted(i18n.T("v54u.teams.default_solo"))
+	case !t.Enabled:
+		return muted(i18n.T("v54u.teams.default_archived"))
+	}
+	return muted(i18n.Tf("v54u.teams.default_no", teamsDefaultKey.Keys()))
 }
 
 func (v *TeamsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
@@ -216,6 +308,21 @@ func (v *TeamsView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	case cfgUndoKey.Matches(event):
 		v.handleUndo()
 		return nil
+	case teamsOpenKey.Matches(event):
+		v.handleOpen()
+		return nil
+	case teamsDefaultKey.Matches(event):
+		v.handleDefault()
+		return nil
+	case keys.Edit.Matches(event):
+		v.handleRename()
+		return nil
+	case keys.Archive.Matches(event):
+		v.handleArchive(true)
+		return nil
+	case keys.Resume.Matches(event):
+		v.handleArchive(false)
+		return nil
 	}
 	return event
 }
@@ -226,17 +333,33 @@ func (v *TeamsView) ContextCommands() []ContextCommand {
 		{
 			ID:          "teams.add",
 			Label:       i18n.T("tui.teams.add_team"),
-			Aliases:     []string{"add", "new", "ajouter"},
+			Aliases:     []string{"add", "new", "ajouter", "creer", "créer", "rejoindre"},
 			Description: i18n.T("tui.teams.add_team_desc"),
-			Category:    i18n.T("tui.teams.category"),
+			Category:    i18n.T("tui.category.team"),
 			Action:      v.handleAdd,
+		},
+		{
+			ID:          "teams.open",
+			Label:       i18n.T("v54u.teams.open"),
+			Aliases:     []string{"open", "ouvrir", "team view", "vue equipe"},
+			Description: i18n.T("v54u.teams.open_desc"),
+			Category:    i18n.T("tui.category.team"),
+			Action:      v.handleOpen,
+		},
+		{
+			ID:          "teams.default",
+			Label:       i18n.T("v54u.teams.set_default"),
+			Aliases:     []string{"default", "defaut", "par defaut"},
+			Description: i18n.T("v54u.teams.set_default_desc"),
+			Category:    i18n.T("tui.category.team"),
+			Action:      v.handleDefault,
 		},
 		{
 			ID:          "teams.refresh",
 			Label:       i18n.T("tui.teams.refresh"),
 			Aliases:     []string{"refresh", "reload"},
 			Description: i18n.T("tui.teams.refresh_desc"),
-			Category:    i18n.T("tui.teams.category"),
+			Category:    i18n.T("tui.category.team"),
 			Action:      v.rebuild,
 		},
 	}
@@ -279,7 +402,7 @@ func (v *TeamsView) ContextCommands() []ContextCommand {
 			Label:       i18n.Tf("tui.teams.sync_team", t.DisplayName()),
 			Aliases:     []string{"sync", teamID},
 			Description: i18n.Tf("tui.teams.sync_team_desc", t.DisplayName()),
-			Category:    i18n.T("tui.teams.category"),
+			Category:    i18n.T("tui.category.team"),
 			Action:      func() { v.syncTeam(teamID) },
 		})
 	}
@@ -288,14 +411,15 @@ func (v *TeamsView) ContextCommands() []ContextCommand {
 }
 
 func (v *TeamsView) rebuild() {
-	items := make([]widgets.SectionItem, 0, len(v.cfg.Teams)*3+2)
+	// The cursor stays on the team it was on (a team that is renamed,
+	// archived or made the default does not send it back to the top).
+	keep := ""
+	if _, it, ok := v.list.CurrentItem(); ok {
+		keep, _ = it.Reference.(string)
+	}
+	items := make([]widgets.SectionItem, 0, len(v.cfg.Teams)+3)
 
-	if len(v.cfg.Teams) == 0 {
-		items = append(items, widgets.SectionItem{
-			MainText:      stateText(stateEmpty, i18n.T("tui.teams.no_teams")),
-			SecondaryText: i18n.T("tui.teams.no_teams_hint"),
-		})
-	} else {
+	if len(v.cfg.Teams) > 0 {
 		items = append(items, widgets.SectionItem{
 			MainText: i18n.T("tui.teams.header"),
 			IsHeader: true,
@@ -306,16 +430,40 @@ func (v *TeamsView) rebuild() {
 			if !t.Enabled {
 				status = i18n.T("tui.teams.status_inactive")
 			}
+			main := fmt.Sprintf("%s  %s", t.ID, t.DisplayName())
+			if v.isDefault(t) {
+				main += "  " + theme.Paint(theme.SuccessHex, theme.SymDefault)
+			}
 
 			items = append(items, widgets.SectionItem{
-				MainText:      fmt.Sprintf("%s  %s", t.ID, t.DisplayName()),
+				MainText:      main,
 				SecondaryText: i18n.Tf("tui.teams.member_info", v.memberOf(t), teamRepoLabel(t), status),
 				Reference:     t.ID,
 			})
 		}
 	}
 
+	// The row of the new team closes the list; without any team it is the
+	// list, and says what a team is for.
+	desc := i18n.T("v54u.home.team_new_desc")
+	if len(v.cfg.Teams) == 0 {
+		desc = i18n.T("v54u.home.team_empty")
+	}
+	items = append(items, widgets.SectionItem{
+		MainText:      "➕  " + i18n.T("v54u.home.team_new"),
+		SecondaryText: desc,
+		Reference:     newTeamRef,
+	})
+
 	v.list.SetItems(items)
+	if keep != "" {
+		for i, it := range items {
+			if ref, _ := it.Reference.(string); ref == keep {
+				v.list.SelectIndex(i)
+				break
+			}
+		}
+	}
 	_, it, ok := v.list.CurrentItem()
 	if !ok && len(items) > 0 {
 		it = items[0]
@@ -326,6 +474,10 @@ func (v *TeamsView) rebuild() {
 func (v *TeamsView) handleSelect(index int, item widgets.SectionItem) {
 	teamID, ok := item.Reference.(string)
 	if !ok || teamID == "" {
+		return
+	}
+	if teamID == newTeamRef {
+		v.handleAdd()
 		return
 	}
 	// The detail shows the team chosen here, not the default one.
@@ -402,25 +554,45 @@ func (v *TeamsView) handleAdd() {
 }
 
 func (v *TeamsView) handleDelete() {
-	idx, item, ok := v.list.CurrentItem()
-	if !ok || item.Reference == nil {
+	team := v.currentTeam()
+	if team == nil || v.shell == nil {
 		return
 	}
-	_ = idx
-	teamID, ok := item.Reference.(string)
-	if !ok {
-		return
-	}
-
-	if v.shell == nil {
-		return
-	}
-
+	teamID := team.ID
 	name := v.teamName(teamID)
-	v.shell.Confirm(i18n.Tf("tui.teams.confirm_delete", name), i18n.T("tui.teams.delete_detail"), true, func() {
-
+	detail := i18n.T("tui.teams.delete_detail")
+	if v.projectsOf != nil {
+		if projects := v.projectsOf(teamID); len(projects) > 0 {
+			detail = i18n.Tf("v54u.teams.delete_detail_projects", len(projects), strings.Join(projects, ", "))
+		}
+	}
+	v.shell.Confirm(i18n.Tf("tui.teams.confirm_delete", name), detail, true, func() {
 		// Push undo state before mutation
 		v.undoStack.Push(copyTeams(v.cfg.Teams))
+
+		if v.onRemove != nil {
+			// The host takes the team out of hub.toml and detaches its projects.
+			detached, note, err := v.onRemove(teamID)
+			if err != nil && len(detached) == 0 && v.teamByID(teamID) != nil {
+				v.undoStack.Pop()
+				v.shell.ShowToastMsg(i18n.Tf("tui.teams.save_failed", err.Error()), false)
+				return
+			}
+			v.rebuild()
+			msg := i18n.Tf("tui.teams.team_deleted", name)
+			if len(detached) > 0 {
+				msg = i18n.Tf("v54u.teams.team_deleted_detached", name, len(detached), strings.Join(detached, ", "))
+			}
+			if note != "" {
+				msg += " " + note
+			}
+			if err != nil {
+				v.shell.ShowToastMsg(i18n.Tf("v54u.teams.detach_failed", err.Error()), false)
+				return
+			}
+			v.shell.ShowToastMsg(msg, true)
+			return
+		}
 
 		// Remove from config
 		newTeams := make([]config.TeamConfig, 0, len(v.cfg.Teams)-1)
@@ -451,15 +623,146 @@ func (v *TeamsView) handleDelete() {
 }
 
 func (v *TeamsView) handleSync() {
-	_, item, ok := v.list.CurrentItem()
-	if !ok || item.Reference == nil {
+	if team := v.currentTeam(); team != nil {
+		v.syncTeam(team.ID)
+	}
+}
+
+// handleOpen is p: the Team view of the team under the cursor. A solo space
+// or an archived team has none.
+func (v *TeamsView) handleOpen() {
+	team := v.currentTeam()
+	if team == nil || v.onOpen == nil {
 		return
 	}
-	teamID, ok := item.Reference.(string)
-	if !ok {
+	if team.Solo || !team.Enabled {
+		if v.shell != nil {
+			v.shell.ShowToastMsg(i18n.Tf("v54u.teams.no_team_view", team.DisplayName()), false)
+		}
 		return
 	}
-	v.syncTeam(teamID)
+	v.onOpen(team.ID)
+}
+
+// handleDefault is *: the team under the cursor becomes the default team.
+func (v *TeamsView) handleDefault() {
+	team := v.currentTeam()
+	if team == nil || v.shell == nil {
+		return
+	}
+	if v.isDefault(*team) {
+		v.shell.ShowToastMsg(i18n.Tf("v54u.teams.already_default", team.DisplayName()), true)
+		return
+	}
+	v.undoStack.Push(copyTeams(v.cfg.Teams))
+	var err error
+	if v.onDefault != nil {
+		err = v.onDefault(team.ID)
+	} else {
+		err = v.saveTeams(func(c *config.Config) error { return c.SetDefaultTeam(team.ID) })
+	}
+	if err != nil {
+		v.undoStack.Pop()
+		v.shell.ShowToastMsg(err.Error(), false)
+		return
+	}
+	v.rebuild()
+	v.shell.ShowToastMsg(i18n.Tf("v54u.teams.default_set", team.DisplayName()), true)
+}
+
+// handleRename is e: the display name of the team under the cursor (empty:
+// back to the ID).
+func (v *TeamsView) handleRename() {
+	team := v.currentTeam()
+	if team == nil || v.shell == nil {
+		return
+	}
+	id := team.ID
+	v.shell.ShowInputModal(i18n.Tf("v54u.teams.rename_title", id), team.Name, func(name string) {
+		name = strings.TrimSpace(name)
+		v.undoStack.Push(copyTeams(v.cfg.Teams))
+		err := v.saveTeams(func(c *config.Config) error {
+			if t := c.FindTeam(id); t != nil {
+				t.Name = name
+			}
+			return nil
+		})
+		if err != nil {
+			v.undoStack.Pop()
+			v.shell.ShowToastMsg(i18n.Tf("tui.teams.save_failed", err.Error()), false)
+			return
+		}
+		v.rebuild()
+		v.shell.ShowToastMsg(i18n.Tf("v54u.teams.renamed", v.teamName(id)), true)
+	})
+}
+
+// handleArchive is x (archive) and R (restore): enabled = false or true. It
+// never destroys anything and never asks.
+func (v *TeamsView) handleArchive(archive bool) {
+	team := v.currentTeam()
+	if team == nil || v.shell == nil {
+		return
+	}
+	name := team.DisplayName()
+	if team.Enabled != archive {
+		msg := "v54u.teams.already_active" // R on a team that is not archived
+		if archive {
+			msg = "v54u.teams.already_archived"
+		}
+		v.shell.ShowToastMsg(i18n.Tf(msg, name), false)
+		return
+	}
+	v.undoStack.Push(copyTeams(v.cfg.Teams))
+	var note string
+	var err error
+	switch {
+	case v.onArchive != nil:
+		note, err = v.onArchive(team.ID, archive)
+	default:
+		id := team.ID
+		err = v.saveTeams(func(c *config.Config) error {
+			if t := c.FindTeam(id); t != nil {
+				t.Enabled = !archive
+			}
+			if archive {
+				c.ClearDefaultTeam(id)
+			}
+			return nil
+		})
+	}
+	if err != nil {
+		v.undoStack.Pop()
+		v.shell.ShowToastMsg(i18n.Tf("tui.teams.save_failed", err.Error()), false)
+		return
+	}
+	v.rebuild()
+	msg := i18n.Tf("v54u.teams.restored", name)
+	if archive {
+		msg = i18n.Tf("v54u.teams.archived", name, keys.Resume.Keys())
+	}
+	if note != "" {
+		msg += " " + note
+	}
+	v.shell.ShowToastMsg(msg, true)
+}
+
+// saveTeams applies fn on the list the view shows, then on hub.toml through
+// OnUpdate (the host then brings the shared config up to date with the file).
+// Nothing changes when fn or the write fails.
+func (v *TeamsView) saveTeams(fn func(*config.Config) error) error {
+	prev := copyTeams(v.cfg.Teams)
+	if err := fn(v.cfg); err != nil {
+		v.cfg.Teams = prev
+		return err
+	}
+	if v.onUpdate != nil {
+		if err := v.onUpdate(fn); err != nil {
+			v.cfg.Teams = prev
+			return err
+		}
+	}
+	return nil
 }
 
 func (v *TeamsView) syncTeam(teamID string) {

@@ -43,6 +43,10 @@ type HomeViewConfig struct {
 	OnSelectProject func(projectID, projectName, projectPath string)
 	// OnAddProject is called when the user triggers the "add project" quick action.
 	OnAddProject func()
+	// OnNewTeam is called by the « Nouvelle équipe » row of the Teams section:
+	// the host opens the window that creates a team, joins one or opens a solo
+	// space.
+	OnNewTeam func()
 	// Sessions shows the "Sessions" section.
 	Sessions SessionsSectionConfig
 	// ToolLine returns the tool line of the header (« <tool> v<version> ·
@@ -56,7 +60,9 @@ type TeamEntry struct {
 	ID          string
 	Name        string
 	MemberCount int
-	ActiveCount int // in_progress + review
+	ActiveCount int  // in_progress + review
+	Default     bool // the default team of the hub (★)
+	NotSynced   bool // the team-state is not cloned yet: no figures
 }
 
 // ProjectEntry represents a project with context info for the hub home.
@@ -164,6 +170,7 @@ func (v *HomeView) Mount(content *tview.Flex, app *tview.Application) {
 			FooterHeight: 4,
 			LeftItems:    leftItems,
 			RightItems:   rightItems,
+			SingleItems:  v.singleItems(),
 			OnSelect:     onSelect,
 			Compact:      compact,
 		})
@@ -285,15 +292,28 @@ func (v *HomeView) executeItem(idx int) {
 	}
 }
 
-// buildStaticItems returns items that don't require I/O (Sessions + System + Projets).
-// Used for the initial synchronous frame before async data arrives.
+// buildStaticItems returns items that don't require I/O: the sections of the
+// landing in their order (Démarrer, Sessions, Projets, Équipes, Système), the
+// projects and the teams still to read. Used for the initial synchronous frame
+// before async data arrives.
 func (v *HomeView) buildStaticItems() []homeItem {
-	return append(v.buildLeftStaticItems(), v.buildProjectsSection(nil)...)
+	return v.assemble(homeData{}, false)
 }
 
-// buildLeftStaticItems returns the I/O-free sections other than « Projets »
-// (Démarrer, Sessions, Système).
-func (v *HomeView) buildLeftStaticItems() []homeItem {
+// assemble puts the sections in the order of the landing, the same in one
+// column as in two: Démarrer, Sessions, Projets, Équipes, Système. loaded says
+// whether the teams were read (an empty list is then an empty state, not a list
+// still to come).
+func (v *HomeView) assemble(d homeData, loaded bool) []homeItem {
+	items := v.buildStartItems()
+	items = append(items, v.buildProjectsSection(d.projects)...)
+	items = append(items, v.buildTeamsSection(d.teams, loaded)...)
+	return append(items, v.buildSystemItems()...)
+}
+
+// buildStartItems are the I/O-free sections that open the landing: Démarrer
+// and the running Sessions.
+func (v *HomeView) buildStartItems() []homeItem {
 	var items []homeItem
 
 	// ── Démarrer ──
@@ -313,7 +333,12 @@ func (v *HomeView) buildLeftStaticItems() []homeItem {
 		}
 	}
 
-	// ── System / navigation ──
+	return items
+}
+
+// buildSystemItems is the « Système » section, the last of the landing.
+func (v *HomeView) buildSystemItems() []homeItem {
+	var items []homeItem
 	items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.home.section.system"), Desc: ""})
 	items = append(items,
 		homeItem{Icon: "🔧", Label: i18n.T("tui.settings.title"), Desc: i18n.T("tui.settings.desc"), ViewID: "settings"},
@@ -360,44 +385,64 @@ func (v *HomeView) buildProjectsSection(projects []ProjectEntry) []homeItem {
 	return items
 }
 
+// buildTeamsSection is the « Équipes » section: always there, as « Projets »
+// is. One row per team (`👥 name  ★ par défaut · 3 membres · 2 en cours`), then
+// « ➕ Nouvelle équipe », whose text explains the teams while there is none.
+// loaded is false before the teams are read: the section then only has its
+// action.
+func (v *HomeView) buildTeamsSection(teams []TeamEntry, loaded bool) []homeItem {
+	items := []homeItem{{Icon: "─", Label: i18n.T("tui.home.section.teams"), Desc: ""}}
+	for _, t := range teams {
+		team := t // capture
+		items = append(items, homeItem{
+			Icon:  "👥",
+			Label: team.Name,
+			Desc:  teamEntryDesc(team),
+			Action: func() {
+				if v.cfg.OnSelectTeam != nil {
+					v.cfg.OnSelectTeam(team.ID, team.Name)
+				}
+			},
+		})
+	}
+	desc := i18n.T("v54u.home.team_new_desc")
+	if loaded && len(teams) == 0 {
+		desc = i18n.T("v54u.home.team_empty")
+	}
+	return append(items, homeItem{Icon: "➕", Label: i18n.T("v54u.home.team_new"), Desc: desc, Action: func() {
+		if v.cfg.OnNewTeam != nil {
+			v.cfg.OnNewTeam()
+		}
+	}})
+}
+
+// teamEntryDesc is the description of a team row: `★ par défaut · 3 membres ·
+// 2 en cours`, or `pas encore synchronisée` while its team-state is not cloned.
+func teamEntryDesc(t TeamEntry) string {
+	var parts []string
+	if t.Default {
+		parts = append(parts, theme.SymDefault+" "+i18n.T("v54u.home.team_default"))
+	}
+	if t.NotSynced {
+		parts = append(parts, i18n.T("v54u.home.team_not_synced"))
+	} else {
+		parts = append(parts, i18n.Tf("tui.home.team_desc", t.MemberCount, t.ActiveCount))
+	}
+	return strings.Join(parts, " · ")
+}
+
 // buildItems is the list of the landing once its teams and projects are read.
 func (v *HomeView) buildItems(d homeData) []homeItem {
-	var items []homeItem
-
-	// ── Teams section (ADR-032 Phase 3) ──
-	if len(d.teams) > 0 {
-		items = append(items, homeItem{Icon: "─", Label: i18n.T("tui.home.section.teams"), Desc: ""})
-		for _, t := range d.teams {
-			team := t // capture
-			items = append(items, homeItem{
-				Icon:  "👥",
-				Label: team.Name,
-				Desc:  i18n.Tf("tui.home.team_desc", team.MemberCount, team.ActiveCount),
-				Action: func() {
-					if v.cfg.OnSelectTeam != nil {
-						v.cfg.OnSelectTeam(team.ID, team.Name)
-					}
-				},
-			})
-		}
-	}
-
-	// ── Projects section (ADR-032 Phase 3) ──
-	// One « Projets » section; « Ajouter un projet » is its last row.
-	items = append(items, v.buildProjectsSection(d.projects)...)
-
-	// Append the other static sections (Démarrer, Sessions, Système).
-	items = append(items, v.buildLeftStaticItems()...)
-
-	return items
+	return v.assemble(d, true)
 }
 
 // splitItems distributes home items into left/right columns for dual mode.
-// Left: Sessions + Teams + System. Right: Projects.
+// Left: Démarrer + Sessions + System. Right: Projects + Teams.
 func (v *HomeView) splitItems() (left, right []widgets.SectionItem) {
 	// Identify which sections go right
 	rightSections := map[string]bool{
 		i18n.T("tui.home.section.projects"): true,
+		i18n.T("tui.home.section.teams"):    true,
 	}
 
 	inRight := false
@@ -414,6 +459,16 @@ func (v *HomeView) splitItems() (left, right []widgets.SectionItem) {
 		}
 	}
 	return
+}
+
+// singleItems are all the items in the order of the landing, for the layouts
+// of one column (the two columns put the right one after the left one).
+func (v *HomeView) singleItems() []widgets.SectionItem {
+	out := make([]widgets.SectionItem, len(v.items))
+	for i, it := range v.items {
+		out[i] = homeItemToSectionItem(it, i)
+	}
+	return out
 }
 
 func homeItemToSectionItem(it homeItem, idx int) widgets.SectionItem {

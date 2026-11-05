@@ -314,7 +314,7 @@ team-state/
 
 | | CLI | TUI |
 |---|-----|-----|
-| **Configurer** | Proposé dans `oh project add` / `oh init` | Omnibar `team configure` → modal 3 choix |
+| **Configurer** | Proposé dans `oh project add` / `oh init` | Palette « Rattacher le projet à une équipe » (vue Projet) → liste des équipes, espace solo, aucune |
 | **Appliquer** | Automatique au prochain `oh run` (paquet reconstruit ; `oh deploy` / `oh sync` supprimés en v5) | Automatique au prochain lancement |
 | **Vérifier** | `oh bundle show <workflow>` (MCP `team`, `OH_TEAM_ID`) | Vue `team.detail` (touche `Enter`) |
 

@@ -28,29 +28,7 @@ func buildHomeView(a *app.App, sessionsSection views.SessionsSectionConfig, star
 			projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
 			return len(projects) > 0
 		},
-		ListTeams: func() []views.TeamEntry {
-			teams := a.Config.Teams
-			entries := make([]views.TeamEntry, 0, len(teams))
-			for _, t := range teams {
-				if !t.Enabled || t.StateRepo == "" {
-					continue
-				}
-				entry := views.TeamEntry{ID: t.ID, Name: t.DisplayName()}
-				repo := teamstate.NewRepo(t.StateRepo, t.StatePath)
-				if repo.IsCloned() {
-					members, _ := repo.ListMembers(tuiContext())
-					entry.MemberCount = len(members)
-					tickets := views.FetchTeamTickets(tuiContext(), repo, nil)
-					for _, tk := range tickets {
-						if tk.Status == "in_progress" || tk.Status == "review" || tk.Status == "validation" {
-							entry.ActiveCount++
-						}
-					}
-				}
-				entries = append(entries, entry)
-			}
-			return entries
-		},
+		ListTeams: func() []views.TeamEntry { return homeTeamEntries(a) },
 		ListProjects: func() []views.ProjectEntry {
 			projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
 			entries := make([]views.ProjectEntry, 0, len(projects))
@@ -76,9 +54,38 @@ func buildHomeView(a *app.App, sessionsSection views.SessionsSectionConfig, star
 		OnAddProject: func() {
 			actionProjectAdd()
 		},
-		Start:    startSection,
-		ToolLine: tuiToolLine,
+		OnNewTeam: actionTeamNew,
+		Start:     startSection,
+		ToolLine:  tuiToolLine,
 	})
+}
+
+// homeTeamEntries are the teams of the landing: the enabled ones that are not
+// a solo space (it has no team features), the default team first, with the
+// figures of their team-state when it is cloned. It reads files: call it off
+// the event loop.
+func homeTeamEntries(a *app.App) []views.TeamEntry {
+	def := a.Config.DefaultTeam()
+	teams := attachableTeams(a.Config)
+	entries := make([]views.TeamEntry, 0, len(teams))
+	for _, t := range teams {
+		entry := views.TeamEntry{ID: t.ID, Name: t.DisplayName(), Default: def != nil && def.ID == t.ID}
+		repo := teamstate.NewRepo(t.StateRepo, t.StatePath)
+		if repo.IsCloned() {
+			members, _ := repo.ListMembers(tuiContext())
+			entry.MemberCount = len(members)
+			tickets := views.FetchTeamTickets(tuiContext(), repo, nil)
+			for _, tk := range tickets {
+				if tk.Status == "in_progress" || tk.Status == "review" || tk.Status == "validation" {
+					entry.ActiveCount++
+				}
+			}
+		} else {
+			entry.NotSynced = true
+		}
+		entries = append(entries, entry)
+	}
+	return entries
 }
 
 // buildBoardView is the board of the active project (beads tickets).
@@ -150,11 +157,22 @@ func buildTeamsView(a *app.App) views.View {
 		},
 		OnUpdate:     func(fn func(*config.Config) error) error { return updateHubConfig(a, fn) },
 		OnSelectTeam: func(teamID string) { pickTeam(a, teamID) },
-		// n joins a team with the assistant of « Rejoindre une équipe »: the
-		// repository, its access, the clone, the card of the member and the
-		// state_path in hub.toml (the form that only wrote hub.toml left a
-		// team with no clone, no card and no state_path)
-		OnAdd: actionTeamRejoin,
+		// n opens the window that starts a team: create, rejoin (the assistant
+		// of « Rejoindre une équipe » does the repository, its access, the clone,
+		// the card of the member and the state_path in hub.toml) or a solo space
+		OnAdd:        actionTeamNew,
+		OnOpen:       func(teamID string) { enterTeamMode(a, teamID) },
+		OnSetDefault: func(teamID string) error { return setDefaultTeam(a, teamID) },
+		OnArchive: func(teamID string, archive bool) (string, error) {
+			if archive {
+				return archiveTeam(a, teamID)
+			}
+			return "", restoreTeam(a, teamID)
+		},
+		OnRemove: func(teamID string) ([]string, string, error) {
+			return removeTeam(context.Background(), a, teamID)
+		},
+		ProjectsOf: func(teamID string) []string { return teamProjectNames(context.Background(), a, teamID) },
 		OnNavigate: func(viewID string) {
 			if tuiShell != nil {
 				tuiShell.NavigateTo(viewID)

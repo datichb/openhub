@@ -64,11 +64,32 @@ func buildProjectModeView(a *app.App, sessionsSection views.SessionsSectionConfi
 				tuiShell.SetProjectMode(nil)
 			}
 		},
-		ToolLine: tuiToolLine,
-		Runtimes: tuiProjectRuntimes(a),
+		ToolLine:     tuiToolLine,
+		Runtimes:     tuiProjectRuntimes(a),
+		Team:         func(p *views.ActiveProject) views.ProjectTeamInfo { return projectTeamInfo(a, p) },
+		OnAttachTeam: actionTeamConfigure,
 	})
 	projectModeView.SetResolveTeam(makeResolveTeamFunc(a))
 	return projectModeView
+}
+
+// projectTeamInfo is the team of the project for the « Équipe » line of its
+// landing: the one of its team_id, whatever its state (a solo space and an
+// archived team are told as such), a zero value without team.
+func projectTeamInfo(a *app.App, p *views.ActiveProject) views.ProjectTeamInfo {
+	if p == nil || a.Projects == nil {
+		return views.ProjectTeamInfo{}
+	}
+	proj, err := a.Projects.Get(context.Background(), p.ID)
+	id := projectTeamID(proj)
+	if err != nil || id == "" {
+		return views.ProjectTeamInfo{}
+	}
+	t := a.Config.FindTeam(id)
+	if t == nil {
+		return views.ProjectTeamInfo{ID: id, Name: id}
+	}
+	return views.ProjectTeamInfo{ID: t.ID, Name: t.DisplayName(), Solo: t.Solo, Archived: !t.Enabled}
 }
 
 // projectAdder adds the project of the projects view to the store, in the active team when the shell is in team mode.
@@ -195,9 +216,10 @@ func projectMover(a *app.App) func(id, newPath string) {
 func buildProjectConfigView(a *app.App) views.View {
 	return views.NewProjectConfigView(views.ProjectConfigViewConfig{
 		GetProject:  activeProjectCopy(a),
-		SaveProject: saveProject(a),
+		SaveProject: saveProjectWithTeam(a),
 		ExecHints:   projectExecHints,
 		WorkflowIDs: tuiWorkflowIDs,
+		TeamChoices: func(current string) []views.SelectOption { return projectTeamChoices(a.Config, current) },
 	})
 }
 

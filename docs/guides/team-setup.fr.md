@@ -28,7 +28,7 @@ La personne qui **crée** l'équipe exécute :
 oh team init
 ```
 
-Ou depuis le TUI, la commande « Créer une équipe » de la palette (`Ctrl+P`, `team init`). Elle crée toujours une nouvelle équipe sur un nouveau dépôt, même si vous en avez déjà une. Les **autres membres** rejoignent avec `oh team rejoin --repo <url>` (ou « Rejoindre une équipe » dans la palette, ou `oh teams add`, qui en est l'alias). Pour **reconfigurer** une équipe qui existe : `oh team init --reconfigure` (option `--team <id>`), ou « Reconfigurer l'équipe » dans la palette.
+Ou depuis le TUI : **Accueil › Équipes › ➕ Nouvelle équipe** (ou la touche `n` de la vue Équipes, ou la commande « Nouvelle équipe… » de la palette `Ctrl+P`) ouvre une fenêtre *Créer une équipe* / *Rejoindre une équipe* / *Espace solo*. « Créer une équipe » (`team init` dans la palette) Elle crée toujours une nouvelle équipe sur un nouveau dépôt, même si vous en avez déjà une. Les **autres membres** rejoignent avec `oh team rejoin --repo <url>` (ou « Rejoindre une équipe » dans la palette, ou `oh teams add`, qui en est l'alias). Pour **reconfigurer** une équipe qui existe : `oh team init --reconfigure` (option `--team <id>`), ou « Reconfigurer l'équipe » dans la palette.
 
 ### Mode CLI (terminal)
 
@@ -315,14 +315,13 @@ ce projet"* et offre un opt-in vers une configuration custom.
 
 ### Changer le mode après la création
 
-**Depuis l'omnibar TUI** (disponible à tout moment, quel que soit l'état team du hub) :
+**Depuis la TUI**, dans la vue Projet du projet :
 
-```
-team configure
-```
+- la ligne **👥 Équipe : Core › changer…** de l'accueil du projet (toujours présente, `Équipe : aucune` sans équipe) ;
+- ou la commande **« Rattacher le projet à une équipe »** de la palette (`Ctrl+P`, `rattacher`) ;
+- ou le champ **Équipe** de la configuration du projet (`project-config`), une liste.
 
-Cela ouvre un modal avec les trois choix. Le changement est pris en compte au
-prochain lancement de session (paquet reconstruit) — aucun redéploiement nécessaire.
+Le choix propose toutes les équipes (l'équipe par défaut en premier), un espace solo, ou aucune équipe ; « Nouvelle équipe… » y mène à la fenêtre de création. Hors de la TUI : `oh project set-team <projet> <équipe>`. Le changement est pris en compte au prochain lancement de session (paquet reconstruit) — aucun redéploiement nécessaire.
 
 ### Team custom : résolution du state path
 
@@ -759,6 +758,8 @@ Supprimer une équipe (détache tous les projets associés) :
 ```bash
 oh teams remove <team-id>
 ```
+
+**Dans la TUI**, la vue Équipes (`Ctrl+P` › `teams`, ou Accueil › Équipes) fait la même chose : `d` retire l'équipe (la confirmation annonce les projets qu'elle détache, et la liste ce qui a été détaché), `x` l'archive, `R` la restaure, `e` la renomme, `*` en fait l'équipe par défaut (`★`, comme `oh teams default <id>`), `p` ouvre sa vue Équipe, `n` ouvre la fenêtre « Nouvelle équipe ». Si l'équipe archivée ou retirée était l'équipe par défaut, le message dit laquelle la remplace.
 
 ### Détacher un projet de son équipe
 

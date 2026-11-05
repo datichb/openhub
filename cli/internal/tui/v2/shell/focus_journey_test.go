@@ -23,6 +23,7 @@ type journey struct {
 	*simShell
 	mu     sync.Mutex
 	picked string
+	added  int // times the row « Nouvelle équipe » (or n) asked the host for a team
 	solos  map[string]views.TeamResolution
 }
 
@@ -42,6 +43,7 @@ func newJourney(t *testing.T, ids ...string) *journey {
 		Config:       hub,
 		OnNavigate:   func(id string) { sh.NavigateTo(id) },
 		OnSelectTeam: func(id string) { j.mu.Lock(); j.picked = id; j.mu.Unlock() },
+		OnAdd:        func() { j.mu.Lock(); j.added++; j.mu.Unlock() },
 	})
 	detail := views.NewTeamDetailView(views.TeamDetailViewConfig{
 		GetMCPConfig:          func() config.MCPConfig { return config.MCPConfig{} },
@@ -75,7 +77,7 @@ func (j *journey) esc(t *testing.T, wantDepth int, step string) {
 }
 
 // Home → Configuration → Teams → detail: Esc goes back one level at every
-// step, with 0, 1 and 2 teams, and a detail left unedited shows no toast.
+// step, with 0, 1 and 2 teams (the row of the new team closes the list), and a detail left unedited shows no toast.
 func TestEscWalksBackHomeConfigurationTeamsDetail(t *testing.T) {
 	for _, ids := range [][]string{{}, {"alpha"}, {"alpha", "beta"}} {
 		t.Run(fmt.Sprintf("%d teams", len(ids)), func(t *testing.T) {
@@ -88,13 +90,18 @@ func TestEscWalksBackHomeConfigurationTeamsDetail(t *testing.T) {
 			if len(ids) == 0 {
 				assert.Contains(t, strings.ToLower(screen), "no team", "the empty list says so")
 				j.key(tcell.KeyEnter, 0, tcell.ModNone)
-				assert.Equal(t, 3, j.depth(), "nothing to open")
+				assert.Equal(t, 3, j.depth(), "no team to open")
+				j.mu.Lock()
+				assert.Equal(t, 1, j.added, "the row of the new team starts one")
+				j.mu.Unlock()
 				j.loop(func() { j.NavigateTo("team.detail") }) // from the palette
 				assert.Contains(t, j.screenText(), "No team to configure")
 				assert.Contains(t, j.screenText(), "Esc", "the way back is shown")
 				j.esc(t, 3, "the empty detail")
 			} else {
-				j.key(tcell.KeyDown, 0, tcell.ModNone)
+				if len(ids) > 1 {
+					j.key(tcell.KeyDown, 0, tcell.ModNone)
+				}
 				j.key(tcell.KeyEnter, 0, tcell.ModNone)
 				require.Equal(t, 4, j.depth(), "the team opens")
 				want := ids[len(ids)-1] // Down moves to the second team when there is one

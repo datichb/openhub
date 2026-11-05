@@ -329,12 +329,40 @@ func TestHomeView_SplitItems_DualColumn(t *testing.T) {
 	// Collect section headers from right column
 	rightHeaders := collectHeaders(right)
 
-	// Left should contain: Sessions, Teams, System
-	assert.Contains(t, leftHeaders, "Teams")
+	// Left holds what you do (Démarrer, Sessions) and the system; right holds
+	// what you work on: the projects and the teams.
 	assert.Contains(t, leftHeaders, "System")
+	assert.NotContains(t, leftHeaders, "Teams")
+	assert.Equal(t, []string{"Projects", "Teams"}, rightHeaders)
+}
 
-	// Right should contain: Projects (replaces old Quick Actions)
-	assert.Contains(t, rightHeaders, "Projects")
+// The landing has one order, in one column as in two: Démarrer, Sessions,
+// Projets, Équipes, Système.
+func TestHomeView_SectionOrder(t *testing.T) {
+	t.Parallel()
+	v := NewHomeView(HomeViewConfig{
+		Start: StartSectionConfig{Entries: func(StartScope) StartEntries { return StartEntries{Loaded: true} }},
+	})
+	headers := func(items []homeItem) (out []string) {
+		for _, it := range items {
+			if it.Icon == "─" {
+				out = append(out, it.Label)
+			}
+		}
+		return out
+	}
+	want := []string{i18n.T("tui.start.section"), "Projects", "Teams", "System"}
+	assert.Equal(t, want, headers(v.buildStaticItems()), "before the read")
+	assert.Equal(t, want, headers(v.buildItems(homeData{})), "once read")
+
+	v.items = v.buildItems(homeData{})
+	var single []string
+	for _, it := range v.singleItems() {
+		if it.IsHeader {
+			single = append(single, it.MainText)
+		}
+	}
+	assert.Equal(t, want, single, "the single column keeps the order")
 }
 
 func TestHomeView_SingleProjectsSection_AddLast(t *testing.T) {
@@ -351,15 +379,85 @@ func TestHomeView_SingleProjectsSection_AddLast(t *testing.T) {
 			for _, items := range [][]homeItem{v.buildItems(readHomeData(v.cfg)), v.buildStaticItems()} {
 				v.items = items
 				_, right := v.splitItems()
-				assert.Equal(t, []string{"Projects"}, collectHeaders(right))
+				assert.Equal(t, []string{"Projects", "Teams"}, collectHeaders(right))
 				require.NotEmpty(t, right)
-				assert.Contains(t, right[len(right)-1].MainText, i18n.T("tui.home.project_add"))
+				assert.Contains(t, right[0].MainText, "Projects")
+				var rows []string
+				for _, it := range right {
+					if !it.IsHeader {
+						rows = append(rows, it.MainText)
+					}
+				}
+				assert.Contains(t, rows[len(rows)-2], i18n.T("tui.home.project_add"), "the last row of the projects")
+				assert.Contains(t, rows[len(rows)-1], i18n.T("v54u.home.team_new"), "the last row of the teams")
 			}
 			v.items = v.buildItems(readHomeData(v.cfg))
 			_, right := v.splitItems()
-			assert.Len(t, right, 1+len(tc.projects)+1)
+			assert.Len(t, right, 1+len(tc.projects)+1+1+1)
 		})
 	}
+}
+
+// The Teams section is always there, as Projects is: a team per row with the
+// default mark and its figures, then « Nouvelle équipe », which explains the
+// teams while there is none.
+func TestHomeView_TeamsSection(t *testing.T) {
+	frLocale(t)
+	var newTeam, opened []string
+	v := NewHomeView(HomeViewConfig{
+		OnNewTeam:    func() { newTeam = append(newTeam, "new") },
+		OnSelectTeam: func(id, _ string) { opened = append(opened, id) },
+	})
+	teamRows := func(items []homeItem) (rows []homeItem) {
+		in := false
+		for _, it := range items {
+			if it.Icon == "─" {
+				in = it.Label == "Équipes"
+				continue
+			}
+			if in {
+				rows = append(rows, it)
+			}
+		}
+		return rows
+	}
+
+	t.Run("no team", func(t *testing.T) {
+		rows := teamRows(v.buildItems(homeData{}))
+		require.Len(t, rows, 1)
+		assert.Equal(t, "Nouvelle équipe", rows[0].Label)
+		assert.Contains(t, rows[0].Desc, "créez une équipe ou rejoignez", "the empty state tells what a team is for")
+		rows[0].Action()
+		assert.Equal(t, []string{"new"}, newTeam)
+	})
+
+	t.Run("not read yet", func(t *testing.T) {
+		rows := teamRows(v.buildStaticItems())
+		require.Len(t, rows, 1)
+		assert.NotContains(t, rows[0].Desc, "créez une équipe", "before the read nothing says there is no team")
+	})
+
+	t.Run("teams", func(t *testing.T) {
+		rows := teamRows(v.buildItems(homeData{teams: []TeamEntry{
+			{ID: "core", Name: "Core", MemberCount: 4, ActiveCount: 2, Default: true},
+			{ID: "side", Name: "Side", NotSynced: true},
+		}}))
+		require.Len(t, rows, 3)
+		assert.Equal(t, "Core", rows[0].Label)
+		assert.Equal(t, "👥", rows[0].Icon)
+		assert.Equal(t, "★ par défaut · 4 membres · 2 en cours", rows[0].Desc)
+		assert.Equal(t, "pas encore synchronisée", rows[1].Desc, "no figures for a team-state that is not cloned")
+		assert.Equal(t, "Nouvelle équipe", rows[2].Label, "the action closes the section")
+		rows[1].Action()
+		assert.Equal(t, []string{"side"}, opened)
+		assert.Equal(t, "Nouvelle équipe", rows[2].Label)
+	})
+
+	t.Run("no host", func(t *testing.T) {
+		bare := NewHomeView(HomeViewConfig{})
+		rows := teamRows(bare.buildItems(homeData{}))
+		assert.NotPanics(t, rows[0].Action)
+	})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

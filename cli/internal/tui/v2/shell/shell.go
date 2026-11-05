@@ -80,6 +80,9 @@ type Config struct {
 	// Used by Ctrl+T to switch to team mode (ADR-032 Phase 3).
 	// If nil, Ctrl+T falls back to navigating to the teams list view.
 	TeamsProvider func() []views.SelectOption
+	// OnNoTeam runs when Ctrl+T finds no team to enter: the host offers to
+	// create or to join one. Nil: a toast says there is none.
+	OnNoTeam func()
 	// ProjectsProvider returns the active projects (ID in Value, name in
 	// Label), and ProjectResolver completes the one that is chosen (path,
 	// branch). Ctrl+T enters the project mode through them; both are

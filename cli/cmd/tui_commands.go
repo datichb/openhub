@@ -32,7 +32,7 @@ func buildCommands(a *app.App) []shell.Command {
 	commands = append(commands, systemCommands()...)
 	commands = append(commands, navigationCommands()...)
 	commands = append(commands, projectCommands(a)...)
-	commands = append(commands, teamCommands(a)...)
+	commands = append(commands, teamCommands()...)
 	commands = append(commands, alwaysVisibleCommands()...)
 	if a.Config.MCP.Gitlab.WriteEnabled {
 		commands = append(commands, reviewPublishCommand())
@@ -121,7 +121,7 @@ func hubCommands() []shell.Command {
 			Label:       i18n.T("tui.teams"),
 			Aliases:     []string{"team", "equipe", "equipes", "teams"},
 			Description: i18n.T("tui.teams.desc"),
-			Category:    i18n.T("tui.category.configuration"),
+			Category:    i18n.T("tui.category.team"),
 			Priority:    85,
 			ViewID:      "teams",
 		},
@@ -360,12 +360,11 @@ func projectCommands(a *app.App) []shell.Command {
 	}
 }
 
-// teamCommands are the commands of the team, only registered when a team is
-// configured (ADR-032).
-func teamCommands(a *app.App) []shell.Command {
-	if a.Config.ActiveTeam().StateRepo == "" {
-		return nil
-	}
+// teamCommands are the commands of the team. They are always registered: the
+// palette is built once, at launch, and a team created or joined in the TUI
+// must bring its commands without a restart. They show in the team mode only
+// (Modes), where a team is open.
+func teamCommands() []shell.Command {
 	commands := teamConfigCommands()
 	commands = append(commands, teamPageCommands()...)
 	return append(commands, teamActionCommands()...)
@@ -379,7 +378,7 @@ func teamConfigCommands() []shell.Command {
 			Label:       i18n.T("tui.team.detail"),
 			Aliases:     []string{"tracker", "sync", "team detail", "profile", "profil"},
 			Description: i18n.T("tui.team.detail.desc"),
-			Category:    i18n.T("tui.category.configuration"),
+			Category:    i18n.T("tui.category.team"),
 			Priority:    48,
 			ViewID:      "team.detail",
 			Modes:       modeTeam,
@@ -389,7 +388,7 @@ func teamConfigCommands() []shell.Command {
 			Label:       i18n.T("cmd.discovery.omnibar_label"),
 			Aliases:     []string{"tracker discovery", "discover", "configurer tracker", "discovery"},
 			Description: i18n.T("cmd.discovery.omnibar_desc"),
-			Category:    i18n.T("tui.category.configuration"),
+			Category:    i18n.T("tui.category.team"),
 			Priority:    47,
 			Action:      actionTrackerDiscovery,
 			Modes:       modeTeam,
@@ -423,7 +422,7 @@ func teamPageCommands() []shell.Command {
 		{
 			ID:          "team.activity",
 			Label:       i18n.T("tui.team.activity"),
-			Aliases:     []string{"activite", "feed", "activity"}, //nolint:misspell // French search alias
+			Aliases:     []string{"activite", "feed", "activity", "historique equipe", "team history", "team sessions"}, //nolint:misspell // French search alias
 			Description: i18n.T("tui.team.activity.desc"),
 			Category:    i18n.T("tui.category.team"),
 			Priority:    65,
@@ -473,7 +472,7 @@ func teamPageCommands() []shell.Command {
 	}
 }
 
-// teamActionCommands are the actions of the team: sync, configure, history.
+// teamActionCommands are the actions of the team: sync, reconfigure, switch.
 func teamActionCommands() []shell.Command {
 	return []shell.Command{
 		{
@@ -487,16 +486,6 @@ func teamActionCommands() []shell.Command {
 			Modes:       modeTeam,
 		},
 		{
-			ID:          "team.configure",
-			Label:       i18n.T("tui.team.configure"),
-			Aliases:     []string{"team config", "team projet", "configurer equipe"},
-			Description: i18n.T("tui.team.configure.desc"),
-			Category:    i18n.T("tui.category.team"),
-			Priority:    50,
-			Action:      actionTeamConfigure,
-			Modes:       modeTeam,
-		},
-		{
 			ID:          "team.reconfigure",
 			Label:       i18n.T("v54a.team.reconfigure"),
 			Aliases:     []string{"reconfigure team", "team reconfigure", "reconfigurer equipe"},
@@ -507,27 +496,37 @@ func teamActionCommands() []shell.Command {
 			Modes:       modeTeam,
 		},
 		{
-			ID:          "history.team",
-			Label:       i18n.T("tui.cmd.history_team"),
-			Aliases:     []string{"team history", "team sessions", "historique equipe"},
-			Description: i18n.T("tui.cmd.history_team.desc"),
+			ID:          "team.switch",
+			Label:       i18n.T("v54u.team.switch"),
+			Aliases:     []string{"switch team", "change team", "changer equipe", "autre equipe"},
+			Description: i18n.T("v54u.team.switch.desc"),
 			Category:    i18n.T("tui.category.team"),
-			Priority:    55,
-			ViewID:      "team.activity",
+			Priority:    51,
+			Action:      actionSwitchTeam,
 			Modes:       modeTeam,
 		},
 	}
 }
 
-// alwaysVisibleCommands are there with or without a team: creating one,
-// rejoining one after a reinstall, and the worktrees (a git feature, not
+// alwaysVisibleCommands are there with or without a team: starting one
+// (create, rejoin after a reinstall, or the window that offers both), the
+// attachment of the project to a team, and the worktrees (a git feature, not
 // team-specific).
 func alwaysVisibleCommands() []shell.Command {
 	return []shell.Command{
 		{
+			ID:          "team.new",
+			Label:       i18n.T("v54u.team.new"),
+			Aliases:     []string{"new team", "nouvelle equipe", "nouvelle équipe", "ajouter une equipe", "add team"}, //nolint:misspell // French search alias
+			Description: i18n.T("v54u.team.new.desc"),
+			Category:    i18n.T("tui.category.team"),
+			Priority:    43,
+			Action:      actionTeamNew,
+		},
+		{
 			ID:          "team.init",
 			Label:       i18n.T("tui.team.init"),
-			Aliases:     []string{"team init", "initialiser"},
+			Aliases:     []string{"team init", "create team", "créer", "creer", "initialiser"},
 			Description: i18n.T("tui.team.init.desc"),
 			Category:    i18n.T("tui.category.team"),
 			Priority:    40,
@@ -536,11 +535,21 @@ func alwaysVisibleCommands() []shell.Command {
 		{
 			ID:          "team.rejoin",
 			Label:       i18n.T("tui.team.rejoin"),
-			Aliases:     []string{"team rejoin", "rejoindre", "rejoin"},
+			Aliases:     []string{"team rejoin", "rejoindre", "rejoin", "join team"},
 			Description: i18n.T("tui.team.rejoin.desc"),
 			Category:    i18n.T("tui.category.team"),
 			Priority:    41,
 			Action:      actionTeamRejoin,
+		},
+		{
+			ID:          "team.configure",
+			Label:       i18n.T("tui.team.configure"),
+			Aliases:     []string{"attach project", "rattacher", "team config", "team projet", "configurer equipe"},
+			Description: i18n.T("tui.team.configure.desc"),
+			Category:    i18n.T("tui.category.team"),
+			Priority:    50,
+			Action:      actionTeamConfigure,
+			Modes:       modeProject,
 		},
 		{
 			ID:          "worktrees",

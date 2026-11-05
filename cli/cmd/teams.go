@@ -241,32 +241,16 @@ func runTeamsRemove(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Remove from config
-	if err := updateHubConfig(a, func(c *config.Config) error {
-		newTeams := make([]config.TeamConfig, 0, len(c.Teams))
-		for _, t := range c.Teams {
-			if t.ID != teamID {
-				newTeams = append(newTeams, t)
-			}
-		}
-		c.Teams = newTeams
-		return nil
-	}); err != nil {
-		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
-	}
-
-	// Detach projects from the removed team
-	if projects != nil {
-		ctx := context.Background()
-		for i := range projects {
-			if projects[i].TeamID != nil && *projects[i].TeamID == teamID {
-				projects[i].TeamID = nil
-				_ = a.Projects.Update(ctx, &projects[i])
-			}
-		}
+	// Remove from config, detach the projects
+	_, note, err := removeTeam(context.Background(), a, teamID)
+	if err != nil {
+		return err
 	}
 
 	cliout.Success(a.IO.Out, i18n.Tf("cmd.teams.remove.success", theme.Bold.Render(teamID)))
+	if note != "" {
+		fmt.Fprintln(a.IO.Out, note)
+	}
 
 	return nil
 }
@@ -320,33 +304,17 @@ func runTeamsArchive(_ *cobra.Command, args []string) error {
 	}
 
 	// Set enabled = false; an archived team is never the default team.
-	wasDefault := a.Config.DefaultTeam() != nil && a.Config.DefaultTeam().ID == teamID
-	if err := updateHubConfig(a, func(c *config.Config) error {
-		for i := range c.Teams {
-			if c.Teams[i].ID == teamID {
-				c.Teams[i].Enabled = false
-				break
-			}
-		}
-		c.ClearDefaultTeam(teamID)
-		return nil
-	}); err != nil {
-		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
+	note, err := archiveTeam(a, teamID)
+	if err != nil {
+		return err
 	}
-	defer func() {
-		if !wasDefault {
-			return
-		}
-		if next := a.Config.DefaultTeam(); next != nil {
-			fmt.Fprintln(a.IO.Out, i18n.Tf("v54r.teams.archive.default_moved", theme.Bold.Render(teamID), theme.Bold.Render(next.ID)))
-		} else {
-			fmt.Fprintln(a.IO.Out, i18n.Tf("v54r.teams.archive.default_none", theme.Bold.Render(teamID)))
-		}
-	}()
 
 	cliout.Success(a.IO.Out, i18n.Tf("cmd.teams.archive.success",
 		theme.Bold.Render(teamID),
 		theme.Bold.Render("oh teams restore "+teamID)))
+	if note != "" {
+		fmt.Fprintln(a.IO.Out, note)
+	}
 	return nil
 }
 
@@ -369,16 +337,8 @@ func runTeamsRestore(_ *cobra.Command, args []string) error {
 	}
 
 	// Set enabled = true
-	if err := updateHubConfig(a, func(c *config.Config) error {
-		for i := range c.Teams {
-			if c.Teams[i].ID == teamID {
-				c.Teams[i].Enabled = true
-				break
-			}
-		}
-		return nil
-	}); err != nil {
-		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
+	if err := restoreTeam(a, teamID); err != nil {
+		return err
 	}
 
 	cliout.Success(a.IO.Out, i18n.Tf("cmd.teams.restore.success", theme.Bold.Render(teamID)))

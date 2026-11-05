@@ -133,6 +133,8 @@ func runTUI(l tuiLaunch) error {
 		// Ctrl+T offers the teams, as the home does: no solo space (it has no
 		// team features), no archived team; the default team comes first.
 		TeamsProvider: func() []views.SelectOption { return teamSelectorOptions(a.Config) },
+		// With no team to enter it offers to create or to join one.
+		OnNoTeam: actionTeamNewOrJoin,
 		// Ctrl+T enters the project mode: both run off the event loop.
 		ProjectsProvider: func() []views.SelectOption {
 			projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)

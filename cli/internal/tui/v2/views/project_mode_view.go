@@ -31,11 +31,27 @@ type ProjectModeConfig struct {
 	// Sessions shows the "Sessions du projet" section.
 	Sessions SessionsSectionConfig
 
+	// Team describes the team the active project belongs to, for the « Équipe »
+	// line of the landing. Must be cheap. Nil: the line says there is none.
+	Team func(project *ActiveProject) ProjectTeamInfo
+	// OnAttachTeam opens the choice of the team of the project (« Rattacher le
+	// projet à une équipe »). Nil: the line does nothing.
+	OnAttachTeam func()
+
 	// Runtimes returns the execution environments of the project with their
 	// availability (⌂ local, ▣ container, ☁ remote: 10 §2). It may probe the
 	// container engine or the keychain: the view calls it off the event loop.
 	// Nil hides the line.
 	Runtimes func(ctx context.Context, project *ActiveProject) []LaunchRuntime
+}
+
+// ProjectTeamInfo is the team of a project as the landing of the project
+// shows it. A zero ID is « no team ».
+type ProjectTeamInfo struct {
+	ID       string
+	Name     string
+	Solo     bool // a solo space: no team features
+	Archived bool
 }
 
 // projectModeItem represents a navigable item in the project mode view.
@@ -406,11 +422,12 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 		{Icon: "🔗", Label: i18n.T("tui.pm.item.workflows"), Desc: i18n.T("tui.pm.item.workflows_desc"), Action: navigate("workflows")},
 	}...)
 
-	// ── Team items (conditional) ────────────────────────────────────────
+	// ── Team section: always there, with the team of the project ──
+	items = append(items, projectModeItem{Icon: "─", Label: i18n.T("tui.pm.section.team"), SectionID: "team"})
+	items = append(items, v.teamLine())
 	if v.resolveTeam != nil {
 		if tc := v.resolveTeam(); tc.Enabled {
 			items = append(items,
-				projectModeItem{Icon: "─", Label: i18n.T("tui.pm.section.team"), SectionID: "team"},
 				projectModeItem{Icon: "👥", Label: i18n.T("tui.pm.item.team_status"), Desc: i18n.T("tui.pm.item.team_status_desc"), Action: navigate("team.status")},
 				projectModeItem{Icon: "📋", Label: i18n.T("tui.pm.item.team_board"), Desc: i18n.T("tui.pm.item.team_board_desc"), Action: navigate("team.board")},
 				projectModeItem{Icon: "📈", Label: i18n.T("tui.pm.item.team_activity"), Desc: i18n.T("tui.pm.item.team_activity_desc"), Action: navigate("team.activity")},
@@ -429,6 +446,31 @@ func (v *ProjectModeView) buildItems() []projectModeItem {
 	})
 
 	return items
+}
+
+// teamLine is the first row of the « Équipe » section: the team of the
+// project, or « aucune », and the way to change it.
+func (v *ProjectModeView) teamLine() projectModeItem {
+	var info ProjectTeamInfo
+	if v.cfg.Team != nil {
+		info = v.cfg.Team(v.project)
+	}
+	label, desc := "", i18n.T("v54u.pm.team_change")
+	switch {
+	case info.ID == "":
+		label, desc = i18n.Tf("v54u.pm.team_line", i18n.T("v54u.pm.team_none")), i18n.T("v54u.pm.team_attach")
+	case info.Solo:
+		label = i18n.Tf("v54u.pm.team_line", i18n.Tf("v54u.pm.team_solo", info.Name))
+	case info.Archived:
+		label = i18n.Tf("v54u.pm.team_line", i18n.Tf("v54u.pm.team_archived", info.Name))
+	default:
+		label = i18n.Tf("v54u.pm.team_line", info.Name)
+	}
+	return projectModeItem{Icon: "👥", Label: label, Desc: desc, Action: func() {
+		if v.cfg.OnAttachTeam != nil {
+			v.cfg.OnAttachTeam()
+		}
+	}}
 }
 
 // splitItems distributes project mode items into left/right columns for dual mode.

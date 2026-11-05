@@ -25,6 +25,10 @@ type ProjectConfigViewConfig struct {
 	ExecHints func(projectPath string) ProjectExecHints
 	// WorkflowIDs lists the workflows offered as default (cached catalogue).
 	WorkflowIDs func() []string
+	// TeamChoices are the teams the project can be attached to — every team,
+	// the solo spaces, and « none » (Value "") — with current, the team it is in,
+	// always among them. Nil: the team is typed as an ID.
+	TeamChoices func(current string) []SelectOption
 }
 
 // ProjectConfigView displays and edits the active project's configuration.
@@ -188,6 +192,32 @@ func (v *ProjectConfigView) undo() {
 // Field definitions
 // ─────────────────────────────────────────────────────────────────────────────
 
+// teamIDField is the team of the project: chosen in a list (every team, the
+// solo spaces, none) instead of typed, where a mistyped ID attached the
+// project to a team that does not exist.
+func (v *ProjectConfigView) teamIDField() configField {
+	f := configField{Key: "team_id", Kind: CfgFieldString, Label: i18n.T("tui.config.field.team_id.label"),
+		Description: i18n.T("tui.config.field.team_id.desc"),
+		Get: func() string {
+			if v.live.TeamID == nil {
+				return ""
+			}
+			return *v.live.TeamID
+		},
+		Set: func(val string) {
+			if val == "" {
+				v.live.TeamID = nil
+			} else {
+				v.live.TeamID = &val
+			}
+		}}
+	if v.cfg.TeamChoices != nil {
+		f.Kind = CfgFieldSelect
+		f.OptionsFunc = func() []SelectOption { return v.cfg.TeamChoices(f.Get()) }
+	}
+	return f
+}
+
 func (v *ProjectConfigView) buildFields() {
 	languageOptions := []SelectOption{
 		{Label: "Français", Value: "fr"},
@@ -246,21 +276,7 @@ func (v *ProjectConfigView) buildFields() {
 
 		// ── Team ────────────────────────────────────────────────────────────
 		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.team")},
-		{Key: "team_id", Kind: CfgFieldString, Label: i18n.T("tui.config.field.team_id.label"),
-			Description: i18n.T("tui.config.field.team_id.desc"),
-			Get: func() string {
-				if v.live.TeamID == nil {
-					return ""
-				}
-				return *v.live.TeamID
-			},
-			Set: func(val string) {
-				if val == "" {
-					v.live.TeamID = nil
-				} else {
-					v.live.TeamID = &val
-				}
-			}},
+		v.teamIDField(),
 
 		// ── Tracker Overrides ───────────────────────────────────────────────
 		{Kind: CfgFieldSectionHeader, Label: i18n.T("tui.config.section.tracker")},

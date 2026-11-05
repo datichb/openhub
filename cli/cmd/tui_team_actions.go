@@ -37,8 +37,16 @@ func actionTeamReconfigure() {
 	if tuiShell == nil {
 		return
 	}
-	team := MustApp().Config.ActiveTeam()
-	reconfigureTeam(&team)
+	a := MustApp()
+	// The team that is open: the one of the team mode (tuiTeamID), else the
+	// one the commands work on.
+	rt, err := ResolveTeam(tuiShell.Context(), a)
+	team := a.Config.FindTeam(rt.TeamID)
+	if err != nil || team == nil {
+		tuiShell.ShowToast(i18n.T("v54a.init.nothing_to_reconfigure_tui"), shell.ToastWarning)
+		return
+	}
+	reconfigureTeam(team)
 }
 
 // reconfigureTeam opens the assistant on team (the action of the detail of a
@@ -146,89 +154,6 @@ func openTeamAssistant(team *config.TeamConfig) {
 	})
 
 	tuiShell.PushView(wizard)
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Team Configure action (project-level)
-// ─────────────────────────────────────────────────────────────────────────────
-
-// actionTeamConfigure opens a modal chain to fully configure the team for the
-// currently active project:
-//   - inherit  → use hub team as-is
-//   - custom   → full setup (clone, init, add/update member, persist)
-//   - disabled → opt out for this project
-func actionTeamConfigure() {
-	if tuiShell == nil {
-		return
-	}
-
-	a := MustApp()
-
-	project := tuiShell.ActiveProject()
-	if project == nil {
-		tuiShell.ShowToast(i18n.T("tui.team.configure.no_project"), shell.ToastError)
-		return
-	}
-
-	// ── Choose among all the teams, or none ──────────────────────────────
-	var modeOptions []views.SelectOption
-	for _, t := range attachableTeams(a.Config) {
-		modeOptions = append(modeOptions, views.SelectOption{Label: teamChoiceLabel(a.Config, t), Value: t.ID})
-	}
-	modeOptions = append(modeOptions, views.SelectOption{Label: i18n.T("tui.team.configure.no_team"), Value: ""})
-
-	// The team the project is in now, else the default team
-	defaultVal := ""
-	if t := a.Config.DefaultTeam(); t != nil {
-		defaultVal = t.ID
-	}
-	if p, err := a.Projects.Get(context.Background(), project.ID); err == nil && p.TeamID != nil {
-		defaultVal = *p.TeamID
-	}
-
-	tuiShell.ShowSelectModal(i18n.T("tui.team.configure.modal_title"), modeOptions, defaultVal, func(teamID string) {
-		safego.Go(func() {
-			queueOnShell(tuiShell, func() {
-				applyProjectTeamID(a, project.ID, teamID)
-			})
-		})
-	})
-}
-
-// applyProjectTeamID persists the team ID for a project in the DB.
-//
-// IMPORTANT: This function MUST be called from within the tview event loop
-// (e.g. from a QueueUpdateDraw callback or a tview handler). It calls ShowToast
-// directly — never via QueueUpdateDraw — to avoid a nested-QueueUpdateDraw deadlock.
-func applyProjectTeamID(a *app.App, projectID, teamID string) {
-	ctx := context.Background()
-	p, err := a.Projects.Get(ctx, projectID)
-	if err != nil {
-		tuiShell.ShowToast(i18n.T("tui.team.configure.project_not_found"), shell.ToastError)
-		return
-	}
-
-	if teamID == "" {
-		p.TeamID = nil
-	} else {
-		p.TeamID = &teamID
-	}
-	// Clear legacy TeamConfig to avoid confusion
-	p.TeamConfig = nil
-
-	if err := a.Projects.Update(ctx, p); err != nil {
-		tuiShell.ShowToast(i18n.T("tui.team.configure.error_prefix")+err.Error(), shell.ToastError)
-		return
-	}
-
-	label := i18n.T("tui.team.configure.team_none")
-	if teamID != "" {
-		label = teamID
-	}
-	tuiShell.ShowToast(
-		i18n.Tf("tui.team.configure.team_set", label),
-		shell.ToastSuccess,
-	)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

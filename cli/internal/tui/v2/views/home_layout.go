@@ -167,6 +167,9 @@ type homeFlexConfig struct {
 	// LeftItems and RightItems are used in dual-column mode.
 	LeftItems  []widgets.SectionItem
 	RightItems []widgets.SectionItem
+	// SingleItems, when set, are the items of the layouts of one column, in
+	// their own order: without it they are the left items then the right ones.
+	SingleItems []widgets.SectionItem
 	// OnSelect is called when Enter is pressed on a non-header item.
 	OnSelect func(index int, item widgets.SectionItem)
 	// Compact drops the footer and the vertical spacers.
@@ -252,9 +255,12 @@ func buildSingleList(cfg homeFlexConfig) *widgets.SectionedList {
 	list.SetBorderPadding(0, 0, 3, 3)
 
 	// Merge left + right items for single-column display
-	allItems := make([]widgets.SectionItem, 0, len(cfg.LeftItems)+len(cfg.RightItems))
-	allItems = append(allItems, cfg.LeftItems...)
-	allItems = append(allItems, cfg.RightItems...)
+	allItems := cfg.SingleItems
+	if allItems == nil {
+		allItems = make([]widgets.SectionItem, 0, len(cfg.LeftItems)+len(cfg.RightItems))
+		allItems = append(allItems, cfg.LeftItems...)
+		allItems = append(allItems, cfg.RightItems...)
+	}
 	list.SetItems(allItems)
 
 	list.SetItemSelectedFunc(cfg.OnSelect)
