@@ -20,7 +20,13 @@ func defaultTeamMovedNote(a *app.App, id string, wasDefault bool) string {
 	if !wasDefault {
 		return ""
 	}
-	if next := a.Config.DefaultTeam(); next != nil {
+	return defaultTeamNote(a.Config, id)
+}
+
+// defaultTeamNote says where the default team went in cfg once team id stopped
+// being it.
+func defaultTeamNote(cfg *config.Config, id string) string {
+	if next := cfg.DefaultTeam(); next != nil {
 		return i18n.Tf("v54r.teams.archive.default_moved", id, next.ID)
 	}
 	return i18n.Tf("v54r.teams.archive.default_none", id)
@@ -98,8 +104,16 @@ func removeTeam(ctx context.Context, a *app.App, id string) (detached []string, 
 	if a.Config.FindTeam(id) == nil {
 		return nil, "", &config.UnknownTeamError{ID: id}
 	}
-	wasDefault := isDefaultTeam(a, id)
-	if err := updateHubConfig(a, func(c *config.Config) error {
+	return removeTeamVia(ctx, a, id, updateHubConfig)
+}
+
+// removeTeamVia is removeTeam writing hub.toml with update: the TUI removes a
+// team off its event loop (updateHubConfigOffLoop). The note on the default
+// team is made from hub.toml as the write reads it, so that nothing the loop
+// owns is read from here; the caller has checked that the team exists.
+func removeTeamVia(ctx context.Context, a *app.App, id string, update func(*app.App, func(*config.Config) error) error) (detached []string, note string, err error) {
+	if err := update(a, func(c *config.Config) error {
+		wasDefault := c.DefaultTeam() != nil && c.DefaultTeam().ID == id
 		c.ClearDefaultTeam(id)
 		kept := make([]config.TeamConfig, 0, len(c.Teams))
 		for _, t := range c.Teams {
@@ -108,6 +122,9 @@ func removeTeam(ctx context.Context, a *app.App, id string) (detached []string, 
 			}
 		}
 		c.Teams = kept
+		if wasDefault {
+			note = defaultTeamNote(c, id)
+		}
 		return nil
 	}); err != nil {
 		return nil, "", fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
@@ -130,5 +147,5 @@ func removeTeam(ctx context.Context, a *app.App, id string) (detached []string, 
 			detached = append(detached, projects[i].Name)
 		}
 	}
-	return detached, defaultTeamMovedNote(a, id, wasDefault), errors.Join(errs...)
+	return detached, note, errors.Join(errs...)
 }
