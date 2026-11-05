@@ -1,6 +1,7 @@
 package views
 
 import (
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -112,4 +113,110 @@ func TestTeamBoardOpenSyncFailureIsToldOnce(t *testing.T) {
 	assert.EqualValues(t, 1, syncs.Load())
 	assert.Contains(t, sh.seen()[0], assert.AnError.Error())
 	onLoop(app, v.Unmount)
+}
+
+func mountSyncBoard(t *testing.T, cfg TeamBoardViewConfig) (*TeamBoardView, *syncToastShell, *tview.Application) {
+	t.Helper()
+	frLocale(t)
+	if cfg.RefreshRate == 0 {
+		cfg.RefreshRate = time.Hour
+	}
+	cfg.IsConfigured = func() bool { return true }
+	if cfg.RefreshFunc == nil {
+		cfg.RefreshFunc = func() []TeamTicket { return syncBoardTickets("a-1") }
+	}
+	v := NewTeamBoardView(cfg)
+	sh := &syncToastShell{}
+	v.SetShell(sh)
+	content := tview.NewFlex()
+	app := runApp(t, content)
+	onLoop(app, func() { v.Mount(content, app) })
+	waitFor(t, app, func() bool { return v.loaded })
+	return v, sh, app
+}
+
+// r synchronizes the tracker and says what it did; the pull and the new read
+// follow.
+func TestTeamBoardRefreshSaysWhatTheSyncDid(t *testing.T) {
+	var pulls atomic.Int32
+	v, sh, app := mountSyncBoard(t, TeamBoardViewConfig{
+		PullRate:        -1,
+		SyncFunc:        func() error { pulls.Add(1); return nil },
+		TrackerSyncFunc: func() (string, error) { return "Synchro : 2 créées", nil },
+	})
+	before := pulls.Load()
+	onLoop(app, func() { v.HandleKey(runeKey('r')) })
+	waitFor(t, app, func() bool { return pulls.Load() > before && !v.actionInProgress.Load() })
+	assert.Contains(t, sh.seen(), "Synchro : 2 créées")
+	assert.NotContains(t, sh.seen(), "tui.teams.sync_pull_failed")
+	onLoop(app, v.Unmount)
+}
+
+// A team without tracker: r is the pull alone, with no failure said.
+func TestTeamBoardRefreshWithoutTrackerOnlyPulls(t *testing.T) {
+	var pulls atomic.Int32
+	v, sh, app := mountSyncBoard(t, TeamBoardViewConfig{
+		PullRate:        -1,
+		SyncFunc:        func() error { pulls.Add(1); return nil },
+		TrackerSyncFunc: func() (string, error) { return "", ErrNoTracker },
+	})
+	before := pulls.Load()
+	onLoop(app, func() { v.HandleKey(runeKey('r')) })
+	waitFor(t, app, func() bool { return pulls.Load() > before && !v.actionInProgress.Load() })
+	for _, toast := range sh.seen() {
+		assert.NotContains(t, toast, "Erreur", "no failure toast for a team without tracker")
+		assert.NotContains(t, toast, ErrNoTracker.Error())
+	}
+	onLoop(app, v.Unmount)
+}
+
+// A real failure of the sync is said, and the pull still happens.
+func TestTeamBoardRefreshSaysTheFailureOfTheSync(t *testing.T) {
+	var pulls atomic.Int32
+	v, sh, app := mountSyncBoard(t, TeamBoardViewConfig{
+		PullRate:        -1,
+		SyncFunc:        func() error { pulls.Add(1); return nil },
+		TrackerSyncFunc: func() (string, error) { return "", assert.AnError },
+	})
+	before := pulls.Load()
+	onLoop(app, func() { v.HandleKey(runeKey('r')) })
+	waitFor(t, app, func() bool { return pulls.Load() > before && !v.actionInProgress.Load() })
+	found := false
+	for _, toast := range sh.seen() {
+		found = found || strings.Contains(toast, assert.AnError.Error())
+	}
+	assert.True(t, found, "toasts: %v", sh.seen())
+	onLoop(app, v.Unmount)
+}
+
+// The board pulls by itself, quietly: the changes of the colleagues come to a
+// board that stays open, a failing pull is not a toast.
+func TestTeamBoardPullsPeriodicallyAndQuietly(t *testing.T) {
+	var pulls atomic.Int32
+	var reads atomic.Int32
+	v, sh, app := mountSyncBoard(t, TeamBoardViewConfig{
+		PullRate: 20 * time.Millisecond,
+		SyncFunc: func() error {
+			if pulls.Add(1) > 1 {
+				return assert.AnError
+			}
+			return nil
+		},
+		RefreshFunc: func() []TeamTicket { reads.Add(1); return syncBoardTickets("a-1") },
+	})
+	waitFor(t, app, func() bool { return pulls.Load() >= 4 })
+	assert.NotContains(t, sh.seen(), "tui.teams.sync_pull_failed")
+	for _, toast := range sh.seen() {
+		assert.NotContains(t, toast, assert.AnError.Error())
+	}
+	onLoop(app, v.Unmount)
+	stopped := pulls.Load()
+	time.Sleep(100 * time.Millisecond)
+	assert.LessOrEqual(t, pulls.Load(), stopped+1, "the timer ends with the view")
+}
+
+func TestTeamBoardPullRateDefaults(t *testing.T) {
+	assert.Equal(t, time.Minute, (&TeamBoardView{}).pullRate())
+	assert.Zero(t, (&TeamBoardView{cfg: TeamBoardViewConfig{PullRate: -1}}).pullRate())
+	assert.Equal(t, time.Second, (&TeamBoardView{cfg: TeamBoardViewConfig{PullRate: time.Second}}).pullRate())
 }

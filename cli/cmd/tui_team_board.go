@@ -154,23 +154,18 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			}
 			return err
 		},
-		TrackerSyncFunc: func() error {
-			// Full tracker API sync (GitLab/Jira) — called on manual 'r' key only.
-			// Recover guard: runSyncTrackerForTUI may panic if app state is
-			// partially initialized (e.g. Projects store not loaded yet).
-			var err error
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						err = fmt.Errorf(i18n.T("cmd.tui_team_board.tracker_sync_panic"), r)
-						safego.LogRecovered("tracker_sync.panic", r)
-					}
-				}()
-				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-				defer cancel()
-				_, err = runSyncTrackerForTUI(a, ctx)
+		TrackerSyncFunc: func() (summary string, err error) {
+			// Full tracker API sync (GitLab/Jira) — called on the manual 'r'
+			// key only. Recover guard: it may panic if app state is partially
+			// initialized (e.g. Projects store not loaded yet).
+			defer func() {
+				if r := recover(); r != nil {
+					summary, err = "", fmt.Errorf(i18n.T("cmd.tui_team_board.tracker_sync_panic"), r)
+					safego.LogRecovered("tracker_sync.panic", r)
+				}
 			}()
-			return err
+			// No deadline of its own: the engine bounds the run (tracker.RunTimeout).
+			return syncTrackerForBoard(a, tuiContext())
 		},
 		OpenSyncFunc: func() (summary string, err error) {
 			// Same guard as the manual sync: a panic of a half-initialized app
