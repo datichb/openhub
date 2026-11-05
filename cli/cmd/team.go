@@ -18,7 +18,6 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
-	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/glyph"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -35,26 +34,44 @@ var teamCmd = &cobra.Command{
 	PersistentPreRunE: teamPreRunE,
 }
 
+func init() { addTeamFlag(teamCmd) }
+
 // teamRepo is the shared team-state repository instance, resolved once by
 // teamPreRunE and reused by all team subcommands. Commands that need to work
 // before the repo exists (e.g. `team init`) override PersistentPreRunE to nil.
 var teamRepo *teamstate.Repo
 
-// teamPreRunE resolves the team-state repo for all team subcommands.
-// It skips resolution if the command is `team init`, `team rejoin` (repo doesn't exist yet) or
+// teamPreRunE resolves the team the subcommand acts on (ResolveTeam: --team,
+// else the project, else the default team) and its team-state repo. The
+// choice is kept in the context of the command, so that the repository and
+// the member of the command come from the same team.
+// It skips the repo if the command is `team init`, `team rejoin` (repo doesn't exist yet) or
 // `team profile` (the team service checks the clone of the team it is asked for).
 func teamPreRunE(cmd *cobra.Command, _ []string) error {
+	teamFlagMiddleware(cmd)
 	// Skip for commands that don't need an existing repo (promote works on
 	// a solo team-state, which is never the active team).
 	if cmd.Name() == "init" || cmd.Name() == "rejoin" || cmd.Name() == "promote" || cmd.Name() == "profile" {
+		// profile and promote act on a team that must exist (promote: a solo
+		// space); init and rejoin create the team they act on.
+		if id := teamAskOf(cmd.Context()).Team; id != "" && cmd.Name() != "init" && cmd.Name() != "rejoin" {
+			if _, _, err := MustApp().Config.PickTeam(config.TeamSelection{Flag: id}); err != nil {
+				return errors.New(i18n.Tf("cmd.teams.not_found", id, theme.Bold.Render("oh teams list")))
+			}
+		}
 		return nil
 	}
 	a := MustApp()
 	ctx := cmd.Context()
-	repo, err := ensureTeamRepo(ctx, a)
+	t, err := ResolveTeam(ctx, a)
 	if err != nil {
 		return err
 	}
+	repo, err := ensureTeamRepoFor(t)
+	if err != nil {
+		return err
+	}
+	cmd.SetContext(withResolvedTeam(ctx, t))
 	teamRepo = repo
 	return nil
 }
@@ -708,23 +725,24 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ensureTeamRepo returns a ready Repo or an error if team is not configured.
-// It uses the hub-level team config. For project-aware resolution, use ensureTeamRepoForProject.
+// ensureTeamRepo returns a ready Repo of the team ResolveTeam gives, or an
+// error if there is no such team or it is not cloned.
 func ensureTeamRepo(ctx context.Context, a *app.App) (*teamstate.Repo, error) {
-	return ensureTeamRepoForProject(ctx, a, nil)
+	t, err := ResolveTeam(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	return ensureTeamRepoFor(t)
 }
 
-// ensureTeamRepoForProject returns a ready Repo using the effective team config
-// for the given project (nil = hub-level only).
-func ensureTeamRepoForProject(ctx context.Context, a *app.App, project *domain.Project) (*teamstate.Repo, error) {
-	tc := resolvedTeamConfig(a, project)
-	if !tc.Enabled {
-		return nil, fmt.Errorf(i18n.T("cmd.team.team_features_not_enabled_run_first"), theme.Bold.Render("oh team init"))
+// ensureTeamRepoFor returns the Repo of team t, which must be enabled and cloned.
+func ensureTeamRepoFor(t resolvedTeam) (*teamstate.Repo, error) {
+	if !t.Enabled {
+		return nil, t.notEnabledError()
 	}
-	statePath := tc.StatePath
-	repo := teamstate.NewRepo(tc.StateRepo, statePath)
+	repo := teamstate.NewRepo(t.StateRepo, t.StatePath)
 	if !repo.IsCloned() {
-		return nil, fmt.Errorf(i18n.T("cmd.team.team_state_repository_not_found_in"), statePath, theme.Bold.Render("oh team init"))
+		return nil, fmt.Errorf(i18n.T("cmd.team.team_state_repository_not_found_in"), t.StatePath, theme.Bold.Render("oh team init"))
 	}
 	return repo, nil
 }

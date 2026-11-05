@@ -71,6 +71,9 @@ var rootCmd = &cobra.Command{
 			common.SetNoTUI(true)
 		}
 
+		// --team and -p: the team the command acts on (ResolveTeam).
+		teamFlagMiddleware(cmd)
+
 		// Startup of the command's level: background processes and
 		// the diagnostic commands do not run the full startup. The help is
 		// translated when it is shown (help function), not here.

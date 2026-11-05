@@ -33,7 +33,6 @@ var teamProfileCmd = &cobra.Command{
 func init() {
 	teamCmd.AddCommand(teamProfileCmd)
 	f := teamProfileCmd.Flags()
-	f.String("team", "", i18n.T("cmd.team.profile.flags.team"))
 	f.String("display-name", "", i18n.T("cmd.team.profile.flags.display_name"))
 	f.String("gitlab-username", "", i18n.T("cmd.team.profile.flags.gitlab_username"))
 	f.String("mattermost-username", "", i18n.T("cmd.team.profile.flags.mattermost_username"))
@@ -63,8 +62,8 @@ func profilePatchFromFlags(cmd *cobra.Command) teamsvc.ProfilePatch {
 
 func runTeamProfile(cmd *cobra.Command, _ []string) error {
 	a := MustApp()
-	svc := teamService(a)
-	teamID, _ := cmd.Flags().GetString("team")
+	svc := teamServiceFor(cmd.Context(), a)
+	teamID := svc.ResolveTeam(nil).TeamID // --team, else the project, else the default team
 	patch := profilePatchFromFlags(cmd)
 
 	var (

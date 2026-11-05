@@ -46,8 +46,9 @@ type Service struct {
 	HubDir string
 	// Pick narrows the team the hub-level operations (nil project) apply to:
 	// Flag is --team, TUI the team chosen in the TUI. The zero value leaves
-	// the default team of hub.toml. Project is not read (ResolveTeam takes
-	// the project of the operation).
+	// the default team of hub.toml. Project is the ambient project (the one
+	// of the current folder or of the TUI), used by the operations that name
+	// none; an operation on a project takes the team of that project.
 	Pick config.TeamSelection
 }
 
@@ -62,7 +63,8 @@ func New(cfg *config.Config, secrets tracker.SecretGetter, projects ProjectListe
 // project without team (or whose team is archived) and a nil project (the
 // hub-level operations) go through config.PickTeam: --team (Service.Pick.Flag),
 // the team chosen in the TUI (Service.Pick.TUI, hub-level only: a project has a
-// team of its own), then the default team of hub.toml. Enabled is false when
+// team of its own), the team of the ambient project (Service.Pick.Project),
+// then the default team of hub.toml. Enabled is false when
 // no team applies. A team without ID gets the name of its repository, which
 // is the name its keychain keys use.
 func (s *Service) ResolveTeam(project *domain.Project) config.ResolvedTeamConfig {
@@ -83,8 +85,8 @@ func (s *Service) resolveTeam(project *domain.Project) config.ResolvedTeamConfig
 				return tc
 			}
 		}
+		sel.Project = project
 	}
-	sel.Project = nil
 	t, _, err := s.Config.PickTeam(sel)
 	if err != nil {
 		return config.ResolvedTeamConfig{}

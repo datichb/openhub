@@ -61,8 +61,8 @@ func runTeamNotifyTest(cmd *cobra.Command, args []string) error {
 
 	// Resolve member ID for the actor field
 	memberID := "unknown"
-	if tc := a.Config.ActiveTeam(); tc.MemberID != "" {
-		memberID = tc.MemberID
+	if m := commandMember(ctx, a); m != "" {
+		memberID = m
 	}
 
 	event := teamstate.Event{

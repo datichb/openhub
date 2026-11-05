@@ -27,7 +27,6 @@ func init() {
 		RunE: runTeamPromote,
 	}
 	cmd.Flags().String("remote", "", i18n.T("cmd.team.promote.flags.remote"))
-	cmd.Flags().String("team", "", i18n.T("cmd.team.promote.flags.team"))
 	_ = cmd.MarkFlagRequired("remote")
 	teamCmd.AddCommand(cmd)
 }

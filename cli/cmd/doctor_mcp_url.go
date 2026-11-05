@@ -22,7 +22,7 @@ func mcpURLDoctorChecks(ctx context.Context) []doctor.Result {
 	if a == nil {
 		return nil
 	}
-	teams := []config.ResolvedTeamConfig{resolvedTeamConfig(a, nil)}
+	teams := []config.ResolvedTeamConfig{defaultTeamConfig(a)}
 	if a.Projects != nil {
 		if projects, err := a.Projects.List(ctx, domain.ProjectStatusActive); err == nil {
 			for i := range projects {

@@ -95,32 +95,19 @@ func pickedTeamID() string {
 	return pickedTeam.id
 }
 
-// teamResolution is what the views know of the team t of the hub.
-func teamResolution(t *config.TeamConfig) views.TeamResolution {
-	return views.TeamResolution{Enabled: t.Enabled && !t.Solo, StateRepo: t.StateRepo, StatePath: config.ResolveStatePath(t.StateRepo, t.StatePath), MemberID: t.MemberID,
-		GitLabURL: t.GitLabURL, Solo: t.Solo, TeamID: t.ID}
-}
-
 // makeResolveTeamFunc returns a ResolveTeamFunc for use in team views.
-// It resolves the team each time it is called: the team chosen in the TUI
-// (team mode, or opened from the list of teams) wins, then the effective team
-// of the active project (project-level override → hub fallback).
+// It resolves the team each time it is called, with the rule of ResolveTeam:
+// the team chosen in the TUI (team mode, or opened from the list of teams),
+// then the effective team of the active project, then the default team.
 func makeResolveTeamFunc(a *app.App) views.ResolveTeamFunc {
 	return func() views.TeamResolution {
-		// Team mode: the team chosen in the TUI wins.
-		if tuiShell != nil && tuiShell.Mode() == views.ModeTeam && tuiShell.ActiveTeam() != nil {
-			if t := a.Config.FindTeam(tuiShell.ActiveTeam().ID); t != nil {
-				return teamResolution(t)
-			}
+		var tc config.ResolvedTeamConfig
+		if p := projectModeProject(a); p != nil {
+			// Project mode is about this project: a project without team has none.
+			tc = resolvedTeamConfig(a, p)
+		} else if t, err := ResolveTeam(context.Background(), a); err == nil {
+			tc = t.ResolvedTeamConfig
 		}
-		// Hub: the team opened from the list of teams.
-		if id := pickedTeamID(); id != "" {
-			if t := a.Config.FindTeam(id); t != nil {
-				return teamResolution(t)
-			}
-		}
-		project, _ := resolveActiveProject(a)
-		tc := resolvedTeamConfig(a, project)
 		return views.TeamResolution{
 			Enabled:   tc.Enabled,
 			StateRepo: tc.StateRepo,
@@ -131,6 +118,15 @@ func makeResolveTeamFunc(a *app.App) views.ResolveTeamFunc {
 			TeamID:    tc.TeamID,
 		}
 	}
+}
+
+// projectModeProject is the active project when the TUI is in project mode.
+func projectModeProject(a *app.App) *domain.Project {
+	if tuiShell == nil || tuiShell.Mode() != views.ModeProject {
+		return nil
+	}
+	p, _ := resolveActiveProject(a)
+	return p
 }
 
 // initBeadsForActiveProject initialises beads for the currently active project.

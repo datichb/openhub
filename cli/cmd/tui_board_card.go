@@ -135,16 +135,19 @@ func importCardIssue(a *app.App, ticket views.TicketContext) (id string, created
 // cardTeam is the team-state of the project of a launch and the member who
 // launches; false when the project has no team (nothing is claimed then).
 func cardTeam(a *app.App, project *domain.Project) (cardClaimStore, string, bool) {
-	if project == nil || !teamEnabledForProject(a, project) || a.Config.ActiveTeam().MemberID == "" {
+	if project == nil {
 		return nil, "", false
 	}
 	tc := resolvedTeamConfig(a, project)
+	if !tc.Enabled || tc.MemberID == "" {
+		return nil, "", false
+	}
 	statePath := tc.StatePath
 	repo := teamstate.NewRepo(tc.StateRepo, statePath)
 	if !repo.IsCloned() {
 		return nil, "", false
 	}
-	return repo, a.Config.ActiveTeam().MemberID, true
+	return repo, tc.MemberID, true
 }
 
 // cardClaimProject is the project the claim of a card is under.

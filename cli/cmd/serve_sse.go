@@ -186,7 +186,7 @@ type teamAPIRepo interface {
 
 // getTeamRepoSafe returns the team-state if team is configured and cloned, nil otherwise.
 func getTeamRepoSafe(a *app.App) teamAPIRepo {
-	tc := a.Config.ActiveTeam()
+	tc := defaultTeamConfig(a) // the dashboard shows the default team
 	if tc.StateRepo == "" {
 		return nil
 	}

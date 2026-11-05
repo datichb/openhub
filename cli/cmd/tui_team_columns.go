@@ -147,8 +147,8 @@ func actionBoardColumnConfig(afterSave func()) {
 	a := MustApp()
 	ctx := tuiShell.Context()
 
-	// Resolve the active team
-	activeTeam := a.Config.ActiveTeam()
+	// The team the TUI is on (ResolveTeam): not the first team of hub.toml
+	activeTeam := resolvedTeamConfig(a, nil)
 	if !activeTeam.Enabled {
 		tuiShell.ShowToast(i18n.T("tui.team.board_config.no_team"), shell.ToastError)
 		return

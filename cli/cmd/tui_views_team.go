@@ -149,18 +149,13 @@ func projectInfos(a *app.App) func(ctx context.Context) []views.ProjectInfo {
 	}
 }
 
-// teamProviderKey is the keychain key of a provider for the team of the shell, or of the active project.
+// teamProviderKey is the keychain key of a provider for the team the TUI is on
+// (ResolveTeam: the team of the shell, else the one of the active project,
+// else the default team).
 func teamProviderKey(a *app.App) func(prov string) string {
+	resolve := makeResolveTeamFunc(a)
 	return func(prov string) string {
-		teamID := ""
-		if tuiShell != nil && tuiShell.ActiveTeam() != nil {
-			teamID = tuiShell.ActiveTeam().ID
-		} else if p, err := resolveActiveProject(a); err == nil {
-			if tc := resolvedTeamConfig(a, p); tc.Enabled {
-				teamID = tc.TeamID
-			}
-		}
-		return provider.TeamKeychainKey(provider.Name(prov), teamID)
+		return provider.TeamKeychainKey(provider.Name(prov), resolve().TeamID)
 	}
 }
 

@@ -25,18 +25,26 @@ func init() {
 	addBoardFlags(teamBoardCmd)
 }
 
-// runTeamBoard opens the TUI on the board of the team of the hub (the team
-// state must be set up and cloned, as before).
+// runTeamBoard opens the TUI on the board of the team ResolveTeam gives (--team,
+// else the project, else the default team); its team state must be set up and
+// cloned.
 func runTeamBoard(cmd *cobra.Command, args []string) error {
 	a := MustApp()
-	if _, err := ensureTeamRepo(cmd.Context(), a); err != nil {
+	team, err := ResolveTeam(cmd.Context(), a)
+	if err != nil {
+		return err
+	}
+	if _, err := ensureTeamRepoFor(team); err != nil {
 		return err
 	}
 	if !canLaunchTUI() {
 		return withExitCode(ExitUsage, errors.New(i18n.T("cmd.team.board.needs_terminal")))
 	}
-	hub := a.Config.ActiveTeam()
-	return runTUI(tuiLaunch{Team: &views.ActiveTeam{ID: hub.ID, Name: hub.DisplayName()}, View: "team.board"})
+	name := team.TeamID
+	if t := a.Config.FindTeam(team.TeamID); t != nil {
+		name = t.DisplayName()
+	}
+	return runTUI(tuiLaunch{Team: &views.ActiveTeam{ID: team.TeamID, Name: name}, View: "team.board"})
 }
 
 // fetchSubBeadsJSON attempts to get sub-tickets from the beads system.

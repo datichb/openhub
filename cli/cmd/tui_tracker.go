@@ -11,8 +11,10 @@ import (
 )
 
 // teamService is the team service on the hub of the running command.
+// It follows the team chosen in the TUI; the commands that read --team use
+// teamServiceFor.
 func teamService(a *app.App) *teamsvc.Service {
-	return teamsvc.New(a.Config, a.Secrets, a.Projects)
+	return teamServiceFor(context.Background(), a)
 }
 
 // resolveTrackerEngine builds the tracker Engine of the team of the active
@@ -21,7 +23,7 @@ func teamService(a *app.App) *teamsvc.Service {
 // — no team, not cloned, no tracker, tracker disabled (enabled = false),
 // credentials missing: callers treat nil as "skip tracker sync".
 func resolveTrackerEngine(ctx context.Context, a *app.App) *tracker.Engine {
-	project, _ := resolveActiveProject(a)
+	project := workProject(a)
 	engine, err := teamService(a).TrackerEngine(ctx, project)
 	if err != nil {
 		var credErr *teamsvc.CredentialsError

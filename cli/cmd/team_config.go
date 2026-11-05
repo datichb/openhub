@@ -51,11 +51,15 @@ func runTeamConfigWizard(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 
 	// Step 0 — Vérification du team-state
-	if !a.Config.ActiveTeam().Enabled {
+	team, err := ResolveTeam(ctx, a)
+	if err != nil {
+		return err
+	}
+	if !team.Enabled {
 		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_config.team_not_configured_run_first", cliout.WarnIcon(), theme.Bold.Render("oh team init")))
 		return nil
 	}
-	repo := teamstate.NewRepo(a.Config.ActiveTeam().StateRepo, a.Config.ActiveTeam().StatePath)
+	repo := teamstate.NewRepo(team.StateRepo, team.StatePath)
 	if !repo.IsCloned() {
 		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_config.team_state_not_cloned_run_first", cliout.WarnIcon(), theme.Bold.Render("oh team init")))
 		return nil
@@ -596,14 +600,15 @@ func configureTrackerSync(ctx context.Context, a *app.App, p *prompter, repo tea
 
 		// the real GitLab of the team repository, when its remote is an SSH alias
 		var gitlabURL string
-		tc := a.Config.ActiveTeam()
+		team, _ := ResolveTeam(ctx, a)
+		tc := team.ResolvedTeamConfig
 		if tc.StateRepo != "" && !teamstate.IsHTTPS(tc.StateRepo) {
 			gitlabURL = askTeamGitLabURL(out, func(prompt, def string) string { return askInput(p, prompt, def) }, tc.GitLabURL)
 			if gitlabURL != tc.GitLabURL {
 				edits.change(func(c *config.Config) error {
-					t := c.FindTeam(tc.ID)
+					t := c.FindTeam(tc.TeamID)
 					if t == nil {
-						return fmt.Errorf("%s", i18n.Tf("tui.team.detail.team_not_in_hub", tc.ID))
+						return fmt.Errorf("%s", i18n.Tf("tui.team.detail.team_not_in_hub", tc.TeamID))
 					}
 					t.GitLabURL = gitlabURL
 					return nil
@@ -631,9 +636,13 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 
 	fmt.Fprintf(out, "\n%s\n\n", theme.Title.Render("Configuration MCP & Tracker"))
 
-	// Resolve team config via active project (project-level config takes priority).
-	project, _ := resolveActiveProject(a)
-	tc := resolvedTeamConfig(a, project)
+	// The team ResolveTeam gives (--team, else the project, else the default team):
+	// the same one as `oh team config`.
+	team, err := ResolveTeam(ctx, a)
+	if err != nil {
+		return err
+	}
+	tc := team.ResolvedTeamConfig
 
 	// Load team-state config (optional — degrades gracefully if not configured).
 	// This command only reads: it writes nothing, to the team-state nor to hub.toml.
@@ -848,7 +857,7 @@ func trackerCredentials(ctx context.Context, a *app.App, teamCfg *teamstate.Team
 // (url of the team recommendation or of hub.toml): the token the MCP server
 // would be given.
 func mcpGitLabCredentials(ctx context.Context, a *app.App, teamCfg *teamstate.TeamConfig) tracker.CredentialSource {
-	svc := teamService(a)
+	svc := teamServiceFor(ctx, a)
 	var shared *teamstate.SharedMCPConfig
 	if s, ok := teamCfg.MCP["gitlab"]; ok {
 		shared = &s

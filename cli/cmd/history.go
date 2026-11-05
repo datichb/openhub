@@ -50,7 +50,9 @@ func init() {
 	historyImportCmd.Flags().String("member-id", "", i18n.T("cmd.history.import.flags.member_id"))
 }
 
-// activeMemberID is the member of the active team ("" without a team).
+// activeMemberID is the member of the default team ("" without a team): the
+// person is the same in every team, and the sessions of the history belong to
+// no team in particular.
 func activeMemberID(a *app.App) string {
 	if activeTeam := a.Config.ActiveTeam(); activeTeam.Enabled {
 		return activeTeam.MemberID
@@ -137,7 +139,10 @@ func runHistory(cmd *cobra.Command, _ []string) error {
 
 func runHistoryTeam(ctx context.Context, limit int) error {
 	a := MustApp()
-	activeTeam := a.Config.ActiveTeam()
+	activeTeam, err := ResolveTeam(ctx, a)
+	if err != nil {
+		return err
+	}
 	if !activeTeam.Enabled {
 		return errors.New(i18n.T("cmd.history.no_team_configured_use_oh_team"))
 	}
