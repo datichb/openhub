@@ -161,3 +161,21 @@ func (e Event) describeMemberRemoved(names EventNames) string {
 	}
 	return phrase
 }
+
+// Involves reports whether the member is concerned by the event: they did it
+// (the actor), or it happened to them — the owner of a claim that was released
+// or handed over, the member a claim went to, the member who left.
+func (e Event) Involves(member string) bool {
+	if member == "" {
+		return true
+	}
+	if e.Actor == member {
+		return true
+	}
+	for _, k := range []string{"owner", "from", "to", "member"} {
+		if e.dataText(k) == member {
+			return true
+		}
+	}
+	return false
+}

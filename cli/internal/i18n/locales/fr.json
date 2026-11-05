@@ -5546,7 +5546,7 @@
   "cmd.takeover-brief.list.short": "Liste les briefs de reprise existants",
   "cmd.takeover-brief.list.flags.project": "Nom du projet",
   "cmd.team.activity.flags.limit": "Nombre maximal d'événements affichés",
-  "cmd.team.activity.flags.member": "Filtrer par ID de membre",
+  "cmd.team.activity.flags.member": "Filtrer par membre : ce qu'il a fait et ce qui lui est arrivé (réservation libérée ou transférée, fiche retirée)",
   "cmd.team.activity.flags.project": "Filtrer par projet",
   "cmd.team.activity.flags.today": "Seulement les événements du jour",
   "cmd.team.activity.flags.week": "Les 7 derniers jours",

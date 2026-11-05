@@ -104,11 +104,11 @@ func init() {
 	teamCmd.AddCommand(teamActivityCmd)
 	teamCmd.AddCommand(teamRejoinCmd)
 
-	teamActivityCmd.Flags().Bool("today", false, "")
-	teamActivityCmd.Flags().Bool("week", false, "")
-	teamActivityCmd.Flags().String("member", "", "")
-	teamActivityCmd.Flags().String("project", "", "")
-	teamActivityCmd.Flags().Int("limit", 20, "")
+	teamActivityCmd.Flags().Bool("today", false, i18n.T("cmd.team.activity.flags.today"))
+	teamActivityCmd.Flags().Bool("week", false, i18n.T("cmd.team.activity.flags.week"))
+	teamActivityCmd.Flags().String("member", "", i18n.T("cmd.team.activity.flags.member"))
+	teamActivityCmd.Flags().String("project", "", i18n.T("cmd.team.activity.flags.project"))
+	teamActivityCmd.Flags().Int("limit", 20, i18n.T("cmd.team.activity.flags.limit"))
 
 	teamStatusCmd.Flags().Bool("detail", false, i18n.T("cmd.team.status.flags.detail"))
 
@@ -345,7 +345,7 @@ func runTeamActivity(cmd *cobra.Command, args []string) error {
 	if member != "" {
 		filtered := events[:0]
 		for _, e := range events {
-			if e.Actor == member {
+			if e.Involves(member) {
 				filtered = append(filtered, e)
 			}
 		}

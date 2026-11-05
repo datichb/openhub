@@ -5546,7 +5546,7 @@
   "cmd.takeover-brief.list.short": "Lists the existing takeover briefs",
   "cmd.takeover-brief.list.flags.project": "Project name",
   "cmd.team.activity.flags.limit": "Maximum number of events to display",
-  "cmd.team.activity.flags.member": "Filter by member ID",
+  "cmd.team.activity.flags.member": "Filter by member ID: what they did and what happened to them (claim released or handed over, card removed)",
   "cmd.team.activity.flags.project": "Filter by project",
   "cmd.team.activity.flags.today": "Show only today's events",
   "cmd.team.activity.flags.week": "Show the last 7 days",
