@@ -9,6 +9,29 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added
+
+- **Synchronisation automatique du tracker (`auto_sync`, `sync_interval_minutes`).** Les deux réglages étaient lus pour l'affichage seulement ; ils agissent maintenant. Le démon de chaque membre a une tâche `tracker-sync` qui regarde chaque minute les équipes dont `auto_sync` est activé et synchronise quand l'intervalle (5 minutes par défaut) est écoulé ; le board synchronise aussi à son ouverture. **Un seul membre synchronise par intervalle** : la synchro prend un bail dans `sync.lock` (le membre et l'échéance, à la racine du team-state, dans le commit de la synchro) ; les autres le trouvent pris, un bail expiré est repris, et deux membres qui partent ensemble sont départagés par le push. Une synchro demandée (`oh team sync-tracker`, touche `r`) n'attend pas le bail et le prend. Sans `auto_sync`, rien n'est écrit.
+- **Le board d'équipe tire le team-state seul** chaque minute (sans toast, une copie occupée est laissée tranquille) et montre le résumé de la synchro dans un toast (« Synchro du tracker : 2 créées, 3 mises à jour, 1 libérée, 0 avertissement »).
+- **`oh team status` liste la réserve** (tickets que personne ne détient) **et les tickets d'un membre qui n'est plus dans l'équipe**, que les compteurs comptaient sans les montrer.
+- **Les avertissements de la synchro sont enfin montrés** : ceux par ticket (métadonnées, statut, labels) n'arrivaient dans aucun résumé ; un assigné du tracker qui n'est pas le propriétaire du claim est dit (« assigné à bob sur le tracker, réservé par alice ») au lieu d'être compté comme une mise à jour.
+
+### Changed
+
+- **Rupture légère : seuls les projets rattachés à l'équipe (`team_id`) sont liés à son tracker.** `trackerProjects` rattachait tous les projets actifs du hub au projet de tracker de l'équipe : un projet d'une autre équipe, ou un projet solo, avait ses claims dans le team-state. Un projet sans `team_id` n'est plus synchronisé avec l'équipe du hub (voir la migration).
+- **Un ticket créé par la synchro porte l'identifiant que `ticket_pattern` écrit** (`SRU-(\d+)` donne `SRU-42`, non `42`), et une issue n'a qu'**un** claim par projet de tracker, trouvée par son numéro (`42` et `SRU-42` ne coexistent plus ; deux projets du hub liés au même projet de tracker ne la prennent pas tous les deux).
+- **Le coupe-circuit des jetons est enfin actif** : l'état (3 refus HTTP 401 du même jeton en suivant) est gardé dans `sync-state.json` avec l'empreinte du jeton ; la synchro automatique s'arrête jusqu'à un autre jeton, une synchro demandée essaie toujours.
+- **Un 403 n'est plus un jeton invalide** : il est une erreur du projet de tracker (signalée, les autres projets sont synchronisés) avec un message qui ne demande pas de remplacer le jeton. `tracker.ErrAccessDenied` / `tracker.IsAccessDenied`.
+- Les listes GitLab demandent des pages de 100 issues (20 avant) ; la synchro ne tire plus le team-state deux fois (`SyncOptions.Pull` supprimé) ; le board laisse à la synchro son délai (`tracker.RunTimeout`, 3 minutes) au lieu de la couper à 30 s.
+- **Board : la touche `r` d'une équipe sans tracker ne fait que tirer** (plus de toast d'échec à chaque `r`) ; le menu de statut (`s`) ne propose que les colonnes que les transitions autorisent ; une carte passée dans la colonne TODO du board par défaut devient `planned` ; la prise d'un ticket (`c`) le place dans la première colonne de travail du board et non dans `in_progress` en dur.
+- **Les colonnes par défaut sont les mêmes partout** : `DefaultBoardConfig` (assistants) donne à `review` le rôle `review`, comme le board par défaut de la TUI.
+- **Verdict de revue MCP** : le statut d'arrivée suit les colonnes du board de l'équipe (première colonne terminale pour une approbation, première colonne de travail pour un rejet), l'acteur de l'événement est le membre de la session (non plus `orchestrator-dev`), et statut, label et événement forment **une** transaction (un commit, un push, rien en cas d'échec).
+- **`oh team status` et le statut d'équipe de la TUI suivent le board** : compteurs par rôle des colonnes (`active`, `review`, `blocked`), résumé par les colonnes du board sous leurs noms.
+
+### Fixed
+
+- **Les libérations ne ressuscitent plus.** Le nettoyage des claims faits et la libération des claims expirés par la synchro étaient commités `sync: …`, que `ClaimRemovedOnPurpose` ne reconnaissait pas : une autre machine, qui avait vu le claim, le recréait au passage suivant. Le commit nomme maintenant ces claims (`Released-claim:`) ; l'auto-plan des issues assignées respecte les libérations volontaires comme la réserve (balayage complet), et un claim perdu n'est plus recréé au nom d'un membre qui a quitté l'équipe.
+
 ## [5.3.3] — 2026-11-04
 
 Version corrective issue d'un audit complet du mode équipe : elle corrige les défauts qui pouvaient **perdre ou abîmer des données d'équipe**. `oh team config status` ne supprime plus les collègues de `members.toml` ; une modification de `config.toml` ne remplace plus celle d'un collègue (conflit signalé) et un fichier illisible n'est plus effacé ; une équipe sans `state_path` ne lance plus git dans le dossier courant ; deux dépôts de même nom ne se remplacent plus ; la synchro du tracker n'écrase plus les statuts et labels posés dans le hub ; le token git n'écrase plus le token d'API GitLab. Ruptures légères (synchro, `oh team config`, chemin des nouveaux clones) décrites dans la [migration 5.3.2 → 5.3.3](docs/guides/migration-v5.fr.md#depuis-la-532-vers-la-533) ; pas de migration de la base.

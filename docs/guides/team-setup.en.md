@@ -708,8 +708,8 @@ done_retention_days = 7    # Days before done claims are cleaned up
 [tracker]
 enabled = true
 type = "gitlab"             # "gitlab" or "jira"
-auto_sync = true            # sync when opening team views
-sync_interval_minutes = 5
+auto_sync = true            # automatic sync: daemon (one member per interval) and board opening
+sync_interval_minutes = 5   # interval of the automatic sync, and length of its lease
 auto_plan_assigned = true   # every assigned issue comes onto the board
 max_in_progress_per_member = 5   # tickets a member has in progress at once (0 = no limit)
 push_labels = true          # push hub labels back to tracker (requires write_enabled)

@@ -457,7 +457,7 @@ Configurer la synchronisation tracker externe pour les tickets Beads :
 ```toml
 [tracker]
 enabled = true
-auto_sync = true             # synchroniser en fin de session
+auto_sync = true             # synchro automatique par le démon (toutes les sync_interval_minutes) et à l'ouverture du board
 push_labels = true           # pousser les labels vers le tracker externe
 ```
 

@@ -110,7 +110,7 @@ oh team config status
 
 ### oh team status
 
-Shows who is working on what: active claims, members, tickets in progress.
+Shows who is working on what: active claims, members, tickets in progress. The summary (active, in review, blocked) counts by the **role of the columns of the board** of the team (`active`, `review`, `blocked`), not by the name of fixed statuses. The tickets of the reserve (nobody holds them) and those of a member who is no longer in the team are listed after the members.
 
 ```
 oh team status [--detail]
@@ -235,7 +235,8 @@ The command, the sync key of the team screens (`s`) and the automatic sync follo
 - **Attribution by name.** Issues are attributed to the members by `tracker_username`, else `gitlab_username`. When issues seen by the sync (issues of your claims, `auto_plan_unassigned` pool) are assigned to names that belong to no member, and your profile has no `tracker_username` (or no name at all, on a tracker on the same server as the repository), the summary adds a warning that lists these names (five at most) and gives the command: `oh team profile --team <team> --tracker-username <name>`. With `auto_plan_assigned` alone, the sync only queries the known names and does not see the others: `oh doctor` ("Identity on the tracker" check) covers that case.
 
 - **`[tracker] enabled = false`** (in the local `hub.toml` or in the team config) turns the sync off everywhere. The command prints a notice and exits 0; the screens refuse with a message; the automatic sync does nothing. Before v5.0 the screens synchronized anyway.
-- A project without team uses the hub team (default team of `hub.toml`) for its tracker.
+- Only the projects attached to the team (`team_id`) are linked to its tracker; a project without a team, or of another team, is not synchronized with it. With no project of the team, the command says so (“no hub project is linked to the tracker”).
+- **Automatic sync** (`auto_sync`): the daemon and the opening of the board synchronize every `sync_interval_minutes`, one member per interval (`sync.lock` lease); the command does not wait for the lease. See [`config.en.md`](config.en.md#tracker-section).
 - **GitLab token search order** (first hit wins; `GITLAB_TOKEN` always first):
 
   | # | Source | Keychain key |
@@ -247,7 +248,7 @@ The command, the sync key of the team screens (`s`) and the automatic sync follo
   | 5 | Hub MCP token | key of `[mcp.gitlab] token`, then `openhub.mcp.gitlab.token` (and its former name `gitlab-token`) |
   | 6 | Former tracker key | `openhub.tracker.gitlab.token` |
 
-  **Every source is tied to a server and only answers for it** (v5.1): the token of the team repository is never sent to a tracker that is on another GitLab. The server of the environment variable is `OH_GITLAB_URL` (otherwise `GITLAB_URL`): with neither, `GITLAB_TOKEN` is used nowhere. That of `tracker_token_key` and of the former tracker key is `tracker_token_url`, otherwise (implicit) the tracker; that of the MCP tokens is `[mcp.gitlab] url`, otherwise (implicit) `https://gitlab.com`; that of the team token is the `gitlab_url` of the team when declared (repository reached through an SSH alias), otherwise the host of `state_repo`. With no token for the server being called, the command stops naming the server, the sources read and the command that declares the key; see [the server of each GitLab token](config.en.md#the-server-of-each-gitlab-token). A refusal by the server (HTTP 401 / 403) names the source, the key and the server. `oh team config status` reads the same order (key and server of `hub.toml` included) and prints `token_key` and `token_url`.
+  **Every source is tied to a server and only answers for it** (v5.1): the token of the team repository is never sent to a tracker that is on another GitLab. The server of the environment variable is `OH_GITLAB_URL` (otherwise `GITLAB_URL`): with neither, `GITLAB_TOKEN` is used nowhere. That of `tracker_token_key` and of the former tracker key is `tracker_token_url`, otherwise (implicit) the tracker; that of the MCP tokens is `[mcp.gitlab] url`, otherwise (implicit) `https://gitlab.com`; that of the team token is the `gitlab_url` of the team when declared (repository reached through an SSH alias), otherwise the host of `state_repo`. With no token for the server being called, the command stops naming the server, the sources read and the command that declares the key; see [the server of each GitLab token](config.en.md#the-server-of-each-gitlab-token). A refusal by the server names the source, the key and the server: a 401 is a refused token (replace it; it stops the sync), a 403 is a refusal of access to a resource (scope of the token, role in the project; it only concerns that tracker project). `oh team config status` reads the same order (key and server of `hub.toml` included) and prints `token_key` and `token_url`.
 
   Jira keeps its own order (`JIRA_TOKEN`, then `tracker_token_key`).
 
