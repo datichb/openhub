@@ -693,10 +693,10 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 	fmt.Fprintf(out, "\n%s\n", theme.Bold.Render("Test de connexion"))
 	src := buildCredentialSource(ctx, a, eff)
 	trackerType := tracker.Type(teamCfg.Tracker.Type)
-	_ = testAndDisplayConnection(ctx, out, src, trackerType)
+	connErr := testAndDisplayConnection(ctx, out, src, trackerType)
 
-	// Test par projet mappé
-	if len(teamCfg.Tracker.Projects) > 0 { //nolint:staticcheck // backward compat: deprecated field
+	// Test par projet mappé: pas la peine quand la connexion elle-même a échoué
+	if connErr == nil && len(teamCfg.Tracker.Projects) > 0 { //nolint:staticcheck // backward compat: deprecated field
 		trackerCfg, err := tracker.ResolveCredentials(ctx, src, trackerType)
 		if err == nil {
 			t, err := tracker.New(trackerCfg)
