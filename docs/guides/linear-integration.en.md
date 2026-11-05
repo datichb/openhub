@@ -24,59 +24,44 @@ You need a **Linear Personal API Key**:
 3. Give it a label (e.g. `openhub`)
 4. Copy the generated key (format: `lin_api_xxxxxxxxxxxxxxxxxxxx`)
 
-Store it as `LINEAR_API_KEY`.
+Keep it in the keychain of `oh` (see below): it is the only route that works in a session (the environment of the agents is filtered, `LINEAR_API_KEY` never gets through, even with `env_allow`).
 
 ---
 
 ## Setup
 
-### 1. Configure via `oh mcp setup`
+> **`oh mcp setup linear` is not available yet.** `oh mcp setup` only configures `figma`, `gitlab`, `gslides` and `jira`, and refuses any other name; `oh config set` does not know the keys of `[mcp.linear]` either. The Linear server is configured by hand, in three steps.
+
+### 1. Put the key in the keychain
 
 ```bash
-oh mcp setup linear
+oh secrets set --global openhub.mcp.linear.token
 ```
 
-The wizard will:
-1. Ask for your **Linear Personal API Key**
-2. Validate the connection to the Linear GraphQL API
-3. Store the key securely in the system keychain
-4. Update `hub.toml` with the `[mcp.linear]` block
+The value is typed at the terminal (masked). `openhub.mcp.linear.token` is the conventional keychain key.
 
-Check status:
-```bash
-oh mcp status linear
-```
-
-### 2. Manual configuration (alternative)
-
-```bash
-export LINEAR_API_KEY=lin_api_xxxxxxxxxxxxxxxxxxxx
-```
-
-Or in `hub.toml`:
+### 2. Declare the server in `hub.toml`
 
 ```toml
 [mcp.linear]
 enabled = true
-# api_key can also be set via LINEAR_API_KEY env var (recommended)
-write_enabled = false
+token_key = "openhub.mcp.linear.token"   # name of the keychain key, NOT the API key
+write_enabled = false                    # true: issue creation and updates
 ```
 
----
+- `token_key` is **required**: without it, the server is not placed in the session bundle, with no message.
+- `url` and `trusted_url` have no effect for Linear: the server always calls `https://api.linear.app/graphql`.
+- `oh mcp enable linear` and `oh mcp disable linear` change `enabled` (with `-p <project>`, for one project only); the rest is written in the file.
 
-## Configuration in hub.toml
-
-```toml
-[mcp.linear]
-enabled = true
-write_enabled = false  # Set to true to enable issue creation and updates
-```
+### 3. Start a session
 
 No redeploy needed (`oh deploy` removed in v5): the change is applied at the next session launch, when the session bundle is rebuilt:
 
 ```bash
 oh run <workflow>
 ```
+
+`oh mcp list` shows that the `linear` server exists. `oh mcp status` does not show it yet: check by looking for the `linear_*` tools in the session. If the keychain key cannot be found, `oh mcp serve linear` writes a warning and the server answers "`LINEAR_API_KEY` environment variable not set".
 
 ---
 
@@ -122,20 +107,14 @@ Or with explicit filter parameters passed through the MCP tool:
 
 ## Write Mode
 
-By default the Linear MCP server is read-only. To enable issue creation and updates:
-
-```bash
-export LINEAR_WRITE_ENABLED=true
-```
-
-Or in `hub.toml`:
+By default the Linear MCP server is read-only. To enable issue creation and updates, in `hub.toml`:
 
 ```toml
 [mcp.linear]
 write_enabled = true
 ```
 
-This unlocks `linear_create_issue` and `linear_update_issue`.
+oh then passes `LINEAR_WRITE_ENABLED=true` to the server when the next session starts (no need to export it yourself: the environment of the session is filtered). This unlocks `linear_create_issue` and `linear_update_issue`.
 
 > **Note:** The API key must belong to a workspace member with permission to create/edit issues in the target team.
 
@@ -173,10 +152,14 @@ The planner calls `linear_update_issue` to transition the issue state, providing
 Error: Authentication failed — invalid Linear API key
 ```
 
-Regenerate the API key in Linear Settings > API > Personal API Keys, then reconfigure:
+Regenerate the API key in Linear Settings > API > Personal API Keys, then put the new one in the keychain:
 ```bash
-oh mcp setup linear
+oh secrets set --global openhub.mcp.linear.token
 ```
+
+### The `linear_*` tools do not show up
+
+Check in `hub.toml` that `[mcp.linear]` has `enabled = true` **and** `token_key = "openhub.mcp.linear.token"`, and that the key exists in the keychain (`oh secrets get openhub.mcp.linear.token`). Then restart the session.
 
 ### Team not found
 
@@ -204,6 +187,7 @@ Linear's GraphQL API returns detailed error messages. Common causes:
 
 ## Support
 
-- `oh mcp status linear` — check configuration
-- `oh mcp setup linear` — reconfigure the service
+- `oh mcp list` — is the `linear` server known?
+- `oh mcp enable linear` / `oh mcp disable linear` — turn the service on or off
+- `oh mcp setup linear` is not available yet: configure by hand (see Setup)
 - Persistent issue → report on [GitHub Issues](https://github.com/anomalyco/opencode)
