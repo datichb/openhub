@@ -119,6 +119,10 @@ type Engine struct {
 	// index says which hub project holds the claim of each issue of the
 	// tracker, for the run in progress.
 	index *issueIndex
+	// released are the claims the run removes on purpose (the done claims past
+	// their retention, the expired ones): the commit of the run names them, so
+	// that no member takes them for claims lost by accident.
+	released []teamstate.Claim
 }
 
 // Identity says who runs the sync, to warn when their tracker name is missing.
@@ -196,6 +200,7 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 		if abort != nil {
 			return teamstate.TxResult{}, abort
 		}
+		e.released = nil
 		e.cleanupDone(ctx, result)
 		e.releaseExpired(ctx, result)
 		msg := fmt.Sprintf("sync: %d created, %d updated, %d labels pushed, %d released",
@@ -203,7 +208,7 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 		if result.ClaimsExpired > 0 {
 			msg += fmt.Sprintf(", %d expired", result.ClaimsExpired)
 		}
-		return teamstate.TxResult{Message: msg}, nil
+		return teamstate.TxResult{Message: teamstate.WithReleasedTrailers(msg, e.released)}, nil
 	})
 	if abort != nil {
 		return nil, abort
@@ -464,6 +469,7 @@ func (e *Engine) releaseExpired(ctx context.Context, result *SyncResult) {
 // forgetKnown takes the claims the run released itself out of the known
 // tickets: they are gone on purpose, not lost.
 func (e *Engine) forgetKnown(released []teamstate.Claim) {
+	e.released = append(e.released, released...)
 	for _, c := range released {
 		e.state.ForgetKnownTicket(c.Project, c.TicketID)
 	}
@@ -776,6 +782,12 @@ func (e *Engine) recoverOrphans(
 	// Fetch each orphan individually and recreate the claim
 	var relPaths []string
 	for _, orphan := range orphans {
+		// The member who held it may have left the team since: the claim does
+		// not come back under the name of someone who is not there.
+		if orphan.ClaimedBy != "" && !e.repo.HasMember(ctx, orphan.ClaimedBy) {
+			slog.Debug("tracker.orphan.member_gone", "ticket", orphan.TicketID, "member", orphan.ClaimedBy)
+			continue
+		}
 		issue, err := e.tracker.FetchIssue(ctx, trackerProjectID, orphan.ExternalIID)
 		if err != nil {
 			if errors.Is(err, ErrIssueNotFound) {
@@ -854,7 +866,8 @@ func (e *Engine) autoplan(
 	// time: an issue assigned long ago and not touched since has never been
 	// seen by a run that did.
 	var lastSync time.Time
-	if !firstSync && e.state.AutoPlanScan(trackerType, trackerProjectID) {
+	fullScan := firstSync || !e.state.AutoPlanScan(trackerType, trackerProjectID)
+	if !fullScan {
 		lastSync = e.state.LastSync(trackerType, trackerProjectID)
 	}
 	slog.Debug("tracker.autoplan.start", "project", hubProjectID, "members", len(memberByGitLab), "first_sync", firstSync)
@@ -888,6 +901,12 @@ func (e *Engine) autoplan(
 		for _, issue := range issues {
 			ticketID := ticketIDFromIssue(issue, e.patternOf(hubProjectID))
 			if e.issueClaimed(claimedTickets, trackerProjectID, &issue, ticketID) || issue.IsClosed() {
+				continue
+			}
+			// A claim released on purpose is not made again by the complete
+			// scan; it comes back when the issue is updated on the tracker (the
+			// scans that follow only see what changed since the last sync).
+			if fullScan && e.removedOnPurpose(ctx, hubProjectID, ticketID, issue.IID) {
 				continue
 			}
 			// Use the configurable status mapping instead of always "planned".

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
@@ -186,4 +187,116 @@ func TestSyncReleasesExpiredClaimsOnlyWhenTheTeamAsksForIt(t *testing.T) {
 			}
 		})
 	}
+}
+
+// The sync that cleans up the done claims names them in its commit: another
+// machine, whose sync saw the claim the time before, does not take its absence
+// for a loss and does not recreate it.
+func TestSyncReleaseOfOneMachineIsNotUndoneByAnother(t *testing.T) {
+	if testing.Short() {
+		t.Skip("git")
+	}
+	ctx := context.Background()
+	bare, cloneA := gittest.BareClone(t)
+	repoA := teamstate.NewRepo(bare, cloneA)
+	require.NoError(t, repoA.AddMember(ctx, teamstate.Member{ID: "alice", DisplayName: "Alice"}))
+	_, err := repoA.CreateClaim(ctx, teamstate.Claim{TicketID: "1", Project: "p", ClaimedBy: "alice", ExternalIID: 1,
+		ClaimedAt: time.Now().Add(-30 * 24 * time.Hour), Title: "first", TrackerStatus: "opened"})
+	require.NoError(t, err)
+	cloneB := filepath.Join(t.TempDir(), "b")
+	gittest.Run(t, filepath.Dir(cloneB), "clone", "-q", bare, cloneB)
+	repoB := teamstate.NewRepo(bare, cloneB)
+
+	tr := &stubTracker{issues: map[int]IssueState{1: {IID: 1, State: "open", StatusName: "opened", Title: "first"}}}
+	cfg := teamstate.TrackerConfig{Projects: map[string]string{"p": "grp/p"}, StatusMapping: map[string]string{"opened": "done"}} //nolint:staticcheck // the engine still reads Projects
+	stateB := t.TempDir()
+	// Machine B saw the claim: it is among its known tickets.
+	_, err = NewEngine(tr, repoB, teamstate.TrackerConfig{Projects: cfg.Projects}, stateB).Run(ctx) //nolint:staticcheck // the engine still reads Projects
+	require.NoError(t, err)
+	state, err := LoadSyncState(stateB)
+	require.NoError(t, err)
+	require.Len(t, state.GetKnownTickets("p"), 1)
+
+	// Machine A: the claim is done, past its retention; the sync releases it.
+	require.NoError(t, repoA.Pull(ctx))
+	require.NoError(t, repoA.UpdateClaimStatusFromTracker(ctx, "p", "1", teamstate.ClaimStatusDone))
+	file := filepath.Join(cloneA, "projects", "p", "claims", "1.toml")
+	data, err := os.ReadFile(file)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(file, regexp.MustCompile(`(?m)^last_activity = .*$`).ReplaceAll(data, []byte("last_activity = 2020-01-01T00:00:00Z")), 0o644))
+	gittest.Run(t, cloneA, "commit", "-qam", "age the claim")
+	gittest.Run(t, cloneA, "push", "-q")
+	res, err := NewEngine(tr, repoA, cfg, t.TempDir()).Run(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, res.ClaimsReleased)
+	assert.Contains(t, gittest.Run(t, cloneA, "log", "-1", "--format=%B"), teamstate.ReleasedTrailer("p", "1"))
+
+	res, err = NewEngine(tr, repoB, cfg, stateB).Run(ctx)
+	require.NoError(t, err)
+	assert.Zero(t, res.Projects[0].ClaimsCreated, "released on purpose by the other machine")
+	_, err = repoB.GetClaim(ctx, "p", "1")
+	require.ErrorIs(t, err, teamstate.ErrClaimNotFound)
+}
+
+// A claim lost by accident does not come back under the name of a member who
+// is not in the team any more.
+func TestSyncDoesNotRecoverAClaimOfAMemberWhoLeft(t *testing.T) {
+	if testing.Short() {
+		t.Skip("git")
+	}
+	ctx := context.Background()
+	for _, c := range []struct {
+		name   string
+		remove bool
+		want   int
+	}{{"the member is still there", false, 1}, {"the member left", true, 0}} {
+		t.Run(c.name, func(t *testing.T) {
+			bare, clone := gittest.BareClone(t)
+			repo := teamstate.NewRepo(bare, clone)
+			require.NoError(t, repo.AddMember(ctx, teamstate.Member{ID: "alice", DisplayName: "Alice"}))
+			require.NoError(t, repo.AddMember(ctx, teamstate.Member{ID: "bob", DisplayName: "Bob"}))
+			_, err := repo.CreateClaim(ctx, teamstate.Claim{TicketID: "1", Project: "p", ClaimedBy: "bob", ExternalIID: 1})
+			require.NoError(t, err)
+			tr := &stubTracker{issues: map[int]IssueState{1: {IID: 1, State: "open", StatusName: "opened", Title: "first"}}}
+			stateDir := t.TempDir()
+			cfg := teamstate.TrackerConfig{Projects: map[string]string{"p": "grp/p"}} //nolint:staticcheck // the engine still reads Projects
+			_, err = NewEngine(tr, repo, cfg, stateDir).Run(ctx)
+			require.NoError(t, err)
+
+			gittest.Run(t, clone, "rm", "-q", "projects/p/claims/1.toml")
+			gittest.Run(t, clone, "commit", "-qm", "oops")
+			gittest.Run(t, clone, "push", "-q")
+			if c.remove {
+				require.NoError(t, repo.RemoveMember(ctx, "bob"))
+			}
+
+			res, err := NewEngine(tr, repo, cfg, stateDir).Run(ctx)
+			require.NoError(t, err)
+			assert.Equal(t, c.want, res.Projects[0].ClaimsCreated)
+		})
+	}
+}
+
+// The assigned issues of the auto-plan respect the claims released on purpose
+// like the pool does: the complete scan does not make them again.
+func TestAutoPlanDoesNotMakeAReleasedClaimAgain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("git")
+	}
+	f := newAutoplanFixture(t, issueOf(7), issueOf(8))
+	f.run(t)
+	require.Len(t, f.claims(t), 2)
+
+	require.NoError(t, f.repo.ReleaseClaim(t.Context(), "p", "7"))
+	// A state that has not completed the scan of the assigned issues yet: the
+	// run scans in full, the way the first one does.
+	state, err := LoadSyncState(f.stateDir)
+	require.NoError(t, err)
+	state.AutoPlanScanned = map[string]time.Time{}
+	require.NoError(t, state.Save(f.stateDir))
+
+	res := f.run(t)
+	assert.Zero(t, res.ClaimsCreated)
+	assert.NotContains(t, f.claims(t), "7", "released on purpose")
+	assert.Contains(t, f.claims(t), "8")
 }
