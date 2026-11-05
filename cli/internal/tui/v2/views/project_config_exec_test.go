@@ -113,3 +113,35 @@ func TestStartSectionDefaultFirst(t *testing.T) {
 	assert.Equal(t, "◆", items[0].Icon)
 	assert.Equal(t, "review", items[1].Label)
 }
+
+// The team of the project is chosen in a list (the teams, the solo spaces,
+// none), not typed: a mistyped ID attached the project to a team that does not
+// exist. Without the host's list the field is still the text it was.
+func TestProjectConfigTeamIDIsAList(t *testing.T) {
+	t.Parallel()
+	var asked []string
+	v := NewProjectConfigView(ProjectConfigViewConfig{TeamChoices: func(current string) []SelectOption {
+		asked = append(asked, current)
+		return []SelectOption{{Label: "Core", Value: "core"}, {Label: "None", Value: ""}}
+	}})
+	core := "core"
+	v.live = &domain.Project{ID: "p", Path: "/src/p", TeamID: &core}
+	v.buildFields()
+
+	f := execField(t, v, "team_id")
+	assert.Equal(t, CfgFieldSelect, f.Kind)
+	assert.Equal(t, "core", f.Get())
+	assert.Equal(t, []SelectOption{{Label: "Core", Value: "core"}, {Label: "None", Value: ""}}, fieldOptions(*f))
+	assert.Equal(t, []string{"core"}, asked, "the list is asked with the team the project is in")
+
+	f.Set("")
+	assert.Nil(t, v.live.TeamID, "none detaches the project")
+	f.Set("core")
+	require.NotNil(t, v.live.TeamID)
+	assert.Equal(t, "core", *v.live.TeamID)
+
+	bare := NewProjectConfigView(ProjectConfigViewConfig{})
+	bare.live = &domain.Project{ID: "p", Path: "/src/p"}
+	bare.buildFields()
+	assert.Equal(t, CfgFieldString, execField(t, bare, "team_id").Kind)
+}

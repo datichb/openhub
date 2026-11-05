@@ -38,6 +38,8 @@ func buildTeamModeView(a *app.App, sessionsSection views.SessionsSectionConfig, 
 		OnBoardConfig: func() {
 			actionBoardColumnConfig(nil)
 		},
+		OnSwitchTeam: actionSwitchTeam,
+		OnNewTeam:    actionTeamNew,
 	})
 }
 

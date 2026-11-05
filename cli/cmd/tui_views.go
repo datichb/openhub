@@ -258,6 +258,31 @@ func activeProjectCopy(a *app.App) func() *domain.Project {
 	}
 }
 
+// saveProjectWithTeam is saveProject for the configuration of the project,
+// where the team is chosen: attaching the project to a solo space goes
+// through the same rule as `oh project set-team` (the workflow folders of the
+// project are created in the solo space).
+func saveProjectWithTeam(a *app.App) func(ctx context.Context, p *domain.Project) error {
+	return func(ctx context.Context, p *domain.Project) error {
+		prev, err := a.Projects.Get(ctx, p.ID)
+		id := projectTeamID(p)
+		if err != nil || id == projectTeamID(prev) {
+			return a.Projects.Update(ctx, p)
+		}
+		if t := a.Config.FindTeam(id); t == nil || !t.Solo {
+			p.TeamConfig = nil // the former per-project override is replaced
+			return a.Projects.Update(ctx, p)
+		}
+		// The other fields first, the team through the rule of the solo space.
+		withPrev := *p
+		withPrev.TeamID = prev.TeamID
+		if err := a.Projects.Update(ctx, &withPrev); err != nil {
+			return err
+		}
+		return setProjectTeam(ctx, a, &withPrev, id)
+	}
+}
+
 // saveProject writes a project to the store.
 func saveProject(a *app.App) func(ctx context.Context, p *domain.Project) error {
 	return func(ctx context.Context, p *domain.Project) error {

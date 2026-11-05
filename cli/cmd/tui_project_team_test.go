@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -107,4 +108,52 @@ func TestTeamCommandsAreAlwaysRegistered(t *testing.T) {
 	assert.NotContains(t, byID, "history.team", "« Team History » was the activity under another name")
 	assert.Contains(t, byID["team.activity"].Aliases, "team history")
 	assert.Equal(t, "Team", byID["teams"].Category)
+}
+
+// Saving the configuration of a project changes its team the way
+// `oh project set-team` does: the team is replaced, the former per-project
+// override with it, and the other fields of the project are kept.
+func TestSaveProjectWithTeamChangesTheTeam(t *testing.T) {
+	i18ntest.Set(t, "en")
+	old := "alpha"
+	a, _ := setupTeamsTestApp(t, []config.TeamConfig{
+		{ID: "alpha", Enabled: true, StateRepo: "git@x:a.git", MemberID: "me"},
+		{ID: "beta", Enabled: true, StateRepo: "git@x:b.git", MemberID: "me"},
+	}, []domain.Project{{ID: "p1", Name: "api", Path: "/src/api", TeamID: &old, TeamConfig: &domain.ProjectTeamConfig{}}})
+	save := saveProjectWithTeam(a)
+	store := a.Projects.(*mockProjectStore)
+
+	edited := store.projects[0]
+	edited.Model = "gpt-x"
+	beta := "beta"
+	edited.TeamID = &beta
+	require.NoError(t, save(context.Background(), &edited))
+	got := store.projects[0]
+	assert.Equal(t, "beta", projectTeamID(&got))
+	assert.Equal(t, "gpt-x", got.Model, "the other fields are saved with it")
+	assert.Nil(t, got.TeamConfig, "the former per-project override is replaced")
+
+	edited = store.projects[0]
+	edited.TeamID = nil
+	require.NoError(t, save(context.Background(), &edited))
+	assert.Equal(t, "", projectTeamID(&store.projects[0]), "none detaches the project")
+}
+
+// Attaching the project to a solo space from its configuration creates the
+// workflow folders of the project in that space, as the other ways do.
+func TestSaveProjectWithTeamAttachesToASoloSpace(t *testing.T) {
+	a, _ := setupSoloTestApp(t)
+	ctx := context.Background()
+	res, err := initSoloTeam(ctx, a, soloTeamParams{ID: "mine"})
+	require.NoError(t, err)
+	store := a.Projects.(*mockProjectStore)
+
+	edited := store.projects[0]
+	edited.Model = "gpt-x"
+	mine := "mine"
+	edited.TeamID = &mine
+	require.NoError(t, saveProjectWithTeam(a)(ctx, &edited))
+	assert.Equal(t, "mine", projectTeamID(&store.projects[0]))
+	assert.Equal(t, "gpt-x", store.projects[0].Model)
+	assert.DirExists(t, filepath.Join(res.Team.StatePath, "projects", "web"), "the folders of the project are in the solo space")
 }
