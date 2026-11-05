@@ -567,7 +567,7 @@ Depuis la 5.3.2, c'est le chemin de tous les assistants d'équipe (« Créer »,
 ### Définir l'équipe d'un projet
 
 - **À la création :** l'assistant `oh project add` contient une étape Équipe.
-- **Après :** `team configure` dans l'omnibar de la TUI ; pris en compte au prochain lancement (paquet reconstruit).
+- **Après :** « Rattacher le projet à une équipe » (palette de la TUI, vue Projet) ou `oh project set-team` ; pris en compte au prochain lancement (paquet reconstruit).
 
 ---
 
@@ -709,7 +709,7 @@ columns = [
 | `columns[].color` | string | selon le rôle | `orange`, `blue`, `gray`, `cyan`, `green`, `red`, `purple`, `yellow` |
 | `columns[].role` | string | `"active"` | `initial`, `active`, `review`, `terminal`, `blocked` |
 
-> **Astuce :** la commande `Discover Tracker` (omnibar ou touche `T` dans la config d'équipe) configure les colonnes depuis les labels du tracker (une colonne de revue reçoit le rôle `review`). Les colonnes se modifient aussi à la main dans l'éditeur de la TUI (accueil de l'équipe → *Colonnes du board* : `n` ajouter, `e` renommer, `d` supprimer après confirmation, `o` rôle, `K` / `J` ordre, `m` rattachements, `Ctrl+S` enregistrer ; voir [l'éditeur](tui.fr.md#éditeur-de-colonnes-du-board)). Sans `[board]`, les claims `"planned"` existants vont dans la première colonne.
+> **Astuce :** la commande « Découvrir le tracker » (omnibar ou touche `T` dans la config d'équipe) configure les colonnes depuis les labels du tracker (une colonne de revue reçoit le rôle `review`). Les colonnes se modifient aussi à la main dans l'éditeur de la TUI (accueil de l'équipe → *Colonnes du board* : `n` ajouter, `e` renommer, `d` supprimer après confirmation, `o` rôle, `K` / `J` ordre, `m` rattachements, `Ctrl+S` enregistrer ; voir [l'éditeur](tui.fr.md#éditeur-de-colonnes-du-board)). Sans `[board]`, les claims `"planned"` existants vont dans la première colonne.
 
 ### Section `[mcp.<service>]`
 

@@ -6297,7 +6297,7 @@
   "v53f.card.import_row_linked": "%[1]s is ticket %[2]s",
   "v53f.card.import_row_new": "%[1]s will be imported as a Beads ticket when launched (linked as %[2]s)",
   "v532k.team_detail.empty": "No team to configure",
-  "v532k.team_detail.empty_hint": "No team is chosen, or it is inactive. Go back to the list of teams (Esc) and open one, or add one with n.",
+  "v532k.team_detail.empty_hint": "No team is chosen, or it is inactive. Go back to the list of teams (Esc): Enter opens a team, n creates or joins one.",
   "v532w.error.retry": "Retry",
   "v532w.error.choose": "choose",
   "v532w.error.validate": "confirm",

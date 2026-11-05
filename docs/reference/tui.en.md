@@ -34,8 +34,11 @@ The mode bar shows the sessions badge **`● N ◐ M`** (N sessions working, M d
 **Landings.** The three landings draw their name in the banner as it was typed (a team « Core » is not « CORE »; the Hub draws the logo « OPENHUB »).
 
 - **Hub**: under the banner, the tool line `opencode v2.2.5 · adapter opencode-v2 ✔` (the tool and the adapter that launch the sessions). The System section lists Configuration, Metrics, Doctor, Secrets, **Notifications** and the **Brick catalogue**.
+  The sections come in this order, in one column as in two (the right column holds Projects and Teams): **Start**, **Sessions**, **Projects**, **Teams**, **System**. The **Teams** section is always there, as Projects is: one `👥 <team>  ★ default · 3 members · 2 in progress` line per enabled team (`★` = the default team; "not synced yet" while its team-state is not cloned), then **➕ New team**. With no team this line explains what a team is for. **New team** opens a window: *Create a team* (a new team-state repository), *Join a team* (existing repository: new member or reinstall), *Solo space* (your workflows on this machine, no team).
 - **Project**: the header gives the path and the branch, the tool line and the execution environments with their state, `execution: ⌂ local ✔  ▣ container · colima ✔  ☁ remote ✗` (read when the landing opens, not on the event loop).
+  The **Team** section is always there: the `👥 Team: Core › change…` line (or `Team: none`, `Team: solo space mine`) opens the choice of the team of the project; it is followed by the status, the board and the activity of the team when the project is in a team.
 - **Team**: besides *Team sessions*, the section **Sessions of the other members** lists, from the claims of the team-state, who works on which ticket (member, ticket, session, since when; `●` the claim is alive, `○` its lease is past). It is **read only**: `Enter` opens a window with the details and a single button *Close*; a session runs on the machine of its member, oh does not act on it.
+  The right column starts with the **Team** section: *Members and my card*, *Team config*, *Team MCP*, *Team models*, *Policies*, *Patterns*, *Team wiki*. The **Navigation** section offers *Switch team…*, *New team*, *Projects*, *Metrics* and *Hub view*. With no active team the view lists what can be done (new team, choose a team, Hub view) instead of a bare text.
 
 ## Global keys
 
@@ -45,7 +48,7 @@ The mode bar shows the sessions badge **`● N ◐ M`** (N sessions working, M d
 | `/` | Filter the list of the view; when the view does not filter: palette |
 | `?` / `F1` | Help: global keys, convention, keys of the active view, legend, commands |
 | `Esc` | Closes the toasts first; else goes back (previous view); at the root of a Project or Team view: back to the Hub view |
-| `Ctrl+T` | Next view of the cycle **Hub → Project → Team → Hub**, skipping what is not configured: from the Hub, the project you left (the only one, or a choice among several), else the team; from the Project, the team (choice when there are several, the default team first; no solo space, no archived team), else the Hub; from the Team, the Hub |
+| `Ctrl+T` | Next view of the cycle **Hub → Project → Team → Hub**, skipping what is not configured: from the Hub, the project you left (the only one, or a choice among several), else the team; from the Project, the team (choice when there are several, the default team first; no solo space, no archived team), else the Hub; from the Team, the Hub. With no team configured at all, `Ctrl+T` opens the "Create or join a team?" window instead of a message |
 | `Ctrl+Q` / `Ctrl+C` | Quit (when sessions work: finish the step then sleep, background, or stop) |
 | `Enter` | Action of the selected list, button or field; palette only when nothing uses it |
 
@@ -184,7 +187,7 @@ The aliases come from the YAML of the workflows (`aliases:`, see the [workflows 
 | `projects`, `project.add` | proj, list · project add, nouveau projet | — | Projects, add wizard |
 | `settings`, `project-config` | config, cfg · config projet | — / Project | Hub settings, project configuration (Execution included) |
 | `models`, `provider`, `mcp`, `secrets` | mod, llm · prov, api · servers · tokens, credentials | — | Models, provider, MCP servers, secrets |
-| `teams`, `team-detail`, `team.discover` | team, équipes · tracker · discover | — / Team | Teams, team detail, tracker discovery |
+| `teams` | team, equipe, equipes | — | Teams (Team category) |
 | `init` | setup, reconfigure | — | Setup wizard |
 
 ### System and navigation
@@ -199,13 +202,20 @@ The aliases come from the YAML of the workflows (`aliases:`, see the [workflows 
 
 ### Team
 
-| Command | Aliases | Description |
-|---------|---------|-------------|
-| `team.board`, `team.status`, `team.activity`, `history.team` | team board, team stat, activity, team history | Board, status, activity, history of the team |
-| `team.briefs`, `team.patterns`, `team.policies` | takeover, reprises · pat · pol, rules | Briefs, patterns, policies |
-| `team.wiki` | wiki, proposals, pending, team-state | Team proposals (team-state) |
-| `team.sync`, `team.configure`, `team.init`, `team.rejoin` | sync tracker · team projet · team init · rejoin | Sync the tracker, team of the project, create or join a team |
-| `worktrees` | wt, git worktree | Git worktrees |
+All the team commands are in the **Team** category. They are always registered: a team created or joined in the TUI brings its commands at once, without a restart.
+
+| Command | Aliases | View | Description |
+|---------|---------|------|-------------|
+| `team.new` | new team, nouvelle équipe, add team | — | **New team…**: the *Create* / *Join* / *Solo space* window |
+| `team.init` | team init, create team, créer, initialiser | — | Create a team (a new team-state repository, even if you have one already) |
+| `team.rejoin` | team rejoin, rejoindre, join team | — | Join a team: existing repository, new member or reinstall |
+| `team.configure` | attach project, rattacher, team projet | Project | **Attach the project to a team**: every team, a solo space or none |
+| `team.board`, `team.status`, `team.activity` | team board, team stat, activity, team history | Team | Board, team status, team activity (the former "Team History" command was the activity under another name) |
+| `team.briefs`, `team.patterns`, `team.policies` | takeover, reprises · pat · pol, rules | Team | Takeovers, patterns, policies |
+| `team.wiki` | wiki, proposals, pending, team-state | Team | Team proposals (team-state) |
+| `team.sync`, `team.reconfigure`, `team.switch` | sync tracker · reconfigure team · change team | Team | Sync the tracker, reconfigure the open team, switch team |
+| `team-detail`, `team.discover` | tracker, profile · discover | Team | Team configuration, discover the tracker |
+| `worktrees` | wt, git worktree | — | Git worktrees |
 
 ## Views and keys
 
@@ -425,7 +435,7 @@ Mappings of a column (`m`): the list of the labels, then of the statuses (Jira),
 | `v` | move it to another column: the list of the other columns is offered, the label or status then leaves this column (shown in the target's mappings) |
 | `q` | back to the list of the columns |
 
-The tracker discovery wizard (`Discover Tracker`) uses the same editor for its columns, without the `m` key. Before 5.1: `a` added and `r` changed the role; they are now `n` and `o` (`r` refreshes everywhere else), and `d` asks for a confirmation (see [Changed keys](#changed-keys)).
+The tracker discovery wizard ("Discover the tracker") uses the same editor for its columns, without the `m` key. Before 5.1: `a` added and `r` changed the role; they are now `n` and `o` (`r` refreshes everywhere else), and `d` asks for a confirmation (see [Changed keys](#changed-keys)).
 
 ### Other views
 
@@ -438,7 +448,7 @@ The tracker discovery wizard (`Discover Tracker`) uses the same editor for its c
 | Provider | `Space` default, `Enter` / `e` modify, `s` set up, `d` clear the configuration and the key of the keychain (confirmed) |
 | MCP (hub, project, team) | `Space` enable, `Enter` modify, `t` token or test, `m` write mode (hub view), `Ctrl+S` save (team), `u` undo, `T` approve the URL imposed by the team (hub view; confirmed, see [`oh mcp trust`](cli-mcp.en.md#oh-mcp-trust)) |
 | Secrets | `Enter` / `e` modify, `n` create, `d` delete (confirmed) |
-| Teams | `Enter` open, `n` add a team (opens the "Rejoin a team" wizard: repository, access, clone, your card; the list shows the team when you come back), `d` delete (confirmed), `s` sync, `u` undo. With no team: « No team », `n` to add one |
+| Teams | `Enter` team detail, `p` Team view (not for a solo space or an archived team), `n` new team (the *Create* / *Join* / *Solo space* window; the list shows the team when you come back), `*` set as default (`★`), `e` rename, `x` archive, `R` restore, `d` remove (confirmed: announces and detaches the attached projects), `s` sync, `u` undo. The list ends with the **➕ New team** row, which is the whole list with no team |
 | Team detail | the team opened in the list (else the default team; « No team to configure » and a `Ctrl+S` with no effect when there is none): `Space` toggle, `Enter` modify, `Ctrl+S` save, `s` sync, `t` test, `u` undo, `T` discover the tracker, `K` provider key of the team |
 | Patterns | `Enter` see, `n` create, `y` validate, `d` delete (confirmed) |
 | Policies | `Enter` detail, `n` create, `t` template, `e` edit, `d` delete (confirmed), `c` check |

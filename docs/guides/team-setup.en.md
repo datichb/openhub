@@ -28,7 +28,7 @@ The person who **creates** the team runs:
 oh team init
 ```
 
-Or from the TUI, the « Create a team » command of the palette (`Ctrl+P`, `team init`). It always creates a new team on a new repository, even if you already have one. The **other members** join with `oh team rejoin --repo <url>` (or « Rejoin a team » in the palette, or `oh teams add`, which is its alias). To **reconfigure** a team that exists: `oh team init --reconfigure` (option `--team <id>`), or « Reconfigure the team » in the palette.
+Or from the TUI: **Home › Teams › ➕ New team** (or the `n` key of the Teams view, or the « New team… » command of the palette `Ctrl+P`) opens a *Create a team* / *Join a team* / *Solo space* window. « Create a team » (`team init` in the palette) It always creates a new team on a new repository, even if you already have one. The **other members** join with `oh team rejoin --repo <url>` (or « Rejoin a team » in the palette, or `oh teams add`, which is its alias). To **reconfigure** a team that exists: `oh team init --reconfigure` (option `--team <id>`), or « Reconfigure the team » in the palette.
 
 ### CLI mode (terminal)
 
@@ -306,14 +306,13 @@ and offers opt-in to a custom configuration.
 
 ### Changing the mode after creation
 
-**From the TUI omnibar** (available at any time, regardless of hub team status):
+**From the TUI**, in the Project view of the project:
 
-```
-team configure
-```
+- the **👥 Team: Core › change…** line of the project landing (always there, `Team: none` without a team);
+- or the **"Attach the project to a team"** command of the palette (`Ctrl+P`, `attach`);
+- or the **Team** field of the project configuration (`project-config`), a list.
 
-This opens a modal with the three choices. The change is taken into account at the
-next session launch (bundle rebuilt) — no redeploy needed.
+The choice offers every team (the default team first), a solo space, or no team; "New team…" there leads to the creation window. Outside the TUI: `oh project set-team <project> <team>`. The change is taken into account at the next session launch (bundle rebuilt) — no redeploy needed.
 
 ### Custom team: state path resolution
 
@@ -751,6 +750,8 @@ Remove a team (detaches all associated projects):
 ```bash
 oh teams remove <team-id>
 ```
+
+**In the TUI**, the Teams view (`Ctrl+P` › `teams`, or Home › Teams) does the same: `d` removes the team (the confirmation announces the projects it detaches, and the list says what was detached), `x` archives it, `R` restores it, `e` renames it, `*` makes it the default team (`★`, like `oh teams default <id>`), `p` opens its Team view, `n` opens the "New team" window. When the archived or removed team was the default team, the message says which one replaces it.
 
 ### Detach a project from its team
 

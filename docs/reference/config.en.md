@@ -567,7 +567,7 @@ Since 5.3.2 this is the path of every team wizard ("Create", "Rejoin", and the p
 ### Setting the team of a project
 
 - **At creation:** the `oh project add` wizard has a Team step.
-- **Afterwards:** `team configure` in the TUI omnibar; applied at the next launch (bundle rebuilt).
+- **Afterwards:** "Attach the project to a team" (TUI palette, Project view) or `oh project set-team`; applied at the next launch (bundle rebuilt).
 
 ---
 
@@ -709,7 +709,7 @@ columns = [
 | `columns[].color` | string | role-based | `orange`, `blue`, `gray`, `cyan`, `green`, `red`, `purple`, `yellow` |
 | `columns[].role` | string | `"active"` | `initial`, `active`, `review`, `terminal`, `blocked` |
 
-> **Tip:** the `Discover Tracker` command (omnibar or `T` key in team config) configures the columns from the tracker labels (a review column gets the `review` role). The columns can also be edited by hand in the TUI editor (team home → *Board Columns*: `n` add, `e` rename, `d` delete after a confirmation, `o` role, `K` / `J` order, `m` mappings, `Ctrl+S` save; see [the editor](tui.en.md#board-columns-editor)). Without `[board]`, existing `"planned"` claims go to the first column.
+> **Tip:** the "Discover the tracker" command (omnibar or `T` key in team config) configures the columns from the tracker labels (a review column gets the `review` role). The columns can also be edited by hand in the TUI editor (team home → *Board Columns*: `n` add, `e` rename, `d` delete after a confirmation, `o` role, `K` / `J` order, `m` mappings, `Ctrl+S` save; see [the editor](tui.en.md#board-columns-editor)). Without `[board]`, existing `"planned"` claims go to the first column.
 
 ### `[mcp.<service>]` section
 

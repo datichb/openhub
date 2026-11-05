@@ -34,8 +34,11 @@ La barre de mode affiche le badge des sessions **`● N ◐ M`** (N sessions qui
 **Accueils.** Les trois accueils dessinent leur nom dans la bannière tel qu'il a été saisi (une équipe « Core » n'est pas « CORE » ; le Hub dessine le logo « OPENHUB »).
 
 - **Hub** : sous la bannière, la ligne de l'outil `opencode v2.2.5 · adaptateur opencode-v2 ✔` (l'outil et l'adaptateur qui lancent les sessions). La section Système liste Configuration, Métriques, Doctor, Secrets, **Notifications** et le **Catalogue des briques**.
+  Les sections se suivent dans cet ordre, en une colonne comme en deux (la colonne de droite porte Projets et Équipes) : **Démarrer**, **Sessions**, **Projets**, **Équipes**, **Système**. La section **Équipes** est toujours là, comme Projets : une ligne `👥 <équipe>  ★ par défaut · 3 membres · 2 en cours` par équipe activée (`★` = équipe par défaut ; « pas encore synchronisée » tant que son team-state n'est pas cloné), puis **➕ Nouvelle équipe**. Sans équipe, cette ligne explique à quoi sert une équipe. **Nouvelle équipe** ouvre une fenêtre : *Créer une équipe* (un nouveau dépôt team-state), *Rejoindre une équipe* (dépôt existant : nouveau membre ou réinstallation), *Espace solo* (vos workflows en local, sans équipe).
 - **Projet** : l'en-tête donne le chemin et la branche, la ligne de l'outil et les environnements d'exécution avec leur état, `exécution : ⌂ local ✔  ▣ conteneur · colima ✔  ☁ distant ✗` (lus à l'ouverture de l'accueil, hors de la boucle d'événements).
+  La section **Équipe** est toujours présente : la ligne `👥 Équipe : Core › changer…` (ou `Équipe : aucune`, `Équipe : espace solo mine`) ouvre le choix de l'équipe du projet ; elle est suivie du statut, du board et de l'activité de l'équipe quand le projet est dans une équipe.
 - **Équipe** : en plus des *Sessions de l'équipe*, la section **Sessions des autres membres** liste, d'après les claims du team-state, qui travaille sur quel ticket (membre, ticket, session, depuis quand ; `●` le claim est vivant, `○` son bail est dépassé). Elle est en **lecture seule** : `Entrée` ouvre une fenêtre de détail avec un seul bouton *Fermer* ; une session tourne sur la machine de son membre, oh n'agit pas dessus.
+  La colonne de droite commence par la section **Équipe** : *Membres et ma fiche*, *Config Équipe*, *MCP de l'équipe*, *Modèles de l'équipe*, *Politiques*, *Patterns*, *Wiki de l'équipe*. La section **Navigation** propose *Changer d'équipe…*, *Nouvelle équipe*, *Projets*, *Métriques* et *Vue Hub*. Sans équipe active, la vue liste ce qu'on peut faire (nouvelle équipe, choisir une équipe, vue Hub) au lieu d'un simple texte.
 
 ## Touches globales
 
@@ -45,7 +48,7 @@ La barre de mode affiche le badge des sessions **`● N ◐ M`** (N sessions qui
 | `/` | Filtrer la liste de la vue ; si la vue ne filtre pas : palette |
 | `?` / `F1` | Aide : touches globales, convention, touches de la vue active, légende, commandes |
 | `Échap` | Ferme d'abord les toasts ; sinon revient (vue précédente) ; à la racine d'une vue Projet ou Équipe : retour à la vue Hub |
-| `Ctrl+T` | Vue suivante du cycle **Hub → Projet → Équipe → Hub**, en sautant ce qui n'est pas configuré : depuis le Hub, le projet quitté (le seul, ou un choix parmi plusieurs), sinon l'équipe ; depuis le Projet, l'équipe (choix si plusieurs, l'équipe par défaut en premier ; ni espace solo ni équipe archivée), sinon le Hub ; depuis l'Équipe, le Hub |
+| `Ctrl+T` | Vue suivante du cycle **Hub → Projet → Équipe → Hub**, en sautant ce qui n'est pas configuré : depuis le Hub, le projet quitté (le seul, ou un choix parmi plusieurs), sinon l'équipe ; depuis le Projet, l'équipe (choix si plusieurs, l'équipe par défaut en premier ; ni espace solo ni équipe archivée), sinon le Hub ; depuis l'Équipe, le Hub. Sans aucune équipe configurée, `Ctrl+T` ouvre la fenêtre « Créer ou rejoindre une équipe ? » au lieu d'un simple message |
 | `Ctrl+Q` / `Ctrl+C` | Quitter (si des sessions travaillent : finir l'étape puis veille, arrière-plan ou arrêter) |
 | `Entrée` | Action de la liste, du bouton ou du champ sélectionné ; palette seulement si rien ne l'utilise |
 
@@ -184,7 +187,7 @@ Les alias viennent des YAML des workflows (`aliases:`, voir la [référence des 
 | `projects`, `project.add` | proj, list · project add, nouveau projet | — | Projets, assistant d'ajout |
 | `settings`, `project-config` | config, cfg · config projet | — / Projet | Réglages du hub, configuration du projet (dont Exécution) |
 | `models`, `provider`, `mcp`, `secrets` | mod, llm · prov, api · servers · tokens, credentials | — | Modèles, fournisseur, serveurs MCP, secrets |
-| `teams`, `team-detail`, `team.discover` | team, équipes · tracker · discover | — / Équipe | Équipes, détail de l'équipe, découverte du tracker |
+| `teams` | team, equipe, equipes | — | Équipes (catégorie Équipe) |
 | `init` | setup, reconfigure | — | Assistant de configuration |
 
 ### Système et navigation
@@ -199,13 +202,20 @@ Les alias viennent des YAML des workflows (`aliases:`, voir la [référence des 
 
 ### Équipe
 
-| Commande | Alias | Description |
-|----------|-------|-------------|
-| `team.board`, `team.status`, `team.activity`, `history.team` | team board, team stat, activity, team history | Board, statut, activité, historique de l'équipe |
-| `team.briefs`, `team.patterns`, `team.policies` | takeover, reprises · pat · pol, rules | Reprises, patterns, policies |
-| `team.wiki` | wiki, proposals, pending, team-state | Propositions d'équipe (team-state) |
-| `team.sync`, `team.configure`, `team.init`, `team.rejoin` | sync tracker · team projet · team init · rejoindre | Synchroniser le tracker, équipe du projet, créer ou rejoindre une équipe |
-| `worktrees` | wt, git worktree | Worktrees git |
+Toutes les commandes d'équipe sont dans la catégorie **Équipe**. Elles sont toujours enregistrées : une équipe créée ou rejointe dans la TUI apporte ses commandes tout de suite, sans redémarrer.
+
+| Commande | Alias | Vue | Description |
+|----------|-------|-----|-------------|
+| `team.new` | new team, nouvelle équipe, add team | — | **Nouvelle équipe…** : fenêtre *Créer* / *Rejoindre* / *Espace solo* |
+| `team.init` | team init, create team, créer, initialiser | — | Créer une équipe (un nouveau dépôt team-state, même si on en a déjà une) |
+| `team.rejoin` | team rejoin, rejoindre, join team | — | Rejoindre une équipe : dépôt existant, nouveau membre ou réinstallation |
+| `team.configure` | attach project, rattacher, team projet | Projet | **Rattacher le projet à une équipe** : toutes les équipes, un espace solo ou aucune |
+| `team.board`, `team.status`, `team.activity` | team board, team stat, activity, team history | Équipe | Board, statut de l'équipe, activité de l'équipe (l'ancienne commande « Historique Équipe » était l'activité sous un autre nom) |
+| `team.briefs`, `team.patterns`, `team.policies` | takeover, reprises · pat · pol, rules | Équipe | Reprises, patterns, policies |
+| `team.wiki` | wiki, proposals, pending, team-state | Équipe | Propositions d'équipe (team-state) |
+| `team.sync`, `team.reconfigure`, `team.switch` | sync tracker · reconfigure team · changer equipe | Équipe | Synchroniser le tracker, reconfigurer l'équipe ouverte, changer d'équipe |
+| `team-detail`, `team.discover` | tracker, profile · discover | Équipe | Configuration de l'équipe, découvrir le tracker |
+| `worktrees` | wt, git worktree | — | Worktrees git |
 
 ## Vues et touches
 
@@ -425,7 +435,7 @@ Rattachements d'une colonne (`m`) : la liste des labels, puis des statuts (Jira)
 | `v` | le déplacer vers une autre colonne : la liste des autres colonnes est proposée, le label ou le statut quitte alors cette colonne (il apparaît dans les rattachements de la cible) |
 | `q` | revenir à la liste des colonnes |
 
-L'assistant de découverte du tracker (`Discover Tracker`) utilise le même éditeur pour ses colonnes, sans la touche `m`. Avant la 5.1 : `a` ajoutait et `r` changeait le rôle ; c'est maintenant `n` et `o` (`r` rafraîchit partout ailleurs), et `d` demande confirmation (voir [Touches changées](#touches-changées)).
+L'assistant de découverte du tracker (« Découvrir le tracker ») utilise le même éditeur pour ses colonnes, sans la touche `m`. Avant la 5.1 : `a` ajoutait et `r` changeait le rôle ; c'est maintenant `n` et `o` (`r` rafraîchit partout ailleurs), et `d` demande confirmation (voir [Touches changées](#touches-changées)).
 
 ### Autres vues
 
@@ -438,7 +448,7 @@ L'assistant de découverte du tracker (`Discover Tracker`) utilise le même édi
 | Fournisseur | `Espace` par défaut, `Entrée` / `e` modifier, `s` configurer, `d` effacer la configuration et la clé du trousseau (confirmé) |
 | MCP (hub, projet, équipe) | `Espace` activer, `Entrée` modifier, `t` jeton ou test, `m` mode écriture (vue du hub), `Ctrl+S` enregistrer (équipe), `u` annuler, `T` approuver l'URL imposée par l'équipe (vue du hub ; confirmé, voir [`oh mcp trust`](cli-mcp.fr.md#oh-mcp-trust)) |
 | Secrets | `Entrée` / `e` modifier, `n` créer, `d` supprimer (confirmé) |
-| Équipes | `Entrée` ouvrir, `n` ajouter une équipe (ouvre l'assistant « Rejoindre une équipe » : dépôt, accès, clone, votre fiche ; la liste montre l'équipe au retour), `d` supprimer (confirmé), `s` synchroniser, `u` annuler. Sans équipe : « Aucune équipe », `n` pour en ajouter une |
+| Équipes | `Entrée` détail de l'équipe, `p` vue Équipe (ni espace solo ni équipe archivée), `n` nouvelle équipe (la fenêtre *Créer* / *Rejoindre* / *Espace solo* ; la liste montre l'équipe au retour), `*` définir par défaut (`★`), `e` renommer, `x` archiver, `R` restaurer, `d` retirer (confirmé : annonce et détache les projets rattachés), `s` synchroniser, `u` annuler. La liste se termine par la ligne **➕ Nouvelle équipe**, qui est toute la liste sans équipe |
 | Détail d'équipe | l'équipe ouverte dans la liste (sinon l'équipe par défaut ; « Aucune équipe à configurer » et `Ctrl+S` sans effet quand il n'y en a pas) : `Espace` basculer, `Entrée` modifier, `Ctrl+S` enregistrer, `s` synchroniser, `t` tester, `u` annuler, `T` découvrir le tracker, `K` clé du fournisseur de l'équipe |
 | Patterns | `Entrée` voir, `n` créer, `y` valider, `d` supprimer (confirmé) |
 | Policies | `Entrée` détail, `n` créer, `t` modèle, `e` éditer, `d` supprimer (confirmé), `c` vérifier |
