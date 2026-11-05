@@ -64,7 +64,7 @@ dans la palette (`team init`, `team rejoin`) :
      ignorée. Si GitLab refuse `GET /api/v4/user` avec le token (403 faute de scope, 401, GitLab
      injoignable), « Rejoindre » aboutit quand même, avec l'avertissement « Identité non
      vérifiée ».
-   - **SSH** : le message donne la réponse de git et rappelle `ssh-add` ; « Réessayer » sonde de nouveau.
+   - **SSH** : le message donne la réponse de git et rappelle `ssh-add` ; « Réessayer » sonde de nouveau. Un serveur que la machine ne connaît pas encore est confirmé avant la sonde (voir [Premier contact avec un serveur SSH](#premier-contact-avec-un-serveur-ssh)).
 4. **Identité** : « Créer » demande votre fiche (identifiant, nom affiché, handle GitLab facultatif,
    rôle). « Rejoindre » liste les membres (« Membres de l'équipe (N) ») : vous choisissez votre
    fiche, ou **« + Je ne suis pas dans la liste : créer ma fiche »**, qui ouvre le même formulaire.
@@ -73,6 +73,24 @@ dans la palette (`team init`, `team rejoin`) :
    structure de répertoires (si premier membre) et détection des clones dupliqués.
 
 Chaque écran d'un assistant porte son compteur : « Étape 2/5 — Identité ».
+
+### Premier contact avec un serveur SSH
+
+`oh` ne fait pas confiance à un serveur SSH qu'il n'a jamais vu sans que vous l'ayez confirmé. Quand l'URL du dépôt est en SSH (`git@hôte:org/repo.git`, `ssh://git@hôte:2222/org/repo.git`) et que l'hôte n'est pas dans votre `known_hosts` :
+
+- **Dans un terminal** (assistants « Créer » / « Rejoindre » de `oh init` et de la palette, `oh team init`, `oh team rejoin`, `oh teams add`, `oh teams set <id> repo <url>`, `oh team promote --remote`), `oh` lit les clés du serveur (`ssh-keyscan`) et **affiche leurs empreintes** (type et `SHA256:…`, comme `ssh-keygen -lf`). Comparez-les à celles que publie l'administrateur du serveur ou votre forge (gitlab.com et github.com publient les leurs dans leur documentation). Dans la TUI, deux étapes « Serveur SSH » précèdent la sonde ; le premier bouton est **Refuser**, Échap ne peut pas passer l'étape. En ligne de commande, la question est `[y/N]` : Entrée seul refuse.
+- **Confirmé**, les clés sont ajoutées au fichier que ssh écrit : le premier `UserKnownHostsFile` de votre `~/.ssh/config` pour cet hôte, sinon `~/.ssh/known_hosts` (créé en `0600`, dossier `~/.ssh` en `0700`). La question n'est posée qu'**une fois** par serveur. **Refusé**, rien n'est ajouté ni cloné, et le message donne la commande `ssh -T` pour vous connecter vous-même.
+- **Sans terminal** (entrée non interactive : script, tube, CI), `oh` ne pose aucune question et **refuse** quand le serveur est inconnu, en donnant les deux commandes possibles, à lancer **après avoir vérifié l'empreinte** : `ssh -T git@<hôte>` (ssh affiche l'empreinte et demande ; ajoutez `-p <port>` si besoin) ou `ssh-keyscan <hôte> >> ~/.ssh/known_hosts`. Relancez ensuite la commande.
+- **Un serveur déjà connu** ne déclenche rien. Le démon et les commandes courantes (pull, push, claims) ne changent pas.
+
+Ce que `oh` suit de `~/.ssh/config` (via `ssh -G`) : `HostName` (un alias est résolu avant le contrôle), `Port`, `HostKeyAlias` (le serveur est enregistré sous cet alias), `UserKnownHostsFile`. Le port hors 22 est enregistré sous la forme `[hôte]:port`, comme ssh ; une adresse IPv6 s'écrit entre crochets dans une URL scp (`git@[2001:db8::1]:org/repo.git`).
+
+Limites :
+
+- Derrière un `ProxyJump` ou un `ProxyCommand`, `oh` ne peut pas lire les clés (`ssh-keyscan` n'y passe pas) : il refuse avec la commande `ssh -T` à lancer, qui suit le rebond.
+- Avec `UserKnownHostsFile none` (ou `/dev/null`), vous avez choisi de ne pas mémoriser les serveurs : `oh` ne pose pas de question.
+- `ssh-keyscan` et `ssh` doivent être installés (OpenSSH est livré avec macOS et Linux, et avec Git pour Windows) ; sinon `oh` le dit et donne les commandes à lancer à la main. `GIT_SSH`/`core.sshCommand` sont ignorés par ce contrôle, qui lit la configuration d'OpenSSH. `HashKnownHosts yes` n'est pas appliqué aux entrées que `oh` ajoute (nom en clair).
+- `oh` garde `StrictHostKeyChecking=accept-new` pour git (pull, push, démon) plutôt que `yes` : sur un serveur déjà connu, `accept-new` refuse une clé qui a changé exactement comme `yes`, et `yes` casserait les configurations qui n'enregistrent pas les serveurs (`UserKnownHostsFile` vers un fichier absent ou en lecture seule, serveur reconnu par un autre nom). Le seul cas qui diffère — un serveur inconnu — est justement celui que les assistants confirment avant la première connexion.
 
 #### Dépôt vide
 
@@ -372,6 +390,7 @@ Solutions :
   utilisé quand `oh` n'a pas de token pour ce dépôt.
 - **SSH plutôt que HTTPS :** utiliser `git@gitlab.com:org/team-state.git`
 - **Clé SSH non chargée :** `ssh-add ~/.ssh/id_ed25519` ou `eval "$(ssh-agent)"`
+- **« Le serveur SSH … n'est pas dans votre known_hosts » :** `oh` ne tourne pas dans un terminal, ou refuse de faire confiance sans votre accord. Vérifiez l'empreinte, puis `ssh -T git@<hôte>` ou `ssh-keyscan <hôte> >> ~/.ssh/known_hosts` (voir [Premier contact avec un serveur SSH](#premier-contact-avec-un-serveur-ssh)).
 
 **Le dossier contient le clone d'un autre dépôt :**
 

@@ -63,7 +63,7 @@ func TestTeamInitCreatesASecondTeam(t *testing.T) {
 	second, _ := claimRepos(t)
 	s := scriptWizard(t, map[int]func(f *tview.Form){
 		0: func(f *tview.Form) { typeInto(f, 0, second) },
-		5: func(f *tview.Form) {
+		7: func(f *tview.Form) {
 			typeInto(f, 0, "other-me")
 			typeInto(f, 1, "Other Me")
 		},
@@ -72,8 +72,8 @@ func TestTeamInitCreatesASecondTeam(t *testing.T) {
 	teamInitCmd.SetContext(t.Context())
 	require.NoError(t, runTeamInit(teamInitCmd, nil))
 
-	// repository, probe, access (skipped: it answers), clone, config, identity, notifications, policies
-	assert.Equal(t, []int{0, 1, 3, 4, 5, 6, 7}, s.ran, "steps that ran")
+	// repository, (the SSH server: skipped), probe, (access: skipped, it answers), clone, config, identity, notifications, policies
+	assert.Equal(t, []int{0, 3, 5, 6, 7, 8, 9}, s.ran, "steps that ran")
 	config.Reset()
 	saved, err := config.Load()
 	require.NoError(t, err)
@@ -135,14 +135,14 @@ func TestTeamInitWritesHubTomlRightAfterTheCard(t *testing.T) {
 	second, _ := claimRepos(t)
 	s := scriptWizard(t, map[int]func(f *tview.Form){
 		0: func(f *tview.Form) { typeInto(f, 0, second) },
-		5: func(f *tview.Form) { typeInto(f, 0, "other-me") },
+		7: func(f *tview.Form) { typeInto(f, 0, "other-me") },
 	})
-	s.abortAt = 6 // the person quits at the notifications
+	s.abortAt = 8 // the person quits at the notifications
 
 	teamInitCmd.SetContext(t.Context())
 	require.NoError(t, runTeamInit(teamInitCmd, nil))
 
-	assert.Equal(t, []int{0, 1, 3, 4, 5}, s.ran)
+	assert.Equal(t, []int{0, 3, 5, 6, 7}, s.ran)
 	config.Reset()
 	saved, err := config.Load()
 	require.NoError(t, err)

@@ -30,10 +30,11 @@ func reconfigure(t *testing.T) {
 func TestTeamInitWizard(t *testing.T) {
 	i18ntest.Set(t, "en")
 	reconfigure(t)
-	// Steps: 0 probe of the access, 1 access (skipped: the repository
-	// answers), 2 synchronisation, 3 config (stale days), 4 identity,
-	// 5 notifications (webhook, channel, bot name), 6 policies (four check
-	// boxes: branch_naming, commit_format, max_ticket_wip, review_required).
+	// Steps: 0 and 1 the SSH server (skipped: the repository is a local path),
+	// 2 probe of the access, 3 access (skipped: the repository answers),
+	// 4 synchronisation, 5 config (stale days), 6 identity, 7 notifications
+	// (webhook, channel, bot name), 8 policies (four check boxes:
+	// branch_naming, commit_format, max_ticket_wip, review_required).
 	notif := func(f *tview.Form) {
 		typeInto(f, 0, "https://mm.example/hook")
 		typeInto(f, 1, "dev-team")
@@ -48,23 +49,23 @@ func TestTeamInitWizard(t *testing.T) {
 		// Identity of a known member: no id field; display name, GitLab,
 		// Mattermost, tracker, role.
 		s := scriptWizard(t, map[int]func(f *tview.Form){
-			3: func(f *tview.Form) { typeInto(f, 0, "5") },
-			4: func(f *tview.Form) {
+			5: func(f *tview.Form) { typeInto(f, 0, "5") },
+			6: func(f *tview.Form) {
 				typeInto(f, 0, "Test User II")
 				typeInto(f, 1, "tuser")
 				typeInto(f, 2, "tmm")
 				typeInto(f, 3, "ttrack")
 				choose(f, 4, 1)
 			},
-			5: notif,
-			6: policies,
+			7: notif,
+			8: policies,
 		})
 
 		teamInitCmd.SetContext(t.Context())
 		require.NoError(t, runTeamInit(teamInitCmd, nil))
 
 		assert.Equal(t, "team init", s.command, "command of the wizard")
-		assert.Equal(t, []int{0, 2, 3, 4, 5, 6}, s.ran, "steps that ran")
+		assert.Equal(t, []int{2, 4, 5, 6, 7, 8}, s.ran, "steps that ran")
 		cfg, err := repo.LoadConfig(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, 5, cfg.Takeover.StaleDays, "stale days")
@@ -97,8 +98,8 @@ func TestTeamInitWizard(t *testing.T) {
 		a, repo, _ := setupClaimTestApp(t)
 		a.Config.Teams[0].MemberID = ""
 		s := scriptWizard(t, map[int]func(f *tview.Form){
-			3: func(f *tview.Form) { typeInto(f, 0, "abc") }, // not a number: 3 days
-			4: func(f *tview.Form) {
+			5: func(f *tview.Form) { typeInto(f, 0, "abc") }, // not a number: 3 days
+			6: func(f *tview.Form) {
 				typeInto(f, 0, "newbie")
 				typeInto(f, 1, "New Bie")
 				choose(f, 5, 2)
@@ -108,7 +109,7 @@ func TestTeamInitWizard(t *testing.T) {
 		teamInitCmd.SetContext(t.Context())
 		require.NoError(t, runTeamInit(teamInitCmd, nil))
 
-		assert.Equal(t, []int{0, 2, 3, 4, 5, 6}, s.ran, "steps that ran")
+		assert.Equal(t, []int{2, 4, 5, 6, 7, 8}, s.ran, "steps that ran")
 		cfg, err := repo.LoadConfig(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, 3, cfg.Takeover.StaleDays, "stale days")
@@ -131,14 +132,14 @@ func TestTeamInitWizard(t *testing.T) {
 		a, repo, _ := setupClaimTestApp(t)
 		a.Config.Teams[0].MemberID = ""
 		s := scriptWizard(t, map[int]func(f *tview.Form){
-			4: func(f *tview.Form) { typeInto(f, 1, "No Id") },
+			6: func(f *tview.Form) { typeInto(f, 1, "No Id") },
 		})
 
 		teamInitCmd.SetContext(t.Context())
 		require.NoError(t, runTeamInit(teamInitCmd, nil))
 
-		assert.Equal(t, []int{0, 2, 3, 4}, s.ran, "steps that ran")
-		assert.Equal(t, map[int]string{4: i18n.T("cmd.init.wizard_team_member_required")}, s.refused, "steps refused")
+		assert.Equal(t, []int{2, 4, 5, 6}, s.ran, "steps that ran")
+		assert.Equal(t, map[int]string{6: i18n.T("cmd.init.wizard_team_member_required")}, s.refused, "steps refused")
 		members, err := repo.ListMembers(t.Context())
 		require.NoError(t, err)
 		assert.Len(t, members, 1, "only the member that existed")
@@ -149,13 +150,13 @@ func TestTeamInitWizard(t *testing.T) {
 		configtest.Home(t)
 		require.NoError(t, config.Save(&config.Config{}))
 		a, repo, out := setupClaimTestApp(t)
-		s := scriptWizard(t, map[int]func(f *tview.Form){3: func(f *tview.Form) { typeInto(f, 0, "9") }})
-		s.abortAt = 4
+		s := scriptWizard(t, map[int]func(f *tview.Form){5: func(f *tview.Form) { typeInto(f, 0, "9") }})
+		s.abortAt = 6
 
 		teamInitCmd.SetContext(t.Context())
 		require.NoError(t, runTeamInit(teamInitCmd, nil))
 
-		assert.Equal(t, []int{0, 2, 3}, s.ran, "steps that ran")
+		assert.Equal(t, []int{2, 4, 5}, s.ran, "steps that ran")
 		cfg, err := repo.LoadConfig(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, 9, cfg.Takeover.StaleDays, "the config step had been applied")
@@ -183,28 +184,29 @@ func TestTeamInitWizardFirstLaunch(t *testing.T) {
 	application = a
 	t.Cleanup(func() { application = nil })
 
-	// Steps: 0 repository, 1 probe, 2 access (skipped), 3 clone, 4 config,
-	// 5 identity, 6 notifications, 7 policies.
+	// Steps: 0 repository, 1 and 2 the SSH server (skipped), 3 probe,
+	// 4 access (skipped), 5 clone, 6 config, 7 identity, 8 notifications,
+	// 9 policies.
 	s := scriptWizard(t, map[int]func(f *tview.Form){
 		0: func(f *tview.Form) { typeInto(f, 0, bare) },
-		4: func(f *tview.Form) { typeInto(f, 0, "6") },
-		5: func(f *tview.Form) {
+		6: func(f *tview.Form) { typeInto(f, 0, "6") },
+		7: func(f *tview.Form) {
 			typeInto(f, 0, "newbie")
 			typeInto(f, 1, "New Bie")
 			choose(f, 5, 1)
 		},
-		6: func(f *tview.Form) {
+		8: func(f *tview.Form) {
 			typeInto(f, 0, "https://mm.example/hook")
 			typeInto(f, 1, "dev-team")
 			typeInto(f, 2, "Bot")
 		},
-		7: func(f *tview.Form) { tick(f, 0, true); tick(f, 3, true) },
+		9: func(f *tview.Form) { tick(f, 0, true); tick(f, 3, true) },
 	})
 
 	teamInitCmd.SetContext(t.Context())
 	require.NoError(t, runTeamInit(teamInitCmd, nil))
 
-	assert.Equal(t, []int{0, 1, 3, 4, 5, 6, 7}, s.ran, "steps that ran")
+	assert.Equal(t, []int{0, 3, 5, 6, 7, 8, 9}, s.ran, "steps that ran")
 	assert.Empty(t, s.refused, "steps refused")
 	repo := teamstate.NewRepo(bare, config.TeamStatePath(bare))
 	require.True(t, repo.IsCloned(), "the team-state is cloned in the folder every team assistant uses")

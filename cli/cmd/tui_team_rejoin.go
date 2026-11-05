@@ -64,12 +64,9 @@ type rejoinWizard struct {
 // when it ends.
 func buildRejoinWizard(ctx context.Context, a *app.App) views.InlineWizardConfig {
 	w := makeRejoinWizard(ctx, a)
-	steps := []views.WizardStep{
-		w.access.RepoStep(),
-		w.access.ProbeStep(),
-		w.access.AccessStep(),
-		w.cloneStep(),
-	}
+	steps := []views.WizardStep{w.access.RepoStep()}
+	steps = append(steps, w.access.HostSteps()...)
+	steps = append(steps, w.access.ProbeStep(), w.access.AccessStep(), w.cloneStep())
 	steps = append(steps, w.join.Steps()...)
 	steps = append(steps,
 		w.trackerNameStep(),

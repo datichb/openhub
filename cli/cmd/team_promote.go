@@ -60,6 +60,11 @@ func promoteSoloTeam(ctx context.Context, a *app.App, teamID, remote string) (*c
 	if other := a.Config.FindTeamByRepo(remote); other != nil {
 		return nil, fmt.Errorf("%s", i18n.Tf("cmd.team.promote.remote_used", remote, other.ID))
 	}
+	// A server the machine does not know is confirmed before anything connects
+	// to it.
+	if err := newCLIPrompter(a).ensureSSHHost(ctx, remote); err != nil {
+		return nil, err
+	}
 	// The right to write is asked before the history is pushed: a token that
 	// reads, or a key without access, is told here, in the words of the access.
 	if err := teamstate.ProbeRemoteWrite(ctx, remote); err != nil {

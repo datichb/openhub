@@ -163,12 +163,14 @@ func (s *initWizardTeamState) join(a **app.App) *memberJoin {
 }
 
 // buildInitWizardRepoSteps returns the steps both « Créer » and « Rejoindre »
-// start with: the repository (and its GitLab), the probe of the access, and the
-// access (a token or the SSH key) when the probe was refused. They come before
+// start with: the repository (and its GitLab), the confirmation of an unknown
+// SSH server, the probe of the access, and the access (a token or the SSH key) when the probe was refused. They come before
 // the clone and before the identity of the member.
 func buildInitWizardRepoSteps(a **app.App, state *initWizardTeamState) []views.WizardStep {
 	access := state.access(a)
-	return []views.WizardStep{access.RepoStep(), access.ProbeStep(), access.AccessStep()}
+	steps := []views.WizardStep{access.RepoStep()}
+	steps = append(steps, access.HostSteps()...)
+	return append(steps, access.ProbeStep(), access.AccessStep())
 }
 
 // selectedMemberGitLabUsername returns the GitLab username of the currently
