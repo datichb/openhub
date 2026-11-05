@@ -35,11 +35,19 @@ func TestBuildCommands(t *testing.T) {
 	assert.True(t, ids["quit"], "should have quit command")
 	assert.True(t, ids["home"], "should have home command")
 
-	// Project-scoped commands (board, deploy, sync, project-config) are conditional
-	// on having at least one active project (ADR-032). With nil Projects store,
-	// they should NOT be registered.
-	assert.False(t, ids["board"], "board should not be registered without projects")
-	assert.False(t, ids["deploy"], "deploy should not be registered without projects")
+	// The project commands (board, project-config…) are always registered, as
+	// the team ones: a project added in the TUI brings them without a restart.
+	// They show in the project mode only. There is no deploy command.
+	for _, id := range []string{"board", "board.init", "project-wiki", "project-config"} {
+		assert.True(t, ids[id], "%s is registered without project", id)
+	}
+	for _, cmd := range commands {
+		switch cmd.ID {
+		case "board", "board.init", "project-wiki", "project-config":
+			assert.Equal(t, modeProject, cmd.Modes, cmd.ID)
+		}
+	}
+	assert.False(t, ids["deploy"], "deploy should not be registered")
 
 	// The team commands are always registered (a team created in the TUI brings
 	// them without a restart); they show in the team mode only.
