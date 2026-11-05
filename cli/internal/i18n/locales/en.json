@@ -6488,5 +6488,10 @@
   "v54u.team.archived_choice": "%s (archived)",
   "v54u.team.solo_new_choice": "New solo space",
   "v54u.team.new_choice": "New team…",
-  "v54u.team.pick_project": "Which project to attach?"
+  "v54u.team.pick_project": "Which project to attach?",
+  "v54u.home.team_new": "New team",
+  "v54u.home.team_new_desc": "Create, join a team or open a solo space",
+  "v54u.home.team_empty": "Share a board and claims: create a team or join your colleagues'",
+  "v54u.home.team_default": "default",
+  "v54u.home.team_not_synced": "not synced yet"
 }

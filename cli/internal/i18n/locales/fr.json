@@ -6488,5 +6488,10 @@
   "v54u.team.archived_choice": "%s (archivée)",
   "v54u.team.solo_new_choice": "Nouvel espace solo",
   "v54u.team.new_choice": "Nouvelle équipe…",
-  "v54u.team.pick_project": "Quel projet rattacher ?"
+  "v54u.team.pick_project": "Quel projet rattacher ?",
+  "v54u.home.team_new": "Nouvelle équipe",
+  "v54u.home.team_new_desc": "Créer, rejoindre une équipe ou ouvrir un espace solo",
+  "v54u.home.team_empty": "Partagez board et réservations : créez une équipe ou rejoignez celle de vos collègues",
+  "v54u.home.team_default": "par défaut",
+  "v54u.home.team_not_synced": "pas encore synchronisée"
 }
