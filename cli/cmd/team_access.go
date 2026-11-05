@@ -299,6 +299,10 @@ func gitCause(err error) string {
 	if err == nil {
 		return ""
 	}
+	// an access error words the fix for the user: the cause is what git said
+	if authErr := teamstate.AccessError(err); authErr != nil && authErr.Cause != nil {
+		err = authErr.Cause
+	}
 	var first string
 	for _, line := range strings.Split(err.Error(), "\n") {
 		line = strings.TrimSpace(line)

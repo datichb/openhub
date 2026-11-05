@@ -210,7 +210,7 @@ func (r *Repo) transact(ctx context.Context, keep bool, build func(ctx context.C
 		err := r.pull(ctx)
 		r.mu.Unlock()
 		if err != nil {
-			return classifyRemoteError(r.remote, err)
+			return classifyRemoteError(r.credentialRemote(), err)
 		}
 		tx := &Tx{r: r, written: map[string]bool{}}
 		res, err := build(context.WithValue(ctx, txKey{}, tx), tx)
@@ -284,10 +284,7 @@ func (r *Repo) commitTx(ctx context.Context, tx *Tx, files []string, msg string,
 		r.restore(ctx, tx)
 	}
 	if !isRejectedPush(pushErr) {
-		if isAuthError(pushErr) {
-			return true, false, fmt.Errorf("push échoué — %s", authErrorMessage(r.remote))
-		}
-		return true, false, classifyRemoteError(r.remote, pushErr)
+		return true, false, classifyRemoteError(r.credentialRemote(), pushErr)
 	}
 	return false, true, nil
 }
@@ -362,11 +359,14 @@ func isNetworkError(err error) bool {
 	return false
 }
 
+// classifyRemoteError types the failure of an operation on the remote: a
+// refusal of the access is an *AuthError (the cause kept, the SSH refusals
+// included), an unreachable remote ErrOffline; the rest is returned as it is.
 func classifyRemoteError(remote string, err error) error {
-	switch {
-	case isAuthError(err):
-		return fmt.Errorf("%s", authErrorMessage(remote))
-	case isNetworkError(err):
+	if authErr := accessError(remote, err); authErr != nil {
+		return authErr
+	}
+	if isNetworkError(err) && !errors.Is(err, ErrOffline) {
 		return fmt.Errorf("%w: %v", ErrOffline, err)
 	}
 	return err

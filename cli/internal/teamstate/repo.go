@@ -97,8 +97,8 @@ func (r *Repo) IsCloned() bool {
 // If the repo was just cloned it is already up-to-date — no pull is needed.
 //
 // Error classification on Pull:
-//   - Auth error (missing/invalid credentials) → fatal error with actionable message
-//   - Other error (network, rebase conflict)   → *PullWarning (non-fatal, local usable)
+//   - Access refused (HTTPS credentials, SSH key) → *AuthError, fatal
+//   - Other error (network, rebase conflict)      → *PullWarning (non-fatal, local usable)
 //
 // A clone of another repository than r.remote is refused, not reused
 // (*RemoteMismatchError).
@@ -113,8 +113,8 @@ func (r *Repo) EnsureReady(ctx context.Context) error {
 		return err
 	}
 	if err := r.Pull(ctx); err != nil {
-		if isAuthError(err) {
-			return &AuthError{Message: authErrorMessage(r.remote), Cause: err}
+		if authErr := accessError(r.credentialRemote(), err); authErr != nil {
+			return authErr
 		}
 		return &PullWarning{Cause: err}
 	}
@@ -171,8 +171,8 @@ func (r *Repo) clone(ctx context.Context) error {
 	if err != nil {
 		elapsed := time.Since(start)
 		slog.Warn("teamstate.clone.failed", "url", r.remote, "path", r.path, "error", err, "duration", elapsed)
-		if isAuthError(err) || IsAuthError(err) {
-			return &AuthError{Message: "clone failed — " + authErrorMessage(r.remote), Cause: err}
+		if authErr := accessError(r.credentialRemote(), err); authErr != nil {
+			return authErr
 		}
 		return fmt.Errorf("cloning team-state repo: %w", err)
 	}
@@ -195,7 +195,7 @@ func (r *Repo) Pull(ctx context.Context) error {
 	defer release()
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.pull(ctx)
+	return asAccessError(r.credentialRemote(), r.pull(ctx))
 }
 
 // pull is the internal (unlocked) pull implementation, intended to be called
@@ -266,7 +266,7 @@ func (r *Repo) Push(ctx context.Context) error {
 	defer release()
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.push(ctx)
+	return asAccessError(r.credentialRemote(), r.push(ctx))
 }
 
 // push is the internal (unlocked) push implementation.
