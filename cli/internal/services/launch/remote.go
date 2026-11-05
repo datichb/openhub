@@ -130,7 +130,8 @@ type TeamClaims struct{ Repo *teamstate.Repo }
 // (AdoptClaim, kept in the queue when the team repository cannot be reached).
 func (t TeamClaims) Claim(ctx context.Context, project, ticket, member string) (bool, error) {
 	session := teamstate.ClaimSessionOf(ctx)
-	existing, err := t.Repo.CreateClaim(ctx, teamstate.Claim{TicketID: ticket, Project: project, ClaimedBy: member, Session: session})
+	// The claim.taken event goes in the commit of the claim.
+	existing, err := t.Repo.CreateClaim(teamstate.WithClaimEvent(ctx, member), teamstate.Claim{TicketID: ticket, Project: project, ClaimedBy: member, Session: session})
 	if errors.Is(err, teamstate.ErrClaimExists) && existing != nil {
 		if existing.ClaimedBy != member {
 			return false, fmt.Errorf("%w (%s)", remotesvc.ErrTicketTaken, existing.ClaimedBy)
