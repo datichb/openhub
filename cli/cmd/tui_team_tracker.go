@@ -148,6 +148,7 @@ func actionTrackerDiscovery() {
 		return
 	}
 
+	ctx = teamstate.WithActor(ctx, tc.MemberID)
 	repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 	if !repo.IsCloned() {
 		tuiShell.ShowToast(i18n.T("tui.team.discovery.not_cloned"), shell.ToastError)

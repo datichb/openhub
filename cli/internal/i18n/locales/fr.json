@@ -2025,7 +2025,7 @@
   "cmd.team.init.config_stale_days": "Jours d'inactivité avant ticket stale",
   "cmd.team.init.config_stale_days_desc": "Un ticket sans activité sera marqué stale après ce délai",
   "cmd.team.init.identity_mattermost": "Username Mattermost",
-  "cmd.team.init.notif_webhook": "URL du webhook Mattermost",
+  "cmd.team.init.notif_webhook": "URL du webhook (Mattermost, Slack, Discord ou Teams, masquée)",
   "cmd.team.init.notif_webhook_desc": "Intégrations > Webhooks entrants dans Mattermost",
   "cmd.team.init.notif_webhook_placeholder": "https://mattermost.company.com/hooks/xxx",
   "cmd.team.init.notif_channel": "Canal de notification",
@@ -3562,8 +3562,6 @@
   "tui.config.field.ticket_pattern.placeholder": "PRJ-\\d+",
   "tui.config.field.sync_interval.label": "Intervalle de sync (min)",
   "tui.config.field.sync_interval.desc": "Intervalle de synchronisation en minutes quand le board est ouvert",
-  "tui.config.field.type_enforced.label": "Type imposé",
-  "tui.config.field.type_enforced.desc": "Impose le type de tracker (les membres ne peuvent pas changer)",
   "tui.config.field.push_labels_enforced.label": "Push labels imposé",
   "tui.config.field.push_labels_enforced.desc": "Impose le push des labels (non surchargeable par les membres)",
   "tui.config.field.notif_type.label": "Type de notification",
@@ -6475,5 +6473,9 @@
   "v54a.teams.set.unrelated": "Le dépôt %s ne contient pas le même team-state (son historique n'est pas celui de votre clone) : c'est une autre équipe. Rejoignez-la avec oh team rejoin --repo, ou vérifiez l'URL.",
   "v54a.teams.set.empty": "Le dépôt %s est vide : le team-state n'y a pas été déplacé.",
   "v54a.teams.set.member_missing": "La fiche %s n'est pas dans le team-state de %s : vérifiez votre identifiant de membre (oh team profile).",
-  "v54a.teams.set.done": "L'équipe %s utilise maintenant %s."
+  "v54a.teams.set.done": "L'équipe %s utilise maintenant %s.",
+  "v54c.event.config_changed": "a modifié la configuration de l'équipe (%s)",
+  "v54c.governance.not_lead": "%s n'a pas le rôle lead : seuls les leads de l'équipe peuvent changer les réglages imposés (%s). Demandez-leur, ou faites changer votre rôle dans members.toml.",
+  "v54c.config.bounds": "doit être entre %d et %d (reçu %d)",
+  "v54c.config.one_of": "valeurs possibles : %s (reçu %q)"
 }

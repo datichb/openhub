@@ -14,10 +14,32 @@ const (
 	GovernancePublishAnyMember = "any_member"
 )
 
+// Policies of `[governance] config`: who may change the settings that bind
+// the other members (the *_enforced settings, [limits.enforced] and
+// [governance] itself).
+const (
+	// GovernanceConfigLead reserves them to the members of role lead.
+	GovernanceConfigLead = "lead"
+	// GovernanceConfigAnyMember lets every member change them.
+	GovernanceConfigAnyMember = "any_member"
+	// RoleLead is the role of the members who may change them.
+	RoleLead = "lead"
+)
+
 // GovernanceConfig is the `[governance]` section of the team config.toml.
 type GovernanceConfig struct {
 	// Publish says who may publish workflows; empty = any_member.
 	Publish string `toml:"publish,omitempty"`
+	// Config says who may change the enforced settings; empty = lead.
+	Config string `toml:"config,omitempty"`
+}
+
+// ConfigPolicy returns the effective policy of the enforced settings.
+func (g GovernanceConfig) ConfigPolicy() string {
+	if g.Config == "" {
+		return GovernanceConfigLead
+	}
+	return g.Config
 }
 
 // DefaultGovernance is the governance written by `oh team init`.

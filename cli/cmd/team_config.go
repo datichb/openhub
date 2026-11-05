@@ -59,6 +59,7 @@ func runTeamConfigWizard(cmd *cobra.Command, _ []string) error {
 		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_config.team_not_configured_run_first", cliout.WarnIcon(), theme.Bold.Render("oh team init")))
 		return nil
 	}
+	ctx = teamstate.WithActor(ctx, team.MemberID)
 	repo := teamstate.NewRepo(team.StateRepo, team.StatePath)
 	if !repo.IsCloned() {
 		fmt.Fprint(a.IO.Out, i18n.Tf("cmd.team_config.team_state_not_cloned_run_first", cliout.WarnIcon(), theme.Bold.Render("oh team init")))

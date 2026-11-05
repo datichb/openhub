@@ -19,3 +19,8 @@ func (s WorkflowScope) EventProject() string {
 	}
 	return TeamEventsProject
 }
+
+// EventConfigChanged is appended to the events of TeamEventsProject by every
+// publication of the team config: Data["keys"] lists the settings changed
+// (never their values: some are secrets), Actor is the member who did it.
+const EventConfigChanged = "config_changed"

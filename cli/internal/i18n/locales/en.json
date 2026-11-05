@@ -2025,7 +2025,7 @@
   "cmd.team.init.config_stale_days": "Days of inactivity before ticket is stale",
   "cmd.team.init.config_stale_days_desc": "A ticket without activity will be marked stale after this delay",
   "cmd.team.init.identity_mattermost": "Mattermost username",
-  "cmd.team.init.notif_webhook": "Mattermost webhook URL",
+  "cmd.team.init.notif_webhook": "Webhook URL (Mattermost, Slack, Discord or Teams, hidden)",
   "cmd.team.init.notif_webhook_desc": "Integrations > Incoming Webhooks in Mattermost",
   "cmd.team.init.notif_webhook_placeholder": "https://mattermost.company.com/hooks/xxx",
   "cmd.team.init.notif_channel": "Notification channel",
@@ -3562,8 +3562,6 @@
   "tui.config.field.ticket_pattern.placeholder": "PRJ-\\d+",
   "tui.config.field.sync_interval.label": "Sync interval (min)",
   "tui.config.field.sync_interval.desc": "Polling interval in minutes when the board is open",
-  "tui.config.field.type_enforced.label": "Type enforced",
-  "tui.config.field.type_enforced.desc": "Enforce tracker type (members cannot change it)",
   "tui.config.field.push_labels_enforced.label": "Push labels enforced",
   "tui.config.field.push_labels_enforced.desc": "Enforce push_labels (members cannot override)",
   "tui.config.field.notif_type.label": "Notification type",
@@ -6475,5 +6473,9 @@
   "v54a.teams.set.unrelated": "The repository %s does not hold the same team-state (its history is not the one of your clone): it is another team. Join it with oh team rejoin --repo, or check the URL.",
   "v54a.teams.set.empty": "The repository %s is empty: the team-state was not moved there.",
   "v54a.teams.set.member_missing": "The card %s is not in the team-state of %s: check your member ID (oh team profile).",
-  "v54a.teams.set.done": "Team %s now uses %s."
+  "v54a.teams.set.done": "Team %s now uses %s.",
+  "v54c.event.config_changed": "changed the team configuration (%s)",
+  "v54c.governance.not_lead": "%s is not a lead: only the leads of the team may change the enforced settings (%s). Ask them, or have your role changed in members.toml.",
+  "v54c.config.bounds": "must be between %d and %d (got %d)",
+  "v54c.config.one_of": "possible values: %s (got %q)"
 }

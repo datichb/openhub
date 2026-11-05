@@ -11,6 +11,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/components/summary"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -112,7 +113,7 @@ func printTeamInitSummary(a *app.App, w *teamAssistant) {
 	if tss.WebhookURL != "" {
 		fields = append(fields, summary.Field{
 			Label: i18n.T("cmd.team.init.recap.notifs"),
-			Value: fmt.Sprintf("mattermost · %s", maskSecret(tss.WebhookURL)),
+			Value: fmt.Sprintf("%s · %s", teamstate.InferNotifierType(tss.WebhookURL), teamstate.MaskWebhook(tss.WebhookURL)),
 		})
 	} else {
 		fields = append(fields, summary.Field{Label: i18n.T("cmd.team.init.recap.notifs"), Value: i18n.T("cmd.team.init.recap.notifs_none")})

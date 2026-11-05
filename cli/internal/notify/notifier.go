@@ -50,47 +50,27 @@ func NewDispatcher(cfg *teamstate.TeamConfig) *Dispatcher {
 }
 
 // newNotifierFromConfig creates a single Notifier from the main NotificationConfig.
+// A webhook without type (the former assistant wrote mattermost_webhook alone)
+// gets the type of its server (teamstate.NotificationConfig.EffectiveType).
 func newNotifierFromConfig(cfg *teamstate.NotificationConfig) Notifier {
-	notifyType := cfg.Type
-	if notifyType == "" {
-		// Backward compat: if MattermostWebhook is set, assume mattermost
-		if cfg.MattermostWebhook != "" {
-			notifyType = "mattermost"
-		} else if cfg.WebhookURL != "" {
-			return nil // type required when using generic webhook_url
-		}
+	url := cfg.EffectiveURL()
+	if url == "" {
+		return nil
 	}
-
 	botName := cfg.BotName
 	if botName == "" {
 		botName = "OpenHub"
 	}
 
-	switch notifyType {
+	switch cfg.EffectiveType() {
 	case "mattermost":
-		url := cfg.WebhookURL
-		if url == "" {
-			url = cfg.MattermostWebhook
-		}
-		if url == "" {
-			return nil
-		}
 		return NewMattermost(url, cfg.Channel, botName)
 	case "slack":
-		if cfg.WebhookURL == "" {
-			return nil
-		}
-		return NewSlack(cfg.WebhookURL, botName)
+		return NewSlack(url, botName)
 	case "discord":
-		if cfg.WebhookURL == "" {
-			return nil
-		}
-		return NewDiscord(cfg.WebhookURL, botName)
+		return NewDiscord(url, botName)
 	case "teams":
-		if cfg.WebhookURL == "" {
-			return nil
-		}
-		return NewTeams(cfg.WebhookURL)
+		return NewTeams(url)
 	}
 	return nil
 }

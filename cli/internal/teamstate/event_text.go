@@ -70,6 +70,8 @@ func (e Event) DescribeAs(names EventNames) string {
 		return i18n.Tf("teamstate.event.workflow_restored", e.dataText("workflow"), e.dataText("restored_from"), e.dataText("version"))
 	case EventWorkflowArchived:
 		return i18n.Tf("teamstate.event.workflow_archived", e.dataText("workflow"))
+	case EventConfigChanged:
+		return i18n.Tf("v54c.event.config_changed", e.dataKeys())
 	}
 	return e.Type
 }
@@ -108,4 +110,19 @@ func withReason(phrase, reason string) string {
 		return phrase
 	}
 	return phrase + " : " + reason
+}
+
+// dataKeys is the list in Data["keys"] as text (« tracker.type, mcp.gitlab.url »).
+func (e Event) dataKeys() string {
+	switch v := e.Data["keys"].(type) {
+	case []string:
+		return strings.Join(v, ", ")
+	case []any:
+		parts := make([]string, 0, len(v))
+		for _, k := range v {
+			parts = append(parts, fmt.Sprint(k))
+		}
+		return strings.Join(parts, ", ")
+	}
+	return ""
 }

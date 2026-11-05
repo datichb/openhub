@@ -481,7 +481,8 @@ func (tx *Tx) Config() (*TeamConfig, error) { return tx.r.loadConfig() }
 
 // WriteConfig writes config.toml within the transaction.
 func (tx *Tx) WriteConfig(cfg *TeamConfig) error {
-	data, err := marshalConfig(cfg)
+	existing, _ := tx.ReadFile("config.toml")
+	data, err := marshalConfig(cfg, existing)
 	if err != nil {
 		return err
 	}

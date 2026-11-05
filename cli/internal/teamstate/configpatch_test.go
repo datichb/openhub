@@ -111,12 +111,12 @@ func TestConfigPatch_ScalarPointers(t *testing.T) {
 	t.Parallel()
 	base := &TeamConfig{}
 	mine := CloneConfig(base)
-	mine.Tracker.TypeEnforced = boolPtr(false)
+	mine.Tracker.PushLabelsEnforced = boolPtr(false)
 	theirs := CloneConfig(base)
 	require.NoError(t, DiffConfig(base, mine).Apply(theirs))
-	require.NotNil(t, theirs.Tracker.TypeEnforced)
-	assert.False(t, *theirs.Tracker.TypeEnforced, "an explicit false is not an absent setting")
-	assert.NotSame(t, mine.Tracker.TypeEnforced, theirs.Tracker.TypeEnforced)
+	require.NotNil(t, theirs.Tracker.PushLabelsEnforced)
+	assert.False(t, *theirs.Tracker.PushLabelsEnforced, "an explicit false is not an absent setting")
+	assert.NotSame(t, mine.Tracker.PushLabelsEnforced, theirs.Tracker.PushLabelsEnforced)
 }
 
 // twoClones is a team-state seen by two members: the same bare remote, two

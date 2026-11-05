@@ -265,7 +265,6 @@ func DefaultBoardConfig() BoardConfig {
 type TeamConfig struct {
 	Notification NotificationConfig `toml:"notification"`
 	Takeover     TakeoverConfig     `toml:"takeover"`
-	Parallel     ParallelConfig     `toml:"parallel"`
 	Claim        ClaimConfig        `toml:"claim"`
 	Tracker      TrackerConfig      `toml:"tracker"`
 	Board        BoardConfig        `toml:"board"`
@@ -332,46 +331,33 @@ func (s SharedMCPConfig) IsURLEnforced() bool {
 // NotificationConfig holds notification dispatcher settings.
 type NotificationConfig struct {
 	// Legacy Mattermost (backward compatible)
-	MattermostWebhook string `toml:"mattermost_webhook"` // Incoming webhook URL
-	Channel           string `toml:"channel"`            // Channel name
-	Enabled           bool   `toml:"enabled"`
-	BotName           string `toml:"bot_name"` // Display name for the bot
+	MattermostWebhook string `toml:"mattermost_webhook,omitempty"` // Incoming webhook URL
+	Channel           string `toml:"channel,omitempty"`            // Channel name
+	Enabled           bool   `toml:"enabled,omitempty"`
+	BotName           string `toml:"bot_name,omitempty"` // Display name for the bot
 
 	// Multi-channel support
 	// Type selects the notifier: "mattermost" (default), "slack", "discord", "teams"
-	Type string `toml:"type"` // "mattermost" | "slack" | "discord" | "teams"
+	Type string `toml:"type,omitempty"` // "mattermost" | "slack" | "discord" | "teams"
 
 	// Generic webhook URL — used by slack, discord, teams
-	WebhookURL string `toml:"webhook_url"`
+	WebhookURL string `toml:"webhook_url,omitempty"`
 
 	// Optional: multiple destinations
-	Destinations []NotificationDestination `toml:"destinations"`
+	Destinations []NotificationDestination `toml:"destinations,omitempty"`
 }
 
 // NotificationDestination represents a single notification target.
 type NotificationDestination struct {
-	Type       string `toml:"type"`        // "mattermost" | "slack" | "discord" | "teams"
-	WebhookURL string `toml:"webhook_url"` // Webhook URL
-	Channel    string `toml:"channel"`     // Channel (Mattermost only)
-	BotName    string `toml:"bot_name"`    // Bot display name
+	Type       string `toml:"type,omitempty"`        // "mattermost" | "slack" | "discord" | "teams"
+	WebhookURL string `toml:"webhook_url,omitempty"` // Webhook URL
+	Channel    string `toml:"channel,omitempty"`     // Channel (Mattermost only)
+	BotName    string `toml:"bot_name,omitempty"`    // Bot display name
 }
 
 // TakeoverConfig holds settings for the takeover brief system.
 type TakeoverConfig struct {
-	StaleDays int `toml:"stale_days"` // Days of inactivity before a claim is considered stale (default: 3)
-}
-
-// ParallelConfig holds the settings of the former parallel mode. Kept to
-// read existing config.toml files; not applied (the session
-// restrictions are [limits]) and no longer editable.
-type ParallelConfig struct {
-	MaxSessions            int  `toml:"max_sessions"`              // Max concurrent sessions (default: 5)
-	MaxBudgetMinutes       int  `toml:"max_budget_minutes"`        // Max total estimated minutes (default: 180, 0 = disabled)
-	DefaultTicketWeightMin int  `toml:"default_ticket_weight_min"` // Fallback weight when no estimate (default: 60)
-	PortRangeStart         int  `toml:"port_range_start"`          // Starting port of the tool servers (default: 4100)
-	AutoMergeBeads         bool `toml:"auto_merge_beads"`          // Propose auto merge for Beads tickets (default: true)
-	MaxRetries             int  `toml:"max_retries"`               // Max recovery attempts per failed session (default: 2)
-	RetryDelaySeconds      int  `toml:"retry_delay_seconds"`       // Seconds to wait before retry (default: 5)
+	StaleDays int `toml:"stale_days,omitempty"` // Days of inactivity before a claim is considered stale (default: 3)
 }
 
 // ClaimConfig holds settings for the claim lifecycle.
@@ -379,11 +365,11 @@ type ClaimConfig struct {
 	// DoneRetentionDays is the number of days a claim stays in "done" status
 	// before being automatically cleaned up by CleanupDoneClaims.
 	// Default: 7.
-	DoneRetentionDays int `toml:"done_retention_days"`
+	DoneRetentionDays int `toml:"done_retention_days,omitempty"`
 	// LeaseHours is the duration of the lease of a claim, in hours: the claim
 	// is expired once its lease_until is past, unless its owner renewed it.
 	// Default: 24. Bounds: MinLeaseHours..MaxLeaseHours; 0 = default.
-	LeaseHours int `toml:"lease_hours"`
+	LeaseHours int `toml:"lease_hours,omitempty"`
 	// HeartbeatMinutes is the period of the heartbeat that renews the leases
 	// of the open sessions, in minutes. Default: 60. 0 = no heartbeat.
 	// Otherwise MinHeartbeatMinutes..MaxHeartbeatMinutes and at most half the
@@ -565,11 +551,9 @@ func (c *ClaimConfig) normalizeManual() {
 // independently of the MCP service configuration.
 type TrackerConfig struct {
 	// Enabled turns the tracker sync on or off globally.
-	Enabled bool `toml:"enabled"`
+	Enabled bool `toml:"enabled,omitempty"`
 	// Type selects the tracker backend: "gitlab" or "jira".
-	Type string `toml:"type"`
-	// TypeEnforced marks Type as factual/enforced (cannot be overridden locally).
-	TypeEnforced *bool `toml:"type_enforced,omitempty"`
+	Type string `toml:"type,omitempty"`
 	// TrackerURL is the base URL of the tracker instance (e.g. "https://gitlab.example.com").
 	// When set, it overrides the MCP service URL for tracker operations.
 	// This allows the tracker to point to a different instance than the MCP GitLab/Jira.
@@ -586,13 +570,13 @@ type TrackerConfig struct {
 	// AutoSync turns the automatic tracker sync on: the daemon of a member
 	// synchronizes every SyncIntervalMinutes (a lease in sync.lock makes one
 	// member do it per interval) and the board synchronizes when it opens.
-	AutoSync bool `toml:"auto_sync"`
+	AutoSync bool `toml:"auto_sync,omitempty"`
 	// SyncIntervalMinutes is the interval of the automatic sync and the length
 	// of its lease (5 when auto_sync is on and it is not set).
-	SyncIntervalMinutes int `toml:"sync_interval_minutes"`
+	SyncIntervalMinutes int `toml:"sync_interval_minutes,omitempty"`
 	// AutoPlanAssigned automatically creates "planned" claims for tracker issues
 	// that are assigned to a team member but not yet claimed.
-	AutoPlanAssigned bool `toml:"auto_plan_assigned"`
+	AutoPlanAssigned bool `toml:"auto_plan_assigned,omitempty"`
 	// MaxInProgressPerMember is the most tickets one member works on at once:
 	// the claims of the member in progress, those in review apart (see
 	// CountsInProgress). Taking or starting one more is refused. nil is the
@@ -607,7 +591,7 @@ type TrackerConfig struct {
 	// AutoPlanUnassigned fetches unassigned open issues from the tracker and
 	// creates "pool" claims (ClaimedBy="") so they appear on the team board
 	// as claimable tickets. Members can claim them with the 'c' key.
-	AutoPlanUnassigned bool `toml:"auto_plan_unassigned"`
+	AutoPlanUnassigned bool `toml:"auto_plan_unassigned,omitempty"`
 	// UnassignedLabels restricts which issues are fetched for the pool.
 	// Issues carrying ANY of these labels are imported (an OR: one request per
 	// label, the issues found by several labels counted once). Until oh 5.3
@@ -616,16 +600,16 @@ type TrackerConfig struct {
 	UnassignedLabels []string `toml:"unassigned_labels,omitempty"`
 	// MaxUnassignedIssues caps the number of unassigned issues fetched per project.
 	// Default: 20.
-	MaxUnassignedIssues int `toml:"max_unassigned_issues"`
+	MaxUnassignedIssues int `toml:"max_unassigned_issues,omitempty"`
 	// PushLabels enables syncing claim labels back to the tracker.
 	// Requires write_enabled on the tracker config.
 	// When enabled, claiming a pool ticket also assigns it on the tracker.
-	PushLabels bool `toml:"push_labels"`
+	PushLabels bool `toml:"push_labels,omitempty"`
 	// PushLabelsEnforced marks PushLabels as enforced by the team.
 	PushLabelsEnforced *bool `toml:"push_labels_enforced,omitempty"`
 	// WriteEnabled controls whether tracker write operations (push labels,
 	// assign issues) are allowed. Independent of MCP write_enabled.
-	WriteEnabled bool `toml:"write_enabled"`
+	WriteEnabled bool `toml:"write_enabled,omitempty"`
 	// TrackerProject is the default external tracker project identifier for the team.
 	// For GitLab this is the numeric project ID or URL-encoded path (e.g. "group/project").
 	// For Jira this is the project key (e.g. "SRU").
@@ -706,11 +690,6 @@ func (t TrackerConfig) migrated() TrackerConfig {
 	return t
 }
 
-// IsTypeEnforced reports whether the tracker Type is enforced by the team.
-func (t TrackerConfig) IsTypeEnforced() bool {
-	return t.TypeEnforced != nil && *t.TypeEnforced
-}
-
 // IsPushLabelsEnforced reports whether PushLabels is enforced by the team.
 func (t TrackerConfig) IsPushLabelsEnforced() bool {
 	return t.PushLabelsEnforced != nil && *t.PushLabelsEnforced
@@ -771,24 +750,6 @@ func (r *Repo) readConfig() (*TeamConfig, error) {
 	if cfg.Takeover.StaleDays <= 0 {
 		cfg.Takeover.StaleDays = 3
 	}
-	if cfg.Parallel.MaxSessions <= 0 {
-		cfg.Parallel.MaxSessions = 5
-	}
-	if cfg.Parallel.MaxBudgetMinutes < 0 {
-		cfg.Parallel.MaxBudgetMinutes = 0
-	}
-	if cfg.Parallel.DefaultTicketWeightMin <= 0 {
-		cfg.Parallel.DefaultTicketWeightMin = 60
-	}
-	if cfg.Parallel.PortRangeStart <= 0 {
-		cfg.Parallel.PortRangeStart = 4100
-	}
-	if cfg.Parallel.MaxRetries < 0 {
-		cfg.Parallel.MaxRetries = 0
-	}
-	if cfg.Parallel.RetryDelaySeconds < 0 {
-		cfg.Parallel.RetryDelaySeconds = 0
-	}
 	if cfg.Claim.DoneRetentionDays <= 0 {
 		cfg.Claim.DoneRetentionDays = 7
 	}
@@ -799,18 +760,6 @@ func (r *Repo) readConfig() (*TeamConfig, error) {
 		cfg.Tracker.SyncIntervalMinutes = 5
 	}
 	return &cfg, nil
-}
-
-// marshalConfig is the content of config.toml for cfg: the former
-// max_auto_plan_per_member is replaced by max_in_progress_per_member.
-func marshalConfig(cfg *TeamConfig) ([]byte, error) {
-	out := *cfg
-	out.Tracker = cfg.Tracker.migrated()
-	data, err := toml.Marshal(out)
-	if err != nil {
-		return nil, fmt.Errorf("marshaling config.toml: %w", err)
-	}
-	return data, nil
 }
 
 // SaveConfig replaces config.toml of the team-state repo with cfg, whole. It
@@ -826,11 +775,12 @@ func (r *Repo) SaveConfig(ctx context.Context, cfg *TeamConfig) error {
 		return err
 	}
 	return r.withWriteLock(ctx, func(ctx context.Context) error {
-		data, err := marshalConfig(cfg)
+		path := filepath.Join(r.path, "config.toml")
+		existing, _ := os.ReadFile(path)
+		data, err := marshalConfig(cfg, existing)
 		if err != nil {
 			return err
 		}
-		path := filepath.Join(r.path, "config.toml")
 		if err := fsutil.WriteFileAtomic(path, data, 0o644); err != nil {
 			return err
 		}

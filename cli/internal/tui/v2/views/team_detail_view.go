@@ -444,19 +444,8 @@ func (v *TeamDetailView) buildFields() {
 		Key: "type", Kind: CfgFieldSelect, Label: i18n.T("tui.config.field.tracker_type.label"),
 		Description: i18n.T("tui.config.field.tracker_type.desc"), Scope: ScopeTeamShared,
 		Options: []SelectOption{{Label: "GitLab", Value: "gitlab"}, {Label: "Jira", Value: "jira"}},
-		Locked:  func() bool { return v.teamCfg.Tracker.IsTypeEnforced() },
 		Get:     func() string { return v.teamCfg.Tracker.Type },
 		Set:     func(val string) { v.teamCfg.Tracker.Type = val; v.dirtyTeam = true },
-	})
-	v.fields = append(v.fields, configField{
-		Key: "type_enforced", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.type_enforced.label"),
-		Description: i18n.T("tui.config.field.type_enforced.desc"), Scope: ScopeTeamShared,
-		Get: func() string { return tdBoolToStr(v.teamCfg.Tracker.IsTypeEnforced()) },
-		Set: func(val string) {
-			b := val == "true"
-			v.teamCfg.Tracker.TypeEnforced = &b
-			v.dirtyTeam = true
-		},
 	})
 	v.fields = append(v.fields, configField{
 		Key: "tracker_url", Kind: CfgFieldString, Label: i18n.T("tui.config.field.tracker_url.label"),

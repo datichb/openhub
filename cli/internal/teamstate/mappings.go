@@ -2,6 +2,7 @@ package teamstate
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -244,11 +245,13 @@ func (r *Repo) RepairTrackerMappings(ctx context.Context) (migrated, unknown []M
 		if len(migrated) == 0 {
 			return nil
 		}
-		data, err := marshalConfig(cfg)
+		path := filepath.Join(r.path, "config.toml")
+		existing, _ := os.ReadFile(path)
+		data, err := marshalConfig(cfg, existing)
 		if err != nil {
 			return err
 		}
-		if err := fsutil.WriteFileAtomic(filepath.Join(r.path, "config.toml"), data, 0o644); err != nil {
+		if err := fsutil.WriteFileAtomic(path, data, 0o644); err != nil {
 			return err
 		}
 		return r.commitAndPush(ctx, "config: tracker mappings use claim statuses", "config.toml")

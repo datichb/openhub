@@ -224,10 +224,6 @@ func deepCopyTeamConfig(c *teamstate.TeamConfig) teamstate.TeamConfig {
 	}
 
 	// Clone Tracker maps and pointer fields
-	if c.Tracker.TypeEnforced != nil {
-		b := *c.Tracker.TypeEnforced
-		cp.Tracker.TypeEnforced = &b
-	}
 	if c.Tracker.MaxInProgressPerMember != nil {
 		n := *c.Tracker.MaxInProgressPerMember
 		cp.Tracker.MaxInProgressPerMember = &n
