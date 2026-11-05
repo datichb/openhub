@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -653,9 +654,11 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 	// Load team-state config (optional — degrades gracefully if not configured).
 	// This command only reads: it writes nothing, to the team-state nor to hub.toml.
 	var teamCfg *teamstate.TeamConfig
+	var issues configIssuer
 	if tc.Enabled && tc.StatePath != "" {
 		repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
 		if repo.IsCloned() {
+			issues = repo
 			var err error
 			if teamCfg, err = repo.LoadConfig(ctx); err != nil {
 				fmt.Fprint(out, i18n.Tf("v533b.team_config.status_unreadable", cliout.WarnIcon(), err))
@@ -697,6 +700,7 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 	if teamCfg == nil || teamCfg.Tracker.Type == "" {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.not_configured", theme.Subtitle.Render(glyph.Absent)))
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.run_to_configure", theme.Bold.Render("oh team config")))
+		printTeamConfigStatus(ctx, out, issues, teamCfg)
 		return nil
 	}
 
@@ -731,9 +735,50 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
+	printTeamConfigStatus(ctx, out, issues, teamCfg)
 	fmt.Fprintln(out)
 
 	return nil
+}
+
+// printTeamConfigStatus is the rest of the configuration of the team: the
+// notifications (the webhook masked), the claims, the governance and what
+// oh doctor finds in config.toml. Nothing when the config is not there.
+// configIssuer is the clone of a team as printTeamConfigStatus reads it.
+type configIssuer interface {
+	ConfigIssues(ctx context.Context) ([]teamstate.ConfigIssue, error)
+}
+
+func printTeamConfigStatus(ctx context.Context, out io.Writer, repo configIssuer, cfg *teamstate.TeamConfig) {
+	if cfg == nil {
+		return
+	}
+	n := cfg.Notification
+	fmt.Fprintf(out, "\n%s\n", theme.Bold.Render(i18n.T("v54c.status.notifications")))
+	target := i18n.T("v54c.status.no_target")
+	switch {
+	case len(n.Destinations) > 0:
+		target = i18n.Tf("v54c.status.destinations", len(n.Destinations))
+	case n.EffectiveURL() != "":
+		target = n.EffectiveType() + " · " + teamstate.MaskWebhook(n.EffectiveURL())
+	}
+	fmt.Fprintf(out, "  enabled:       %s\n  target:        %s\n", fmtBool(n.Enabled), target)
+
+	fmt.Fprintf(out, "\n%s\n", theme.Bold.Render(i18n.T("v54c.status.team")))
+	fmt.Fprint(out, i18n.Tf("v54c.status.claims", cfg.Claim.LeaseHours, cfg.Takeover.StaleDays, cfg.Claim.DoneRetentionDays))
+	fmt.Fprint(out, i18n.Tf("v54c.status.governance", cfg.Governance.PublishPolicy(), cfg.Governance.ConfigPolicy()))
+	if repo != nil {
+		issues, err := repo.ConfigIssues(ctx)
+		switch {
+		case err != nil:
+			fmt.Fprint(out, i18n.Tf("v533b.team_config.status_unreadable", cliout.WarnIcon(), err))
+		case len(issues) > 0:
+			for _, i := range issues {
+				fmt.Fprintf(out, "  %s %s\n", cliout.WarnIcon(), i.Detail)
+			}
+			fmt.Fprint(out, i18n.T("v54c.doctor.team_config.fix_hint")+"\n")
+		}
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -74,3 +74,27 @@ func TestPatchMemberChangesOnlyItsFields(t *testing.T) {
 		assert.Equal(t, "lead", got.Role, "the file is as it was")
 	})
 }
+
+// The GitLab handle is unique in a team: changing a profile to the handle of a colleague is
+// refused, an existing duplicate does not block the edit of another field.
+func TestPatchMember_HandleStaysUnique(t *testing.T) {
+	t.Parallel()
+	r, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+	require.NoError(t, r.AddMember(ctx, Member{ID: "ben", DisplayName: "Ben", GitLabUsername: "ben.g", Role: "lead"}))
+	require.NoError(t, r.AddMember(ctx, Member{ID: "eve", DisplayName: "Eve", GitLabUsername: "eve.g", Role: "dev"}))
+
+	err := r.PatchMember(ctx, "eve", func(m *Member) error { m.GitLabUsername = "@Ben.G"; return nil })
+	var taken *HandleTakenError
+	require.ErrorAs(t, err, &taken)
+	assert.Equal(t, "ben", taken.Member.ID)
+	got, _ := r.GetMember(ctx, "eve")
+	assert.Equal(t, "eve.g", got.GitLabUsername, "nothing is written")
+
+	err = r.UpdateMember(ctx, Member{ID: "eve", DisplayName: "Eve", GitLabUsername: "ben.g", Role: "dev"})
+	require.ErrorIs(t, err, ErrHandleTaken)
+
+	require.NoError(t, r.PatchMember(ctx, "eve", func(m *Member) error { m.GitLabUsername = "eve.new"; return nil }))
+	require.NoError(t, r.PatchMember(ctx, "eve", func(m *Member) error { m.DisplayName = "Eve E."; return nil }))
+	require.NoError(t, r.PatchMember(ctx, "eve", func(m *Member) error { m.GitLabUsername = ""; return nil }), "clearing is free")
+}

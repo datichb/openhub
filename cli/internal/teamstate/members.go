@@ -161,8 +161,12 @@ func (r *Repo) UpdateMember(ctx context.Context, m Member) error {
 		if err != nil {
 			return err
 		}
-		if _, exists := mf.Members[m.ID]; !exists {
+		cur, exists := mf.Members[m.ID]
+		if !exists {
 			return ErrMemberNotFound
+		}
+		if err := checkHandleChange(mf.Members, m, cur.GitLabUsername); err != nil {
+			return err
 		}
 		mf.Members[m.ID] = m
 		if err := r.writeMembersFile(mf); err != nil {
@@ -189,7 +193,11 @@ func (r *Repo) PatchMember(ctx context.Context, id string, fn func(*Member) erro
 			return ErrMemberNotFound
 		}
 		m.ID = id
+		before := m.GitLabUsername
 		if err := fn(&m); err != nil {
+			return err
+		}
+		if err := checkHandleChange(mf.Members, m, before); err != nil {
 			return err
 		}
 		mf.Members[id] = m
@@ -226,4 +234,22 @@ func (r *Repo) writeMembersFile(mf *membersFile) error {
 		return fmt.Errorf("marshaling members.toml: %w", err)
 	}
 	return os.WriteFile(r.membersFilePath(), data, 0o644)
+}
+
+// checkHandleChange refuses a GitLab handle that another member already has
+// (the handle is unique in a team: the sync maps the issues by it). Only a
+// handle that changes is checked: a duplicate that was already there does not
+// block the edit of another field.
+func checkHandleChange(members map[string]Member, m Member, before string) error {
+	h := NormalizeHandle(m.GitLabUsername)
+	if h == "" || strings.EqualFold(h, NormalizeHandle(before)) {
+		return nil
+	}
+	for id, o := range members {
+		if id != m.ID && strings.EqualFold(NormalizeHandle(o.GitLabUsername), h) {
+			o.ID = id
+			return &HandleTakenError{Handle: h, Member: o}
+		}
+	}
+	return nil
 }

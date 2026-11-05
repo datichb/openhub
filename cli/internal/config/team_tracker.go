@@ -63,3 +63,29 @@ func (c *Config) TrackerForWrite(teamID string) *TrackerLocalConfig {
 	}
 	return &c.Tracker
 }
+
+// Sets reports whether the personal tracker settings set key (the name of
+// the key in [tracker]: auto_sync, push_labels, tracker_url…).
+func (t TrackerLocalConfig) Sets(key string) bool {
+	switch key {
+	case "enabled":
+		return t.Enabled != nil
+	case "auto_sync":
+		return t.AutoSync != nil
+	case "push_labels":
+		return t.PushLabels != nil
+	case "auto_plan_assigned":
+		return t.AutoPlanAssigned != nil
+	case "max_in_progress_per_member":
+		return t.MaxInProgressPerMember != nil
+	case "write_enabled":
+		return t.WriteEnabled != nil
+	case "tracker_url":
+		return t.TrackerURL != ""
+	case "tracker_token_key":
+		return t.TrackerTokenKey != ""
+	case "tracker_token_url":
+		return t.TrackerTokenURL != ""
+	}
+	return false
+}

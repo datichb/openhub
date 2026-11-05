@@ -23,10 +23,10 @@ import (
 // the history (it must be the same team-state, not another one).
 
 var teamsSetCmd = &cobra.Command{
-	Use:   "set <team-id> repo <url>",
+	Use:   "set <team-id> repo|name|member-id|enabled|default [value]",
 	Short: i18n.T("v54a.teams.set.short"),
 	Long:  i18n.T("v54a.teams.set.long"),
-	Args:  cobra.ExactArgs(3),
+	Args:  cobra.RangeArgs(2, 3),
 	RunE:  runTeamsSet,
 }
 
@@ -49,12 +49,20 @@ func runTeamsSet(cmd *cobra.Command, args []string) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	id, field, value := args[0], strings.ToLower(args[1]), strings.TrimSpace(args[2])
+	id, field := args[0], strings.ToLower(args[1])
+	value := ""
+	if len(args) > 2 {
+		value = strings.TrimSpace(args[2])
+	}
 	gitlabURL, _ := cmd.Flags().GetString("gitlab-url")
 	if field == "repo" {
+		if len(args) < 3 {
+			return errors.New(i18n.T("v54a.teams.set.repo_required"))
+		}
 		return setTeamRepo(ctx, a, id, value, strings.TrimSpace(gitlabURL))
 	}
-	return errors.New(i18n.Tf("v54a.teams.set.unknown_field", field, "repo"))
+	cmd.SetContext(ctx)
+	return setTeamField(cmd, a, id, field, value, len(args) > 2)
 }
 
 func setTeamRepo(ctx context.Context, a *app.App, id, repoURL, gitlabURL string) error {
