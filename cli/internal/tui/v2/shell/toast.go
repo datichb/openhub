@@ -68,6 +68,18 @@ func toastMaxLen(level ToastLevel) int {
 // The message is always persisted to the in-memory notification store and the
 // JSONL file, regardless of whether the visual toast is displayed.
 func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) {
+	s.presentToast(msg, msg, true, level, duration)
+}
+
+// showLogToast displays the toast of a log record: shown is its text, full is
+// what the notification centre keeps (with the attributes of the record).
+// record is false when the log handler already put full in the store.
+func (s *Shell) showLogToast(shown, full string, level ToastLevel, record bool) {
+	s.presentToast(shown, full, record, level, ToastDurationForLevel(level))
+}
+
+// presentToast is showToast with a displayed text and a recorded one.
+func (s *Shell) presentToast(msg, full string, record bool, level ToastLevel, duration time.Duration) {
 	if s.repeatedToast(msg, level) {
 		return
 	}
@@ -75,11 +87,13 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 
 	// Persist the FULL message before any truncation:
 	// 1. In-memory store (current session, 50 entries max) — synchronous, safe.
-	s.notifications.Add(level, msg)
+	if record {
+		s.notifications.Add(level, full)
+	}
 	// 2. Persistent JSONL file — asynchronous.
-	//    The goroutine gets its own copy of msg: it must not read the variable
+	//    The goroutine gets its own copy of the text: it must not read msg
 	//    after it has been reassigned below to the display-truncated version.
-	fullMsg := msg
+	fullMsg := full
 	safego.Go(func() {
 		_ = AppendToFile(NotificationsFilePath(), level, fullMsg)
 	})
@@ -97,7 +111,7 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 		toast := tview.NewTextView().
 			SetDynamicColors(true).
 			SetTextAlign(tview.AlignCenter).
-			SetText(fmt.Sprintf(" %s %s ", icon, msg))
+			SetText(fmt.Sprintf(" %s %s ", icon, tview.Escape(msg)))
 		toast.SetBackgroundColor(theme.BgElement)
 		toast.SetBorder(true)
 		toast.SetBorderColor(borderColor)
@@ -111,13 +125,16 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 		}
 		toastHeight := 3
 
-		// Position at top-right using a Grid, offset vertically by the number
-		// of currently active toasts so they stack instead of overlapping.
-		// Cap at 5 visible toasts to avoid overflowing off-screen on small terminals.
-		if s.activeToasts >= 5 {
-			return // silently drop — the message is already persisted to notifications
+		// Position at top-right using a Grid, in the first free slot so the
+		// toasts stack instead of overlapping, whichever of them was closed.
+		// At most maxVisibleToasts are shown (terminals are small): the
+		// oldest makes room for the new one, which is the news. The oldest
+		// is not lost, it is in the Notifications view.
+		if len(s.activeToastIDs) >= maxVisibleToasts {
+			s.dismissToast(s.activeToastIDs[0])
 		}
-		topRow := 1 + (s.activeToasts * (toastHeight + 1))
+		slot := s.freeToastSlot()
+		topRow := 1 + (slot * (toastHeight + 1))
 		grid := tview.NewGrid().
 			SetColumns(0, toastWidth, 2).
 			SetRows(topRow, toastHeight, 0)
@@ -136,6 +153,10 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 		pageName := fmt.Sprintf("toast-%d", time.Now().UnixNano())
 		s.activeToasts++
 		s.activeToastIDs = append(s.activeToastIDs, pageName)
+		if s.toastSlots == nil {
+			s.toastSlots = map[string]int{}
+		}
+		s.toastSlots[pageName] = slot
 		prev := s.app.GetFocus()
 		s.pages.AddPage(pageName, grid, true, true)
 		// Pages.AddPage re-delegates focus to the last visible page (the toast),
@@ -163,6 +184,23 @@ func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) 
 	})
 }
 
+// maxVisibleToasts is how many toasts are shown at once.
+const maxVisibleToasts = 5
+
+// freeToastSlot is the first row slot (0 = top) no visible toast uses. Must
+// be called on the tview event loop.
+func (s *Shell) freeToastSlot() int {
+	used := make(map[int]bool, len(s.toastSlots))
+	for _, slot := range s.toastSlots {
+		used[slot] = true
+	}
+	slot := 0
+	for used[slot] {
+		slot++
+	}
+	return slot
+}
+
 // dismissToast removes a toast by page name and updates tracking state.
 // Must be called on the tview event loop (inside QueueUpdateDraw or a handler).
 func (s *Shell) dismissToast(pageName string) {
@@ -177,6 +215,7 @@ func (s *Shell) dismissToast(pageName string) {
 	if !tracked {
 		return // already dismissed (Esc before its timer)
 	}
+	delete(s.toastSlots, pageName)
 	prev := s.app.GetFocus()
 	s.pages.RemovePage(pageName)
 	// Pages.RemovePage re-delegates focus to the last visible page (possibly

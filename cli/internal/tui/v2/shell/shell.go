@@ -141,6 +141,8 @@ type Shell struct {
 	activeToasts int
 	// activeToastIDs tracks the page names of visible toasts for manual dismiss.
 	activeToastIDs []string
+	// toastSlots is the row slot (0 = top) of each visible toast, by page name.
+	toastSlots map[string]int
 	// recentToasts remembers when each message was last shown: the same
 	// message within toastRepeatWindow is not shown (nor recorded) again.
 	toastMu      sync.Mutex

@@ -3,6 +3,7 @@ package shell
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/filelock"
 	"github.com/datichb/openhub/cli/internal/fsutil"
 	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
@@ -112,13 +114,48 @@ func NotificationsFilePath() string {
 	return filepath.Join(home, ".oh", "notifications.jsonl")
 }
 
+// notificationsLockWait is how long a writer waits for the lock of the file:
+// the rotation and an append take milliseconds, a holder that is stuck must
+// not block the toasts for ever (a variable: the tests shorten it).
+var notificationsLockWait = 10 * time.Second
+
+// notificationsMu serializes the writers of this process, so that only the
+// other processes (a second TUI, the daemon) make a writer poll the file lock.
+var notificationsMu sync.Mutex
+
+// lockNotifications takes the exclusive lock of the history file at path:
+// the rotation replaces the file (tmp + rename), and a line appended to the
+// file it replaces would be lost. The lock is on a file of its own next to
+// the history, because the history changes inode at each rotation.
+func lockNotifications(path string) (unlock func(), err error) {
+	notificationsMu.Lock()
+	ctx, cancel := context.WithTimeout(context.Background(), notificationsLockWait)
+	defer cancel()
+	release, err := filelock.LockContext(ctx, path+".lock")
+	if err != nil {
+		notificationsMu.Unlock()
+		return nil, fmt.Errorf("notifications: lock %s: %w", path, err)
+	}
+	return func() {
+		release()
+		notificationsMu.Unlock()
+	}, nil
+}
+
 // AppendToFile appends a single notification as a JSONL line to path.
 // Creates the file and any missing parent directories if absent.
-// Uses O_APPEND so concurrent calls do not corrupt each other.
+// The file is locked (with RotateFile and the other processes that write it:
+// another TUI, the daemon) and opened with O_APPEND: a line is written whole,
+// and never to a file that a rotation just replaced.
 func AppendToFile(path string, level ToastLevel, msg string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return fmt.Errorf("notifications: mkdir %s: %w", filepath.Dir(path), err)
 	}
+	unlock, err := lockNotifications(path)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return fmt.Errorf("notifications: open %s: %w", path, err)
@@ -182,8 +219,18 @@ func ReadLastN(path string, n int) ([]views.NotificationEntry, error) {
 
 // RotateFile truncates the JSONL file to keep at most maxLines entries and
 // removes entries older than maxAge. The rewrite is atomic (tmp file + rename, no fsync).
+// The file is locked from the read to the rename, so that a line appended
+// meanwhile (AppendToFile, by this process or another) is kept.
 // No-op if the file does not exist.
 func RotateFile(path string, maxLines int, maxAge time.Duration) error {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return nil
+	}
+	unlock, err := lockNotifications(path)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	f, err := os.Open(path)
 	if os.IsNotExist(err) {
 		return nil

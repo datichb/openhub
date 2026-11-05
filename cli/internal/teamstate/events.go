@@ -122,6 +122,19 @@ func NewSessionCompleteEvent(memberID, project string, data map[string]interface
 	}
 }
 
+// NewAuditFindingEvent constructs an audit.finding event: an audit session
+// deposited its findings (Data: session_id, report, audit_type, and
+// finding_count when the producer knows it).
+func NewAuditFindingEvent(memberID, project string, data map[string]interface{}) Event {
+	return Event{
+		Timestamp: time.Now().UTC(),
+		Actor:     memberID,
+		Type:      EventAuditFinding,
+		Project:   project,
+		Data:      data,
+	}
+}
+
 // ListEvents returns events for a project since the given time, sorted newest first.
 // If project is empty, returns events across all projects.
 func (r *Repo) ListEvents(ctx context.Context, project string, since time.Time) ([]Event, error) {

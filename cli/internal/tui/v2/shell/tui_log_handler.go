@@ -43,10 +43,12 @@ func (h *TUILogHandler) Enabled(_ context.Context, level slog.Level) bool {
 // shows a visual toast for Warn/Error levels.
 func (h *TUILogHandler) Handle(_ context.Context, r slog.Record) error {
 	msg := h.formatMessage(r)
+	shown := h.toastMessage(r, msg)
 
 	level := slogToToastLevel(r.Level)
 
-	// Always persist to notification store (thread-safe via mutex)
+	// Always persist to notification store (thread-safe via mutex): with the
+	// attributes, the Notifications view is where the details are read.
 	if h.notifStore != nil {
 		h.notifStore.Add(level, msg)
 	}
@@ -60,7 +62,8 @@ func (h *TUILogHandler) Handle(_ context.Context, r slog.Record) error {
 	// the callback. If we're already ON the event loop, that's a deadlock.
 	// The goroutine blocks independently; the event loop processes it on the next cycle.
 	if r.Level >= slog.LevelWarn && h.shell != nil && h.shell.IsRunning() {
-		toastMsg := msg
+		// The shell records the toast when this handler has no store of its own.
+		recordInShell := h.notifStore == nil
 		safego.Go(func() {
 			// The application may have stopped since: QueueUpdateDraw would
 			// wait for an event loop that is gone.
@@ -68,7 +71,7 @@ func (h *TUILogHandler) Handle(_ context.Context, r slog.Record) error {
 				return
 			}
 			h.shell.App().QueueUpdateDraw(func() {
-				h.shell.ShowToast(toastMsg, level)
+				h.shell.showLogToast(shown, msg, level, recordInShell)
 			})
 		})
 	}
@@ -136,6 +139,40 @@ func (h *TUILogHandler) formatMessage(r slog.Record) string {
 	})
 
 	return b.String()
+}
+
+// toastMessage is the text a log record shows in its toast. An error keeps
+// the whole message (with the crash file of a recovered panic). A warning is
+// not an error: it shows the message on one line, with the reason when the
+// record carries one (error=…), never the raw key=value attributes, which stay
+// in the notification (full).
+func (h *TUILogHandler) toastMessage(r slog.Record, full string) string {
+	if r.Level >= slog.LevelError {
+		return full
+	}
+	var b strings.Builder
+	if len(h.groups) > 0 {
+		b.WriteString(strings.Join(h.groups, "."))
+		b.WriteString(": ")
+	}
+	b.WriteString(r.Message)
+	reason := ""
+	pick := func(a slog.Attr) {
+		if reason == "" && (a.Key == "error" || a.Key == "err") {
+			reason = a.Value.String()
+		}
+	}
+	for _, a := range h.attrs {
+		pick(a)
+	}
+	r.Attrs(func(a slog.Attr) bool {
+		pick(a)
+		return true
+	})
+	if reason != "" {
+		b.WriteString(" : " + reason)
+	}
+	return strings.Join(strings.Fields(b.String()), " ")
 }
 
 // slogToToastLevel maps slog levels to toast levels.
