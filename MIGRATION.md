@@ -6,7 +6,7 @@ oh 5.0 est une version majeure : opencode V2 devient obligatoire, chaque session
 
 - Installez **opencode V2** (2.0.0 au minimum, **2.2.5** recommandée) : sans lui, `oh run` refuse de démarrer.
 - Faites `oh export` avant la mise à jour, puis lancez `oh doctor`.
-- **`SSH_AUTH_SOCK` et `GH_TOKEN` ne passent plus aux agents** : autorisez-les avec `execution.env_allow` si vos agents en ont besoin.
+- **`SSH_AUTH_SOCK` et `GH_TOKEN` ne passent plus aux agents** : autorisez `SSH_AUTH_SOCK` avec `execution.env_allow` si vos agents en ont besoin. Depuis la 5.4.1, `GH_TOKEN` est retiré même s'il est listé : pour `gh`, utilisez `gh auth login`.
 - `hub.toml` est lu **strictement** (`"true"` n'est plus un booléen) et `./hub.toml` n'est plus lu.
 - Dans un script ou en CI : une confirmation sans terminal est **refusée** (code 2) sauf `--yes` ; une commande ou une option inconnue sort en **2** (et non plus 1) ; `oh deploy` et `oh sync` n'existent plus.
 - La base de données passe de la version 27 à la 49 au premier lancement, avec une copie automatique ; le retour en arrière se fait en restaurant cette copie.
@@ -90,6 +90,16 @@ La 5.4 rend le mode équipe cohérent de bout en bout (une seule règle pour cho
 | Notifications : `hub.toml [notifications]` (Réglages › Notifications, relu à chaud) ; `[session] notify = "off"` éteint toujours les notifications système tant que `[notifications] system` n'est pas écrit ; la fin d'une étape est un toast. Texte du webhook dans la langue de l'expéditeur, mentions avec `mattermost_username`. L'outil MCP `team_notify` répond une **erreur** quand rien n'est parti | `events.step_done = "system"` pour retrouver la notification système ; `mention = false` coupe les mentions |
 | TUI : « Équipe du projet » devient « Rattacher le projet à une équipe » (vue Projet) ; « Historique Équipe » disparaît (utiliser « Activité ») ; vue Équipes : `p`, `*`, `e`, `x`, `R` ; `Ctrl+T` n'offre plus les espaces solo | Rien |
 
+## Vous venez de la 5.4 : ce que la 5.4.1 change
+
+La 5.4.1 est une version de correctifs. Un seul changement demande une action : un correctif de sécurité sur l'environnement des agents. La base de données ne change pas ; aucun fichier n'est migré. Détail : [guide de migration, « Depuis la 5.4 vers la 5.4.1 »](docs/guides/migration-v5.fr.md#depuis-la-54-vers-la-541).
+
+| Changé en 5.4.1 | À faire |
+|---|---|
+| **Sécurité** : `GH_TOKEN` n'est plus transmis aux agents, même s'il est listé dans `execution.env_allow` ou couvert par un motif (`GH_*`). Il est retiré comme `GITHUB_TOKEN`. Même chose pour `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, `GITLAB_ACCESS_TOKEN`, `GITLAB_PRIVATE_TOKEN`, `GITLAB_OAUTH_TOKEN` et `ANTHROPIC_AUTH_TOKEN` | Pour `gh` dans une session : `gh auth login` une fois (`gh` range le jeton lui-même, et `HOME` passe le filtre), ou le serveur MCP GitHub d'oh. Retirez ces noms de `env_allow` : `oh doctor` les signale comme gérés par oh |
+| `notifications.jsonl` est écrit et tourné sous un verrou (`notifications.jsonl.lock`, à côté du fichier) | Rien. Une TUI d'une version antérieure, ouverte en même temps, n'utilise pas le verrou |
+| L'événement d'équipe `audit.finding` est émis à la fin d'une session d'audit qui a déposé son rapport | Pour le recevoir par webhook : `events = ["audit.finding"]` (ou `"*"`) sur la destination |
+
 ## Prérequis
 
 | Prérequis | Valeur | Vérification |
@@ -124,7 +134,7 @@ Une version de la plage mais **non épinglée** dans oh (autre que 2.0.20, 2.0.2
 
    `oh doctor --fix` applique les réparations après un récapitulatif et une confirmation ; sans terminal, il demande `--yes`.
 6. **Retirez les anciens déploiements** : `oh migrate deploy-cleanup --dry-run` (ce qui serait retiré), puis `oh migrate deploy-cleanup`. Voir [le guide](docs/guides/migration-v5.fr.md#8-nettoyer-les-anciens-déploiements--oh-migrate-deploy-cleanup).
-7. **Autorisez les variables d'environnement dont vos agents ont besoin** (git par ssh, `gh`…) : `oh config set execution.env_allow "SSH_AUTH_SOCK, GH_TOKEN"` ([détail](#environnement-des-agents)).
+7. **Autorisez les variables d'environnement dont vos agents ont besoin** (git par ssh…) : `oh config set execution.env_allow "SSH_AUTH_SOCK, MYCO_*"`. Pour `gh` : `gh auth login`, car `GH_TOKEN` est retiré même listé depuis la 5.4.1 ([détail](#environnement-des-agents)).
 8. **Si vous êtes dans une équipe**, approuvez chaque URL de service imposée par l'équipe : `oh mcp trust <service>` ([détail](#sécurité-visible)), et lisez [Mode équipe](#mode-équipe).
 9. **Mettez à jour vos scripts et votre CI** : `oh deploy`/`oh sync`, `oh start` → `oh run <workflow>`, `--yes` partout où une confirmation est demandée, test du code de sortie 1, `-j`, `--include-opencode`, analyse de `oh --help`, `oh status --json` ([Commandes et options](#commandes-et-options)).
 10. **Vérifiez vos workflows d'équipe et de projet** : `oh workflow validate --all`. Les agents retirés, les couches qui étendent `feature` ou `cadrage`, les ajouts d'agent ou de skills par une couche de projet sont refusés ([Workflows et couches](#workflows-et-couches)).
@@ -234,11 +244,11 @@ L'erreur arrête oh et donne le fichier, la ligne, la colonne et la clé de la p
 **À faire** : nommer ce que vos agents doivent recevoir, par noms ou préfixes `PREFIXE_*` :
 
 ```bash
-oh config set execution.env_allow "SSH_AUTH_SOCK, GH_TOKEN, MYCO_*"
+oh config set execution.env_allow "SSH_AUTH_SOCK, MYCO_*"
 ```
 
-- `oh doctor` liste, par nom seulement, les variables retenues, et **avertit** quand un nom ressemblant à un secret est autorisé (`GH_TOKEN` par exemple : l'agent peut le lire et l'envoyer partout où ses outils portent).
-- Restent refusés quoi qu'on écrive : les identifiants que oh gère lui-même (`AWS_*`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GITLAB_TOKEN`, `GITHUB_TOKEN`, `OH_PASSPHRASE`…). `ZDOTDIR`, `BASH_ENV` et `ENV` ne sont pas dans la liste de base.
+- `oh doctor` liste, par nom seulement, les variables retenues, et **avertit** quand un nom ressemblant à un secret est autorisé (`NPM_TOKEN` par exemple : l'agent peut le lire et l'envoyer partout où ses outils portent).
+- Restent refusés quoi qu'on écrive : les identifiants que oh gère lui-même et leurs autres noms (`AWS_*`, `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `OPENAI_API_KEY`, `GITLAB_TOKEN`, `GITHUB_TOKEN`, `GH_TOKEN` depuis la 5.4.1, `OH_PASSPHRASE`…). Pour `gh` dans une session : `gh auth login` ou le serveur MCP GitHub d'oh. `ZDOTDIR`, `BASH_ENV` et `ENV` ne sont pas dans la liste de base.
 - Les conteneurs et les jobs distants n'héritent jamais de votre environnement.
 
 Référence : [L'environnement des agents](docs/reference/config.fr.md#lenvironnement-des-agents).

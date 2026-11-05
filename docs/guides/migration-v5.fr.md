@@ -529,3 +529,15 @@ L'accueil a toujours une section Équipes avec « ➕ Nouvelle équipe » (Crée
 | `claim.transferred` signé de l'ancien propriétaire ; peu d'événements | Signé de celui qui transfère. Nouveaux événements dans `oh team activity` : `member.removed`, `claim.released` et `claim.taken` (synchro, board, lancements, fins de session) |
 
 **À faire** : les scripts qui libèrent ou transfèrent la réservation d'un autre membre ajoutent `--force` ; ceux qui lisent l'activité tolèrent les nouveaux types.
+
+## Depuis la 5.4 vers la 5.4.1
+
+La 5.4.1 est une version de correctifs (notifications, accueil du hub, garde-fous). Un seul changement demande une action : un correctif de sécurité sur l'environnement des agents. La base de données ne change pas.
+
+| En 5.4 | Depuis la 5.4.1 |
+|---|---|
+| `GH_TOKEN` listé dans `execution.env_allow` (ou couvert par `GH_*`) atteignait les shells des agents ; seul `GITHUB_TOKEN` était retiré | **Sécurité** : `GH_TOKEN` est retiré même listé, comme `GITHUB_TOKEN`. Même chose pour `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, `GITLAB_ACCESS_TOKEN`, `GITLAB_PRIVATE_TOKEN`, `GITLAB_OAUTH_TOKEN` et `ANTHROPIC_AUTH_TOKEN` ([§ 14](#14-environnement-des-agents--executionenv_allow)) |
+| `audit.finding` était déclaré, mais rien ne l'émettait | Émis à la fin d'une session d'audit qui a déposé son rapport ; un webhook le reçoit si sa destination le demande dans `events` |
+| `notifications.jsonl` pouvait perdre des lignes quand deux TUI ou le démon écrivaient pendant une rotation | Écriture et rotation sous verrou (`notifications.jsonl.lock`) |
+
+**À faire** : pour `gh` dans une session, `gh auth login` une fois (`gh` range le jeton lui-même) ou le serveur MCP GitHub d'oh ([MCP GitHub](../reference/mcp-github.fr.md)) ; retirez `GH_TOKEN` et les autres noms ci-dessus de `env_allow`. `oh doctor` les signale comme gérés par oh.

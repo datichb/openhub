@@ -529,3 +529,15 @@ The home screen always has a Teams section with "➕ New team" (Create, Join, So
 | `claim.transferred` signed by the former owner; few events | Signed by whoever transfers. New events in `oh team activity`: `member.removed`, `claim.released` and `claim.taken` (sync, board, launches, session ends) |
 
 **To do**: scripts that release or transfer the claim of another member add `--force`; those that read the activity tolerate the new types.
+
+## From 5.4 to 5.4.1
+
+5.4.1 is a bug-fix release (notifications, hub home, guards). Only one change needs an action: a security fix to the environment of the agents. The database does not change.
+
+| In 5.4 | Since 5.4.1 |
+|---|---|
+| `GH_TOKEN` listed in `execution.env_allow` (or matched by `GH_*`) reached the shells of the agents; only `GITHUB_TOKEN` was removed | **Security**: `GH_TOKEN` is removed even when listed, like `GITHUB_TOKEN`. So are `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, `GITLAB_ACCESS_TOKEN`, `GITLAB_PRIVATE_TOKEN`, `GITLAB_OAUTH_TOKEN` and `ANTHROPIC_AUTH_TOKEN` ([§ 14](#14-environment-of-the-agents-executionenv_allow)) |
+| `audit.finding` was declared, but nothing emitted it | Emitted at the end of an audit session that deposited its report; a webhook gets it when its destination asks for it in `events` |
+| `notifications.jsonl` could lose lines when two TUIs or the daemon wrote during a rotation | Writes and rotation under a lock (`notifications.jsonl.lock`) |
+
+**To do**: for `gh` in a session, run `gh auth login` once (`gh` stores the token itself) or use the GitHub MCP server of oh ([GitHub MCP](../reference/mcp-github.en.md)); remove `GH_TOKEN` and the other names above from `env_allow`. `oh doctor` reports them as managed by oh.

@@ -9,6 +9,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+## [5.4.1] — 2026-11-05
+
+Version de correctifs, faite avant le gel du branchement de la TUI prévu pour la fin de la 5.5. **Un correctif de sécurité** : `GH_TOKEN` et les autres noms des jetons gérés par oh ne passent plus aux agents, même listés dans `execution.env_allow`. Si vous utilisez `gh` dans une session, voir la [migration 5.4 → 5.4.1](docs/guides/migration-v5.fr.md#depuis-la-54-vers-la-541). Autres changements : les notifications (`audit.finding` enfin émis, avertissements lisibles, au plus 5 toasts, rotation de l'historique sous verrou), une ligne « espaces solo » sur l'accueil du hub, et un garde-fou d'architecture plus large. Pas de migration de la base.
+
 ### Security
 
 - **`GH_TOKEN` et les autres noms des jetons gérés par oh sont retirés même s'ils sont listés dans `execution.env_allow`.** `GITHUB_TOKEN` était refusé, mais pas son alias `GH_TOKEN` (lu par `gh` et par le serveur MCP GitHub) : avec `env_allow = "GH_TOKEN"` ou `"GH_*"`, le jeton atteignait les shells des agents. Sont maintenant refusés, par leur nom comme par un motif : `GH_TOKEN`, `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, `GITLAB_ACCESS_TOKEN`, `GITLAB_PRIVATE_TOKEN`, `GITLAB_OAUTH_TOKEN` et `ANTHROPIC_AUTH_TOKEN`. Sous Windows, la casse n'est pas prise en compte. Pour utiliser `gh` dans une session : `gh auth login`, ou le serveur MCP GitHub d'oh. ([MIGRATION.md](MIGRATION.md))
