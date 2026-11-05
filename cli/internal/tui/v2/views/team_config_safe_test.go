@@ -296,6 +296,17 @@ func TestTeamMCPAndModelsSaveKeepWhatAColleagueChangedMeanwhile(t *testing.T) {
 			got, err := repo.LoadConfig(t.Context())
 			return err == nil && (got.Models.Default == "opus" || got.MCP["figma"].WriteRecommended)
 		}, 3*time.Second, 10*time.Millisecond, v.ID())
+		// the write is over (config.toml is written before the commit and the
+		// config_changed event): the folder of the test is not written any more
+		waitFor(t, app, func() bool {
+			switch m := v.(type) {
+			case *TeamMCPView:
+				return !m.saving
+			case *TeamModelsView:
+				return !m.saving
+			}
+			return true
+		})
 		got, err := repo.LoadConfig(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, "from-colleague-"+v.ID(), got.Notification.Channel, v.ID())
