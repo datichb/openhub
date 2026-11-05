@@ -6834,5 +6834,18 @@
   "v54l.doctor.gone.found": "Équipe %[1]s : réservations ouvertes de membres qui n'ont plus de fiche : %[2]s. Passez-les à un membre (%[3]s) ou libérez-les (%[4]s).",
   "v54l.doctor.member": "membre",
   "v54l.doctor.removed.name": "Fiche de membre retirée",
-  "v54l.doctor.removed.found": "Équipe %[1]s : votre fiche (%[2]s) n'est plus dans members.toml — un lead l'a retirée. Rejoignez de nouveau (%[3]s) ou quittez l'équipe (%[4]s)."
+  "v54l.doctor.removed.found": "Équipe %[1]s : votre fiche (%[2]s) n'est plus dans members.toml — un lead l'a retirée. Rejoignez de nouveau (%[3]s) ou quittez l'équipe (%[4]s).",
+  "v54l.board.reassign.label": "Réassigner les réservations d'un membre…",
+  "v54l.board.reassign.desc": "Transférer à un autre membre, ou libérer, toutes les réservations ouvertes d'un membre (parti de l'équipe)",
+  "v54l.board.reassign.none": "Aucun membre ne détient de réservation ouverte sur ce board.",
+  "v54l.board.reassign.from": "Réservations de quel membre ?",
+  "v54l.board.reassign.to": "Réservations de %s — à qui ?",
+  "v54l.board.reassign.release": "Les libérer",
+  "v54l.board.reassign.title_to": "Transférer %[1]d réservation(s) de %[2]s à %[3]s ?",
+  "v54l.board.reassign.detail_to": "Les %[1]d réservations ouvertes de %[2]s passent à %[3]s en un seul commit ; un brief de reprise est écrit pour chacune et les événements sont signés de vous.",
+  "v54l.board.reassign.title_release": "Libérer %[1]d réservation(s) de %[2]s ?",
+  "v54l.board.reassign.detail_release": "Les %[1]d réservations ouvertes de %[2]s sont supprimées : d'autres membres pourront les prendre. Les événements sont signés de vous.",
+  "v54l.board.reassign.failed": "Réassignation échouée : ",
+  "v54l.board.reassign.released": "%[1]d réservation(s) de %[2]s libérée(s)",
+  "v54l.board.reassign.done": "%[1]d réservation(s) de %[2]s transférée(s) à %[3]s"
 }

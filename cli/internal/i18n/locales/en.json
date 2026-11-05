@@ -6834,5 +6834,18 @@
   "v54l.doctor.gone.found": "Team %[1]s: open claims of members who have no card any more: %[2]s. Hand them to a member (%[3]s) or release them (%[4]s).",
   "v54l.doctor.member": "member",
   "v54l.doctor.removed.name": "Member card removed",
-  "v54l.doctor.removed.found": "Team %[1]s: your card (%[2]s) is no longer in members.toml — a lead removed it. Join again (%[3]s) or leave the team (%[4]s)."
+  "v54l.doctor.removed.found": "Team %[1]s: your card (%[2]s) is no longer in members.toml — a lead removed it. Join again (%[3]s) or leave the team (%[4]s).",
+  "v54l.board.reassign.label": "Hand over the claims of a member…",
+  "v54l.board.reassign.desc": "Hand to another member, or release, all the open claims of a member (who left the team)",
+  "v54l.board.reassign.none": "No member holds an open claim on this board.",
+  "v54l.board.reassign.from": "Whose claims?",
+  "v54l.board.reassign.to": "Claims of %s — to whom?",
+  "v54l.board.reassign.release": "Release them",
+  "v54l.board.reassign.title_to": "Hand %[1]d claim(s) of %[2]s to %[3]s?",
+  "v54l.board.reassign.detail_to": "The %[1]d open claims of %[2]s go to %[3]s in a single commit; a takeover brief is written for each and the events are signed by you.",
+  "v54l.board.reassign.title_release": "Release %[1]d claim(s) of %[2]s?",
+  "v54l.board.reassign.detail_release": "The %[1]d open claims of %[2]s are removed: other members will be able to take them. The events are signed by you.",
+  "v54l.board.reassign.failed": "Hand-over failed: ",
+  "v54l.board.reassign.released": "%[1]d claim(s) of %[2]s released",
+  "v54l.board.reassign.done": "%[1]d claim(s) of %[2]s handed to %[3]s"
 }

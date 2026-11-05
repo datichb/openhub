@@ -184,3 +184,68 @@ func TestTeamBoardCardsShowTheLeaseAndTheEndedSession(t *testing.T) {
 	detail := board.formatTicketDetail(&TeamTicket{ID: "2", Title: "Stale", Assignee: "Alice", LeaseUntil: time.Now().Add(-time.Hour), Expired: true})
 	assert.Contains(t, detail, "expired on")
 }
+
+// The palette hands over or releases all the claims of a member: whose, to
+// whom, then a confirmation with the number and the names.
+func TestTeamBoardReassignsTheClaimsOfAMember(t *testing.T) {
+	var mu sync.Mutex
+	var calls []string
+	tickets := []TeamTicket{
+		{ID: "1", Title: "One", Status: "in_progress", Project: "p", AssigneeID: "alice", Assignee: "Alice A."},
+		{ID: "2", Title: "Two", Status: "review", Project: "p", AssigneeID: "alice", Assignee: "Alice A."},
+		{ID: "3", Title: "Done", Status: "done", Project: "p", AssigneeID: "alice", Assignee: "Alice A."},
+		{ID: "4", Title: "Four", Status: "in_progress", Project: "p", AssigneeID: "ghost", Assignee: "ghost"},
+	}
+	board, sh, run := claimBoard(t, tickets, &BoardActions{
+		Members: func() []SelectOption {
+			return []SelectOption{{Label: "Alice A.", Value: "alice"}, {Label: "Bob B.", Value: "bob"}}
+		},
+		OnReassign: func(from, to string) (int, error) {
+			mu.Lock()
+			calls = append(calls, from+">"+to)
+			mu.Unlock()
+			return 2, nil
+		},
+	})
+	var found bool
+	for _, c := range board.ContextCommands() {
+		found = found || c.ID == "team.board.reassign"
+	}
+	require.True(t, found, "the command is in the palette")
+
+	run(func() { board.reassignClaims() })
+	assert.Equal(t, "Whose claims?", sh.title)
+	assert.Equal(t, []string{"Alice A. (2)", "ghost (1)"}, optionLabels(sh.opts), "who holds open claims, finished ones not counted, a member without a card too")
+
+	run(func() { sh.pick("alice") })
+	assert.Equal(t, "Claims of Alice A. — to whom?", sh.title)
+	assert.Equal(t, []string{"Release them", "Bob B."}, optionLabels(sh.opts), "not to the member themselves")
+	run(func() { sh.pick("bob") })
+	assert.Equal(t, "Hand 2 claim(s) of Alice A. to Bob B.?", sh.confirmTitle)
+	mu.Lock()
+	assert.Empty(t, calls)
+	mu.Unlock()
+	run(sh.yes)
+	require.Eventually(t, func() bool { return strings.Contains(sh.lastToast(), "handed to Bob B.") }, 3*time.Second, 20*time.Millisecond)
+	mu.Lock()
+	assert.Equal(t, []string{"alice>bob"}, calls)
+	mu.Unlock()
+
+	run(func() { board.reassignClaims() })
+	run(func() { sh.pick("ghost") })
+	run(func() { sh.pick(releaseTarget) })
+	assert.Equal(t, "Release 1 claim(s) of ghost?", sh.confirmTitle)
+	run(sh.yes)
+	require.Eventually(t, func() bool { return strings.Contains(sh.lastToast(), "released") }, 3*time.Second, 20*time.Millisecond)
+	mu.Lock()
+	assert.Equal(t, []string{"alice>bob", "ghost>"}, calls)
+	mu.Unlock()
+}
+
+func optionLabels(opts []SelectOption) []string {
+	out := make([]string, len(opts))
+	for i, o := range opts {
+		out[i] = o.Label
+	}
+	return out
+}

@@ -80,3 +80,33 @@ func TestBoardActionsLeaveEventsSignedByTheMember(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ghost is not a card of the team")
 }
+
+// The palette command hands over or releases all the open claims of a member in
+// one commit, with the events signed by the member of the board.
+func TestBoardReassignsTheClaimsOfAMember(t *testing.T) {
+	a, repo := setupBeat(t)
+	i18ntest.Set(t, "en")
+	addTeamMembers(t, repo, "alice", "bob")
+	actions := buildTeamBoardViewConfig(a).Actions
+	claimsCreate(t, repo, "A-1", "alice", "")
+	claimsCreate(t, repo, "A-2", "alice", "")
+	claimsCreate(t, repo, "B-1", "bob", "")
+
+	moved, err := actions.OnReassign("alice", "bob")
+	require.NoError(t, err)
+	assert.Equal(t, 2, moved)
+	assert.Equal(t, "bob", claimsOnDisk(t, repo, "A-1").ClaimedBy)
+
+	moved, err = actions.OnReassign("bob", "")
+	require.NoError(t, err)
+	assert.Equal(t, 3, moved)
+	left, err := repo.ListClaims(context.Background(), claimsProject)
+	require.NoError(t, err)
+	assert.Empty(t, left)
+	for _, e := range eventsOn(t, repo, claimsProject) {
+		assert.Equal(t, "testuser", e.Actor)
+	}
+
+	_, err = actions.OnReassign("bob", "ghost")
+	assert.NoError(t, err, "nothing left to move is not an error")
+}

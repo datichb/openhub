@@ -30,6 +30,7 @@ type teamBoardRepo interface {
 	teamstate.ClaimReader
 	teamstate.ClaimWriter
 	teamstate.ClaimLifecycle
+	teamstate.MemberClaimMover
 }
 
 // buildTeamBoardViewConfig builds the full TeamBoardViewConfig for the shell TUI,
@@ -348,6 +349,30 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				_, err := repo.TransferClaimWith(teamstate.WithActor(ctx, me), projectID, ticketID, toMember,
 					teamstate.TransferOpts{BriefReason: "transfer"})
 				return explainHandOver(err, toMember)
+			},
+			OnReassign: func(from, to string) (int, error) {
+				repo := resolveRepo()
+				if repo == nil {
+					return 0, errors.New(i18n.T("tui.team_board.team_not_configured"))
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				me := boardMember()
+				if to == me && to != "" {
+					open, _, err := repo.OpenClaimsOf(ctx, from)
+					if err != nil {
+						return 0, err
+					}
+					if err := checkBulkRoom(ctx, repo, a, me, open); err != nil {
+						return 0, err
+					}
+				}
+				// All the open claims, the takeover briefs and one event per claim
+				// signed by the member of the board are one commit.
+				res, err := repo.ReassignClaims(teamstate.WithActor(ctx, me), teamstate.ReassignOpts{
+					From: from, To: to, Release: to == "", Brief: to != "", ReleaseReason: teamstate.ReleaseBulk,
+				})
+				return len(res.Transferred) + len(res.Released), explainHandOver(err, to)
 			},
 			OnStatus: func(cardProject, ticketID, newStatus string) error {
 				repo := resolveRepoWithBoard()

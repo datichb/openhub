@@ -138,6 +138,9 @@ type BoardActions struct {
 	// brief. A claim that is not expired any more gives a *ClaimHeldError.
 	OnTakeOver func(project, ticketID string) error
 	OnRelease  func(project, ticketID string) error
+	// OnReassign hands all the open claims of the member from to the member to,
+	// or releases them (to ""), in one commit; it returns how many it moved.
+	OnReassign func(from, to string) (moved int, err error)
 	OnTransfer func(project, ticketID, toMember string) error
 	OnStatus   func(project, ticketID, newStatus string) error
 	Members    func() []SelectOption // returns team members for transfer
@@ -1274,18 +1277,128 @@ func (v *TeamBoardView) showTeamBoardQuickActions() {
 // ContextCommands implements CommandProvider — injects ticket-specific commands
 // into the omnibar when the team board view is active and a ticket is selected.
 func (v *TeamBoardView) ContextCommands() []ContextCommand {
+	out := v.reassignCommands()
 	if v.cfg.QuickActions == nil {
-		return nil
+		return out
 	}
 	ticket, ok := v.selectedTeamTicket()
 	if !ok {
-		return nil
+		return out
 	}
 	tc := v.ticketContext(ticket)
 	if tc.Role == "" {
-		return ticketContextCommands("team.board.run.", tc, v.cfg.QuickActions)
+		return append(out, ticketContextCommands("team.board.run.", tc, v.cfg.QuickActions)...)
 	}
-	return v.cardCommands("team.board.run.", tc)
+	return append(out, v.cardCommands("team.board.run.", tc)...)
+}
+
+// reassignCommands is the command that hands over or releases all the claims
+// of a member (a member who left): available as soon as the board can do it.
+func (v *TeamBoardView) reassignCommands() []ContextCommand {
+	if v.actions == nil || v.actions.OnReassign == nil || v.actions.Members == nil {
+		return nil
+	}
+	return []ContextCommand{{
+		ID:          "team.board.reassign",
+		Label:       i18n.T("v54l.board.reassign.label"),
+		Aliases:     []string{"reassign", "transfer claims", "release claims"},
+		Description: i18n.T("v54l.board.reassign.desc"),
+		Category:    i18n.T("tui.board.category_actions"),
+		Action:      v.reassignClaims,
+	}}
+}
+
+// reassignClaims asks whose claims, to whom (or released), confirms with the
+// number of claims and the member named, then moves them in one commit.
+func (v *TeamBoardView) reassignClaims() {
+	if v.actions == nil || v.actions.OnReassign == nil || v.actions.Members == nil || v.shell == nil || v.actionInProgress.Load() {
+		return
+	}
+	members := v.actions.Members()
+	names := make(map[string]string, len(members))
+	for _, m := range members {
+		names[m.Value] = m.Label
+	}
+	// The members who hold open claims on the board, with how many.
+	counts := map[string]int{}
+	for _, t := range v.allTickets {
+		if t.AssigneeID == "" || v.finishedColumn(t.Status) {
+			continue
+		}
+		counts[t.AssigneeID]++
+		if _, ok := names[t.AssigneeID]; !ok {
+			names[t.AssigneeID] = t.Assignee // a member who has no card any more
+		}
+	}
+	holders := make([]SelectOption, 0, len(counts))
+	for id, n := range counts {
+		holders = append(holders, SelectOption{Label: fmt.Sprintf("%s (%d)", names[id], n), Value: id})
+	}
+	sort.Slice(holders, func(i, j int) bool { return holders[i].Label < holders[j].Label })
+	if len(holders) == 0 {
+		v.shell.ShowToastMsg(i18n.T("v54l.board.reassign.none"), false)
+		return
+	}
+	v.shell.ShowSelectModal(i18n.T("v54l.board.reassign.from"), holders, "", func(from string) {
+		targets := []SelectOption{{Label: i18n.T("v54l.board.reassign.release"), Value: releaseTarget}}
+		for _, m := range members {
+			if m.Value != from {
+				targets = append(targets, m)
+			}
+		}
+		v.shell.ShowSelectModal(i18n.Tf("v54l.board.reassign.to", names[from]), targets, "", func(to string) {
+			detail := i18n.Tf("v54l.board.reassign.detail_release", counts[from], names[from])
+			title := i18n.Tf("v54l.board.reassign.title_release", counts[from], names[from])
+			target := ""
+			if to != releaseTarget {
+				target = to
+				detail = i18n.Tf("v54l.board.reassign.detail_to", counts[from], names[from], names[to])
+				title = i18n.Tf("v54l.board.reassign.title_to", counts[from], names[from], names[to])
+			}
+			v.shell.Confirm(title, detail, true, func() { v.doReassign(from, target, names) })
+		})
+	})
+}
+
+// releaseTarget is the value of the choice « release » in the list of the
+// members who receive the claims.
+const releaseTarget = "\x00release"
+
+// finishedColumn reports whether the column of the board is a terminal one.
+func (v *TeamBoardView) finishedColumn(status string) bool {
+	for _, col := range v.allColumns {
+		if col.Status == status {
+			return col.Role == teamstate.ColumnRoleTerminal
+		}
+	}
+	return false
+}
+
+func (v *TeamBoardView) doReassign(from, to string, names map[string]string) {
+	if v.actionInProgress.Swap(true) {
+		return
+	}
+	onReassign, app, ctx := v.actions.OnReassign, v.app, shellContext(v.shell)
+	safego.Go(func() {
+		moved, err := onReassign(from, to)
+		if app == nil {
+			return
+		}
+		queueIfLive(ctx, app, func() {
+			v.actionInProgress.Store(false)
+			switch {
+			case err != nil:
+				v.shell.ShowToastMsg(i18n.T("v54l.board.reassign.failed")+err.Error(), false)
+			case to == "":
+				v.shell.ShowToastMsg(i18n.Tf("v54l.board.reassign.released", moved, names[from]), true)
+			default:
+				v.shell.ShowToastMsg(i18n.Tf("v54l.board.reassign.done", moved, names[from], names[to]), true)
+			}
+			if err == nil && v.cfg.RefreshFunc != nil {
+				v.reload(nil)
+			}
+		})
+	})
 }
 
 // cardRef is the card an action works on: the team-state project it is in
