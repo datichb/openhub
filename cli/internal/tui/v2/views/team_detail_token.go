@@ -229,7 +229,7 @@ func (v *TeamDetailView) renewalDaysField(key, prefix string, check func(func(*t
 // setTeamGitLabURL declares the GitLab of the team-state repository in the
 // team of hub.toml. It is written at once: it is a setting of the machine
 // (the alias it replaces is a name of ~/.ssh/config), not part of the team
-// config that « w » publishes.
+// config that Ctrl+S publishes.
 func (v *TeamDetailView) setTeamGitLabURL(val string) {
 	if v.shell == nil || v.cfg.UpdateHubConfig == nil {
 		return
@@ -388,7 +388,7 @@ func isMemberField(key string) bool { return strings.HasPrefix(key, memberKeyPre
 // memberFields are the fields of the profile of the current member: shared
 // with the team (members.toml of the team-state), written at once (one commit,
 // like a setting of hub.toml), outside the save/undo of the team config that
-// « w » publishes. The section is shown for a member of a team.
+// Ctrl+S publishes. The section is shown for a member of a team.
 func (v *TeamDetailView) memberFields() []configField {
 	if v.cfg.GetMember == nil || v.cfg.SaveMemberField == nil || v.cfg.ResolveTeam == nil || v.cfg.ResolveTeam().MemberID == "" {
 		return nil

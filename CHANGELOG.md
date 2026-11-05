@@ -26,6 +26,14 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Contrôle `oh doctor` « Accès au team-state »** : sonde en lecture de chaque dépôt d'équipe partagé ; un token expiré est un échec qui donne la commande pour le renouveler, un dépôt injoignable un avertissement ; sauté avec `--offline`.
 - **Alerte « À traiter » quand le token git d'un team-state expire** (une seule par dépôt, sous la session la plus récente de l'équipe), et API `daemon.RaiseAlert` / `accessWatch` pour les tâches du démon qui travaillent sur un team-state.
 - **`teamstate.ProbeRemoteWrite`** (`git push --dry-run`) : la sonde de « Créer une équipe » et de `oh team promote` vérifie le droit d'écrire, pas seulement de lire.
+- **Configuration d'équipe réglable sans terminal : `oh team config get|set|unset <section.clé>` et `show [--origin]`.** Toute clé de `config.toml` par sa clé pointée (`tracker.type`, `claim.lease_hours`, `notification.enabled`, `notification.destinations.0.type`, `limits.enforced.session_budget_usd`…), typée et bornée ; `unset` remet la valeur par défaut ; `show --origin` dit d'où vient chaque valeur (défaut, équipe, moi pour cette équipe, moi dans `hub.toml`). Le webhook est toujours affiché masqué.
+- **`oh teams set <id> name|member-id|enabled|default [valeur]`** (avec `repo` d'avant) : le nom affiché, votre identifiant de membre (une fiche qui existe), l'archivage, l'équipe par défaut.
+- **Événement `config_changed {keys, by}`** dans `oh team activity` : chaque publication de la configuration d'équipe (TUI, `oh team config`, assistants, `oh doctor --fix`) laisse les clés changées et l'auteur — jamais les valeurs, certaines sont des secrets.
+- **Gouvernance de la configuration : `[governance] config = "lead"` (défaut) | `"any_member"`.** Les réglages `*_enforced`, `[limits.enforced]` et `[governance]` sont réservés au rôle `lead` (refus clair `ErrNotLead`) ; une équipe sans aucun lead n'est pas verrouillée. Seul un lead change un rôle.
+- **Surcharges personnelles par équipe : `[teams.tracker]`** sous l'entrée `[[teams]]` de `hub.toml` (`oh config set teams.<id>.tracker.<clé>`). Le `[tracker]` actuel reste le défaut de toutes les équipes ; l'assistant `oh team config` et le détail de la TUI écrivent la section de l'équipe.
+- **Détail d'équipe de la TUI complet** : sections Équipe (nom, identifiant de membre, défaut, dépôt, GitLab, **Reconfigurer**), Ma fiche (+ rôle, mode par défaut), Tracker (+ `ticket_pattern`, `write_enabled`), Réserve et auto-plan, Board (résumé et lien vers l'éditeur de colonnes), Claims, **Notifications (`enabled`, type, webhook masqué, canal, nom du bot)**, Restrictions (`[limits]` recommandé et imposé), Gouvernance, Mes surcharges pour cette équipe. Chaque réglage partagé dit s'il vient de l'équipe ou du défaut ; une entrée vide remet le défaut ; `OpenSection` ouvre le détail sur une section.
+- **`oh doctor` : contrôle « Configuration d'équipe »** (clés inconnues ou anciennes, valeurs hors bornes, board invalide, notifications incohérentes) avec `--fix` (`[parallel]` et `type_enforced` retirés, `mattermost_webhook` → `webhook_url` + `type`, `max_auto_plan_per_member` → `max_in_progress_per_member`, valeurs ramenées dans les bornes) ; **avertissement quand le dépôt team-state qui contient un webhook est public** ; contrôle « Équipes de hub.toml » (deux équipes `default = true`, réparé par `--fix`) ; le test de connexion du tracker n'est fait qu'une fois par passage.
+- `oh team config status` montre aussi les notifications (webhook masqué), les claims, la gouvernance et les constats du contrôle.
 
 ### Changed
 
@@ -48,6 +56,13 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **`C'est moi`** et l'écriture de `hub.toml` juste après la fiche dans `oh team init` et la palette ; l'identifiant d'une fiche de collègue n'est plus pris pour le vôtre parce que vous l'avez dans une autre équipe.
 - **Le battement des claims du démon tourne à pas fixe (5 minutes)**, chaque équipe étant filtrée par sa période (`heartbeat_minutes`) : une équipe rejointe après le démarrage du démon est suivie sans le redémarrer (la boucle prenait la plus courte période connue au démarrage, et ne tournait pas si aucune équipe n'en avait).
 - `oh team promote` vérifie le droit d'écrire avant de pousser l'historique, et invite avec `oh team rejoin --repo <url>` (et non `oh team init`, qui crée une équipe). La commande de palette `team.init` s'intitule « Créer une équipe ».
+- **Rupture légère : le plafond d'équipe `max_in_progress_per_member` ne se contourne plus.** Un membre peut demander moins dans `hub.toml`, plus ou « aucune limite » ne passe plus quand l'équipe a choisi sa limite (une équipe qui n'en a pas choisi laisse le choix). `EffectiveTrackerConfig.DoneRetentionDays` (figé à 7, sans lecteur) est supprimé.
+- **Rupture légère : `[teams.tracker]` remplace `[tracker]` pour l'équipe concernée**, et les déclarations de jeton du tracker (assistants, détail) sont écrites dans la section de l'équipe.
+- **`config.toml` ne perd plus les clés qu'il ne connaît pas** (un oh plus récent, une faute de frappe) et n'écrit plus les valeurs égales au défaut ni la section `[parallel]` (lue par personne, écrite par `oh team init`). Le réglage `type_enforced` (sans effet) est retiré. Un réglage hors bornes n'est plus accepté à l'écriture ; seules les sections touchées sont validées, un mapping faux ailleurs ne bloque plus l'enregistrement.
+- **Le webhook d'équipe est masqué partout** (assistant `oh team init`, récapitulatifs, détail, `oh team config`), et l'assistant écrit `webhook_url` + `type` (+ `enabled = true`) au lieu de `mattermost_webhook`. Un webhook sans `type` est reconnu par son serveur (Slack, Discord, Teams, sinon Mattermost) au lieu de ne rien envoyer.
+- **Détail d'équipe : un seul modèle d'enregistrement.** Le partagé est un brouillon publié par `Ctrl+S` (« Publier ») ; le personnel (`hub.toml`) s'enregistre tout seul ; la fiche et les champs de l'équipe dans `hub.toml` aussitôt. Quitter par `Échap` avec un brouillon demande (publier, abandonner, rester) ; un lien vers MCP, les modèles ou les workflows garde le brouillon et le remet au retour.
+- Le handle GitLab reste unique quand le profil change (`oh team profile`, détail), comme à l'arrivée.
+- Bornes dans `teamstate` (jours d'inactivité 1..30, conservation 1..90, limite en cours 0..100, intervalle de synchro 0..60, réserve 1..200) pour la TUI, `oh team config set` et l'écriture ; `auto_sync` et `sync_interval_minutes` sont documentés comme actifs.
 
 ### Fixed
 
@@ -62,6 +77,11 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - La détection d'un clone existant du même dépôt compare les dépôts comme git (schéma, `.git`, casse de l'hôte) et considère toutes les équipes de `hub.toml` ; son message n'est plus codé en français.
 - Une équipe ajoutée à `hub.toml` mais jamais clonée n'échoue plus avec `ErrNotCloned` dans les étapes de l'assistant : la synchronisation la clone.
 - `oh team config status` ne teste plus les projets mappés après un échec de connexion.
+- **Une équipe réglée dans la TUI notifiait jamais** : `notification.enabled` manquait au détail ; l'assistant écrivait `mattermost_webhook` quand la TUI lisait `webhook_url` ; un `type` vide avec `webhook_url` n'envoyait rien.
+- **Les modifications du détail d'équipe n'étaient plus jetées en naviguant** (lien MCP/Modèles/Workflows, `T`, `Échap`).
+- **Deux `default = true` dans `hub.toml`** bloquaient toute écriture ; le chargement garde la première marque et `oh doctor` le dit.
+- **Découverte du tracker** : les anciens mappings vers des colonnes remplacées ne font plus refuser l'enregistrement (ils sont retirés).
+- Le curseur du détail ne saute plus d'une ligne à chaque mise à jour (les lignes de séparation étaient comptées comme des éléments).
 
 ## [5.3.3] — 2026-11-04
 
