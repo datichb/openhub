@@ -234,20 +234,24 @@ func TestSessionsDetailTabs(t *testing.T) {
 		onLoop(func() { ok = v.tabs.fanout.view != nil })
 		return ok
 	}, 3*time.Second, 10*time.Millisecond)
+	var toastsBefore int
 	onLoop(func() {
 		assert.Equal(t, tabFanout, v.tabs.cur)
 		golden.Assert(t, "sessions_tab_fanout", screenText(t, v.tabs.root, 100, 16))
 		v.HandleKey(key('p'))
 		assert.Contains(t, strings.Join(sh.toasts, "\n"), "tourne déjà", "the driver runs: not started twice")
 		v.tabs.fanout.view.Driver = false
+		toastsBefore = len(sh.toasts)
 		v.HandleKey(key('p'))
 	})
 	require.Eventually(t, func() bool { r, _ := be.calls(); return len(r) == 1 }, 3*time.Second, 10*time.Millisecond)
 	relaunch, _ := be.calls()
 	assert.Equal(t, []string{"ses_8f2a01"}, relaunch)
+	// The backend records the call before the done callback runs: wait for
+	// its toast, which resets the pane, then for the reloaded view.
 	require.Eventually(t, func() bool {
 		var ok bool
-		onLoop(func() { ok = v.tabs.fanout.view != nil })
+		onLoop(func() { ok = len(sh.toasts) > toastsBefore && v.tabs.fanout.view != nil })
 		return ok
 	}, 3*time.Second, 10*time.Millisecond)
 
