@@ -97,7 +97,7 @@ enabled = false                    # WebSearch / WebFetch (Exa AI) pour les agen
 attach = "auto"                    # auto | iterm | terminal | tmux | browser | suspend
 iterm_style = "tab"                # tab | split | window (iTerm2)
 idle_sleep_minutes = 5             # mise en veille d'un serveur inactif
-notify = "on"                      # notifications système : on | off
+notify = "on"                      # ancien interrupteur des notifications système : on | off (voir [notifications])
 
 [execution]
 runtime = ""                       # local | container ; vide = défaut du workflow
@@ -151,7 +151,7 @@ Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`
 | `[session]` | `attach` | `auto` | Ouverture d'une session (`OH_SESSION_ATTACH` et `--attach` passent avant) |
 | | `iterm_style` | `tab` | Onglet, panneau ou fenêtre iTerm2 |
 | | `idle_sleep_minutes` | `5` | Veille d'un serveur sans activité ni décision en attente |
-| | `notify` | `on` | Notifications système du démon (décision en attente, fin de tour) |
+| | `notify` | `on` | Ancien interrupteur des notifications système du démon ; `[notifications] system` l'emporte quand il est écrit |
 | `[execution]` | `runtime` | vide | Environnement préféré (Réglages › Exécution), utilisé si le workflow l'autorise |
 | | `engine` | `auto` | Moteur de conteneurs |
 | | `colima_profile` | vide | Profil Colima (`string`) utilisé par le moteur `colima` : oh interroge `colima status --profile <profil>`, cherche le socket Docker de ce profil et nomme `colima start --profile <profil>` quand la VM est arrêtée. Vide = la variable `COLIMA_PROFILE` si elle est définie, sinon `default`. Un nom de lettres, chiffres, `.`, `_` et `-`, commençant par une lettre ou un chiffre ; `oh config set execution.colima_profile work` (`default` revient au défaut) |
@@ -369,9 +369,38 @@ Ordre du runtime : `--runtime` > projet > Réglages (`[execution] runtime`) > `r
 
 ---
 
+## Réglages personnels : `[notifications]` de `hub.toml`
+
+Ce que vous voulez savoir, et comment. Visible dans Réglages › Notifications, **relu à chaque notification** par le démon et la TUI (pas de redémarrage).
+
+```toml
+[notifications]
+system = true               # notifications système du démon
+sound = true                # son du système
+quiet_hours = "22:00-08:00" # pas de notification système ni de son ; les toasts restent
+when_attached = false       # notifier aussi une session à laquelle un terminal est attaché
+when_tui_focused = true     # notifier aussi quand une TUI est ouverte
+
+[notifications.events]      # system | toast | off
+step_done = "system"
+```
+
+| Clé | Défaut | Rôle |
+|---|---|---|
+| `system` | `true` | Notifications système (`false` : les toasts de la TUI restent). Sans cette clé, l'ancien `[session] notify = "off"` éteint toujours les notifications |
+| `sound` | `true` | Joue le son du système |
+| `quiet_hours` | vide | Période `HH:MM-HH:MM` (peut passer minuit) |
+| `when_attached` | `false` | Une session à laquelle un terminal est attaché est regardée : pas de notification système |
+| `when_tui_focused` | `true` | oh ne voit pas quelle fenêtre est devant ; `false` : une TUI ouverte suffit (son toast) |
+| `events.<type>` | selon le type | `system` (notification + toast), `toast`, `off`. Types : `checkpoint`, `question`, `permission`, `sleep`, `budget`, `error`, `credential`, `step_done`, `session_complete`, `remote`, `memory`, `review`, `verdict`, `claim_transferred`, `claim`, `claim_expired`, `tracker_sync`, `wiki`, `config_changed` |
+
+La matrice des valeurs par défaut est dans le [guide des notifications](../guides/notifications.fr.md). Une valeur invalide est refusée à l'enregistrement.
+
+---
+
 ## Configuration des notifications
 
-Les notifications d'équipe sont configurées dans le `config.toml` du **team-state** (pas dans `hub.toml`). Elles sont gérées via `oh team init` ou en éditant la configuration du team-state. Les notifications **système** des sessions se règlent dans `[session] notify` de `hub.toml`.
+Les notifications d'équipe sont configurées dans le `config.toml` du **team-state** (pas dans `hub.toml`). Elles sont gérées via `oh team init` ou en éditant la configuration du team-state. Les notifications **système** et les toasts se règlent dans `[notifications]` de `hub.toml` (voir plus bas et le [guide des notifications](../guides/notifications.fr.md)).
 
 Voir le [guide de configuration d'équipe](../guides/team-setup.fr.md) et le [guide de configuration](../guides/configuration-guide.fr.md#5-configuration-équipe).
 
@@ -405,6 +434,10 @@ webhook_url = "https://discord.com/api/webhooks/..."
 | `destinations[].webhook_url` | string | — | URL du webhook entrant |
 | `destinations[].channel` | string | — | Nom du canal (Mattermost uniquement) |
 | `destinations[].bot_name` | string | "OpenHub" | Nom d'affichage du bot |
+| `events`, `destinations[].events` | liste | `["review.*", "wiki.*", "custom.notification"]` | Événements envoyés à ce webhook : types (`claim.transferred`), familles (`claim.*`) ou `*`. Un motif qui ne correspond à aucun événement est refusé à l'enregistrement et signalé par `oh doctor` |
+| `mention`, `destinations[].mention` | bool | true | Mentionne (`@mattermost_username` de sa fiche, Mattermost et Slack) la personne concernée : relecteur demandé, auteur d'une revue ou d'un wiki, membre qui reçoit un ticket, propriétaire d'une réservation qui expire |
+
+Les webhooks sont joints en parallèle, le texte est écrit dans la langue de l'expéditeur, et un message qui n'atteint pas son webhook est gardé puis renvoyé par le démon (voir le guide).
 
 Toutes ces clés se règlent sans terminal avec `oh team config set notification.enabled true`, `oh team config set notification.webhook_url <url>`, `oh team config set notification.destinations.0.type slack`, et `oh team config unset notification.webhook_url` pour retirer le webhook.
 

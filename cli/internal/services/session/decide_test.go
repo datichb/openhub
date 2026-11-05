@@ -307,3 +307,19 @@ func TestDecideTellsTheDaemon(t *testing.T) {
 	require.NoError(t, f.svc.Decide(f.ctx, Reply{DecisionID: id, Decision: "once"}))
 	assert.Len(t, told, 1, "tool decisions: the tool event does it")
 }
+
+func TestDecideRefusesARequestThatDiedInTheSleep(t *testing.T) {
+	f := newFixture(t, false)
+	id := f.raise(t, domain.Decision{SessionID: "ses_a", Kind: domain.DecisionPermission, ToolRef: "per_1",
+		Payload: domain.DecisionPayload{Data: map[string]any{domain.DataAsleep: "2026-11-05T10:00:00Z"}}})
+	err := f.svc.Decide(f.ctx, Reply{DecisionID: id, Decision: "once"})
+	assert.ErrorIs(t, err, ErrDecisionAsleep)
+	assert.Empty(t, f.tool.replies, "nothing is sent to a request that no longer exists")
+	d, _ := f.svc.Decisions.Get(f.ctx, id)
+	assert.True(t, d.Open())
+
+	// An alert of oh has no request in the tool: it can be dismissed while asleep.
+	alert := f.raise(t, domain.Decision{SessionID: "ses_a", Kind: domain.DecisionError,
+		Payload: domain.DecisionPayload{Data: map[string]any{domain.DataAsleep: "x"}}})
+	require.NoError(t, f.svc.Decide(f.ctx, Reply{DecisionID: alert}))
+}

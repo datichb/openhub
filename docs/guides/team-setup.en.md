@@ -138,7 +138,7 @@ The wizard automatically detects the repository state and adapts behavior:
 | Display name | How your name appears in notifications | `Benjamin` |
 | GitLab handle | Optional. For the GitLab integration and the check of your token; **unique in the team** | `bdatiche` |
 | Role | Your team role | `lead`, `dev`, or `reviewer` |
-| Mattermost username | For mentions in notifications (`oh team init` and "Initialize the team" only) | `benjamin.datiche` |
+| Mattermost username | For the mentions in the notifications of the webhook (reviewer, author of a review, ticket handed over); editable later with `oh team profile --mattermost-username` and in "Members and my card" | `benjamin.datiche` |
 | Tracker username | Your name on the tracker (`tracker_username`), same screens. **Required when the tracker is on another server than the team repository** (see below) | `benjamin.datiche` |
 
 #### Your member card
@@ -272,7 +272,10 @@ webhook_url = "https://hooks.slack.com/services/T.../B.../..."
 [[notification.destinations]]
 type = "discord"
 webhook_url = "https://discord.com/api/webhooks/.../..."
+events = ["*"]                        # optional: review and wiki by default
 ```
+
+Each destination chooses the events it receives (`events`, `review.*` and `wiki.*` by default) and whether the people concerned are mentioned (`mention`, true by default: the reviewer asked, the author of a review, the member a ticket is handed to, with the `mattermost_username` of their card). See the [notifications guide](notifications.en.md).
 
 Commit and push:
 

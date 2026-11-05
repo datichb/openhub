@@ -29,6 +29,13 @@ type fakeAdapter struct {
 	usage     map[string]adapters.SessionResult
 	subs      int
 	failAll   bool // ActiveSessions fails (server not authenticated / not ours)
+	controls  []controlCall
+}
+
+// controlCall is one Control call the fake received.
+type controlCall struct {
+	session string
+	op      adapters.ControlOp
 }
 
 func newFake() *fakeAdapter {
@@ -96,8 +103,18 @@ func (f *fakeAdapter) Pending(_ context.Context, _ adapters.ServerHandle, id str
 func (f *fakeAdapter) Reply(context.Context, adapters.ServerHandle, adapters.DecisionReply) error {
 	return nil
 }
-func (f *fakeAdapter) Control(context.Context, adapters.ServerHandle, string, adapters.ControlOp) error {
+func (f *fakeAdapter) Control(_ context.Context, _ adapters.ServerHandle, session string, op adapters.ControlOp) error {
+	f.mu.Lock()
+	f.controls = append(f.controls, controlCall{session: session, op: op})
+	f.mu.Unlock()
 	return nil
+}
+
+// controlCalls are the Control calls received so far.
+func (f *fakeAdapter) controlCalls() []controlCall {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]controlCall(nil), f.controls...)
 }
 func (f *fakeAdapter) Results(_ context.Context, _ adapters.ServerHandle, id string) (adapters.SessionResult, error) {
 	f.mu.Lock()

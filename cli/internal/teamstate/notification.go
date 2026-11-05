@@ -70,3 +70,10 @@ func MaskWebhook(webhook string) string {
 	}
 	return u.Scheme + "://" + u.Host + "/…" + tail
 }
+
+// MentionOn reports whether the people an event is for are mentioned (the
+// default).
+func (n NotificationConfig) MentionOn() bool { return n.Mention == nil || *n.Mention }
+
+// MentionOn is NotificationConfig.MentionOn for a destination.
+func (d NotificationDestination) MentionOn() bool { return d.Mention == nil || *d.Mention }

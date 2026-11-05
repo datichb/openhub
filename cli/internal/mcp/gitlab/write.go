@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/mcp/protocol"
 )
@@ -111,7 +112,7 @@ func registerWriteTools(server *protocol.Server) {
 	}, handleReplyToMRDiscussion)
 }
 
-func handleCreateMR(_ context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
+func handleCreateMR(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		ProjectID    string `json:"project_id"`
 		SourceBranch string `json:"source_branch"`
@@ -164,6 +165,7 @@ func handleCreateMR(_ context.Context, params json.RawMessage) (*protocol.ToolRe
 	if err != nil {
 		return nil, err
 	}
+	announceMR(ctx, args.ProjectID, args.SourceBranch, args.TargetBranch, args.Title, data)
 
 	return &protocol.ToolResult{
 		Content: []protocol.ContentBlock{{Type: "text", Text: string(data)}},
@@ -302,4 +304,37 @@ func handleReplyToMRDiscussion(_ context.Context, params json.RawMessage) (*prot
 	return &protocol.ToolResult{
 		Content: []protocol.ContentBlock{{Type: "text", Text: string(data)}},
 	}, nil
+}
+
+// MRCreated is a merge request the server has just created.
+type MRCreated struct {
+	ProjectID string // GitLab project (ID or path)
+	Branch    string // source branch
+	Target    string
+	Title     string
+	WebURL    string
+}
+
+// EnvOhProject is the oh project of the session the server runs for (set by
+// oh in the environment of the server).
+const EnvOhProject = "OH_PROJECT_ID"
+
+// OnMRCreated is called by create_mr once a new merge request exists (not when
+// one existed already): the host (oh) announces it to the team. nil = nothing.
+var OnMRCreated func(ctx context.Context, mr MRCreated)
+
+// announceMRTimeout bounds what the host does with a new merge request.
+const announceMRTimeout = 30 * time.Second
+
+func announceMR(ctx context.Context, project, branch, target, title string, created []byte) {
+	if OnMRCreated == nil {
+		return
+	}
+	var mr struct {
+		WebURL string `json:"web_url"`
+	}
+	_ = json.Unmarshal(created, &mr)
+	ctx, cancel := context.WithTimeout(ctx, announceMRTimeout)
+	defer cancel()
+	OnMRCreated(ctx, MRCreated{ProjectID: project, Branch: branch, Target: target, Title: title, WebURL: mr.WebURL})
 }

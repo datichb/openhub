@@ -119,19 +119,22 @@ func (s *trackerSyncer) syncTeam(ctx context.Context, svc trackerSyncService, t 
 			s.last[t.ID] = held.Until.Add(-interval)
 		}
 	}
-	s.report(t.ID, res, err)
+	s.report(ctx, t.ID, res, err)
 }
 
 // report logs the outcome of the sync of a team. A failure is said once (a
 // warning); the same one at the next intervals is only a debug line, until the
 // sync gets through again.
-func (s *trackerSyncer) report(teamID string, res *tracker.SyncResult, err error) {
+func (s *trackerSyncer) report(ctx context.Context, teamID string, res *tracker.SyncResult, err error) {
 	var held *tracker.LeaseHeldError
 	switch {
 	case err == nil:
 		delete(s.failed, teamID)
 		slog.Info("ohd: tracker synchronized", "team", teamID, "created", res.ClaimsCreated, "updated", res.ClaimsUpdated,
 			"released", res.ClaimsReleased, "warnings", len(res.Warnings), "errors", len(res.Errors))
+		if syncChangedSomething(res) {
+			tellTrackerSync(ctx, teamID, syncSummary(res), false)
+		}
 	case errors.As(err, &held):
 		slog.Debug("ohd: tracker sync left to another sync", "team", teamID, "member", held.Member, "until", held.Until)
 	case errors.Is(err, tracker.ErrAutoSyncDisabled), errors.Is(err, teamsvc.ErrNoProjects):
@@ -146,6 +149,7 @@ func (s *trackerSyncer) report(teamID string, res *tracker.SyncResult, err error
 		}
 		s.failed[teamID] = msg
 		slog.Warn("ohd: tracker sync failed", "team", teamID, "error", err)
+		tellTrackerSync(ctx, teamID, msg, true)
 	}
 }
 

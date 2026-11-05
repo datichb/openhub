@@ -32,16 +32,17 @@ func (s *stopCountingAdapter) StopServer(context.Context, adapters.ServerHandle)
 }
 
 type lcEnv struct {
-	t        *testing.T
-	ctx      context.Context
-	sessions *sqlite.SessionStore
-	servers  *sqlite.ServerStore
-	ad       *stopCountingAdapter
-	client   *dclient.Client
-	servDir  string
-	events   chan adapters.ToolEvent
-	endedMu  sync.Mutex
-	ended    []string // OnSessionEnd calls
+	t         *testing.T
+	ctx       context.Context
+	sessions  *sqlite.SessionStore
+	servers   *sqlite.ServerStore
+	decisions *sqlite.DecisionStore
+	ad        *stopCountingAdapter
+	client    *dclient.Client
+	servDir   string
+	events    chan adapters.ToolEvent
+	endedMu   sync.Mutex
+	ended     []string // OnSessionEnd calls
 }
 
 func (e *lcEnv) endedIDs() []string {
@@ -52,11 +53,17 @@ func (e *lcEnv) endedIDs() []string {
 
 func startLifecycle(t *testing.T, idleSleep time.Duration, group string, sessionIDs ...string) *lcEnv {
 	t.Helper()
+	return startLifecycleWith(t, idleSleep, group, nil, sessionIDs...)
+}
+
+// startLifecycleWith is startLifecycle with a say in the options of the daemon.
+func startLifecycleWith(t *testing.T, idleSleep time.Duration, group string, tune func(*lcEnv, *Options), sessionIDs ...string) *lcEnv {
+	t.Helper()
 	p := shortPaths(t)
 	st := sqlitetest.New(t)
 	ctx := context.Background()
 	sqlitetest.Seed(t, st).Project("p1", "/p1")
-	e := &lcEnv{t: t, ctx: ctx, sessions: sqlite.NewSessionStore(st), servers: sqlite.NewServerStore(st), ad: &stopCountingAdapter{fakeAdapter: newFake()},
+	e := &lcEnv{t: t, ctx: ctx, sessions: sqlite.NewSessionStore(st), servers: sqlite.NewServerStore(st), decisions: sqlite.NewDecisionStore(st), ad: &stopCountingAdapter{fakeAdapter: newFake()},
 		servDir: filepath.Join(p.Dir, "servers")}
 	require.NoError(t, e.servers.Upsert(ctx, &domain.Server{GroupKey: group, Adapter: "fake", ProjectID: "p1", PID: os.Getpid(), Status: domain.ServerReady}))
 	for _, id := range sessionIDs {
@@ -64,16 +71,18 @@ func startLifecycle(t *testing.T, idleSleep time.Duration, group string, session
 	}
 	dctx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
-	go func() {
-		done <- Run(dctx, Options{Paths: p, Version: "t", Servers: e.servers, Sessions: e.sessions, Grants: sqlite.NewGrantStore(st),
-			Tick: 50 * time.Millisecond, IdleAfter: time.Hour, IdleSleep: idleSleep, ServersDir: e.servDir,
-			Adapter: func(string) adapters.ToolAdapter { return e.ad },
-			OnSessionEnd: func(_ context.Context, s domain.Session) {
-				e.endedMu.Lock()
-				e.ended = append(e.ended, s.ID)
-				e.endedMu.Unlock()
-			}})
-	}()
+	opts := Options{Paths: p, Version: "t", Servers: e.servers, Sessions: e.sessions, Grants: sqlite.NewGrantStore(st),
+		Tick: 50 * time.Millisecond, IdleAfter: time.Hour, IdleSleep: idleSleep, ServersDir: e.servDir,
+		Adapter: func(string) adapters.ToolAdapter { return e.ad },
+		OnSessionEnd: func(_ context.Context, s domain.Session) {
+			e.endedMu.Lock()
+			e.ended = append(e.ended, s.ID)
+			e.endedMu.Unlock()
+		}}
+	if tune != nil {
+		tune(e, &opts)
+	}
+	go func() { done <- Run(dctx, opts) }()
 	t.Cleanup(func() { cancel(); <-done })
 	e.client = dclient.NewClient(p)
 	require.Eventually(t, func() bool { _, err := e.client.Health(ctx); return err == nil }, 5*time.Second, 20*time.Millisecond)

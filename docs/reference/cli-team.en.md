@@ -319,7 +319,7 @@ The command, the sync key of the team screens (`s`) and the automatic sync follo
 
 ### oh team notify test
 
-Sends a test message to the webhook(s) configured in the team-state.
+Sends a test message to the webhook(s) configured in the team-state (no queue: an error is said at once, without the address of the webhook). The events each destination receives are set with `oh team config set notification.events …`; see the [notifications guide](../guides/notifications.en.md).
 
 ```
 oh team notify test [-m <message>]

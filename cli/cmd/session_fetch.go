@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/notifypolicy"
 	"github.com/datichb/openhub/cli/internal/remote"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	remotesvc "github.com/datichb/openhub/cli/internal/services/remote"
@@ -66,12 +68,15 @@ func newRemoteReturnService(ctx context.Context, a *app.App) *remotesvc.Service 
 		req.Location = location
 		return rs.AdoptSession(ctx, sid, trs, req)
 	}
-	if a.Config.Session.NotifyEnabled() {
-		n := sysnotify.New()
-		svc.Notify = func(title, status string) {
-			_ = n.Notify(ctx, sysnotify.Note{Title: i18n.T("tui.remote.notify.title"),
-				Message: i18n.Tf("tui.remote.notify."+status, title), Group: "oh-sessions", Sound: true})
+	policy := notifyPolicyOf(a)
+	n := systemNotifier()
+	svc.Notify = func(title, status string) {
+		p := policy.Get()
+		if !p.SystemFor(notifypolicy.KindRemote) || p.Quiet(time.Now()) {
+			return
 		}
+		_ = n.Notify(ctx, sysnotify.Note{Title: i18n.T("tui.remote.notify.title"),
+			Message: i18n.Tf("tui.remote.notify."+status, title), Group: "oh-remote", Sound: p.SoundOn()})
 	}
 	return svc
 }

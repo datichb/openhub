@@ -20,6 +20,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/gateway"
+	"github.com/datichb/openhub/cli/internal/notifypolicy"
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
 	"github.com/datichb/openhub/cli/internal/services/report"
@@ -56,6 +57,9 @@ type Options struct {
 	Decisions domain.DecisionStore
 	// Notify shows desktop notifications (nil = disabled).
 	Notify NotifyFunc
+	// NotifyPolicy is what the user chose about being told, read at each
+	// notification (so a change of hub.toml applies at once); nil = the defaults.
+	NotifyPolicy func() notifypolicy.Settings
 	// NotifyWindow groups the notifications of this period (default 3s).
 	NotifyWindow time.Duration
 	// ProjectName names a project in notifications (optional).

@@ -17,7 +17,6 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon/api"
 	"github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/sysnotify"
 )
 
 var daemonCmd = &cobra.Command{
@@ -84,17 +83,6 @@ var daemonStopCmd = &cobra.Command{
 	},
 }
 
-// daemonNotifier returns the desktop notifier of the daemon ([session] notify).
-func daemonNotifier(a *app.App) daemon.NotifyFunc {
-	if !a.Config.Session.NotifyEnabled() {
-		return nil
-	}
-	n := sysnotify.New()
-	return func(ctx context.Context, title, message string) error {
-		return n.Notify(ctx, sysnotify.Note{Title: title, Message: message, Group: "oh-sessions", Sound: true})
-	}
-}
-
 func init() {
 	daemonStopCmd.Flags().Bool("force", false, "")
 	daemonCmd.AddCommand(withInitDB(daemonRunCmd), daemonStatusCmd, daemonStopCmd)
@@ -107,24 +95,25 @@ func init() {
 func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Options {
 	wk := newWikiServiceFor(a)
 	opts := daemon.Options{
-		Capability:  capability,
-		Paths:       api.Paths{Dir: ohRunDir()},
-		Version:     buildinfo.Version,
-		Grants:      a.Grants,
-		Servers:     a.Servers,
-		GatewayView: gatewayView(a.Servers),
-		BeadsBinary: realBeadsBinary(),
-		MCPCommand:  gatewayMCPCommand(ohBundlesDir()),
-		Sessions:    a.Sessions,
-		Decisions:   a.Decisions,
-		Usage:       a.Usage,
-		AgentEvents: a.AgentEvents,
-		SessionsDir: ohSessionsDir(),
-		ServersDir:  ohServersDir(),
-		Checkpoints: daemonCheckpoints(a, wk),
-		Reports:     daemonReports(a),
-		Wiki:        wk,
-		Notify:      daemonNotifier(a),
+		Capability:   capability,
+		Paths:        api.Paths{Dir: ohRunDir()},
+		Version:      buildinfo.Version,
+		Grants:       a.Grants,
+		Servers:      a.Servers,
+		GatewayView:  gatewayView(a.Servers),
+		BeadsBinary:  realBeadsBinary(),
+		MCPCommand:   gatewayMCPCommand(ohBundlesDir()),
+		Sessions:     a.Sessions,
+		Decisions:    a.Decisions,
+		Usage:        a.Usage,
+		AgentEvents:  a.AgentEvents,
+		SessionsDir:  ohSessionsDir(),
+		ServersDir:   ohServersDir(),
+		Checkpoints:  daemonCheckpoints(a, wk),
+		Reports:      daemonReports(a),
+		Wiki:         wk,
+		Notify:       daemonNotifier(),
+		NotifyPolicy: notifyPolicyOf(a).Get,
 		ProjectName: func(ctx context.Context, id string) string {
 			if p, err := a.Projects.Get(ctx, id); err == nil {
 				return p.Name
@@ -156,5 +145,7 @@ func daemonOptions(ctx context.Context, a *app.App, capability string) daemon.Op
 	}
 	claimsDaemonOptions(ctx, a, &opts)
 	trackerSyncDaemonOptions(a, &opts)
+	claimExpiryDaemonOptions(a, &opts)
+	notifyOutboxDaemonOptions(&opts)
 	return opts
 }

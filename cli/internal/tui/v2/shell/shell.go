@@ -46,6 +46,7 @@ package shell
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -140,6 +141,10 @@ type Shell struct {
 	activeToasts int
 	// activeToastIDs tracks the page names of visible toasts for manual dismiss.
 	activeToastIDs []string
+	// recentToasts remembers when each message was last shown: the same
+	// message within toastRepeatWindow is not shown (nor recorded) again.
+	toastMu      sync.Mutex
+	recentToasts map[string]time.Time
 
 	// running is true while app.Run() is executing (event loop active).
 	// Used by TUILogHandler to avoid QueueUpdateDraw deadlock before app starts.

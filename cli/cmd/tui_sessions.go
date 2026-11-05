@@ -15,6 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/launcher"
+	"github.com/datichb/openhub/cli/internal/notifypolicy"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/services/checkpoint"
@@ -129,6 +130,8 @@ func (t *tuiSessions) refresh(ctx context.Context) {
 	}
 	running, decisions := 0, 0
 	var fresh []domain.Decision
+	policy := notifyPolicyOf(t.a).Get()
+	live := map[string]bool{}
 	t.mu.Lock()
 	for _, v := range list {
 		if _, ok := t.teams[v.Session.ProjectID]; !ok {
@@ -139,12 +142,18 @@ func (t *tuiSessions) refresh(ctx context.Context) {
 		}
 		decisions += len(v.Decisions)
 		for _, d := range v.Decisions {
+			live[d.ID] = true
 			if !t.seen[d.ID] {
 				t.seen[d.ID] = true
-				if t.primed {
+				if t.primed && policy.ToastOn(decisionKind(d)) {
 					fresh = append(fresh, d)
 				}
 			}
+		}
+	}
+	for id := range t.seen { // a decision that is gone is forgotten, as the daemon does
+		if !live[id] {
+			delete(t.seen, id)
 		}
 	}
 	ended := t.endedSessions(list)
@@ -586,4 +595,16 @@ func (t *tuiSessions) MRDescription(ctx context.Context, sessionID string) (stri
 		md += "\n" + i18n.T("cmd.session.results_snapshot")
 	}
 	return strings.TrimRight(md, "\n"), nil
+}
+
+// decisionKind is the kind of notification a decision belongs to (the
+// settings [notifications.events]): an alert that only the user can fix is a
+// credential, the other kinds are those of the decisions.
+func decisionKind(d domain.Decision) notifypolicy.Kind {
+	if d.Kind == domain.DecisionError {
+		if _, ok := d.Payload.Data["oh_alert"]; ok {
+			return notifypolicy.KindCredential
+		}
+	}
+	return notifypolicy.Kind(d.Kind)
 }

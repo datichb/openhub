@@ -186,7 +186,7 @@ Liste les événements récents d'activité de l'équipe.
 
 ### `team_notify`
 
-Envoie une notification au canal d'équipe (supporte Mattermost, Slack, Discord, Teams).
+Envoie un message au canal d'équipe (supporte Mattermost, Slack, Discord, Teams). Le message est **signé** (membre et projet), limité à 1000 caractères et à 5 messages par 10 minutes, et ne peut pas appeler `@channel`, `@all` ni `@here`.
 
 **Entrée :**
 ```json
@@ -195,7 +195,7 @@ Envoie une notification au canal d'équipe (supporte Mattermost, Slack, Discord,
 }
 ```
 
-**Sortie :** Confirmation
+**Sortie :** « Notification sent to N destination(s). » ; si certaines destinations n'ont pas répondu, le message est gardé et renvoyé par le démon (la réponse le dit). **Erreur** (l'agent n'a alors rien envoyé) : message vide ou trop long, notifications désactivées (`notification.enabled`), aucune destination valide, trop de messages, ou webhook en échec (sans son adresse).
 
 **Accès :** `orchestrator-dev`, `reviewer`, `auditor`
 

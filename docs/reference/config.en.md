@@ -97,7 +97,7 @@ enabled = false                    # WebSearch / WebFetch (Exa AI) for agents
 attach = "auto"                    # auto | iterm | terminal | tmux | browser | suspend
 iterm_style = "tab"                # tab | split | window (iTerm2)
 idle_sleep_minutes = 5             # idle server goes to sleep
-notify = "on"                      # system notifications: on | off
+notify = "on"                      # former switch of the system notifications: on | off (see [notifications])
 
 [execution]
 runtime = ""                       # local | container; empty = workflow default
@@ -151,7 +151,7 @@ Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `
 | `[session]` | `attach` | `auto` | How a session is opened (`OH_SESSION_ATTACH` and `--attach` come first) |
 | | `iterm_style` | `tab` | iTerm2 tab, split or window |
 | | `idle_sleep_minutes` | `5` | Sleep of a server without activity or pending decision |
-| | `notify` | `on` | System notifications of the daemon (pending decision, end of turn) |
+| | `notify` | `on` | Former switch of the system notifications of the daemon; `[notifications] system` wins when it is written |
 | `[execution]` | `runtime` | empty | Preferred environment (Settings › Execution), used when the workflow allows it |
 | | `engine` | `auto` | Container engine |
 | | `colima_profile` | empty | Colima profile (`string`) used by the `colima` engine: oh runs `colima status --profile <profile>`, looks for the Docker socket of that profile and names `colima start --profile <profile>` when the VM is stopped. Empty = the `COLIMA_PROFILE` variable when set, else `default`. A name of letters, digits, `.`, `_` and `-`, starting with a letter or a digit; `oh config set execution.colima_profile work` (`default` goes back to the default) |
@@ -369,9 +369,38 @@ Runtime order: `--runtime` > project > Settings (`[execution] runtime`) > workfl
 
 ---
 
+## Personal settings: `[notifications]` of `hub.toml`
+
+What you want to be told, and how. Shown in Settings › Notifications, **read again at each notification** by the daemon and the TUI (no restart).
+
+```toml
+[notifications]
+system = true               # system notifications of the daemon
+sound = true                # the system sound
+quiet_hours = "22:00-08:00" # no system notification or sound; the toasts stay
+when_attached = false       # also notify a session a terminal is attached to
+when_tui_focused = true     # also notify while a TUI is open
+
+[notifications.events]      # system | toast | off
+step_done = "system"
+```
+
+| Key | Default | Role |
+|---|---|---|
+| `system` | `true` | System notifications (`false`: the toasts of the TUI stay). When missing, the former `[session] notify = "off"` still turns them off |
+| `sound` | `true` | Plays the system sound |
+| `quiet_hours` | empty | A `HH:MM-HH:MM` period (may cross midnight) |
+| `when_attached` | `false` | A session a terminal is attached to is being watched: no system notification |
+| `when_tui_focused` | `true` | oh cannot tell which window is in front; `false`: an open TUI is enough (its toast) |
+| `events.<type>` | per type | `system` (notification + toast), `toast`, `off`. Types: `checkpoint`, `question`, `permission`, `sleep`, `budget`, `error`, `credential`, `step_done`, `session_complete`, `remote`, `memory`, `review`, `verdict`, `claim_transferred`, `claim`, `claim_expired`, `tracker_sync`, `wiki`, `config_changed` |
+
+The matrix of the defaults is in the [notifications guide](../guides/notifications.en.md). An invalid value is refused when saved.
+
+---
+
 ## Notification Configuration
 
-Team notifications are configured in the **team-state** `config.toml` (not in `hub.toml`). They are managed via `oh team init` or by editing the team-state configuration. Session **system** notifications are set in `[session] notify` of `hub.toml`.
+Team notifications are configured in the **team-state** `config.toml` (not in `hub.toml`). They are managed via `oh team init` or by editing the team-state configuration. **System** notifications and toasts are set in `[notifications]` of `hub.toml` (below, and the [notifications guide](../guides/notifications.en.md)).
 
 See the [team setup guide](../guides/team-setup.en.md) and the [configuration guide](../guides/configuration-guide.en.md#5-team-configuration).
 
@@ -405,6 +434,10 @@ webhook_url = "https://discord.com/api/webhooks/..."
 | `destinations[].webhook_url` | string | — | Incoming webhook URL |
 | `destinations[].channel` | string | — | Channel name (Mattermost only) |
 | `destinations[].bot_name` | string | "OpenHub" | Bot display name |
+| `events`, `destinations[].events` | list | `["review.*", "wiki.*", "custom.notification"]` | Events sent to this webhook: types (`claim.transferred`), families (`claim.*`) or `*`. A pattern that matches no event is refused when saved and reported by `oh doctor` |
+| `mention`, `destinations[].mention` | bool | true | Mentions (`@mattermost_username` of their card, Mattermost and Slack) the person concerned: the reviewer asked, the author of a review or of a wiki proposal, the member a ticket is handed to, the owner of a claim about to expire |
+
+Webhooks are reached in parallel, the text is written in the language of the sender, and a message that does not reach its webhook is kept and sent again by the daemon (see the guide).
 
 All of these are set without a terminal: `oh team config set notification.enabled true`, `oh team config set notification.webhook_url <url>`, `oh team config set notification.destinations.0.type slack`, and `oh team config unset notification.webhook_url` removes the webhook.
 

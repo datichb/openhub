@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/fsutil"
 	"github.com/datichb/openhub/cli/internal/gitremote"
 	"github.com/datichb/openhub/cli/internal/limits"
+	"github.com/datichb/openhub/cli/internal/notifypolicy"
 	toml "github.com/pelletier/go-toml/v2"
 )
 
@@ -51,6 +52,10 @@ type Config struct {
 	Websearch WebsearchConfig `toml:"websearch,omitempty"`
 	// Session holds v5 session settings (how sessions are opened, idle sleep).
 	Session SessionConfig `toml:"session,omitempty"`
+	// Notifications holds what the user wants to be told and how (system
+	// notifications of the daemon, toasts of the TUI): read again when the file
+	// changes.
+	Notifications notifypolicy.Settings `toml:"notifications,omitempty"`
 	// Execution holds the v5 execution settings (default runtime, container
 	// engine, image cache, pinned tool version, strict isolation).
 	Execution ExecutionConfig `toml:"execution,omitempty"`
@@ -147,8 +152,21 @@ type SessionConfig struct {
 	Notify string `toml:"notify,omitempty"`
 }
 
-// NotifyEnabled reports whether system notifications are on.
+// NotifyEnabled reports whether system notifications are on according to the
+// former [session] notify setting alone; NotifyPolicy is the answer to use.
 func (s SessionConfig) NotifyEnabled() bool { return s.Notify != "off" }
+
+// NotifyPolicy is what the user chose about being told ([notifications]). The
+// former [session] notify = "off" still turns the system notifications off, as
+// long as [notifications] system says nothing.
+func (c *Config) NotifyPolicy() notifypolicy.Settings {
+	p := c.Notifications
+	if p.System == nil && !c.Session.NotifyEnabled() {
+		off := false
+		p.System = &off
+	}
+	return p
+}
 
 // FindTeam looks up a team by ID. Returns nil if not found.
 func (c *Config) FindTeam(id string) *TeamConfig {
@@ -897,6 +915,9 @@ func saveLocked(c *Config) error {
 		if err := ValidateTeams(c.Teams); err != nil {
 			return fmt.Errorf("invalid team config: %w", err)
 		}
+	}
+	if err := c.Notifications.Validate(); err != nil {
+		return fmt.Errorf("invalid [notifications]: %w", err)
 	}
 
 	changed, err := c.src.changedSince()

@@ -1030,6 +1030,7 @@ type PublishReviewParams struct {
 	Branch   string
 	MRURL    string // merge request URL (may be empty if MR was not created)
 	Label    string // label to add (e.g. LabelAgentReviewed); empty = skip
+	Reviewer string // member ID asked to review (notified, mentioned); empty = none
 }
 
 // PublishReviewBatch atomically transitions a claim to review status, sets the
@@ -1090,6 +1091,9 @@ func (r *Repo) PublishReviewBatch(ctx context.Context, p PublishReviewParams) (E
 		}
 		if p.MRURL != "" {
 			event.Data["mr_url"] = p.MRURL
+		}
+		if p.Reviewer != "" {
+			event.Data["reviewer"] = p.Reviewer
 		}
 		eventRelPath, err := r.appendEventLocal(event)
 		if err != nil {

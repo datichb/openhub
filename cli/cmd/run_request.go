@@ -317,6 +317,11 @@ func sessionMCP(ctx context.Context, a *app.App, project *domain.Project, teamCf
 			// environment (formerly a file written by `oh deploy`).
 			env[team.EnvTeamID], env[team.EnvProjectID] = teamCfg.TeamID, project.ID
 		}
+		if s.Name == "gitlab" {
+			// A merge request created by the agent is announced to its team
+			// (review.ready), as oh mr create does.
+			env[gitlab.EnvOhProject] = project.ID
+		}
 		def := sessionspec.MCPServerDef{Name: s.Name, Type: "local", Command: cmd}
 		if len(env) > 0 {
 			def.Environment = env

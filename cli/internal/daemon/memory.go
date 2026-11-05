@@ -13,6 +13,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/limits"
+	"github.com/datichb/openhub/cli/internal/notifypolicy"
 )
 
 // Memory cap: the daemon measures the resident memory of the live tool
@@ -145,9 +146,7 @@ func (d *Daemon) enforceMemory(ctx context.Context, ready []domain.Server, held 
 	}
 	if warn {
 		slog.Warn("ohd: tool servers above the memory cap", "used_mb", used, "cap_mb", limitMB)
-		if d.opts.Notify != nil {
-			_ = d.opts.Notify(ctx, i18n.T("cmd.budget.memory_title"), i18n.Tf("cmd.budget.memory_over", used, limitMB))
-		}
+		d.notes.direct(notifypolicy.KindMemory, i18n.T("cmd.budget.memory_title"), i18n.Tf("cmd.budget.memory_over", used, limitMB))
 	}
 	idle := make([]domain.Server, 0, len(ready))
 	for _, s := range ready {

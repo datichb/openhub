@@ -126,6 +126,9 @@ func TestSleepSavesResults(t *testing.T) {
 	s, _ := sessions.Get(ctx, "ses_a")
 	assert.Equal(t, domain.RunSleeping, s.State)
 	open, _ := decisions.ListOpen(ctx, domain.DecisionFilter{SessionID: "ses_a"})
-	require.Len(t, open, 1, "tool requests die with the server, oh alerts stay")
-	assert.Equal(t, domain.DecisionError, open[0].Kind)
+	require.Len(t, open, 2, "the tool request stays, asleep, and so does the oh alert")
+	assert.Equal(t, domain.DecisionPermission, open[0].Kind)
+	assert.True(t, open[0].Asleep(), "the request died with the server: marked asleep, taken up at the wake-up")
+	assert.Equal(t, domain.DecisionError, open[1].Kind)
+	assert.False(t, open[1].Asleep())
 }

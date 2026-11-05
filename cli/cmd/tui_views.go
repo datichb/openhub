@@ -216,6 +216,20 @@ func teamTrackerType(ctx context.Context, team config.TeamConfig) string {
 	return cfg.Tracker.Type
 }
 
+// teamPushLabelsEnforced tells whether a team imposes push_labels
+// (tracker.push_labels_enforced in its config.toml). Off the event loop.
+func teamPushLabelsEnforced(ctx context.Context, team config.TeamConfig) bool {
+	if team.StateRepo == "" {
+		return false
+	}
+	repo := teamstate.NewRepo(team.StateRepo, team.StatePath)
+	if !repo.IsCloned() {
+		return false
+	}
+	cfg, err := repo.LoadConfig(ctx)
+	return err == nil && cfg != nil && cfg.Tracker.IsPushLabelsEnforced()
+}
+
 // secretChecker tells whether a secret is stored, and shows its last four
 // characters; the views that edit a token share it.
 func secretChecker(a *app.App) func(ctx context.Context, key string) (bool, string) {

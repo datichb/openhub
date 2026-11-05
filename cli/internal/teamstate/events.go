@@ -46,39 +46,11 @@ func (r *Repo) AppendEvent(ctx context.Context, e Event) error {
 	if e.Timestamp.IsZero() {
 		e.Timestamp = time.Now().UTC()
 	}
-
 	return r.withWriteLock(ctx, func(ctx context.Context) error {
-		// Determine file path: projects/<project>/events/YYYY-MM.jsonl
-		month := e.Timestamp.Format("2006-01")
-		dir := filepath.Join(r.path, "projects", e.Project, "events")
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return fmt.Errorf("creating events dir: %w", err)
-		}
-
-		filename := month + ".jsonl"
-		path := filepath.Join(dir, filename)
-
-		// Marshal event to JSON
-		line, err := json.Marshal(e)
+		relPath, err := r.appendEventLocal(e)
 		if err != nil {
-			return fmt.Errorf("marshaling event: %w", err)
+			return err
 		}
-
-		// Append to file
-		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-		if err != nil {
-			return fmt.Errorf("opening events file: %w", err)
-		}
-		if _, err := f.Write(append(line, '\n')); err != nil {
-			f.Close()
-			return fmt.Errorf("writing event: %w", err)
-		}
-		if err := f.Close(); err != nil {
-			return fmt.Errorf("closing events file: %w", err)
-		}
-
-		// Commit and push
-		relPath := filepath.Join("projects", e.Project, "events", filename)
 		msg := fmt.Sprintf("event: %s by %s on %s", e.Type, e.Actor, e.Project)
 		return r.commitAndPush(ctx, msg, relPath)
 	})
@@ -131,6 +103,7 @@ func (r *Repo) appendEventLocal(e Event) (string, error) {
 		return "", fmt.Errorf("closing events file: %w", err)
 	}
 
+	r.queueEvent(e)
 	return filepath.Join("projects", e.Project, "events", filename), nil
 }
 

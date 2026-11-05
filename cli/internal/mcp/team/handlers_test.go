@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -295,28 +297,37 @@ func TestHandleTeamNotify_Disabled(t *testing.T) {
 	}
 	setupHandlerWriteTest(t)
 
-	// Config has notifications disabled — Dispatch returns nil immediately
+	// The team turned notifications off: the agent is told nothing was sent.
 	result, err := handleTeamNotify(context.Background(), json.RawMessage(`{"message":"hello team"}`))
 	require.NoError(t, err)
 	require.Len(t, result.Content, 1)
-	assert.Contains(t, result.Content[0].Text, "Notification sent")
+	assert.True(t, result.IsError)
+	assert.Contains(t, result.Content[0].Text, "disabled")
+	assert.Contains(t, result.Content[0].Text, "nothing was sent")
+	assert.NotContains(t, result.Content[0].Text, "Notification sent")
 }
 
-func TestHandleTeamNotify_Enabled(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-	stateDir := setupHandlerWriteTest(t)
-
-	// Start a mock webhook server
-	received := make(chan string, 1)
+// enableNotify turns the notifications of the test team on, towards a fake
+// webhook whose messages it returns.
+func enableNotify(t *testing.T, stateDir string, code int) *[]string {
+	t.Helper()
+	var mu sync.Mutex
+	var texts []string
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		received <- r.URL.Path
+		var m struct {
+			Text string `json:"text"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&m)
+		if code != http.StatusOK {
+			w.WriteHeader(code)
+			return
+		}
+		mu.Lock()
+		texts = append(texts, m.Text)
+		mu.Unlock()
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer ts.Close()
-
-	// Update config.toml to enable notifications with the test server
+	t.Cleanup(ts.Close)
 	configContent := fmt.Sprintf(`
 [notification]
 enabled = true
@@ -326,19 +337,83 @@ channel = "test-channel"
 bot_name = "TestBot"
 `, ts.URL)
 	require.NoError(t, os.WriteFile(filepath.Join(stateDir, "config.toml"), []byte(configContent), 0o644))
+	return &texts
+}
 
-	result, err := handleTeamNotify(context.Background(), json.RawMessage(`{"message":"deploy complete"}`))
+func TestHandleTeamNotify_Enabled(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	stateDir := setupHandlerWriteTest(t)
+	texts := enableNotify(t, stateDir, http.StatusOK)
+	notifyLimit = &rateLimit{max: notifyBurst, window: notifyBurstEvery}
+	t.Setenv(EnvProjectID, "myproject")
+
+	result, err := handleTeamNotify(context.Background(), json.RawMessage(`{"message":"deploy complete @channel"}`))
 	require.NoError(t, err)
 	require.Len(t, result.Content, 1)
-	assert.Contains(t, result.Content[0].Text, "Notification sent")
+	assert.False(t, result.IsError, result.Content[0].Text)
+	assert.Contains(t, result.Content[0].Text, "Notification sent to 1 destination")
 
-	// Verify webhook was called
-	select {
-	case path := <-received:
-		assert.Equal(t, "/hooks/test", path)
-	default:
-		t.Error("webhook was not called")
+	require.Len(t, *texts, 1, "the webhook was called")
+	got := (*texts)[0]
+	assert.Contains(t, got, "deploy complete")
+	assert.Contains(t, got, "myproject", "signed with the project")
+	assert.Contains(t, got, "🤖")
+	assert.NotContains(t, got, "@channel", "an agent does not ping the whole channel")
+}
+
+func TestHandleTeamNotify_Limits(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
 	}
+	stateDir := setupHandlerWriteTest(t)
+	texts := enableNotify(t, stateDir, http.StatusOK)
+	now := time.Date(2026, 11, 5, 10, 0, 0, 0, time.UTC)
+	notifyLimit = &rateLimit{max: 2, window: 10 * time.Minute, now: func() time.Time { return now }}
+	t.Cleanup(func() { notifyLimit = &rateLimit{max: notifyBurst, window: notifyBurstEvery} })
+	ctx := context.Background()
+
+	empty, err := handleTeamNotify(ctx, json.RawMessage(`{"message":"   "}`))
+	require.NoError(t, err)
+	assert.True(t, empty.IsError)
+	long, err := handleTeamNotify(ctx, json.RawMessage(`{"message":"`+strings.Repeat("é", maxNotifyRunes+1)+`"}`))
+	require.NoError(t, err)
+	assert.True(t, long.IsError)
+	assert.Contains(t, long.Content[0].Text, "too long")
+	assert.Empty(t, *texts, "a refused message sends nothing and does not use the allowance")
+
+	for i := 0; i < 2; i++ {
+		r, err := handleTeamNotify(ctx, json.RawMessage(`{"message":"one"}`))
+		require.NoError(t, err)
+		assert.False(t, r.IsError)
+	}
+	r, err := handleTeamNotify(ctx, json.RawMessage(`{"message":"three"}`))
+	require.NoError(t, err)
+	assert.True(t, r.IsError)
+	assert.Contains(t, r.Content[0].Text, "Too many notifications")
+	assert.Len(t, *texts, 2)
+
+	now = now.Add(11 * time.Minute)
+	r, err = handleTeamNotify(ctx, json.RawMessage(`{"message":"later"}`))
+	require.NoError(t, err)
+	assert.False(t, r.IsError, "the window passed")
+}
+
+func TestHandleTeamNotify_RevokedWebhookIsReported(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	stateDir := setupHandlerWriteTest(t)
+	enableNotify(t, stateDir, http.StatusNotFound)
+	notifyLimit = &rateLimit{max: notifyBurst, window: notifyBurstEvery}
+
+	r, err := handleTeamNotify(context.Background(), json.RawMessage(`{"message":"hello"}`))
+	require.NoError(t, err)
+	assert.True(t, r.IsError)
+	assert.Contains(t, r.Content[0].Text, "not delivered")
+	assert.Contains(t, r.Content[0].Text, "404")
+	assert.NotContains(t, r.Content[0].Text, "/hooks/test", "the webhook is never shown")
 }
 
 func TestHandleTeamPatternsPropose(t *testing.T) {

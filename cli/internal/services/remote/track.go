@@ -153,9 +153,10 @@ func (s *Service) trackOne(ctx context.Context, sid string, ref domain.RemoteRef
 			slog.Warn("remote: session state not updated", "session", sid, "err", err)
 		}
 		if ToFetch(ref) && s.Notify != nil {
+			// Never the title of the session: it comes from what the user typed.
 			title := sid
-			if sess.Title != nil {
-				title = *sess.Title
+			if sess.EntryAgent != "" {
+				title += " · " + sess.EntryAgent
 			}
 			s.Notify(title, string(st))
 		}

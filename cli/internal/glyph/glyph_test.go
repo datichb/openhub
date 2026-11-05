@@ -136,6 +136,7 @@ func TestStatesShareOnlyTheirMeaning(t *testing.T) {
 func TestEventsTable(t *testing.T) {
 	want := map[string]string{
 		"claim.taken": "●", "claim.released": "○", "claim.transferred": "→", "claim.conflict": "✗",
+		"claim.expiring": "⚠", "claim.expired": "○",
 		"session.complete": "✔", "review.ready": "◐", "review.approved": "✔", "review.rejected": "✗",
 		"audit.finding": "⚠", "wiki.proposal": "✎", "wiki.accepted": "✔", "wiki.rejected": "✗",
 		"workflow.published": "✔", "workflow.restored": "↺", "workflow.archived": "○", "config_changed": "✎",

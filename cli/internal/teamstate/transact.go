@@ -213,8 +213,10 @@ func (r *Repo) transact(ctx context.Context, keep bool, build func(ctx context.C
 			return classifyRemoteError(r.credentialRemote(), err)
 		}
 		tx := &Tx{r: r, written: map[string]bool{}}
+		r.resetEvents()
 		res, err := build(context.WithValue(ctx, txKey{}, tx), tx)
 		if err != nil {
+			r.resetEvents()
 			if !keep {
 				r.restore(ctx, tx)
 			}
@@ -222,10 +224,16 @@ func (r *Repo) transact(ctx context.Context, keep bool, build func(ctx context.C
 		}
 		files := tx.files()
 		if len(files) == 0 {
+			r.resetEvents()
 			return nil
 		}
 		done, retry, err := r.commitTx(ctx, tx, files, tx.message(res), keep)
 		if done || err != nil {
+			if err == nil {
+				r.emitEvents()
+			} else {
+				r.resetEvents()
+			}
 			return err
 		}
 		if !retry {

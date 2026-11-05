@@ -146,3 +146,14 @@ func TestProbePublic(t *testing.T) {
 	_, err = ProbePublic(t.Context(), "/srv/git/team.git")
 	assert.Error(t, err)
 }
+
+func TestNotificationIssuesFlagAnEventNobodyEmits(t *testing.T) {
+	i18ntest.Set(t, "en")
+	n := &NotificationConfig{Enabled: true, Type: "slack", WebhookURL: "https://hooks.slack.com/x", Events: []string{"claim.*", "reviews"},
+		Destinations: []NotificationDestination{{Type: "slack", WebhookURL: "https://hooks.slack.com/y", Events: []string{"nothing.*"}}}}
+	var keys []string
+	for _, issue := range notificationIssues(n) {
+		keys = append(keys, issue.Key)
+	}
+	assert.ElementsMatch(t, []string{"notification.events", "notification.destinations[0].events"}, keys)
+}

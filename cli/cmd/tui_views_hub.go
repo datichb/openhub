@@ -210,8 +210,9 @@ func buildMCPView(a *app.App) views.View {
 // buildSettingsView is the configuration of the hub (hub.toml).
 func buildSettingsView(a *app.App) views.View {
 	return views.NewSettingsView(views.SettingsViewConfig{
-		ToolVersion: detectedToolVersion,
-		TrackerType: teamTrackerType,
+		ToolVersion:        detectedToolVersion,
+		TrackerType:        teamTrackerType,
+		PushLabelsEnforced: teamPushLabelsEnforced,
 		GetConfig: func() *config.Config {
 			// Return the live config directly — no copy.
 			// The SettingsView uses undo (reload from disk) instead of

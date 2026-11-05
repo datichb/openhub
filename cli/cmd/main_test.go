@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/testenv"
 )
 
@@ -31,6 +32,10 @@ func runMain(m *testing.M) int {
 	// The real hub and home are out of reach of the tests (the Go caches of
 	// the user stay where they are, testenv pins them: the build below).
 	finish := testenv.Isolate()
+
+	// No test announces an event to a webhook unless it installs the sink
+	// itself (team_events_sink_test.go).
+	teamstate.SetEventSink(nil)
 
 	if binarySetup != nil {
 		cleanup, err := binarySetup()

@@ -33,6 +33,12 @@ func TestCommand(t *testing.T) {
 	assert.Nil(t, notifier("windows").Command(note))
 }
 
+// notify-send reads the markup of its texts: a text from outside cannot inject any.
+func TestNotifySendEscapesMarkup(t *testing.T) {
+	got := notifier("linux", "notify-send").Command(Note{Title: "a & b", Message: "<b>x</b>"})
+	assert.Equal(t, []string{"/usr/local/bin/notify-send", "--app-name=oh", "a &amp; b", "&lt;b&gt;x&lt;/b&gt;"}, got)
+}
+
 func TestNotify(t *testing.T) {
 	n := notifier("darwin")
 	var got []string
