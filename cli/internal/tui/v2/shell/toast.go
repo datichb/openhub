@@ -68,6 +68,9 @@ func toastMaxLen(level ToastLevel) int {
 // The message is always persisted to the in-memory notification store and the
 // JSONL file, regardless of whether the visual toast is displayed.
 func (s *Shell) showToast(msg string, level ToastLevel, duration time.Duration) {
+	if s.repeatedToast(msg, level) {
+		return
+	}
 	icon, borderColor := toastStyle(level)
 
 	// Persist the FULL message before any truncation:
@@ -247,4 +250,31 @@ func (s *Shell) ShowToastMsg(msg string, success bool) {
 	} else {
 		s.showToast(msg, ToastError, ToastDurationForLevel(ToastError))
 	}
+}
+
+// toastRepeatWindow is how long the same message is not shown twice: a failing
+// refresh or a log line repeated would otherwise fill the screen and the
+// notification centre with one text.
+const toastRepeatWindow = 5 * time.Second
+
+// repeatedToast reports whether msg was shown less than toastRepeatWindow ago,
+// and remembers it now.
+func (s *Shell) repeatedToast(msg string, level ToastLevel) bool {
+	key := fmt.Sprintf("%d|%s", level, msg)
+	now := time.Now()
+	s.toastMu.Lock()
+	defer s.toastMu.Unlock()
+	if at, ok := s.recentToasts[key]; ok && now.Sub(at) < toastRepeatWindow {
+		return true
+	}
+	if s.recentToasts == nil {
+		s.recentToasts = map[string]time.Time{}
+	}
+	for k, at := range s.recentToasts {
+		if now.Sub(at) > toastRepeatWindow {
+			delete(s.recentToasts, k)
+		}
+	}
+	s.recentToasts[key] = now
+	return false
 }
