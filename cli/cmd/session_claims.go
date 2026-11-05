@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -267,20 +268,38 @@ var cardFactsOf = cardFactsFromBeads
 // cardClaimsOfSession are the claims of the member that name the session
 // without being among its tickets: the claim of the card of the board the
 // launch started the work on (startCardClaim records the session on it), whose
-// ID is not a Beads ticket of the session.
-func cardClaimsOfSession(ctx context.Context, repo teamstate.ClaimReader, s domain.Session, member string) []string {
+// ID is not a Beads ticket of the session. Each claim gives the number of its
+// issue on the tracker (0 when it does not know it).
+func cardClaimsOfSession(ctx context.Context, repo teamstate.ClaimReader, s domain.Session, member string) []cardClaim {
 	claims, err := repo.ListClaims(ctx, s.ProjectID)
 	if err != nil {
 		slog.Debug("team claims: claims of the session unreadable", "session", s.ID, "error", err)
 		return nil
 	}
-	var ids []string
+	var cards []cardClaim
 	for i := range claims {
 		if c := &claims[i]; c.ClaimedBy == member && c.Session == s.ID {
-			ids = append(ids, c.TicketID)
+			cards = append(cards, cardClaim{ID: c.TicketID, IID: c.ExternalIID})
 		}
 	}
-	return ids
+	return cards
+}
+
+// cardClaim is the claim of a card of the board: its ticket ID (SRU-42 with
+// a ticket pattern, else 42) and the number of the issue on the tracker.
+type cardClaim struct {
+	ID  string
+	IID int
+}
+
+// issueRef is the number the Beads ticket of a card was imported under
+// (external_ref gitlab-<number>): the number of the issue the claim records,
+// else the ticket ID when it is a number.
+func (c cardClaim) issueRef() string {
+	if c.IID > 0 {
+		return strconv.Itoa(c.IID)
+	}
+	return c.ID
 }
 
 // cardFactsFromBeads reads the card of a GitLab issue: the Beads ticket the
@@ -484,11 +503,11 @@ func sessionClaimsEnd(ctx context.Context, a *app.App, proj *domain.Project, s d
 	if !ok {
 		return
 	}
-	tickets, cards := append([]string(nil), s.Tickets...), map[string]bool{}
-	for _, id := range cardClaimsOfSession(ctx, repo, s, member) {
-		if !slices.Contains(tickets, id) {
-			tickets = append(tickets, id)
-			cards[id] = true
+	tickets, cards := append([]string(nil), s.Tickets...), map[string]cardClaim{}
+	for _, c := range cardClaimsOfSession(ctx, repo, s, member) {
+		if !slices.Contains(tickets, c.ID) {
+			tickets = append(tickets, c.ID)
+			cards[c.ID] = c
 		}
 	}
 	if len(tickets) == 0 {
@@ -498,8 +517,8 @@ func sessionClaimsEnd(ctx context.Context, a *app.App, proj *domain.Project, s d
 	in := sessionClaimsInput{
 		Project: s.ProjectID, Member: member, Session: s.ID, Tickets: tickets,
 		Ticket: func(id string) (ticketFacts, error) {
-			if cards[id] {
-				return cardFacts(id)
+			if c, ok := cards[id]; ok {
+				return cardFacts(c.issueRef())
 			}
 			return beadsFacts(id)
 		},

@@ -95,6 +95,23 @@ func TestSessionEndSettlesTheTicketsAndTheCardTogether(t *testing.T) {
 	assert.Equal(t, teamstate.ClaimStatusDone, claimsOnDisk(t, repo, "623").Status)
 }
 
+// With a ticket pattern the claim of a card is SRU-42: the Beads ticket of
+// the issue is the one imported under its number (gitlab-42), which the claim
+// records.
+func TestSessionEndReadsTheCardOfAPatternedTicketByItsIssueNumber(t *testing.T) {
+	ctx := context.Background()
+	a, repo, _ := setupClaimTestApp(t)
+	proj := teamProject(claimsProject)
+	a.Projects = &mockProjectStore{projects: []domain.Project{proj}}
+	cardFacts(t, map[string]ticketFacts{"42": {Closed: true}})
+	_, err := repo.CreateClaim(ctx, teamstate.Claim{TicketID: "SRU-42", ExternalIID: 42, Project: claimsProject, ClaimedBy: "testuser", Status: teamstate.ClaimStatusInProgress, Session: "ses_card"})
+	require.NoError(t, err)
+
+	sessionClaimsEnd(ctx, a, &proj, domain.Session{ID: "ses_card", ProjectID: claimsProject}, false)
+
+	assert.Equal(t, teamstate.ClaimStatusDone, claimsOnDisk(t, repo, "SRU-42").Status)
+}
+
 // A session that holds no claim ends as before: nothing to settle.
 func TestSessionEndWithoutTicketsNorCardDoesNothing(t *testing.T) {
 	ctx := context.Background()
