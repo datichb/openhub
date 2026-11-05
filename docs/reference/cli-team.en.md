@@ -6,6 +6,24 @@ Team features rely on a shared **team-state** git repository (claims, events, wi
 
 ## Collaboration (oh team)
 
+### Which team? (`--team`)
+
+All the `oh team …` commands (and `oh claim`, `oh release`, `oh policies`, `oh patterns`, `oh takeover-brief`…) act on **one** team, chosen by the same rule, from the most to the least specific:
+
+1. `--team <id>` (persistent flag of `oh team`): the team named; an unknown ID is an error, an archived team is refused with a pointer to `oh teams restore`;
+2. the team chosen in the TUI (team mode, or the team opened from the list);
+3. the team of the project: `-p, --project <project>` when the command takes it, else the project of the current folder;
+4. the default team (`default = true` in `[[teams]]`, `oh teams default <id>`);
+5. failing that, the first enabled team of `hub.toml`.
+
+A solo space is never chosen without `--team`, nor is an archived team. The team-state repository and **your member identity** always come from the same team. `oh team claim -p api --team beta` is refused when the project `api` belongs to a team other than `beta`: nothing is written in the team-state of the wrong team.
+
+```bash
+oh team status --team beta        # team beta, whatever the folder
+oh team claim -p api 42           # the team of the project api
+oh team status                    # the team of the project of the current folder, else the default team
+```
+
 ### oh team init
 
 Interactive wizard configuring the team, in 4 adaptive steps: global config (takeover, sessions), identity (team registration), Mattermost notifications (optional), team policies (automated conventions). The team-state repository must exist beforehand on GitLab or GitHub; when it is already configured, only the relevant steps are offered. The wizard creates the folders of the repository (`projects/`, `wiki/`, `catalog/`…) and commits them (« team: init structure »). If that commit fails (offline, remote refusal), the join goes on and the wizard says so (warning line, then in the repository step): the folders exist locally and are committed the next time `oh team init` runs.
@@ -16,7 +34,7 @@ oh team init [--solo [--id <id>] [--name <name>] [--member-id <id>] [--project <
 
 #### Solo space (`--solo`)
 
-For a project without a team: creates a local team-state (git repository without remote) in `~/.oh/teams/<id>/` that holds the project workflows. The only member has the `lead` role. Team features (board, claims, notifications, `team` MCP server) stay off; the active team is never a solo space.
+For a project without a team: creates a local team-state (git repository without remote) in `~/.oh/teams/<id>/` that holds the project workflows. The only member has the `lead` role. Team features (board, claims, notifications, `team` MCP server) stay off; the default team is never a solo space.
 
 ```bash
 oh team init --solo --project web-app
@@ -43,7 +61,7 @@ oh team promote --remote git@gitlab.com:acme/team-state.git
 | Flag | Type | Description |
 |------|------|-------------|
 | `--remote` | string | URL of an **empty** git repository (required) |
-| `--team` | string | Solo space to share, when you have several |
+| `--team` | string | Solo space to share, when you have several (the `--team` flag of `oh team`) |
 
 On failure (missing or non-empty repository, access denied), the space stays solo. Other members then join the team with `oh team init` and enter the repository URL.
 
@@ -77,7 +95,7 @@ oh team profile [--team <id>] [--display-name <name>] [--gitlab-username <name>]
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--team` | string | Team (identifier); defaults to the hub team |
+| `--team` | string | Team (identifier); defaults to the team chosen [as above](#which-team---team) |
 | `--display-name` | string | Display name (cannot be empty) |
 | `--gitlab-username` | string | User name on the GitLab of the team repository (identity check at rejoin) |
 | `--mattermost-username` | string | Mattermost user name (mentions of the notifications) |
@@ -301,15 +319,26 @@ Refusing a proposal (`r`) asks for a **reason** (required: an empty one cancels 
 
 A user can belong to several teams; each project is linked to 0 or 1 team.
 
-`oh teams` manages the teams of this machine (list, add, remove, detach a project, archive, restore); `oh team` (singular) acts on the active team (status, board, activity, config, tracker sync). The two commands share no subcommand, so `oh teams` is not an alias of `oh team`.
+`oh teams` manages the teams of this machine (list, add, remove, detach a project, archive, restore, choose the default team); `oh team` (singular) acts on one team, chosen [as above](#which-team---team) (status, board, activity, config, tracker sync). The two commands share no subcommand, so `oh teams` is not an alias of `oh team`.
 
 ### oh teams list
 
-List the configured teams.
+List the configured teams; the default team carries a star (`★`).
 
 ```bash
 oh teams list
 ```
+
+### oh teams default
+
+Shows the default team, or sets it: the team that applies when neither `--team`, the team chosen in the TUI nor the team of the project says which one.
+
+```bash
+oh teams default           # show the default team
+oh teams default beta      # beta becomes the default team
+```
+
+The team is marked `default = true` in `hub.toml` (only one has it). Without a mark, the first enabled team is used. An archived team or a solo space cannot be the default team; archiving the default team removes the mark and says so.
 
 ### oh teams add
 
@@ -349,7 +378,7 @@ oh teams detach [project-name]
 
 ### oh teams archive / restore
 
-Archive a team (disabled, configuration and local team-state kept) or reactivate it (and sync its team-state):
+Archive a team (disabled, configuration and local team-state kept; it stops being the default team) or reactivate it (and sync its team-state):
 
 ```bash
 oh teams archive [team-id]

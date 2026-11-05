@@ -432,6 +432,7 @@ member_id = "alice.dupont"
 | `gitlab_url` | string | Non | GitLab réel du dépôt d'équipe quand `state_repo` passe par un alias SSH (`git@mon-alias:…`) : l'alias est un nom de `~/.ssh/config`, pas un serveur. Le jeton de l'équipe est alors valable pour ce GitLab. Propre à la machine, vide = l'hôte de `state_repo`. Se règle dans `oh init`, `oh team rejoin --gitlab-url`, `oh teams add --gitlab-url`, `oh team config` (local) et la vue `team-detail` |
 | `member_id` | string | Oui | Votre identité dans `members.toml` |
 | `solo` | bool | Non | Espace solo (voir ci-dessous) |
+| `default` | bool | Non | Équipe par défaut : celle qui s'applique quand ni `--team`, ni l'équipe choisie dans la TUI, ni l'équipe du projet n'en désignent une. Une seule équipe l'a (`oh teams default <id>`) ; deux équipes marquées est une erreur de configuration. Sans marque, la première équipe activée est utilisée. Une équipe archivée ou un espace solo n'est jamais l'équipe par défaut |
 
 ### Espace solo (`solo = true`)
 
@@ -446,7 +447,7 @@ state_path = "~/.oh/teams/solo"
 member_id = "alice"
 ```
 
-Un espace solo ne contient que des workflows : les fonctions d'équipe restent désactivées et il n'est jamais l'équipe active. `oh team promote --remote <url>` retire `solo` et renseigne `state_repo`.
+Un espace solo ne contient que des workflows : les fonctions d'équipe restent désactivées et il n'est jamais l'équipe par défaut. `oh team promote --remote <url>` retire `solo` et renseigne `state_repo`.
 
 ### Niveau projet : `team_id`
 
@@ -462,6 +463,8 @@ project.TeamID vide          →  projet sans équipe, fonctions d'équipe désa
 project.TeamID == "acme"     →  recherche dans teams[] par id, config de cette équipe
 project.TeamID inconnu       →  dégradation douce (équipe désactivée)
 ```
+
+Pour une commande qui agit sur « une équipe » sans projet précis (`oh team status`, `oh team board`…), l'équipe est choisie par `--team`, puis l'équipe choisie dans la TUI, puis l'équipe du projet (`-p` ou dossier courant), puis l'équipe par défaut (`default = true`), puis la première équipe activée : voir [Quelle équipe ?](cli-team.fr.md#quelle-équipe---team).
 
 ### Migration depuis `[team]` (ancien format)
 

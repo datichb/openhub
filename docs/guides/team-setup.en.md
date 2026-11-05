@@ -283,7 +283,7 @@ team of the session project (no more `.opencode/team.json`).
 
 When mode is `disabled`, the `team` MCP server is not put in the session bundle.
 
-Outside a session (no `OH_TEAM_ID`), the team MCP server falls back to the active team
+Outside a session (no `OH_TEAM_ID`), the team MCP server falls back to the default team
 of `hub.toml`.
 
 ### Choosing the mode during project creation

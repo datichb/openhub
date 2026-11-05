@@ -8,7 +8,7 @@ The `team` MCP server exposes team collaboration data to AI agents via the MCP p
 
 ## Activation
 
-The team MCP server is part of the session bundle when team features are **enabled for the project** of the session (team of the project, else the active team; never for a solo space). oh declares it in the bundle with the team and project of the session in its environment:
+The team MCP server is part of the session bundle when team features are **enabled for the project** of the session (team of the project, else the default team; never for a solo space). oh declares it in the bundle with the team and project of the session in its environment:
 
 ```json
 "team": {
@@ -18,7 +18,7 @@ The team MCP server is part of the session bundle when team features are **enabl
 }
 ```
 
-At startup the server reads team `OH_TEAM_ID` from `hub.toml` (`[[teams]]`); without this variable (server started outside a session) it uses the active team. No token is required: the server reads the local team-state clone.
+At startup the server reads team `OH_TEAM_ID` from `hub.toml` (`[[teams]]`); without this variable (server started outside a session) it uses the default team. No token is required: the server reads the local team-state clone.
 
 > v5: the former `.opencode/team.json` file written by `oh deploy` is no longer read (`oh migrate deploy-cleanup` removes it).
 
