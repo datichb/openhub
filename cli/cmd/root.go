@@ -22,6 +22,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/storage/filecrypt"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/common"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -101,6 +102,9 @@ func Execute() error {
 	// Before the store closes: the in-process daemon (Windows) puts its
 	// sessions to sleep.
 	defer stopInProcessDaemon()
+	// First of the deferred calls to run: the announcements of the events the
+	// command wrote (webhooks) are still being delivered, and use the store.
+	defer teamstate.WaitEventSinks(eventSinkShutdownWait)
 
 	theme.ApplyNoColor()
 	if len(os.Args) > 1 && (os.Args[1] == cobra.ShellCompRequestCmd || os.Args[1] == cobra.ShellCompNoDescRequestCmd) {

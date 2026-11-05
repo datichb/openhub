@@ -459,17 +459,17 @@ func (v *WikiView) decide(proposal teamstate.WikiProposal, accept bool, reason s
 	ctx := shellContext(v.shell)
 	run := func(ctx context.Context, id string) error { return repo.WikiRejectProposal(ctx, id, reason) }
 	eventType, failedKey, doneKey := teamstate.EventWikiRejected, "tui.wiki.reject_failed", "tui.wiki.proposal_rejected"
-	data := map[string]interface{}{"proposal_id": proposal.ID, "page": proposal.Page, "reason": reason}
+	data := map[string]interface{}{"proposal_id": proposal.ID, "page": proposal.Page, "reason": reason, "author": proposal.Author}
 	if accept {
 		run, eventType, failedKey, doneKey = repo.WikiAcceptProposal, teamstate.EventWikiAccepted, "tui.wiki.accept_failed", "tui.wiki.proposal_accepted"
-		data = map[string]interface{}{"proposal_id": proposal.ID, "page": proposal.Page}
+		data = map[string]interface{}{"proposal_id": proposal.ID, "page": proposal.Page, "author": proposal.Author}
 	}
 	safego.Go(func() { // an action, not a read: its result is applied even if the view was refreshed
 		var err error
 		if !v.cloned(repo) {
 			err = errors.New(i18n.T("tui.patterns.team_not_configured"))
 		} else if err = run(ctx, proposal.ID); err == nil {
-			// Emit event (best-effort)
+			// Emit the event (best-effort): the event sink announces it to the team, as the CLI does.
 			_ = repo.AppendEvent(ctx, teamstate.Event{
 				Timestamp: time.Now().UTC(),
 				Actor:     actor,

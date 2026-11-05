@@ -38,6 +38,10 @@ type Repo struct {
 	// beforePush runs in Transact between the commit and the push (tests:
 	// simulate a concurrent push).
 	beforePush func()
+	// evQueue holds the events the running transaction wrote, until it commits
+	// (event_sink.go).
+	evMu    sync.Mutex
+	evQueue []Event
 }
 
 // unusablePath stands for the folder of a Repo made without one. A NUL byte

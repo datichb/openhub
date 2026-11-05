@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -16,7 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/gitlabapi"
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/notify"
+	mcpgitlab "github.com/datichb/openhub/cli/internal/mcp/gitlab"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 )
@@ -98,17 +99,19 @@ func runReviewPublish(cmd *cobra.Command) error {
 
 	// Assign reviewer if requested.
 	reviewerFlag, _ := cmd.Flags().GetString("reviewer")
+	reviewerAssigned := ""
 	if reviewerFlag != "" {
 		if err := assignReviewer(ctx, a, project, gl, glProject, mr.IID, reviewerFlag); err != nil {
 			cliout.Warn(a.IO.Out, i18n.Tf("cmd.review.publish.assign_failed", err))
 		} else {
+			reviewerAssigned = reviewerFlag
 			cliout.Success(a.IO.Out, i18n.Tf("cmd.review.publish.assigned", theme.Bold.Render(reviewerFlag)))
 		}
 	}
 
 	// Emit team event + transition claim if team is enabled for this project.
 	if teamEnabledForProject(a, project) {
-		publishReviewToTeamState(ctx, a, project.ID, ticketRef, branch, mr.WebURL)
+		publishReviewToTeamState(ctx, a, project.ID, ticketRef, branch, mr.WebURL, reviewerAssigned)
 	}
 
 	fmt.Fprintln(a.IO.Out)
@@ -185,8 +188,8 @@ func isMainBranch(name string) bool {
 
 // publishReviewToTeamState uses PublishReviewBatch to atomically transition
 // the claim to review, store the MR URL, append the review.ready event, and
-// dispatch a notification — all in a single git commit+push.
-func publishReviewToTeamState(ctx context.Context, a *app.App, projectID, ticket, branch, mrURL string) {
+// announce it (the event sink) — all in a single git commit+push.
+func publishReviewToTeamState(ctx context.Context, a *app.App, projectID, ticket, branch, mrURL, reviewer string) {
 	// The review is published in the team-state of the team of the project (the
 	// one the MR was checked against), by the member of that team.
 	var project *domain.Project
@@ -206,12 +209,13 @@ func publishReviewToTeamState(ctx context.Context, a *app.App, projectID, ticket
 		return
 	}
 
-	event, err := repo.PublishReviewBatch(ctx, teamstate.PublishReviewParams{
+	_, err = repo.PublishReviewBatch(ctx, teamstate.PublishReviewParams{
 		Project:  projectID,
 		TicketID: ticket,
 		Actor:    team.MemberID,
 		Branch:   branch,
 		MRURL:    mrURL,
+		Reviewer: reviewer,
 		// Label intentionally empty: agent-reviewed is now set by
 		// team_review_verdict when the actual review completes.
 	})
@@ -219,12 +223,8 @@ func publishReviewToTeamState(ctx context.Context, a *app.App, projectID, ticket
 		slog.Warn("teamstate.publish.batch_failed", "project", projectID, "ticket", ticket, "error", err)
 		return
 	}
-
-	// Best-effort notification dispatch.
-	if teamCfg, cfgErr := repo.LoadConfig(ctx); cfgErr == nil {
-		d := notify.NewDispatcher(teamCfg)
-		_ = d.Dispatch(ctx, event)
-	}
+	// The review.ready event reaches the webhook of the team (and mentions the
+	// reviewer) through the event sink of teamstate, as any event.
 }
 
 func init() {
@@ -233,4 +233,18 @@ func init() {
 	mrCreateCmd.Flags().StringP("project", "p", "", i18n.T("cmd.mr.create.flags.project"))
 	mrCreateCmd.Flags().String("reviewer", "", i18n.T("cmd.mr.create.flags.reviewer"))
 	_ = mrCreateCmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
+}
+
+// announceMRCreated is the host of the gitlab MCP server: a merge request that
+// the agent created is published to the team of the project of the session
+// (claim to review, review.ready event), as oh mr create does for the one a
+// person creates. It needs the oh project of the session (OH_PROJECT_ID) and a
+// branch that names a ticket; otherwise there is nothing to announce.
+func announceMRCreated(ctx context.Context, mr mcpgitlab.MRCreated) {
+	a := TryApp()
+	projectID := os.Getenv(mcpgitlab.EnvOhProject)
+	if a == nil || projectID == "" {
+		return
+	}
+	publishReviewToTeamState(ctx, a, projectID, extractTicketFromBranch(mr.Branch), mr.Branch, mr.WebURL, "")
 }

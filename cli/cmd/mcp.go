@@ -17,6 +17,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	mcpgitlab "github.com/datichb/openhub/cli/internal/mcp/gitlab"
 	"github.com/datichb/openhub/cli/internal/mcp/mcpregistry"
 	mcpwiki "github.com/datichb/openhub/cli/internal/mcp/wiki"
 	mcpworkflow "github.com/datichb/openhub/cli/internal/mcp/workflow"
@@ -648,6 +649,9 @@ func mcpServeCmd() *cobra.Command {
 			}
 			if name == sessionspec.WikiMCPServer {
 				return mcpwiki.Serve()
+			}
+			if name == "gitlab" {
+				mcpgitlab.OnMRCreated = announceMRCreated
 			}
 			registry := mcpregistry.NewDefaultRegistry()
 			server := registry.Get(name)

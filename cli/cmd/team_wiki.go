@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/i18n"
-	"github.com/datichb/openhub/cli/internal/notify"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -221,15 +220,10 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 			Actor:   commandMember(ctx, a),
 			Type:    teamstate.EventWikiAccepted,
 			Project: proposal.Project,
-			Data:    map[string]interface{}{"page": proposal.Page, "proposal_id": proposal.ID},
+			Data:    map[string]interface{}{"page": proposal.Page, "proposal_id": proposal.ID, "author": proposal.Author},
 		}
+		// The event reaches the webhook of the team through the event sink.
 		_ = repo.AppendEvent(ctx, event)
-
-		// Dispatch notification
-		if teamCfg, cfgErr := repo.LoadConfig(ctx); cfgErr == nil {
-			d := notify.NewDispatcher(teamCfg)
-			_ = d.Dispatch(ctx, event)
-		}
 
 		fmt.Fprintf(a.IO.Out, "\n  %s %s\n\n",
 			theme.SuccessStyle.Render(theme.IconSuccess),
@@ -255,15 +249,9 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 			Actor:   commandMember(ctx, a),
 			Type:    teamstate.EventWikiRejected,
 			Project: proposal.Project,
-			Data:    map[string]interface{}{"page": proposal.Page, "proposal_id": proposal.ID, "reason": reason},
+			Data:    map[string]interface{}{"page": proposal.Page, "proposal_id": proposal.ID, "reason": reason, "author": proposal.Author},
 		}
 		_ = repo.AppendEvent(ctx, event)
-
-		// Dispatch notification
-		if teamCfg, cfgErr := repo.LoadConfig(ctx); cfgErr == nil {
-			d := notify.NewDispatcher(teamCfg)
-			_ = d.Dispatch(ctx, event)
-		}
 
 		fmt.Fprintf(a.IO.Out, "\n  %s %s\n\n",
 			theme.WarningStyle.Render(theme.IconWarning),

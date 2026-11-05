@@ -549,7 +549,7 @@ func handleTeamWikiWrite(ctx context.Context, params json.RawMessage) (*protocol
 		return nil, fmt.Errorf("creating proposal: %w", err)
 	}
 
-	// Emit event + notification
+	// Emit the event: the event sink of teamstate announces it to the team.
 	event := teamstate.Event{
 		Timestamp: time.Now().UTC(),
 		Actor:     "documentarian",
@@ -559,12 +559,6 @@ func handleTeamWikiWrite(ctx context.Context, params json.RawMessage) (*protocol
 	}
 	if err := repo.AppendEvent(ctx, event); err != nil {
 		slog.Warn("teamstate.event.lost", "type", event.Type, "project", event.Project, "error", err)
-	}
-
-	// Best-effort notification
-	if teamCfg, err := repo.LoadConfig(ctx); err == nil {
-		d := notify.NewDispatcher(teamCfg)
-		_ = d.Dispatch(ctx, event)
 	}
 
 	return &protocol.ToolResult{
@@ -837,6 +831,9 @@ func handleTeamReviewVerdict(ctx context.Context, params json.RawMessage) (*prot
 	targetStatus := verdictTarget(board, approved)
 
 	data := make(map[string]interface{})
+	if claim, cerr := repo.GetClaim(ctx, args.Project, args.TicketID); cerr == nil && claim != nil && claim.ClaimedBy != "" {
+		data["author"] = claim.ClaimedBy // the member the verdict is for (mentioned)
+	}
 	if args.Reason != "" {
 		data["reason"] = args.Reason
 	}
@@ -893,11 +890,8 @@ func handleTeamReviewVerdict(ctx context.Context, params json.RawMessage) (*prot
 	}
 	statusMsg := fmt.Sprintf(" Claim status → %s.", targetStatus)
 
-	// ── 4. Best-effort notification ──
-	if teamCfg, cfgErr := repo.LoadConfig(ctx); cfgErr == nil {
-		d := notify.NewDispatcher(teamCfg)
-		_ = d.Dispatch(ctx, event)
-	}
+	// The event reaches the team through the event sink of teamstate, once the
+	// transaction is committed.
 
 	return &protocol.ToolResult{
 		Content: []protocol.ContentBlock{{
