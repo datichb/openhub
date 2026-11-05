@@ -2103,7 +2103,6 @@
   "cmd.team.promote.flags.team": "Solo space to share (when you have several)",
   "cmd.team.promote.done": "Space %s shared on %s",
   "cmd.team.promote.invite": "To invite members, send them the URL; each of them runs:",
-  "cmd.team.promote.invite_repo": "with the repository %s",
   "cmd.team.promote.remote_required": "--remote is required",
   "cmd.team.promote.remote_used": "Repository %s is already used by team %s",
   "cmd.team.promote.failed": "Cannot share to %s (the repository must exist and be empty; the space stays solo)",

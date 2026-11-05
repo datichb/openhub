@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -152,8 +153,8 @@ func TestTeamPromote(t *testing.T) {
 	gittest.Run(t, bare, "init", "--bare", "-b", "main")
 	out.Reset()
 	require.NoError(t, runTeamSub(t, promote, out, "--remote", bare))
-	assert.Contains(t, out.String(), "oh team init")
-	assert.Contains(t, out.String(), bare)
+	assert.Contains(t, out.String(), "oh team rejoin --repo "+bare, "the colleagues join with the URL")
+	assert.NotContains(t, out.String(), "oh team init")
 
 	team := a.Config.Teams[0]
 	assert.False(t, team.Solo)
@@ -174,4 +175,23 @@ func TestTeamPromote(t *testing.T) {
 	err = runTeamSub(t, promote, out, "--remote", bare)
 	require.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "solo"), err.Error())
+}
+
+// A solo space is shared on a repository the person may write to: a token that
+// reads is told before anything is pushed, and the space stays solo.
+func TestTeamPromoteChecksTheRightToWriteFirst(t *testing.T) {
+	a, out := setupSoloTestApp(t)
+	require.NoError(t, runTeamSub(t, teamInitCmd, out, "--solo", "--member-id", "bob", "--project", "web"))
+	bare := gittest.EmptyBare(t)
+	ro := readOnlyGit(t, bare, "oauth2", "reader")
+	restore := teamstate.SetCredentialSource(func(context.Context, string) teamstate.GitCredentials {
+		return teamstate.GitCredentials{Username: "oauth2", Token: "reader"}
+	})
+	t.Cleanup(restore)
+
+	err := runTeamSub(t, findTeamSub(t, "promote"), out, "--remote", ro)
+	require.Error(t, err)
+	assert.NotNil(t, teamstate.AccessError(err), "%v", err)
+	assert.True(t, a.Config.Teams[0].Solo, "still solo")
+	assert.Empty(t, gittest.Run(t, bare, "for-each-ref"), "nothing was pushed")
 }

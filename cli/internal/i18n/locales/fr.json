@@ -2103,7 +2103,6 @@
   "cmd.team.promote.flags.team": "Espace solo à partager (si vous en avez plusieurs)",
   "cmd.team.promote.done": "Espace %s partagé sur %s",
   "cmd.team.promote.invite": "Pour inviter les membres, transmettez-leur l'URL ; chacun lance :",
-  "cmd.team.promote.invite_repo": "avec le dépôt %s",
   "cmd.team.promote.remote_required": "--remote est obligatoire",
   "cmd.team.promote.remote_used": "Le dépôt %s est déjà celui de l'équipe %s",
   "cmd.team.promote.failed": "Partage vers %s impossible (le dépôt doit exister et être vide ; l'espace reste solo)",

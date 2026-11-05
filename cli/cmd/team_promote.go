@@ -43,8 +43,7 @@ func runTeamPromote(cmd *cobra.Command, _ []string) error {
 	out := cmd.OutOrStdout()
 	cliout.Success(out, i18n.Tf("cmd.team.promote.done", team.ID, remote))
 	fmt.Fprintf(out, "  %s\n", i18n.T("cmd.team.promote.invite"))
-	fmt.Fprintf(out, "    %s\n", theme.Bold.Render("oh team init"))
-	fmt.Fprintf(out, "  %s\n", i18n.Tf("cmd.team.promote.invite_repo", remote))
+	fmt.Fprintf(out, "    %s\n", theme.Bold.Render("oh team rejoin --repo "+remote))
 	return nil
 }
 
@@ -61,6 +60,11 @@ func promoteSoloTeam(ctx context.Context, a *app.App, teamID, remote string) (*c
 	}
 	if other := a.Config.FindTeamByRepo(remote); other != nil {
 		return nil, fmt.Errorf("%s", i18n.Tf("cmd.team.promote.remote_used", remote, other.ID))
+	}
+	// The right to write is asked before the history is pushed: a token that
+	// reads, or a key without access, is told here, in the words of the access.
+	if err := teamstate.ProbeRemoteWrite(ctx, remote); err != nil {
+		return nil, fmt.Errorf("%s: %w", i18n.Tf("cmd.team.promote.failed", remote), err)
 	}
 	repo := teamstate.NewRepo("", team.StatePath)
 	if err := repo.Promote(ctx, remote); err != nil {
