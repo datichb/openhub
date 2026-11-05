@@ -14,11 +14,15 @@ import (
 // on the copy do not affect the original (required for UndoStack snapshots).
 func deepCopyConfig(c *config.Config) config.Config {
 	cp := *c // shallow struct copy
+	cp.Team.Tracker = cloneTrackerLocal(c.Team.Tracker)
 
 	// Clone Teams slice
 	if c.Teams != nil {
 		cp.Teams = make([]config.TeamConfig, len(c.Teams))
 		copy(cp.Teams, c.Teams)
+		for i := range cp.Teams {
+			cp.Teams[i].Tracker = cloneTrackerLocal(c.Teams[i].Tracker)
+		}
 	}
 
 	// Clone Deploy.InstructionFiles slice
@@ -45,30 +49,7 @@ func deepCopyConfig(c *config.Config) config.Config {
 	}
 
 	// Clone Tracker pointer fields
-	if c.Tracker.Enabled != nil {
-		b := *c.Tracker.Enabled
-		cp.Tracker.Enabled = &b
-	}
-	if c.Tracker.AutoSync != nil {
-		b := *c.Tracker.AutoSync
-		cp.Tracker.AutoSync = &b
-	}
-	if c.Tracker.PushLabels != nil {
-		b := *c.Tracker.PushLabels
-		cp.Tracker.PushLabels = &b
-	}
-	if c.Tracker.AutoPlanAssigned != nil {
-		b := *c.Tracker.AutoPlanAssigned
-		cp.Tracker.AutoPlanAssigned = &b
-	}
-	if c.Tracker.MaxInProgressPerMember != nil {
-		n := *c.Tracker.MaxInProgressPerMember
-		cp.Tracker.MaxInProgressPerMember = &n
-	}
-	if c.Tracker.WriteEnabled != nil {
-		b := *c.Tracker.WriteEnabled
-		cp.Tracker.WriteEnabled = &b
-	}
+	cp.Tracker = cloneTrackerLocal(c.Tracker)
 
 	// Clone Remote targets (slice of structs holding a map) and project map
 	if c.Remote.Targets != nil {
@@ -263,6 +244,24 @@ func deepCopyTeamConfig(c *teamstate.TeamConfig) teamstate.TeamConfig {
 }
 
 // ---------- Generic helpers ----------
+
+// cloneTrackerLocal copies the personal tracker settings, pointers included.
+func cloneTrackerLocal(t config.TrackerLocalConfig) config.TrackerLocalConfig {
+	cloneB := func(p *bool) *bool {
+		if p == nil {
+			return nil
+		}
+		b := *p
+		return &b
+	}
+	t.Enabled, t.AutoSync, t.PushLabels = cloneB(t.Enabled), cloneB(t.AutoSync), cloneB(t.PushLabels)
+	t.AutoPlanAssigned, t.WriteEnabled = cloneB(t.AutoPlanAssigned), cloneB(t.WriteEnabled)
+	if t.MaxInProgressPerMember != nil {
+		n := *t.MaxInProgressPerMember
+		t.MaxInProgressPerMember = &n
+	}
+	return t
+}
 
 func cloneLimits(l limits.Limits) limits.Limits {
 	l.Models = slices.Clone(l.Models)

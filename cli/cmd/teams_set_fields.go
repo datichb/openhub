@@ -74,6 +74,15 @@ func setTeamField(cmd *cobra.Command, a *app.App, id, field, value string, hasVa
 }
 
 func saveTeamField(a *app.App, id string, change func(*config.TeamConfig) error, done string) error {
+	if err := changeTeamEntry(a, id, change); err != nil {
+		return err
+	}
+	cliout.Success(a.IO.Out, done)
+	return nil
+}
+
+// changeTeamEntry changes the entry of a team in hub.toml, under the lock.
+func changeTeamEntry(a *app.App, id string, change func(*config.TeamConfig) error) error {
 	if err := updateHubConfig(a, func(c *config.Config) error {
 		t := c.FindTeam(id)
 		if t == nil {
@@ -83,8 +92,32 @@ func saveTeamField(a *app.App, id string, change func(*config.TeamConfig) error,
 	}); err != nil {
 		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
 	}
-	cliout.Success(a.IO.Out, done)
 	return nil
+}
+
+// applyTeamField is what the detail of the TUI writes to hub.toml for a field
+// of the team (views.TeamField*): the same rules as oh teams set, nothing
+// printed.
+func applyTeamField(ctx context.Context, a *app.App, id, field, value string) error {
+	switch field {
+	case "name":
+		return changeTeamEntry(a, id, func(t *config.TeamConfig) error { t.Name = strings.TrimSpace(value); return nil })
+	case "member_id":
+		if err := checkTeamMember(ctx, a, id, value); err != nil {
+			return err
+		}
+		return changeTeamEntry(a, id, func(t *config.TeamConfig) error { t.MemberID = value; return nil })
+	case "default":
+		on, err := parseBoolValue(value)
+		if err != nil {
+			return errors.New(i18n.Tf("v54c.teams.set.want_bool", field, value))
+		}
+		if on {
+			return setDefaultTeam(a, id)
+		}
+		return changeTeamEntry(a, id, func(t *config.TeamConfig) error { t.Default = false; return nil })
+	}
+	return errors.New(i18n.Tf("v54a.teams.set.unknown_field", field, "name, member_id, default"))
 }
 
 // memberChecker is the clone of a team whose members are looked at.
@@ -93,17 +126,29 @@ type memberChecker interface {
 	HasMember(ctx context.Context, id string) bool
 }
 
-func setTeamMember(ctx context.Context, a *app.App, id, member string) error {
+// checkTeamMember refuses a member id that is not a card of the team-state
+// (when the clone is there to say).
+func checkTeamMember(ctx context.Context, a *app.App, id, member string) error {
 	if !validMemberID(member) {
 		return errors.New(i18n.Tf("v54c.teams.set.member_invalid", member))
 	}
 	team := a.Config.FindTeam(id)
+	if team == nil {
+		return errors.New(i18n.Tf("cmd.teams.not_found", id, theme.Bold.Render("oh teams list")))
+	}
 	if team.StateRepo != "" {
 		var clone memberChecker = teamstate.NewRepo(team.StateRepo, config.ResolveStatePath(team.StateRepo, team.StatePath))
 		if clone.IsCloned() && !clone.HasMember(ctx, member) {
 			return errors.New(i18n.Tf("v54c.teams.set.member_unknown", member, id,
 				theme.Bold.Render("oh team rejoin --repo "+team.StateRepo+" --new-member")))
 		}
+	}
+	return nil
+}
+
+func setTeamMember(ctx context.Context, a *app.App, id, member string) error {
+	if err := checkTeamMember(ctx, a, id, member); err != nil {
+		return err
 	}
 	return saveTeamField(a, id, func(t *config.TeamConfig) error { t.MemberID = member; return nil },
 		i18n.Tf("v54c.teams.set.member_done", id, member))

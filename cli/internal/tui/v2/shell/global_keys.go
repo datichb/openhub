@@ -172,8 +172,17 @@ func (s *Shell) reservedKey(event *tcell.EventKey) (*tcell.EventKey, bool) {
 }
 
 // escapeKey goes back one view, or exits to the hub at the root of a
-// non-hub mode (Ctrl+T to come back).
+// non-hub mode (Ctrl+T to come back). A view that holds edits it has not saved
+// (views.LeaveGuard) is asked first.
 func (s *Shell) escapeKey() {
+	if g, ok := s.router.Current().(views.LeaveGuard); ok && g.GuardLeave(s.leaveView) {
+		return
+	}
+	s.leaveView()
+}
+
+// leaveView is what Esc does once nothing holds it back.
+func (s *Shell) leaveView() {
 	if s.router.StackDepth() > 1 {
 		s.router.Pop()
 		return

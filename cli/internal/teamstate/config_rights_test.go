@@ -208,3 +208,16 @@ func TestConfigFile_HeartbeatOffIsWritten(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(raw), "heartbeat_minutes")
 }
+
+func TestRepoCanEnforce(t *testing.T) {
+	t.Parallel()
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+	assert.True(t, repo.CanEnforce(ctx, "anyone"), "a team with no member is not locked")
+	addMembers(t, repo)
+	assert.True(t, repo.CanEnforce(ctx, "lea"))
+	assert.False(t, repo.CanEnforce(ctx, "dan"))
+	assert.False(t, repo.CanEnforce(ctx, ""))
+	require.NoError(t, repo.UpdateConfig(WithActor(ctx, "lea"), func(c *TeamConfig) error { c.Governance.Config = GovernanceConfigAnyMember; return nil }))
+	assert.True(t, repo.CanEnforce(ctx, "dan"))
+}

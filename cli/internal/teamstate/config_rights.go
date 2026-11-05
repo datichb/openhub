@@ -59,10 +59,29 @@ func ChangeNeedsLead(key string) bool {
 		key == "governance" || strings.HasPrefix(key, "governance.")
 }
 
+// mayEnforce reports whether member may change the settings that bind the
+// others under gov: always when the team lets any member, a lead always, and
+// anyone when the team has no lead at all (it is not locked out of its own
+// settings).
+func mayEnforce(gov GovernanceConfig, members map[string]Member, member string) bool {
+	if gov.ConfigPolicy() == GovernanceConfigAnyMember {
+		return true
+	}
+	hasLead := false
+	for id, m := range members {
+		if m.Role != RoleLead {
+			continue
+		}
+		hasLead = true
+		if id == member {
+			return true
+		}
+	}
+	return !hasLead
+}
+
 // checkConfigRights refuses the change of the settings that need a lead to a
-// member who is not one. A team that has no lead at all (members.toml says
-// none) is not locked out of its own settings: any member may then change
-// them, until someone is given the role.
+// member who is not one (see mayEnforce).
 func (tx *Tx) checkConfigRights(gov GovernanceConfig, by string, keys []string) error {
 	var restricted []string
 	for _, k := range keys {
@@ -70,28 +89,39 @@ func (tx *Tx) checkConfigRights(gov GovernanceConfig, by string, keys []string) 
 			restricted = append(restricted, k)
 		}
 	}
-	if len(restricted) == 0 || gov.ConfigPolicy() == GovernanceConfigAnyMember {
+	if len(restricted) == 0 {
 		return nil
 	}
 	mf, err := tx.r.readMembersFile()
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	hasLead := false
+	var members map[string]Member
 	if mf != nil {
-		for id, m := range mf.Members {
-			if m.Role == RoleLead {
-				hasLead = true
-			}
-			if id == by && m.Role == RoleLead {
-				return nil
-			}
-		}
+		members = mf.Members
 	}
-	if !hasLead {
+	if mayEnforce(gov, members, by) {
 		return nil
 	}
 	return &ErrNotLead{Member: by, Keys: restricted}
+}
+
+// CanEnforce reports whether member may change the settings that bind the
+// others in the config of the clone (a screen locks them when not).
+func (r *Repo) CanEnforce(ctx context.Context, member string) bool {
+	cfg, err := r.LoadConfig(ctx)
+	if err != nil {
+		return false
+	}
+	members, err := r.ListMembers(ctx)
+	if err != nil && !os.IsNotExist(err) {
+		return false
+	}
+	byID := make(map[string]Member, len(members))
+	for _, m := range members {
+		byID[m.ID] = m
+	}
+	return mayEnforce(cfg.Governance, byID, member)
 }
 
 // IsLead reports whether the member has the role lead in members.toml.

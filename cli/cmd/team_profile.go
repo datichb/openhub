@@ -98,6 +98,10 @@ func profilePatchForField(field, value string) teamsvc.ProfilePatch {
 		p.MattermostUsername = &value
 	case views.MemberFieldTrackerUsername:
 		p.TrackerUsername = &value
+	case views.MemberFieldRole:
+		p.Role = &value
+	case views.MemberFieldDefaultMode:
+		p.DefaultMode = &value
 	}
 	return p
 }
@@ -115,6 +119,12 @@ func profileError(err error) error {
 		return errors.New(i18n.T("cmd.team.profile.err_empty_name"))
 	case errors.Is(err, teamstate.ErrMemberNotFound):
 		return errors.New(i18n.Tf("cmd.team.profile.err_member_missing", theme.Bold.Render("oh team rejoin")))
+	case errors.Is(err, teamstate.ErrRoleNeedsLead):
+		return errors.New(i18n.T("v54c.profile.role_needs_lead"))
+	}
+	var taken *teamstate.HandleTakenError
+	if errors.As(err, &taken) {
+		return errors.New(i18n.Tf("v54c.profile.handle_taken", taken.Handle, taken.Member.ID, taken.Member.DisplayName))
 	}
 	return err
 }

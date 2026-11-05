@@ -98,3 +98,27 @@ func TestPatchMember_HandleStaysUnique(t *testing.T) {
 	require.NoError(t, r.PatchMember(ctx, "eve", func(m *Member) error { m.DisplayName = "Eve E."; return nil }))
 	require.NoError(t, r.PatchMember(ctx, "eve", func(m *Member) error { m.GitLabUsername = ""; return nil }), "clearing is free")
 }
+
+// A role is for a lead to give: a dev cannot make themselves a lead.
+func TestPatchMember_OnlyALeadChangesARole(t *testing.T) {
+	t.Parallel()
+	r, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+	require.NoError(t, r.AddMember(ctx, Member{ID: "lea", DisplayName: "Léa", Role: "lead"}))
+	require.NoError(t, r.AddMember(ctx, Member{ID: "dan", DisplayName: "Dan", Role: "dev"}))
+	setRole := func(role string) func(*Member) error { return func(m *Member) error { m.Role = role; return nil } }
+
+	require.ErrorIs(t, r.PatchMember(WithActor(ctx, "dan"), "dan", setRole("lead")), ErrRoleNeedsLead)
+	require.ErrorIs(t, r.PatchMember(WithActor(ctx, "dan"), "lea", setRole("dev")), ErrRoleNeedsLead)
+	require.Error(t, r.PatchMember(WithActor(ctx, "lea"), "dan", setRole("boss")), "unknown role")
+	require.NoError(t, r.PatchMember(WithActor(ctx, "lea"), "dan", setRole("reviewer")))
+	got, _ := r.GetMember(ctx, "dan")
+	assert.Equal(t, "reviewer", got.Role)
+	// the same role, or a code with no member to blame, is not checked
+	require.NoError(t, r.PatchMember(WithActor(ctx, "dan"), "dan", setRole("reviewer")))
+	require.NoError(t, r.PatchMember(ctx, "dan", setRole("dev")))
+
+	// without a lead the team is not locked out
+	require.NoError(t, r.PatchMember(WithActor(ctx, "lea"), "lea", setRole("dev")))
+	require.NoError(t, r.PatchMember(WithActor(ctx, "dan"), "dan", setRole("lead")))
+}

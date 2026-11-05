@@ -51,6 +51,32 @@ func buildTeamDetailView(a *app.App) views.View {
 		GetTrackerLocalConfig: func() config.TrackerLocalConfig {
 			return a.Config.Tracker
 		},
+		GetTeamTrackerConfig: func() config.TrackerLocalConfig {
+			return a.Config.TeamTracker(makeResolveTeamFunc(a)().TeamID)
+		},
+		CanEnforce: func(ctx context.Context, teamID string) bool {
+			tc := makeResolveTeamFunc(a)()
+			if tc.StatePath == "" || tc.TeamID != teamID {
+				return true
+			}
+			return teamstate.NewRepo(tc.StateRepo, tc.StatePath).CanEnforce(ctx, tc.MemberID)
+		},
+		GetTeamInfo: func(teamID string) views.TeamInfo {
+			t := a.Config.FindTeam(teamID)
+			if t == nil {
+				return views.TeamInfo{}
+			}
+			return views.TeamInfo{Name: t.Name, StateRepo: t.StateRepo, StatePath: t.StatePath, MemberID: t.MemberID, Default: t.Default}
+		},
+		SetTeamField: func(teamID, field, value string) error {
+			return applyTeamField(tuiContext(), a, teamID, field, value)
+		},
+		OnReconfigure: func(teamID string) {
+			if t := a.Config.FindTeam(teamID); t != nil {
+				reconfigureTeam(t)
+			}
+		},
+		OnEditBoard:    func() { actionBoardColumnConfig(nil) },
 		ResolveTeam:    makeResolveTeamFunc(a),
 		PromoteSolo:    tuiPromoteSolo,
 		SaveTeamConfig: func() views.TeamConfigWriter { return teamConfigWriter(a) },
