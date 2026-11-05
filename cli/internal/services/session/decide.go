@@ -42,6 +42,9 @@ var (
 	ErrUnsupportedKind  = errors.New("this decision cannot be answered from oh")
 	ErrServerNotRunning = errors.New("the tool server of this session is not running")
 	ErrNotSupported     = errors.New("the session tool does not support this operation")
+	// ErrDecisionAsleep: the request died with the server of its session,
+	// which was put to sleep; it can be answered once the session wakes up.
+	ErrDecisionAsleep = errors.New("the session is asleep: its request can only be answered once it wakes up")
 )
 
 // ResolvedError tells who resolved a decision first.
@@ -70,6 +73,9 @@ func (s *Service) Decide(ctx context.Context, r Reply) error {
 	}
 	if !d.Open() {
 		return &ResolvedError{By: d.ResolvedBy}
+	}
+	if d.Asleep() && (d.Kind == domain.DecisionPermission || d.Kind == domain.DecisionQuestion || d.Kind == domain.DecisionCheckpoint) {
+		return ErrDecisionAsleep
 	}
 	resolution := &domain.DecisionResolution{Decision: r.Decision, Message: r.Message, Answer: r.Answer}
 

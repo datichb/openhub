@@ -23,8 +23,19 @@ type NotifyFunc func(ctx context.Context, title, message string) error
 
 const notifyWindow = 3 * time.Second
 
+// reminderMaxAge is how old a decision may be to be recalled to the user when
+// the daemon starts.
+const reminderMaxAge = 24 * time.Hour
+
+// Kinds of note that are not decision kinds.
+const (
+	kindDone     = "done"     // the end of a step, nobody attached
+	kindSleep    = "sleep"    // a session went to sleep with a decision open
+	kindReminder = "reminder" // a decision still open when the daemon started
+)
+
 type note struct {
-	kind      string // decision kind, or "done"
+	kind      string // decision kind, "done", "sleep" or "reminder"
 	sessionID string
 }
 
@@ -94,6 +105,11 @@ func (n *notifier) scan(ctx context.Context) {
 		}
 		n.seen[d.ID] = true
 		if !n.primed && d.CreatedAt.Before(n.started.Add(-time.Minute)) {
+			// Open before the daemon started: the user may have missed it, they are
+			// reminded once (not for an old one that was left on purpose).
+			if time.Since(d.CreatedAt) < reminderMaxAge {
+				n.enqueueLocked(note{kind: kindReminder, sessionID: d.SessionID})
+			}
 			continue
 		}
 		n.enqueueLocked(note{kind: string(d.Kind), sessionID: d.SessionID})
@@ -113,7 +129,20 @@ func (n *notifier) turnDone(sessionID string) {
 	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	n.enqueueLocked(note{kind: "done", sessionID: sessionID})
+	n.enqueueLocked(note{kind: kindDone, sessionID: sessionID})
+}
+
+// sleeping queues the note of the sessions that went to sleep with a decision
+// waiting: the request died with the server, it stays to be taken up.
+func (n *notifier) sleeping(sessionIDs []string) {
+	if n == nil || len(sessionIDs) == 0 {
+		return
+	}
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	for _, id := range sessionIDs {
+		n.enqueueLocked(note{kind: kindSleep, sessionID: id})
+	}
 }
 
 func (n *notifier) enqueueLocked(nt note) {
@@ -145,31 +174,42 @@ func (n *notifier) flush() {
 // render builds the text of a group of notes: one note names its project
 // and agent; several are counted.
 func (n *notifier) render(ctx context.Context, queue []note) (title, msg string) {
-	decisions, done := 0, 0
+	decisions, done, slept := 0, 0, 0
 	sessions := map[string]bool{}
 	for _, q := range queue {
 		sessions[q.sessionID] = true
-		if q.kind == "done" {
+		switch q.kind {
+		case kindDone:
 			done++
-		} else {
+		case kindSleep:
+			slept++
+		default:
 			decisions++
 		}
 	}
 	title = "oh"
+	if slept > 0 && slept == len(queue) && len(queue) > 1 {
+		return title, i18n.Tf("v54n.notify.many_sleeping", slept)
+	}
 	if len(queue) == 1 {
 		q := queue[0]
-		if t := i18n.T("tui.notify.title." + q.kind); t != "tui.notify.title."+q.kind {
+		key := "tui.notify.title." + q.kind
+		switch q.kind {
+		case kindSleep, kindReminder:
+			key = "v54n.notify.title." + q.kind
+		}
+		if t := i18n.T(key); t != key {
 			title = t
 		}
 		return title, n.describe(ctx, q.sessionID)
 	}
 	switch {
 	case done == 0:
-		return title, i18n.Tf("tui.notify.many_decisions", decisions, len(sessions))
-	case decisions == 0:
+		return title, i18n.Tf("tui.notify.many_decisions", decisions+slept, len(sessions))
+	case decisions+slept == 0:
 		return title, i18n.Tf("tui.notify.many_done", done)
 	}
-	return title, i18n.Tf("tui.notify.mixed", decisions, done)
+	return title, i18n.Tf("tui.notify.mixed", decisions+slept, done)
 }
 
 // describe names a session without its content: project · agent.

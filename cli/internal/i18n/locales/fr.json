@@ -6696,5 +6696,10 @@
   "v54c.limits.field.memory_mb.label": "Mémoire (Mo)",
   "v54c.limits.field.memory_mb.desc": "Mémoire allouée à une session en conteneur.",
   "v54c.limits.field.models.label": "Modèles autorisés",
-  "v54c.limits.field.models.desc": "Motifs de modèles, séparés par des virgules (eu.anthropic.*)."
+  "v54c.limits.field.models.desc": "Motifs de modèles, séparés par des virgules (eu.anthropic.*).",
+  "v54n.session.decision_asleep": "La session est en veille : sa demande est perdue avec le serveur. Reprenez la session (oh session resume) : l'agent la reposera.",
+  "v54n.decision.resume_after_sleep": "La session a été mise en veille pendant que tu attendais une réponse (permission, question ou checkpoint) ; elle est perdue. Reprends là où tu t'étais arrêté et redemande-la si elle est toujours nécessaire.",
+  "v54n.notify.title.sleep": "oh · ⏾ en veille avec une décision en attente",
+  "v54n.notify.title.reminder": "oh · ⏸ décision toujours en attente",
+  "v54n.notify.many_sleeping": "%d sessions mises en veille avec une décision en attente"
 }

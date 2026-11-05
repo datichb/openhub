@@ -10,6 +10,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/adapters"
 	"github.com/datichb/openhub/cli/internal/bundle"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
 // Pending decisions: the watcher mirrors the tool requests
@@ -55,14 +56,39 @@ func (w *watcher) syncToolDecisions(ctx context.Context, root, toolSession strin
 		return
 	}
 	now := time.Now()
+	lost := 0
 	for _, d := range open {
 		if d.ToolRef == "" || listed[d.ID] || !isToolKind(d.Kind) || d.ToolSessionID() != toolSession {
+			continue
+		}
+		if d.Asleep() {
+			// The request died with the server that went to sleep and the tool
+			// does not ask it again: the decision ends, the agent is told.
+			if ok, _ := store.Resolve(ctx, d.ID, domain.ResolvedByGone, nil, now); ok {
+				lost++
+			}
 			continue
 		}
 		if ok, _ := store.Resolve(ctx, d.ID, domain.ResolvedByTool, nil, now); ok && d.Kind == domain.DecisionCheckpoint && w.d.opts.Checkpoints != nil {
 			w.d.opts.Checkpoints.Settled(ctx, d)
 		}
 	}
+	if lost > 0 {
+		w.resumeAfterSleep(ctx, root)
+	}
+}
+
+// resumeAfterSleep asks the agent of a session that woke up to ask again what
+// it was waiting for when the server went to sleep (a permission, a question,
+// a checkpoint): the request is not in the tool any more, the instruction is
+// queued behind whatever the user sends.
+func (w *watcher) resumeAfterSleep(ctx context.Context, root string) {
+	op := adapters.ControlOp{Kind: adapters.ControlPrompt, Text: i18n.T("v54n.decision.resume_after_sleep"), Delivery: adapters.DeliveryQueue}
+	if err := w.ad.Control(ctx, w.handle(), root, op); err != nil {
+		slog.Warn("ohd: the request lost in the sleep was not asked again", "session", root, "error", err)
+		return
+	}
+	slog.Info("ohd: the agent was asked again for the request lost in the sleep", "session", root)
 }
 
 // onAnswer records the answer given in the tool to a checkpoint request:
@@ -204,8 +230,11 @@ func (w *watcher) openAlerts(ctx context.Context, id string) int {
 	return n
 }
 
-// closeDecisions resolves the open decisions of a server group whose server
-// stops: tool requests die with it; everything goes when stopping for good.
+// closeDecisions settles the open decisions of a server group whose server
+// stops. Everything goes when stopping for good. When the group only goes to
+// sleep, the tool requests (they die with the server) stay in « À traiter »,
+// marked asleep, and the user is told once that a decision waits: the session
+// takes them up when it wakes up (syncToolDecisions).
 func (d *Daemon) closeDecisions(ctx context.Context, group string, final bool) {
 	store := d.opts.Decisions
 	if store == nil {
@@ -216,13 +245,36 @@ func (d *Daemon) closeDecisions(ctx context.Context, group string, final bool) {
 		return
 	}
 	now := time.Now()
+	var slept []string
 	for _, dec := range open {
-		if final || isToolKind(dec.Kind) {
+		switch {
+		case final:
 			if ok, _ := store.Resolve(ctx, dec.ID, domain.ResolvedByGone, nil, now); ok {
+				d.feed.publishChange(domain.SessionChange{SessionID: dec.SessionID, GroupKey: group, Decisions: true})
+			}
+		case isToolKind(dec.Kind) && !dec.Asleep():
+			if d.markAsleep(ctx, dec, now) {
+				slept = append(slept, dec.SessionID)
 				d.feed.publishChange(domain.SessionChange{SessionID: dec.SessionID, GroupKey: group, Decisions: true})
 			}
 		}
 	}
+	d.notes.sleeping(slept)
+}
+
+// markAsleep records on an open tool request that its server went to sleep.
+func (d *Daemon) markAsleep(ctx context.Context, dec domain.Decision, at time.Time) bool {
+	data := make(map[string]any, len(dec.Payload.Data)+1)
+	for k, v := range dec.Payload.Data {
+		data[k] = v
+	}
+	data[domain.DataAsleep] = at.UTC().Format(time.RFC3339)
+	dec.Payload.Data = data
+	if err := d.opts.Decisions.Upsert(ctx, &dec); err != nil {
+		slog.Debug("ohd: decision not marked asleep", "decision", dec.ID, "error", err)
+		return false
+	}
+	return true
 }
 
 // eventError extracts a human-readable error from an event payload.

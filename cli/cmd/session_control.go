@@ -53,6 +53,8 @@ func decisionError(err error) error {
 		return errors.New(i18n.T("cmd.session.no_decision"))
 	case errors.Is(err, sessionsvc.ErrAlwaysForbidden):
 		return errors.New(i18n.T("cmd.session.always_forbidden"))
+	case errors.Is(err, sessionsvc.ErrDecisionAsleep):
+		return errors.New(i18n.T("v54n.session.decision_asleep"))
 	case errors.Is(err, sessionsvc.ErrServerNotRunning):
 		return errors.New(i18n.T("cmd.session.server_not_running"))
 	case errors.Is(err, sessionsvc.ErrAmbiguous):

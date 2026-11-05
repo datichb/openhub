@@ -6696,5 +6696,10 @@
   "v54c.limits.field.memory_mb.label": "Memory (MB)",
   "v54c.limits.field.memory_mb.desc": "Memory given to a session in a container.",
   "v54c.limits.field.models.label": "Allowed models",
-  "v54c.limits.field.models.desc": "Model patterns, comma separated (eu.anthropic.*)."
+  "v54c.limits.field.models.desc": "Model patterns, comma separated (eu.anthropic.*).",
+  "v54n.session.decision_asleep": "The session is asleep: its request was lost with the server. Resume the session (oh session resume): the agent will ask again.",
+  "v54n.decision.resume_after_sleep": "The session was put to sleep while you were waiting for an answer (permission, question or checkpoint); it is lost. Pick up where you stopped and ask again if it is still needed.",
+  "v54n.notify.title.sleep": "oh · ⏾ asleep with a decision waiting",
+  "v54n.notify.title.reminder": "oh · ⏸ decision still waiting",
+  "v54n.notify.many_sleeping": "%d sessions put to sleep with a decision waiting"
 }

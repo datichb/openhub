@@ -81,6 +81,12 @@ type Decision struct {
 // when it is not the oh session itself (a subagent child session).
 const DataToolSession = "tool_session_id"
 
+// DataAsleep is the Payload.Data key (RFC 3339 time) set on a tool request
+// that was open when the server of its session was put to sleep: the request
+// died with the server, the decision stays in « À traiter » until the session
+// wakes up (the tool asks again, or the daemon asks the agent to).
+const DataAsleep = "asleep_since"
+
 // DataReports is the Payload.Data key of the reports (rp-…) an agent cites
 // when it reaches a checkpoint (workflow_checkpoint `reports`).
 const DataReports = "reports"
@@ -92,6 +98,13 @@ func (d Decision) ToolSessionID() string {
 		return s
 	}
 	return d.SessionID
+}
+
+// Asleep reports whether the decision was open when its session went to sleep
+// (see DataAsleep): it cannot be answered before the session wakes up.
+func (d Decision) Asleep() bool {
+	_, ok := d.Payload.Data[DataAsleep]
+	return ok
 }
 
 // Open reports whether the decision still waits for an answer.
