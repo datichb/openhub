@@ -63,7 +63,7 @@ The wizard follows the same order for "Create" and "Rejoin", in `oh init` and in
      for an HTTPS repository too; it can be skipped. When GitLab refuses `GET /api/v4/user` with
      the token (403 for lack of scope, 401, GitLab unreachable), "Rejoin" still succeeds, with
      the warning "Identity not verified".
-   - **SSH**: the message gives git's answer and recalls `ssh-add`; "Retry" probes again.
+   - **SSH**: the message gives git's answer and recalls `ssh-add`; "Retry" probes again. A server the machine does not know yet is confirmed before the probe (see [First contact with an SSH server](#first-contact-with-an-ssh-server)).
 4. **Identity**: "Create" asks your card (ID, display name, optional GitLab handle, role).
    "Rejoin" lists the members ("Team members (N)"): you pick your card, or **"+ I am not in the
    list: create my card"**, which opens the same form. See [Your member card](#your-member-card).
@@ -71,6 +71,24 @@ The wizard follows the same order for "Create" and "Rejoin", in `oh init` and in
    directory structure (if first member) and detection of duplicate clones.
 
 Every screen of a wizard carries its counter: "Step 2/5 — Identity".
+
+### First contact with an SSH server
+
+`oh` does not trust an SSH server it has never seen unless you confirmed it. When the repository URL is SSH (`git@host:org/repo.git`, `ssh://git@host:2222/org/repo.git`) and the host is not in your `known_hosts`:
+
+- **In a terminal** (the "Create" / "Join" wizards of `oh init` and of the palette, `oh team init`, `oh team rejoin`, `oh teams add`, `oh teams set <id> repo <url>`, `oh team promote --remote`), `oh` reads the keys of the server (`ssh-keyscan`) and **shows their fingerprints** (type and `SHA256:…`, as `ssh-keygen -lf` prints them). Compare them with the ones published by the administrator of the server or by your forge (gitlab.com and github.com publish theirs in their documentation). In the TUI, two "SSH server" steps come before the probe; the first button is **Refuse**, and Esc cannot skip the step. On the command line the question is `[y/N]`: Enter alone refuses.
+- **Confirmed**, the keys are added to the file ssh writes: the first `UserKnownHostsFile` of your `~/.ssh/config` for that host, else `~/.ssh/known_hosts` (created `0600`, the `~/.ssh` folder `0700`). The question is asked **once** per server. **Refused**, nothing is added or cloned, and the message gives the `ssh -T` command to connect yourself.
+- **Without a terminal** (non-interactive input: script, pipe, CI), `oh` asks nothing and **refuses** when the server is unknown, giving the two possible commands, to run **after checking the fingerprint**: `ssh -T git@<host>` (ssh prints the fingerprint and asks; add `-p <port>` if needed) or `ssh-keyscan <host> >> ~/.ssh/known_hosts`. Then run the command again.
+- **A server that is already known** triggers nothing. The daemon and the everyday commands (pull, push, claims) do not change.
+
+What `oh` follows of `~/.ssh/config` (through `ssh -G`): `HostName` (an alias is resolved before the check), `Port`, `HostKeyAlias` (the server is recorded under that alias), `UserKnownHostsFile`. A port other than 22 is recorded as `[host]:port`, as ssh does; an IPv6 address is written in brackets in an scp-like URL (`git@[2001:db8::1]:org/repo.git`).
+
+Limits:
+
+- Behind a `ProxyJump` or a `ProxyCommand`, `oh` cannot read the keys (`ssh-keyscan` does not go through it): it refuses with the `ssh -T` command to run, which follows the hop.
+- With `UserKnownHostsFile none` (or `/dev/null`) you chose not to remember servers: `oh` asks nothing.
+- `ssh-keyscan` and `ssh` must be installed (OpenSSH ships with macOS, Linux and Git for Windows); otherwise `oh` says so and gives the commands to run by hand. `GIT_SSH` / `core.sshCommand` are ignored by this check, which reads the OpenSSH configuration. `HashKnownHosts yes` is not applied to the entries `oh` adds (plain name).
+- `oh` keeps `StrictHostKeyChecking=accept-new` for git (pull, push, daemon) rather than `yes`: on a known server `accept-new` refuses a changed key exactly like `yes`, and `yes` would break the setups that do not record servers (a `UserKnownHostsFile` pointing to a missing or read-only file, a server known under another name). The only case that differs — an unknown server — is the one the wizards confirm before the first connection.
 
 #### Empty repository
 
@@ -363,6 +381,7 @@ Solutions:
   when `oh` has no token for that repository.
 - **SSH instead of HTTPS:** use `git@gitlab.com:org/team-state.git`
 - **SSH key not loaded:** run `ssh-add ~/.ssh/id_ed25519` or `eval "$(ssh-agent)"`
+- **"The SSH server … is not in your known_hosts":** `oh` is not running in a terminal, or refuses to trust without your consent. Check the fingerprint, then run `ssh -T git@<host>` or `ssh-keyscan <host> >> ~/.ssh/known_hosts` (see [First contact with an SSH server](#first-contact-with-an-ssh-server)).
 
 **The folder holds the clone of another repository:**
 
