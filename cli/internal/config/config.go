@@ -317,20 +317,49 @@ func (c *Config) MCPServer(name string) *MCPServerConfig {
 	}
 }
 
-// DefaultTeam returns the first enabled team, or nil if no teams are
-// configured. Solo teams are ignored.
+// DefaultTeam is the team that applies when nothing says which one: the team
+// marked `default = true`, else the first enabled one. Solo teams and archived
+// (disabled) teams are never the default team: an archived team marked as the
+// default is passed over. Nil when there is no such team.
 func (c *Config) DefaultTeam() *TeamConfig {
 	for i := range c.Teams {
-		if c.Teams[i].Enabled && !c.Teams[i].Solo {
+		if c.Teams[i].Default && c.Teams[i].usable() {
 			return &c.Teams[i]
 		}
 	}
 	for i := range c.Teams {
-		if !c.Teams[i].Solo {
+		if c.Teams[i].usable() {
 			return &c.Teams[i]
 		}
 	}
 	return nil
+}
+
+// SetDefaultTeam makes the team id the default team: the only one marked
+// `default = true`. A team that is unknown, solo or archived cannot be the
+// default team.
+func (c *Config) SetDefaultTeam(id string) error {
+	t := c.FindTeam(id)
+	switch {
+	case t == nil:
+		return &UnknownTeamError{ID: id}
+	case t.Solo:
+		return fmt.Errorf("team %q is a solo space: it cannot be the default team", id)
+	case !t.Enabled:
+		return fmt.Errorf("team %q is archived: restore it before making it the default team", id)
+	}
+	for i := range c.Teams {
+		c.Teams[i].Default = c.Teams[i].ID == id
+	}
+	return nil
+}
+
+// ClearDefaultTeam removes the `default` mark of the team id (an archived or
+// removed team stops being the default team).
+func (c *Config) ClearDefaultTeam(id string) {
+	if t := c.FindTeam(id); t != nil {
+		t.Default = false
+	}
 }
 
 // ModelsConfig holds the model resolution cascade at the hub level.
@@ -369,7 +398,16 @@ type TeamConfig struct {
 	// init --solo`): it only holds workflows; team features (board, claims,
 	// notifications) stay off and ActiveTeam ignores it.
 	Solo bool `toml:"solo,omitempty"`
+	// Default marks the default team, the one that applies when neither
+	// --team, the team chosen in the TUI nor the team of the project says
+	// which one (Config.DefaultTeam). At most one team has it
+	// (`oh teams default <id>`); without it the first enabled team is used.
+	Default bool `toml:"default,omitempty"`
 }
+
+// usable reports whether the team can be chosen without being asked for: a
+// real team (not a solo space) that is not archived.
+func (t TeamConfig) usable() bool { return t.Enabled && !t.Solo }
 
 // DisplayName returns Name if set, otherwise falls back to ID.
 func (t TeamConfig) DisplayName() string {
@@ -419,6 +457,20 @@ func ValidateTeams(teams []TeamConfig) error {
 			return fmt.Errorf("duplicate team ID %q", t.ID)
 		}
 		seen[t.ID] = true
+	}
+	return validateSingleDefault(teams)
+}
+
+func validateSingleDefault(teams []TeamConfig) error {
+	first := ""
+	for _, t := range teams {
+		if !t.Default {
+			continue
+		}
+		if first != "" {
+			return fmt.Errorf("teams %q and %q are both marked default = true: only one team can be the default", first, t.ID)
+		}
+		first = t.ID
 	}
 	return nil
 }
@@ -664,28 +716,23 @@ func DefaultTeamStatePath() string {
 	return filepath.Join(HubDir(), "team-state")
 }
 
-// ActiveTeam returns the effective "current team" for backward-compat with code
-// that accessed cfg.Team directly. Resolution:
-//  1. If Teams has entries → return the first enabled team (or first team if none enabled)
+// ActiveTeam returns the hub-level team, the one nothing in particular points
+// to. Resolution:
+//  1. If Teams has entries → the default team (DefaultTeam: `default = true`,
+//     else the first enabled one); a zero TeamConfig when every team is
+//     archived or solo
 //  2. If Teams is empty but legacy Team has a StateRepo → return legacy Team
 //  3. Otherwise → return a zero TeamConfig (disabled)
 //
-// Solo teams (local workflow spaces) are never the active team.
+// Solo teams (local workflow spaces) and archived teams are never the active
+// team.
 //
-// This method bridges the transition from single-team to multi-team. New code
-// should use FindTeam(id) with a project's TeamID instead.
+// Commands do not call it: they resolve the team they act on with
+// ResolveTeam (cmd), which weighs --team, the team chosen in the TUI and the
+// team of the project before falling back on this one.
 func (c *Config) ActiveTeam() TeamConfig {
-	if t := c.DefaultTeam(); t != nil {
-		return *t
-	}
-	if len(c.Teams) > 0 {
-		return TeamConfig{}
-	}
-	// Legacy fallback
-	if c.Team.StateRepo != "" {
-		return c.Team
-	}
-	return TeamConfig{}
+	t, _, _ := c.hubTeam()
+	return t
 }
 
 // readDisk reads hub.toml and returns a new Config stamped with the state of

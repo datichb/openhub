@@ -39,7 +39,7 @@ func TestSoloTeam_NeverActive(t *testing.T) {
 	disabled := acme
 	disabled.Enabled = false
 	cfg.Teams = []config.TeamConfig{solo, disabled}
-	assert.Equal(t, "acme", cfg.ActiveTeam().ID, "first non-solo team when none is enabled")
+	assert.Equal(t, config.TeamConfig{}, cfg.ActiveTeam(), "an archived team is never the default one")
 }
 
 func TestSoloTeam_ResolveForProject(t *testing.T) {
