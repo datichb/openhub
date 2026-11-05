@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -529,22 +530,13 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 		claimsByMember[c.ClaimedBy] = append(claimsByMember[c.ClaimedBy], c)
 	}
 
-	// Counters
-	activeCount := 0
-	reviewCount := 0
-	blockedCount := 0
-	for _, c := range claims {
-		switch c.Status {
-		case "in_progress":
-			activeCount++
-		case "validation":
-			activeCount++
-		case "review":
-			reviewCount++
-		case "blocked":
-			blockedCount++
-		}
+	// Counters, by the roles of the columns of the board of the team
+	var board teamstate.BoardConfig
+	if cfg, cfgErr := repo.LoadConfig(ctx); cfgErr == nil && cfg != nil {
+		board = cfg.Board
 	}
+	counts := teamstate.CountByRole(claims, board)
+	activeCount, reviewCount, blockedCount := counts.Active, counts.Review, counts.Blocked
 
 	fmt.Fprintln(a.IO.Out)
 	fmt.Fprintln(a.IO.Out, theme.Title.Render(i18n.Tf("cmd.team.status.title", len(members))))
@@ -559,28 +551,19 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 		theme.Bold.Render(i18n.T("cmd.team.status.header_since")))
 	fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\n", "──────", "────", "──────", "──────", "─────")
 
-	for _, m := range members {
-		memberClaims := claimsByMember[m.ID]
-
-		if len(memberClaims) == 0 {
-			fmt.Fprintf(w, "  %s\t%s\t%s\t\t\n",
-				m.DisplayName, m.Role,
-				theme.Subtitle.Render(i18n.T("cmd.team.status.idle")))
-			continue
-		}
-
-		for i, c := range memberClaims {
+	// claimRows prints the claims of one row group (a member, the reserve, a
+	// member who left): the name and the role on the first line only.
+	claimRows := func(name, role string, list []teamstate.Claim) {
+		for i, c := range list {
 			since := c.ClaimedAt
 			if !c.LastActivity.IsZero() {
 				since = c.LastActivity.Time()
 			}
 			sinceStr := textfmt.Duration(time.Since(since))
 
-			memberCol := m.DisplayName
-			roleCol := m.Role
+			memberCol, roleCol := name, role
 			if i > 0 {
-				memberCol = ""
-				roleCol = ""
+				memberCol, roleCol = "", ""
 			}
 
 			ticketStr := fmt.Sprintf("%s/%s", names.Project(c.Project), c.TicketID)
@@ -618,6 +601,35 @@ func runTeamStatus(cmd *cobra.Command, args []string) error {
 				}
 			}
 		}
+	}
+
+	known := make(map[string]bool, len(members))
+	for _, m := range members {
+		known[m.ID] = true
+		memberClaims := claimsByMember[m.ID]
+
+		if len(memberClaims) == 0 {
+			fmt.Fprintf(w, "  %s\t%s\t%s\t\t\n",
+				m.DisplayName, m.Role,
+				theme.Subtitle.Render(i18n.T("cmd.team.status.idle")))
+			continue
+		}
+		claimRows(m.DisplayName, m.Role, memberClaims)
+	}
+
+	// The tickets nobody holds (the reserve) and those of a member who is no
+	// longer in the team are claims all the same: they are listed, not dropped
+	// while the counters count them.
+	claimRows(i18n.T("v54y.team.status.reserve"), "", claimsByMember[""])
+	var gone []string
+	for id := range claimsByMember {
+		if id != "" && !known[id] {
+			gone = append(gone, id)
+		}
+	}
+	sort.Strings(gone)
+	for _, id := range gone {
+		claimRows(i18n.Tf("v54y.team.status.gone", names.Member(id)), "", claimsByMember[id])
 	}
 	w.Flush()
 

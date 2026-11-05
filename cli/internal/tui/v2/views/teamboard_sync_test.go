@@ -251,3 +251,29 @@ func TestTeamBoardStatusMenuOffersTheAllowedMoves(t *testing.T) {
 	assert.Equal(t, []string{"backlog", "shipped"}, values("dev"))
 	assert.Equal(t, []string{"dev", "shipped"}, values("planned"), "planned is the backlog column of this board")
 }
+
+// The summary of the team status counts by the columns of the board of the
+// team, under their names; the default board has its six statuses.
+func TestTeamStatusSummaryFollowsTheBoard(t *testing.T) {
+	frLocale(t)
+	claims := []teamstate.Claim{{Status: "planned"}, {Status: "in_progress"}, {Status: "in_progress"}, {Status: "review"}, {Status: "done"}}
+	def := teamStatusSummary(teamstate.BoardConfig{}, claims)
+	require.Len(t, def, 6)
+	assert.Equal(t, statusCount{"planifié", 1}, def[0])
+	assert.Equal(t, 2, def[1].Count)
+
+	board := teamstate.BoardConfig{Columns: []teamstate.BoardColumnConfig{
+		{ID: "backlog", Name: "Backlog", Role: teamstate.ColumnRoleInitial},
+		{ID: "dev", Name: "Dev"},
+		{ID: "shipped", Name: "Shipped", Role: teamstate.ColumnRoleTerminal},
+	}}
+	got := teamStatusSummary(board, append(claims, teamstate.Claim{Status: "dev"}))
+	assert.Equal(t, []statusCount{
+		{"Backlog", 1}, // planned is the initial column
+		{"Dev", 1},
+		{"Shipped", 0},
+		{"done", 1},        // not a column of this board any more
+		{"in_progress", 2}, // idem
+		{"review", 1},
+	}, got)
+}
