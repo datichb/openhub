@@ -6696,5 +6696,17 @@
   "v54c.limits.field.memory_mb.label": "Memory (MB)",
   "v54c.limits.field.memory_mb.desc": "Memory given to a session in a container.",
   "v54c.limits.field.models.label": "Allowed models",
-  "v54c.limits.field.models.desc": "Model patterns, comma separated (eu.anthropic.*)."
+  "v54c.limits.field.models.desc": "Model patterns, comma separated (eu.anthropic.*).",
+  "v54l.event.reason.session_end": "the session ended",
+  "v54l.event.reason.expired": "claim expired",
+  "v54l.event.reason.cleanup": "finished, left the board",
+  "v54l.event.reason.member_removed": "member removed from the team",
+  "v54l.event.reason.left_team": "the member left the team",
+  "v54l.event.reason.bulk": "claims of the member released",
+  "v54l.event.claim_released_why": "%[1]s released (%[2]s)",
+  "v54l.event.claim_released_of": "%[1]s of %[2]s released (%[3]s)",
+  "v54l.event.member_removed": "%s removed from the team",
+  "v54l.event.member_left": "%s left the team",
+  "v54l.event.claims_transferred": "— %[1]s claim(s) handed to %[2]s",
+  "v54l.event.claims_released": "— %s claim(s) released"
 }

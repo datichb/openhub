@@ -121,7 +121,14 @@ type Engine struct {
 	// released are the claims the run removes on purpose (the done claims past
 	// their retention, the expired ones): the commit of the run names them, so
 	// that no member takes them for claims lost by accident.
-	released []teamstate.Claim
+	released []releasedClaim
+}
+
+// releasedClaim is a claim the run removed and why: the reason is the one of
+// the claim.released event the run leaves for it.
+type releasedClaim struct {
+	teamstate.Claim
+	reason string
 }
 
 // Identity says who runs the sync, to warn when their tracker name is missing.
@@ -300,7 +307,12 @@ func (e *Engine) run(ctx context.Context, auto bool) (*SyncResult, error) {
 		if result.ClaimsExpired > 0 {
 			msg += fmt.Sprintf(", %d expired", result.ClaimsExpired)
 		}
-		return teamstate.TxResult{Message: teamstate.WithReleasedTrailers(msg, e.released)}, nil
+		e.announceReleased(tx)
+		trailers := make([]teamstate.Claim, len(e.released))
+		for i, r := range e.released {
+			trailers[i] = r.Claim
+		}
+		return teamstate.TxResult{Message: teamstate.WithReleasedTrailers(msg, trailers)}, nil
 	})
 	if abort != nil {
 		return nil, abort
@@ -535,7 +547,7 @@ func (e *Engine) cleanupDone(ctx context.Context, result *SyncResult) {
 	} else if len(released) > 0 {
 		slog.Info("tracker.sync.cleanup", "released", len(released), "retention_days", retDays)
 		result.ClaimsReleased = len(released)
-		e.forgetKnown(released)
+		e.forgetKnown(released, teamstate.ReleaseCleanup)
 	}
 }
 
@@ -567,13 +579,27 @@ func (e *Engine) releaseExpired(ctx context.Context, result *SyncResult) {
 		result.Warnings = append(result.Warnings, SyncWarning{ProjectID: c.Project, TicketID: c.TicketID,
 			Message: i18n.Tf("tracker.sync.expired_released", c.ClaimedBy)})
 	}
-	e.forgetKnown(released)
+	e.forgetKnown(released, teamstate.ReleaseExpired)
+}
+
+// announceReleased leaves a claim.released event for each claim the run
+// removed, in the commit of the run (signed by the member who syncs, with the
+// owner the claim had and why it went). A failed write is logged: it does not
+// make the sync fail.
+func (e *Engine) announceReleased(tx *teamstate.Tx) {
+	for _, r := range e.released {
+		if err := tx.AppendEvent(teamstate.ReleaseEventFor(e.identity.MemberID, r.Claim, r.reason)); err != nil {
+			slog.Warn("tracker.sync.release_event_failed", "project", r.Project, "ticket", r.TicketID, "error", err)
+		}
+	}
 }
 
 // forgetKnown takes the claims the run released itself out of the known
 // tickets: they are gone on purpose, not lost.
-func (e *Engine) forgetKnown(released []teamstate.Claim) {
-	e.released = append(e.released, released...)
+func (e *Engine) forgetKnown(released []teamstate.Claim, reason string) {
+	for _, c := range released {
+		e.released = append(e.released, releasedClaim{Claim: c, reason: reason})
+	}
 	for _, c := range released {
 		e.state.ForgetKnownTicket(c.Project, c.TicketID)
 	}

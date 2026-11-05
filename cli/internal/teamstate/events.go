@@ -36,6 +36,7 @@ const (
 	EventClaimConflict    = "claim.conflict"
 	EventClaimTransferred = "claim.transferred"
 	EventClaimReleased    = "claim.released"
+	EventMemberRemoved    = "member.removed"
 	EventWikiProposal     = "wiki.proposal"
 	EventWikiAccepted     = "wiki.accepted"
 	EventWikiRejected     = "wiki.rejected"

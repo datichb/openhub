@@ -54,6 +54,7 @@ var Events = []EventGlyph{
 	{"claim.released", Inactive, ToneMuted},
 	{"claim.transferred", Transferred, ToneInfo},
 	{"claim.conflict", Failure, ToneError},
+	{"member.removed", Inactive, ToneMuted},
 	{"session.complete", Success, ToneSuccess},
 	{"review.ready", waiting, ToneInfo},
 	{"review.approved", Success, ToneSuccess},

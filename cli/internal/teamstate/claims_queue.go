@@ -415,6 +415,9 @@ func (r *Repo) applyClaimOp(tx *Tx, cfg *TeamConfig, op *ClaimOp) (ok, changed b
 		if err := tx.Remove(rel); err != nil {
 			return false, false, "removing claim: " + err.Error()
 		}
+		if err := tx.AppendEvent(releasedEvent(op.ClaimedBy, *c, ReleaseSessionEnd)); err != nil {
+			return false, false, "writing the release event: " + err.Error()
+		}
 		slog.Info("teamstate.claim.release", "project", op.Project, "ticket", op.TicketID, "queued", true)
 		return true, true, ""
 

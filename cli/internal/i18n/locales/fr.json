@@ -6696,5 +6696,17 @@
   "v54c.limits.field.memory_mb.label": "Mémoire (Mo)",
   "v54c.limits.field.memory_mb.desc": "Mémoire allouée à une session en conteneur.",
   "v54c.limits.field.models.label": "Modèles autorisés",
-  "v54c.limits.field.models.desc": "Motifs de modèles, séparés par des virgules (eu.anthropic.*)."
+  "v54c.limits.field.models.desc": "Motifs de modèles, séparés par des virgules (eu.anthropic.*).",
+  "v54l.event.reason.session_end": "la session s'est terminée",
+  "v54l.event.reason.expired": "réservation expirée",
+  "v54l.event.reason.cleanup": "ticket terminé, retiré du board",
+  "v54l.event.reason.member_removed": "membre retiré de l'équipe",
+  "v54l.event.reason.left_team": "le membre a quitté l'équipe",
+  "v54l.event.reason.bulk": "réservations du membre libérées",
+  "v54l.event.claim_released_why": "%[1]s libéré (%[2]s)",
+  "v54l.event.claim_released_of": "%[1]s de %[2]s libéré (%[3]s)",
+  "v54l.event.member_removed": "%s retiré de l'équipe",
+  "v54l.event.member_left": "%s a quitté l'équipe",
+  "v54l.event.claims_transferred": "— %[1]s réservation(s) transférée(s) à %[2]s",
+  "v54l.event.claims_released": "— %s réservation(s) libérée(s)"
 }

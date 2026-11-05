@@ -313,6 +313,10 @@ func (r *Repo) CreateClaim(ctx context.Context, c Claim) (*Claim, error) {
 			return fmt.Errorf("writing claim: %w", err)
 		}
 
+		if err := r.announceTaken(ctx, &c); err != nil {
+			return err
+		}
+
 		// Commit and push
 		relPath := r.claimRelPath(c.Project, c.TicketID)
 		msg := fmt.Sprintf("claim: %s takes %s/%s", c.ClaimedBy, c.Project, c.TicketID)
@@ -409,42 +413,79 @@ func (r *Repo) ReleaseClaim(ctx context.Context, project, ticketID string) error
 	})
 }
 
-// TransferClaim changes the owner of an existing claim.
+// TransferClaim changes the owner of an existing claim, in one commit that
+// also leaves a claim.transferred event signed by the member of ctx
+// (WithActor: the member who acts, not the previous owner). The new owner must
+// be a card of the team (ErrMemberNotFound) and the claim must not be
+// finished (ErrClaimClosed). Handing a claim to the member who holds it
+// renews its lease and leaves no event.
 func (r *Repo) TransferClaim(ctx context.Context, project, ticketID, newOwner string) error {
+	_, err := r.TransferClaimWith(ctx, project, ticketID, newOwner, TransferOpts{})
+	return err
+}
+
+// TransferOpts qualifies TransferClaimWith.
+type TransferOpts struct {
+	// Reason is the Data["reason"] of the claim.transferred event
+	// (ReleaseManual by default; "expired" for the takeover of an expired claim).
+	Reason string
+	// BriefReason, when set, writes the takeover brief for the new owner in
+	// the same commit (reason "transfer", "stale", "expired").
+	BriefReason string
+}
+
+// TransferClaimWith is TransferClaim with options; it returns the member who
+// held the claim.
+func (r *Repo) TransferClaimWith(ctx context.Context, project, ticketID, newOwner string, opts TransferOpts) (previousOwner string, err error) {
 	if _, err := SafeName(project); err != nil {
-		return fmt.Errorf("invalid project name: %w", err)
+		return "", fmt.Errorf("invalid project name: %w", err)
 	}
 	if _, err := SafeName(ticketID); err != nil {
-		return fmt.Errorf("invalid ticket ID: %w", err)
+		return "", fmt.Errorf("invalid ticket ID: %w", err)
 	}
-	return r.withWriteLock(ctx, func(ctx context.Context) error {
+	err = r.Transact(ctx, func(ctx context.Context, tx *Tx) (TxResult, error) {
 		c, err := r.getClaim(project, ticketID)
 		if err != nil {
-			return err
+			return TxResult{}, err
+		}
+		members, known, err := r.memberIDs()
+		if err != nil {
+			return TxResult{}, err
+		}
+		if err := checkHandOver(members, known, newOwner); err != nil {
+			return TxResult{}, err
+		}
+		cfg, _ := tx.Config()
+		if finished(c, cfg) {
+			return TxResult{}, ErrClaimClosed
 		}
 
-		previousOwner := c.ClaimedBy
-		c.ClaimedBy = newOwner
-		c.Session = "" // the session of the previous owner
-		now := time.Now().UTC()
-		c.LastActivity = InstantOf(now) // a takeover is not stale on arrival
-		r.stampLease(c, claimSession(ctx), now)
-
-		data, marshalErr := marshalClaim(c)
-		if marshalErr != nil {
-			return fmt.Errorf("marshaling claim: %w", marshalErr)
+		previousOwner = c.ClaimedBy
+		if opts.BriefReason != "" && previousOwner != "" && previousOwner != newOwner {
+			// Read before the claim changes hands; written in this commit.
+			brief, berr := r.GenerateRawBrief(ctx, project, ticketID, previousOwner, newOwner, opts.BriefReason)
+			if berr == nil {
+				berr = r.SaveBrief(ctx, brief)
+			}
+			if berr != nil {
+				slog.Warn("teamstate.claim.brief_failed", "project", project, "ticket", ticketID, "error", berr)
+			}
 		}
-
-		path := r.claimFilePath(project, ticketID)
-		if err := os.WriteFile(path, data, 0o644); err != nil {
-			return fmt.Errorf("writing claim: %w", err)
+		if err := r.handOver(ctx, tx, c, newOwner, time.Now().UTC()); err != nil {
+			return TxResult{}, err
 		}
-
-		relPath := r.claimRelPath(project, ticketID)
-		msg := fmt.Sprintf("transfer: %s/%s from %s to %s", project, ticketID, previousOwner, newOwner)
-		slog.Info("teamstate.claim.transfer", "project", project, "ticket", ticketID, "from", previousOwner, "to", newOwner)
-		return r.commitAndPush(ctx, msg, relPath)
+		if previousOwner != newOwner {
+			if err := tx.AppendEvent(transferredEvent(ActorOf(ctx), *c, previousOwner, newOwner, firstNonEmpty(opts.Reason, ReleaseManual))); err != nil {
+				return TxResult{}, err
+			}
+		}
+		slog.Info("teamstate.claim.transfer", "project", project, "ticket", ticketID, "from", previousOwner, "to", newOwner, "by", ActorOf(ctx))
+		return TxResult{Message: fmt.Sprintf("transfer: %s/%s from %s to %s", project, ticketID, previousOwner, newOwner)}, nil
 	})
+	if err != nil {
+		return "", err
+	}
+	return previousOwner, nil
 }
 
 // ClaimPoolTicket assigns an unowned pool ticket (ClaimedBy="") to a member.
@@ -486,6 +527,10 @@ func (r *Repo) ClaimPoolTicket(ctx context.Context, project, ticketID, memberID,
 		path := r.claimFilePath(project, ticketID)
 		if err := os.WriteFile(path, data, 0o644); err != nil {
 			return fmt.Errorf("writing claim: %w", err)
+		}
+
+		if err := r.announceTaken(ctx, c); err != nil {
+			return err
 		}
 
 		relPath := r.claimRelPath(project, ticketID)

@@ -84,7 +84,7 @@ func TestEventDescribeAs(t *testing.T) {
 func TestEveryEventTypeHasASymbol(t *testing.T) {
 	types := []string{
 		EventSessionComplete, EventReviewReady, EventReviewApproved, EventReviewRejected, EventAuditFinding,
-		EventClaimTaken, EventClaimConflict, EventClaimTransferred, EventClaimReleased,
+		EventClaimTaken, EventClaimConflict, EventClaimTransferred, EventClaimReleased, EventMemberRemoved,
 		EventWikiProposal, EventWikiAccepted, EventWikiRejected,
 		EventWorkflowPublished, EventWorkflowRestored, EventWorkflowArchived, EventConfigChanged,
 	}
