@@ -179,6 +179,8 @@ The aliases come from the YAML of the workflows (`aliases:`, see the [workflows 
 
 ### Projects and configuration
 
+The commands of a project (`board`, `board.init`, `project-wiki`, `project-config`) are always registered and show in the Project view only: a first project added in the TUI brings them at once, without a restart.
+
 | Command | Aliases | View | Description |
 |---------|---------|------|-------------|
 | `board` | kanban, tasks, project board | Project | Beads board of the project |

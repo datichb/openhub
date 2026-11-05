@@ -179,6 +179,8 @@ Les alias viennent des YAML des workflows (`aliases:`, voir la [référence des 
 
 ### Projets et configuration
 
+Les commandes d'un projet (`board`, `board.init`, `project-wiki`, `project-config`) sont toujours enregistrées et ne s'affichent que dans la vue Projet : un premier projet ajouté dans la TUI les apporte tout de suite, sans redémarrer.
+
 | Commande | Alias | Vue | Description |
 |----------|-------|------|-------------|
 | `board` | kanban, tasks, project board | Projet | Board Beads du projet |
