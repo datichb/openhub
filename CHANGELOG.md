@@ -9,6 +9,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Security
+
+- **`GH_TOKEN` et les autres noms des jetons gérés par oh sont retirés même s'ils sont listés dans `execution.env_allow`.** `GITHUB_TOKEN` était refusé, mais pas son alias `GH_TOKEN` (lu par `gh` et par le serveur MCP GitHub) : avec `env_allow = "GH_TOKEN"` ou `"GH_*"`, le jeton atteignait les shells des agents. Sont maintenant refusés, par leur nom comme par un motif : `GH_TOKEN`, `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, `GITLAB_ACCESS_TOKEN`, `GITLAB_PRIVATE_TOKEN`, `GITLAB_OAUTH_TOKEN` et `ANTHROPIC_AUTH_TOKEN`. Sous Windows, la casse n'est pas prise en compte. Pour utiliser `gh` dans une session : `gh auth login`, ou le serveur MCP GitHub d'oh. ([MIGRATION.md](MIGRATION.md))
+
 ## [5.4.0] — 2026-11-05
 
 Version mineure qui rend **le mode équipe logique et complet**, à la suite de l'audit de la 5.3.x. **Une seule règle** choisit l'équipe (`--team`, TUI, projet, défaut) et rend toujours le dépôt et le membre de la même équipe. **L'accès vient avant le clone** : sonde du dépôt, token vérifié, empreinte du serveur SSH confirmée à la première connexion. **La synchro du tracker est automatique** (un seul membre par intervalle) et ne crée plus de doublons. **L'accueil a une section Équipes** avec « ➕ Nouvelle équipe », et la vue Équipes archive, restaure, renomme et définit l'équipe par défaut. **La configuration d'équipe est gouvernée** : événement `config_changed`, réglages imposés réservés au rôle `lead`, surcharges `[teams.tracker]`, `oh team config get|set|unset|show`. **Les notifications** ont leur réglage `[notifications]`, des mentions et une file de renvoi pour les webhooks. **Le cycle de vie** est complet : `oh teams leave`, `oh team member remove`, transfert en masse des réservations, événements signés de celui qui agit. Une douzaine de ruptures légères (scripts, `--force`, `--reconfigure`, `events = [...]` des webhooks, `[teams.tracker]`, SSH en CI…) sont décrites dans la [migration 5.3 → 5.4](docs/guides/migration-v5.fr.md#depuis-la-53-vers-la-54) ; pas de migration de la base.
