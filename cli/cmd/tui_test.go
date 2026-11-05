@@ -9,6 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 func TestCanLaunchTUI_NonInteractive(t *testing.T) {
@@ -90,4 +91,16 @@ func TestBuildViews(t *testing.T) {
 	for _, id := range []string{"board", "team.board", "metrics", "team.mode", "project.mode"} {
 		assert.Contains(t, ids, id, "the shell registers the %s view", id)
 	}
+}
+
+// The team detail the shell registers is the one the team landing asks for a
+// section; outside of the TUI nothing happens.
+func TestOpenTeamDetailUsesTheRegisteredView(t *testing.T) {
+	prev, prevShell := teamDetailView, tuiShell
+	t.Cleanup(func() { teamDetailView, tuiShell = prev, prevShell })
+	tuiShell = nil
+	teamDetailView = nil
+	v := buildTeamDetailView(&app.App{Config: &config.Config{}})
+	assert.Same(t, v, teamDetailView)
+	assert.NotPanics(t, func() { openTeamDetail(views.TeamSectionMember) })
 }

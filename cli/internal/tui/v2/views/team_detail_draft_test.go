@@ -278,3 +278,25 @@ func TestTeamDetailOpenSectionAndEmptyStateNewTeam(t *testing.T) {
 	assert.Equal(t, 1, opened)
 	assert.Contains(t, v.StatusHints(), "n")
 }
+
+// The two sections the team landing opens the detail on exist and are not the
+// same place: the card of the member, then the shared configuration.
+func TestTeamDetailOpensOnTheCardAndOnTheSharedConfig(t *testing.T) {
+	e := newTokenEnv(t, "gitlab")
+	resolve := e.v.cfg.ResolveTeam
+	e.v.cfg.ResolveTeam = func() TeamResolution { tc := resolve(); tc.MemberID = "alice"; return tc }
+	e.v.cfg.GetMember = func(context.Context, string) *teamstate.Member { return &teamstate.Member{ID: "alice"} }
+	e.v.cfg.SaveMemberField = func(context.Context, string, string, string) error { return nil }
+	e.v.Mount(tview.NewFlex(), nil)
+	current := func() int {
+		idx, _, ok := e.v.list.CurrentItem()
+		require.True(t, ok)
+		return idx
+	}
+	e.v.OpenSection(TeamSectionTracker)
+	tracker := current()
+	e.v.OpenSection(TeamSectionMember)
+	member := current()
+	assert.NotEqual(t, tracker, member)
+	assert.Less(t, member, tracker, "the card comes before the shared configuration")
+}

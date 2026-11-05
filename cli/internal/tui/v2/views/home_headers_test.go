@@ -280,3 +280,24 @@ func TestProjectLandingTeamLine(t *testing.T) {
 	assert.NotPanics(t, func() { bare.teamLine().Action() }, "without a host: nothing to open")
 	assert.Equal(t, "Équipe : aucune", bare.teamLine().Label)
 }
+
+// « Membres et ma fiche » and « Config Équipe » do not open the same place:
+// the first opens the detail on the card of the member, the second on the
+// shared configuration (first section: the tracker).
+func TestTeamLandingOpensTheDetailOnTheSectionOfEachItem(t *testing.T) {
+	frLocale(t)
+	var navigated, opened []string
+	v := NewTeamModeView(TeamModeConfig{
+		OnNavigate:     func(id string) { navigated = append(navigated, id) },
+		OpenTeamDetail: func(section string) { opened = append(opened, section) },
+	})
+	v.team = &ActiveTeam{ID: "core", Name: "Core"}
+	v.items = v.buildItems()
+	for _, it := range v.items {
+		if it.Label == "Membres et ma fiche" || it.Label == "Config Équipe" {
+			it.Action()
+		}
+	}
+	assert.Equal(t, []string{TeamSectionMember, TeamSectionTracker}, opened)
+	assert.Empty(t, navigated, "the callback navigates itself")
+}

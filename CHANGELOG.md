@@ -100,6 +100,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Deux `default = true` dans `hub.toml`** bloquaient toute écriture ; le chargement garde la première marque et `oh doctor` le dit.
 - **Découverte du tracker** : les anciens mappings vers des colonnes remplacées ne font plus refuser l'enregistrement (ils sont retirés).
 - Le curseur du détail ne saute plus d'une ligne à chaque mise à jour (les lignes de séparation étaient comptées comme des éléments).
+- **Vue Équipe : « Membres et ma fiche » et « Config Équipe » n'ouvrent plus le même endroit.** Le premier ouvre le détail de l'équipe sur la section Ma fiche de membre, le second sur la configuration partagée (tracker).
 
 ## [5.3.3] — 2026-11-04
 
