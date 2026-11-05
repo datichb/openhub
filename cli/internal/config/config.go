@@ -359,6 +359,19 @@ func (c *Config) DefaultTeam() *TeamConfig {
 	return nil
 }
 
+// SoloTeamCount is the number of solo spaces the Teams view shows as active:
+// the solo teams that are enabled. An archived solo space (disabled) is not
+// counted, as it is not one the member can use.
+func (c *Config) SoloTeamCount() int {
+	n := 0
+	for _, t := range c.Teams {
+		if t.Solo && t.Enabled {
+			n++
+		}
+	}
+	return n
+}
+
 // SetDefaultTeam makes the team id the default team: the only one marked
 // `default = true`. A team that is unknown, solo or archived cannot be the
 // default team.

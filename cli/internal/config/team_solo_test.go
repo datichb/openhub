@@ -130,3 +130,30 @@ func TestTeamGitLabURL(t *testing.T) {
 	assert.NotEqual(t, "core", id, "another repository: it gets an ID of its own")
 	assert.Empty(t, cfg.FindTeam(id).GitLabURL, "another repository: the old declaration does not apply to it")
 }
+
+// SoloTeamCount counts the solo spaces that are enabled: it is the number the
+// hub home shows, and the Teams view lists them.
+func TestSoloTeamCount(t *testing.T) {
+	t.Parallel()
+	solo := func(id string, enabled bool) config.TeamConfig {
+		return config.TeamConfig{ID: id, Enabled: enabled, Solo: true, StatePath: "/s/" + id, MemberID: "alice"}
+	}
+	acme := config.TeamConfig{ID: "acme", Enabled: true, StateRepo: "git@x:a.git", MemberID: "alice"}
+	old := config.TeamConfig{ID: "old", Enabled: false, StateRepo: "git@x:o.git", MemberID: "alice"}
+
+	cases := []struct {
+		name  string
+		teams []config.TeamConfig
+		want  int
+	}{
+		{"no team", nil, 0},
+		{"teams without a solo space", []config.TeamConfig{acme, old}, 0},
+		{"one solo space", []config.TeamConfig{acme, solo("mine", true)}, 1},
+		{"several solo spaces", []config.TeamConfig{solo("a", true), acme, solo("b", true), solo("c", true)}, 3},
+		{"an archived solo space is not counted", []config.TeamConfig{solo("a", true), solo("gone", false)}, 1},
+		{"only archived solo spaces", []config.TeamConfig{solo("gone", false)}, 0},
+	}
+	for _, tc := range cases {
+		assert.Equal(t, tc.want, (&config.Config{Teams: tc.teams}).SoloTeamCount(), tc.name)
+	}
+}
