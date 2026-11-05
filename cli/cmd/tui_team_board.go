@@ -215,7 +215,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				if held, gerr := repo.GetClaim(ctx, projectID, ticketID); gerr == nil && held.ClaimedBy != "" {
 					return nil // already owned, idempotent
 				}
-				if err := checkInProgressRoom(ctx, repo, a.Config.Tracker, memberID, teamstate.ClaimRef{Project: projectID, TicketID: ticketID}); err != nil {
+				if err := checkInProgressRoom(ctx, repo, trackerLocalOf(ctx, a), memberID, teamstate.ClaimRef{Project: projectID, TicketID: ticketID}); err != nil {
 					return err
 				}
 
@@ -289,7 +289,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				// A claim in progress handed to oneself is one more ticket in progress.
 				if me := boardMember(); toMember == me {
 					if c, gerr := repo.GetClaim(ctx, projectID, ticketID); gerr == nil {
-						if err := checkTransferToSelfRoom(ctx, repo, a.Config.Tracker, me, c); err != nil {
+						if err := checkTransferToSelfRoom(ctx, repo, trackerLocalOf(ctx, a), me, c); err != nil {
 							return err
 						}
 					}
@@ -314,7 +314,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				// A card of the member moved to a column of work in progress is one
 				// more ticket in progress.
 				if c, gerr := repo.GetClaim(ctx, projectID, ticketID); gerr == nil {
-					if err := checkStatusMoveRoom(ctx, repo, a.Config.Tracker, boardMember(), c, status); err != nil {
+					if err := checkStatusMoveRoom(ctx, repo, trackerLocalOf(ctx, a), boardMember(), c, status); err != nil {
 						return err
 					}
 				}

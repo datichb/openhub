@@ -268,6 +268,9 @@ func (c *Config) UpsertTeam(t TeamConfig) string {
 			if t.StatePath == "" {
 				t.StatePath = cur.StatePath
 			}
+			if t.Tracker.IsZero() {
+				t.Tracker = cur.Tracker
+			}
 			c.Teams[i] = t
 			return t.ID
 		}
@@ -282,6 +285,9 @@ func (c *Config) UpsertTeam(t TeamConfig) string {
 		}
 		if t.Name == "" {
 			t.Name = cur.Name
+		}
+		if t.Tracker.IsZero() {
+			t.Tracker = cur.Tracker
 		}
 		c.Teams[i] = t
 		return t.ID
@@ -403,6 +409,12 @@ type TeamConfig struct {
 	// which one (Config.DefaultTeam). At most one team has it
 	// (`oh teams default <id>`); without it the first enabled team is used.
 	Default bool `toml:"default,omitempty"`
+	// Tracker holds the member's personal overrides of the tracker for this
+	// team ([teams.tracker] under its [[teams]] entry, `oh config set
+	// teams.<id>.tracker.<key>`). The [tracker] section of hub.toml stays the
+	// default of every team; what is set here wins for this team only
+	// (Config.TrackerFor).
+	Tracker TrackerLocalConfig `toml:"tracker,omitempty"`
 }
 
 // usable reports whether the team can be chosen without being asked for: a
@@ -948,6 +960,19 @@ func (c *Config) ToMap() map[string]interface{} {
 	}
 	flat := make(map[string]interface{})
 	flattenMap("", m, flat)
+	for _, t := range c.Teams {
+		if t.Tracker.IsZero() {
+			continue
+		}
+		tdata, err := toml.Marshal(t.Tracker)
+		if err != nil {
+			continue
+		}
+		var tm map[string]interface{}
+		if toml.Unmarshal(tdata, &tm) == nil {
+			flattenMap("teams."+t.ID+".tracker", tm, flat)
+		}
+	}
 	return flat
 }
 

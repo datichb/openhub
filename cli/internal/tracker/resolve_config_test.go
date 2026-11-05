@@ -38,9 +38,6 @@ func TestResolveTrackerConfig_NilShared_DefaultsUsed(t *testing.T) {
 	if eff.MaxUnassignedIssues != 0 {
 		t.Errorf("expected MaxUnassignedIssues=0 (no shared), got %d", eff.MaxUnassignedIssues)
 	}
-	if eff.DoneRetentionDays != 7 {
-		t.Errorf("expected DoneRetentionDays=7 (default), got %d", eff.DoneRetentionDays)
-	}
 }
 
 func TestResolveTrackerConfig_SharedValues_Inherited(t *testing.T) {
@@ -362,6 +359,29 @@ func TestInProgressLimitCascade(t *testing.T) {
 	local := config.TrackerLocalConfig{MaxInProgressPerMember: intPtrTC(3)}
 	assert.Equal(t, 3, InProgressLimit(&teamstate.TrackerConfig{MaxInProgressPerMember: intPtrTC(8)}, local), "hub.toml wins")
 	assert.Equal(t, 3, InProgressLimit(nil, local))
-	assert.Zero(t, InProgressLimit(&teamstate.TrackerConfig{MaxInProgressPerMember: intPtrTC(8)}, config.TrackerLocalConfig{MaxInProgressPerMember: intPtrTC(0)}), "a member may lift it for themselves")
+	assert.Equal(t, 8, InProgressLimit(&teamstate.TrackerConfig{MaxInProgressPerMember: intPtrTC(8)}, config.TrackerLocalConfig{MaxInProgressPerMember: intPtrTC(0)}), "the limit of the team is a ceiling: a member cannot lift it")
+	assert.Zero(t, InProgressLimit(&teamstate.TrackerConfig{}, config.TrackerLocalConfig{MaxInProgressPerMember: intPtrTC(0)}), "a team that set none leaves the choice to the member")
 	assert.Equal(t, 8, InProgressLimit(&teamstate.TrackerConfig{MaxInProgressPerMember: intPtrTC(8)}, config.TrackerLocalConfig{MaxInProgressPerMember: intPtrTC(-2)}), "a negative value is ignored")
+}
+
+// The limit a team sets is a ceiling: a member asks for less, never for more nor for none.
+func TestResolve_TeamInProgressLimitIsACeiling(t *testing.T) {
+	team := &teamstate.TrackerConfig{MaxInProgressPerMember: intPtrTC(4)}
+	for _, tc := range []struct {
+		local *int
+		want  int
+	}{{nil, 4}, {intPtrTC(2), 2}, {intPtrTC(4), 4}, {intPtrTC(9), 4}, {intPtrTC(0), 4}} {
+		eff := ResolveTrackerConfig(team, config.TrackerLocalConfig{MaxInProgressPerMember: tc.local})
+		assert.Equal(t, tc.want, eff.MaxInProgressPerMember)
+	}
+	// a team that lifts its limit leaves the choice to the member
+	free := &teamstate.TrackerConfig{MaxInProgressPerMember: intPtrTC(0)}
+	assert.Equal(t, 9, ResolveTrackerConfig(free, config.TrackerLocalConfig{MaxInProgressPerMember: intPtrTC(9)}).MaxInProgressPerMember)
+	// a team that chose nothing (the default 5 applies) does not bind the member
+	none := &teamstate.TrackerConfig{}
+	assert.Equal(t, 9, ResolveTrackerConfig(none, config.TrackerLocalConfig{MaxInProgressPerMember: intPtrTC(9)}).MaxInProgressPerMember)
+	assert.Equal(t, 0, ResolveTrackerConfig(none, config.TrackerLocalConfig{MaxInProgressPerMember: intPtrTC(0)}).MaxInProgressPerMember)
+	// the former key of the team is a ceiling too
+	old := &teamstate.TrackerConfig{MaxAutoPlanPerMember: 3}
+	assert.Equal(t, 3, ResolveTrackerConfig(old, config.TrackerLocalConfig{MaxInProgressPerMember: intPtrTC(7)}).MaxInProgressPerMember)
 }

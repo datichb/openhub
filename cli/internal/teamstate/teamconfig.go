@@ -671,6 +671,16 @@ func (t TrackerConfig) InProgressLimit() int {
 	return DefaultMaxInProgressPerMember
 }
 
+// InProgressCeiling is the limit the team chose (set), as opposed to the
+// default that applies when it chose none: the most a member may ask for in
+// hub.toml. 0 is no limit, hence no ceiling.
+func (t TrackerConfig) InProgressCeiling() (limit int, set bool) {
+	if t.MaxInProgressPerMember == nil && t.MaxAutoPlanPerMember <= 0 {
+		return 0, false
+	}
+	return t.InProgressLimit(), true
+}
+
 // UsesFormerInProgressKey reports whether the team still sets the former
 // max_auto_plan_per_member: oh reads it (when the new key is absent) and drops
 // it at the next write of config.toml.

@@ -344,6 +344,7 @@ func configureFigma(ctx context.Context, a *app.App, p *prompter, repo teamstate
 
 func configureTrackerSync(ctx context.Context, a *app.App, p *prompter, repo teamstate.ConfigWriter, teamCfg *teamstate.TeamConfig, configTeam, configLocal bool) error {
 	out := a.IO.Out
+	teamID := teamIDOf(ctx, a)
 
 	fmt.Fprint(out, i18n.Tf("cmd.team_config.tracker_sync_configuration", theme.Title.Render(glyph.Current)))
 
@@ -565,8 +566,12 @@ func configureTrackerSync(ctx context.Context, a *app.App, p *prompter, repo tea
 	if configLocal {
 		fmt.Fprint(out, i18n.Tf("cmd.team_config.local_configuration_overrides", theme.Bold.Render("→")))
 		fmt.Fprint(out, i18n.T("v533b.team_config.local_hint"))
-		edits := &localEdits{}
-		local := a.Config.Tracker
+		edits := &localEdits{team: teamID}
+		// the settings asked about are the ones of the section of this team
+		// ([teams.tracker]); the default [tracker] and the team's own are
+		// merged to know what is in force
+		local := a.Config.TeamTracker(teamID)
+		merged := a.Config.TrackerFor(teamID)
 
 		// enabled override
 		edits.tri("tracker.enabled", local.Enabled,
@@ -578,7 +583,7 @@ func configureTrackerSync(ctx context.Context, a *app.App, p *prompter, repo tea
 
 		// push_labels override
 		sharedPush := teamCfg.Tracker.PushLabels
-		effLocal := tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker)
+		effLocal := tracker.ResolveTrackerConfig(&teamCfg.Tracker, merged)
 		writeEnabled := effLocal.WriteEnabled
 		if !writeEnabled && sharedPush {
 			fmt.Fprint(out, i18n.Tf("cmd.team_config.push_labels_is_recommended_by_the", cliout.WarnIcon()))
@@ -589,12 +594,12 @@ func configureTrackerSync(ctx context.Context, a *app.App, p *prompter, repo tea
 		}
 
 		// the personal declaration of the token (key and server together)
-		curKey, curServer := local.TokenDecl()
+		curKey, curServer := merged.TokenDecl()
 		key, server := askTrackerTokenDecl(out, func(prompt, def string) string { return askInput(p, prompt, def) },
 			declLocal, teamCfg.Tracker.Type, curKey, curServer)
 		if key != curKey || server != curServer {
 			edits.change(func(c *config.Config) error {
-				c.Tracker.SetTokenDecl(key, server)
+				c.TrackerForWrite(teamID).SetTokenDecl(key, server)
 				return nil
 			})
 		}
@@ -695,9 +700,10 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	eff := tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker)
+	local := trackerLocalOf(ctx, a)
+	eff := tracker.ResolveTrackerConfig(&teamCfg.Tracker, local)
 
-	printTrackerStatus(out, teamCfg, a.Config.Tracker, eff)
+	printTrackerStatus(out, teamCfg, local, eff)
 
 	// ── Connection tests ─────────────────────────────────────────────────────
 	fmt.Fprintf(out, "\n%s\n", theme.Bold.Render("Test de connexion"))
@@ -851,7 +857,7 @@ func printTrackerStatus(out interface{ Write([]byte) (int, error) },
 // so that the GitLab token is found with the unified cascade like everywhere
 // else, and only for the server of the tracker.
 func trackerCredentials(ctx context.Context, a *app.App, teamCfg *teamstate.TeamConfig) tracker.CredentialSource {
-	return buildCredentialSource(ctx, a, tracker.ResolveTrackerConfig(&teamCfg.Tracker, a.Config.Tracker))
+	return buildCredentialSource(ctx, a, tracker.ResolveTrackerConfig(&teamCfg.Tracker, trackerLocalOf(ctx, a)))
 }
 
 // mcpGitLabCredentials is the credential source for the GitLab of the MCP

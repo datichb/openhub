@@ -6477,5 +6477,6 @@
   "v54c.event.config_changed": "a modifié la configuration de l'équipe (%s)",
   "v54c.governance.not_lead": "%s n'a pas le rôle lead : seuls les leads de l'équipe peuvent changer les réglages imposés (%s). Demandez-leur, ou faites changer votre rôle dans members.toml.",
   "v54c.config.bounds": "doit être entre %d et %d (reçu %d)",
-  "v54c.config.one_of": "valeurs possibles : %s (reçu %q)"
+  "v54c.config.one_of": "valeurs possibles : %s (reçu %q)",
+  "v54c.config.unknown_team": "L'équipe %s n'est pas dans hub.toml (oh teams list)."
 }

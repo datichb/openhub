@@ -138,9 +138,10 @@ func TestTrackerTokenStepDeclaresTheKeyAndStoresTheToken(t *testing.T) {
 	assert.Equal(t, "glpat-1", secrets["forge.token"])
 	got, err := config.Read()
 	require.NoError(t, err)
-	assert.Equal(t, "forge.token", got.Tracker.TrackerTokenKey)
-	assert.Equal(t, "https://gitlab.forge.example", got.Tracker.TrackerTokenURL)
-	assert.Equal(t, "forge.token", a.Config.Tracker.TrackerTokenKey, "the shared config follows")
+	assert.Equal(t, "forge.token", got.TeamTracker("core").TrackerTokenKey, "the declaration is the one of the team")
+	assert.Equal(t, "https://gitlab.forge.example", got.TeamTracker("core").TrackerTokenURL)
+	assert.Empty(t, got.Tracker.TrackerTokenKey, "the default [tracker] is not touched")
+	assert.Equal(t, "forge.token", a.Config.TeamTracker("core").TrackerTokenKey, "the shared config follows")
 	assert.True(t, step.SkipIf(), "the cascade finds the token for the server of the tracker")
 	assert.Equal(t, i18n.T("cmd.init.wizard_tracker_token_stored"), step.InfoFields()[0].Value)
 }
@@ -155,7 +156,7 @@ func TestTrackerTokenStepKeepingTheDefaultKey(t *testing.T) {
 	assert.Equal(t, "glpat-1", secrets["openhub.tracker.gitlab.token"])
 	got, err := config.Read()
 	require.NoError(t, err)
-	assert.Empty(t, got.Tracker.TrackerTokenKey)
+	assert.Empty(t, got.TrackerFor("core").TrackerTokenKey)
 	assert.True(t, step.SkipIf())
 
 	jira := "[tracker]\ntype = \"jira\"\nenabled = true\ntracker_url = \"https://jira.example\"\n"
@@ -166,7 +167,7 @@ func TestTrackerTokenStepKeepingTheDefaultKey(t *testing.T) {
 	assert.Equal(t, "jira-tok", secrets["openhub.tracker.jira.token"])
 	got, err = config.Read()
 	require.NoError(t, err)
-	assert.Equal(t, "openhub.tracker.jira.token", got.Tracker.TrackerTokenKey)
+	assert.Equal(t, "openhub.tracker.jira.token", got.TrackerFor("core").TrackerTokenKey)
 	assert.True(t, step.SkipIf())
 }
 

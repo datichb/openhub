@@ -158,7 +158,7 @@ func TestTeamConfigRefusesAnUnreadableTeamConfig(t *testing.T) {
 // Local overrides: Enter keeps the current state, nothing is written that was
 // not chosen, and « inherit » removes the key from hub.toml.
 func TestTeamConfigLocalInheritRemovesTheKey(t *testing.T) {
-	hub := "\n[tracker]\nenabled = false\nauto_sync = true\n"
+	hub := "\n[tracker]\nenabled = false\n\n[teams.tracker]\nauto_sync = true\n"
 	e := newWizardEnv(t, jiraTeam, hub)
 	before, err := os.ReadFile(config.ConfigPath())
 	require.NoError(t, err)
@@ -171,11 +171,11 @@ func TestTeamConfigLocalInheritRemovesTheKey(t *testing.T) {
 	require.NoError(t, err, "hub.toml is read again")
 	require.NotNil(t, got.Tracker.Enabled)
 	assert.False(t, *got.Tracker.Enabled, "Enter keeps the state of this machine")
-	assert.Nil(t, got.Tracker.AutoSync, "inherit unsets the key")
+	assert.Nil(t, got.TeamTracker("core").AutoSync, "inherit unsets the key of the section of the team")
 	data, err := os.ReadFile(config.ConfigPath())
 	require.NoError(t, err)
 	assert.NotContains(t, string(data), "auto_sync")
-	assert.Nil(t, e.a.Config.Tracker.AutoSync, "the config of the app follows the file")
+	assert.Nil(t, e.a.Config.TeamTracker("core").AutoSync, "the config of the app follows the file")
 	assert.NotEqual(t, string(before), string(data))
 }
 

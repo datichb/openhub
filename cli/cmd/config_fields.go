@@ -275,11 +275,15 @@ func lookupConfigField(key string) (configField, bool) {
 	if f, ok := configFieldMap[key]; ok {
 		return f, true
 	}
+	if f, ok := teamTrackerConfigField(key); ok {
+		return f, true
+	}
 	return remoteConfigField(key)
 }
 
 // configKeyPatterns are the dynamic keys shown by `oh config list --keys`.
 var configKeyPatterns = []string{
+	"teams.<team-id>.tracker.<key>",
 	"remote.projects.<project-id>",
 	"remote.targets.<target>.arch",
 	"remote.targets.<target>.builder",

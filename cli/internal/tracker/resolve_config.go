@@ -41,9 +41,6 @@ type EffectiveTrackerConfig struct {
 	// TicketPattern is the resolved regex for extracting the tracker IID.
 	// Resolution: project.TicketPattern → shared.TicketPattern → ""
 	TicketPattern string
-	// DoneRetentionDays is the number of days before done claims are cleaned up.
-	DoneRetentionDays int
-
 	// ── Deprecated: backward compat with old map-based config ────────────────
 	// These are populated from the old Projects/TicketPatterns maps when
 	// the new TrackerProject field is empty. Callers should prefer
@@ -186,9 +183,6 @@ func ResolveFullTrackerConfig(
 		}
 	}
 
-	// DoneRetentionDays comes from ClaimConfig — use a sensible default.
-	eff.DoneRetentionDays = 7
-
 	// ── Behavioural: shared ?? local ?? default ────────────────────────────────
 
 	// Helper: boolOrDefault returns the local override if non-nil, else shared,
@@ -237,6 +231,14 @@ func ResolveFullTrackerConfig(
 	eff.AutoSync, eff.LocalOverrides.AutoSync = boolResolve(local.AutoSync, sharedAutoSync, false)
 	eff.AutoPlanAssigned, eff.LocalOverrides.AutoPlanAssigned = boolResolve(local.AutoPlanAssigned, sharedAutoPlan, false)
 	eff.MaxInProgressPerMember, eff.LocalOverrides.MaxInProgressPerMember = intResolve(local.MaxInProgressPerMember, sharedMaxInProgressVal, teamstate.DefaultMaxInProgressPerMember)
+	// The limit a team sets is a ceiling: a member may ask for less, never for
+	// more nor for none. A team that sets none (the default 5 applies) leaves
+	// the member free.
+	if shared != nil && local.MaxInProgressPerMember != nil {
+		if ceiling, set := shared.InProgressCeiling(); set && ceiling > 0 && (*local.MaxInProgressPerMember == 0 || *local.MaxInProgressPerMember > ceiling) {
+			eff.MaxInProgressPerMember, eff.LocalOverrides.MaxInProgressPerMember = ceiling, false
+		}
+	}
 
 	// WriteEnabled: resolved from tracker's own config, independent of MCP.
 	// Project override → hub override → team shared → false

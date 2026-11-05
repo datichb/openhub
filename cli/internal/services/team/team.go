@@ -283,7 +283,7 @@ func (s *Service) TrackerTokenDecl(ctx context.Context, project *domain.Project)
 	if project != nil {
 		pc = project.TrackerConfig
 	}
-	eff := tracker.ResolveFullTrackerConfig(shared, s.Config.Tracker, pc)
+	eff := tracker.ResolveFullTrackerConfig(shared, s.Config.TrackerFor(tc.TeamID), pc)
 	server, implicit = eff.TokenServer()
 	return eff.TrackerTokenKey, server, implicit
 }
