@@ -22,7 +22,7 @@ var NotificationEvents = []string{
 	EventReviewReady, EventReviewApproved, EventReviewRejected,
 	EventWikiProposal, EventWikiAccepted, EventWikiRejected,
 	EventClaimTaken, EventClaimReleased, EventClaimTransferred, EventClaimConflict,
-	EventClaimExpiring, EventClaimExpired,
+	EventClaimExpiring, EventClaimExpired, EventMemberRemoved,
 	EventSessionComplete, EventAuditFinding,
 	EventWorkflowPublished, EventWorkflowRestored, EventWorkflowArchived,
 	EventConfigChanged, EventCustomNotification,

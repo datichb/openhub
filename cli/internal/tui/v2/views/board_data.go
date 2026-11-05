@@ -2,6 +2,8 @@ package views
 
 import (
 	"context"
+	"slices"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
@@ -40,6 +42,14 @@ type TeamTicket struct {
 	// SessionID is the session that works on the claim, when the claim names
 	// one (it may be over: the menu of the card checks it).
 	SessionID string
+	// LeaseUntil is the end of the lease of the claim (zero when it carries
+	// none: pool, planned, finished, in review). Expired: the lease is past
+	// (or, without lease, the claim is stale), so another member may take the
+	// ticket over. SessionEnded: the session that worked on it ended and left
+	// the claim with the session-ended label.
+	LeaseUntil   time.Time
+	Expired      bool
+	SessionEnded bool
 }
 
 // ProjectNameResolver maps a project directory ID to a human-friendly display name.
@@ -69,6 +79,13 @@ func FetchTeamTicketsWithColumns(ctx context.Context, repo TeamTicketSource, res
 	if err != nil {
 		return nil
 	}
+	// The lease of the claims is judged with the config of the team when the
+	// source can give it.
+	var teamCfg *teamstate.TeamConfig
+	if cr, ok := repo.(teamstate.ConfigReader); ok {
+		teamCfg, _ = cr.LoadConfig(ctx)
+	}
+	now := time.Now()
 
 	claims, err := repo.ListClaims(ctx, "")
 	if err != nil {
@@ -104,7 +121,7 @@ func FetchTeamTicketsWithColumns(ctx context.Context, repo TeamTicketSource, res
 		} else {
 			status = MapClaimStatus(c.Status)
 		}
-		tickets = append(tickets, TeamTicket{
+		t := TeamTicket{
 			ID:          c.TicketID,
 			Title:       title,
 			Project:     c.Project,
@@ -117,7 +134,13 @@ func FetchTeamTicketsWithColumns(ctx context.Context, repo TeamTicketSource, res
 			MRURL:       c.MRURL,
 			Branch:      c.Worktree,
 			SessionID:   c.Session,
-		})
+		}
+		if c.HasLease(teamCfg) {
+			t.LeaseUntil = c.LeaseUntil.Time()
+			t.Expired = c.IsExpired(now, teamCfg)
+		}
+		t.SessionEnded = slices.Contains(c.Labels, teamstate.LabelSessionEnded)
+		tickets = append(tickets, t)
 	}
 
 	return tickets

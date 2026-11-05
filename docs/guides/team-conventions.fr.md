@@ -204,6 +204,8 @@ L'enforcement fonctionne à deux niveaux :
 | `oh team claim <ticket>` | `max_ticket_wip` |
 | `oh policies check [--branch <b>] [--commit <msg>]` | toutes les policies actives (dont `branch_naming` avec `--branch`) |
 
+`max_ticket_wip` compte les réservations du membre qui **ne sont pas terminées** (prévues, en cours, en revue…) : un ticket terminé qui attend le nettoyage n'est plus du travail. C'est une limite distincte de `max_in_progress_per_member`, qui ne compte que le travail en cours. Le contrôle a lieu avant l'écriture du claim, pas dans la transaction : deux claims pris au même instant peuvent passer tous les deux.
+
 > Les autres policies (`review_required`, `tests_required`…) sont vérifiées par les agents pendant la session, pas par `oh team release`.
 
 > **Label `agent-reviewed` :** appliqué automatiquement à un claim lorsque l'agent émet `review.ready` ; visible sur le board d'équipe sous la forme `[AI]`.

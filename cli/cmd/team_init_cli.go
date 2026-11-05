@@ -58,6 +58,9 @@ func runTeamInit(cmd *cobra.Command, _ []string) error {
 		if err != nil {
 			return err
 		}
+		if archivedTeam(t) {
+			return fmt.Errorf("%s", archivedTeamMessage(t))
+		}
 		if !reconfigurable(t) {
 			return fmt.Errorf("%s", i18n.Tf("v54a.init.nothing_to_reconfigure", theme.Bold.Render("oh team init"), theme.Bold.Render("oh team rejoin --repo <url>")))
 		}

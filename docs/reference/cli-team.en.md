@@ -185,7 +185,7 @@ oh team activity [options]
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--limit` | int | `20` | Maximum number of events |
-| `--member` | string | | Filter by member |
+| `--member` | string | | Filter by member: what they did **and** what happened to them (claim handed over or released, card removed) |
 | `--project` | string | | Filter by project |
 | `--today` | bool | `false` | Today's events only |
 | `--week` | bool | `false` | Last 7 days |
@@ -194,6 +194,8 @@ oh team activity [options]
 oh team activity --today
 oh team activity --member alice --limit 50
 ```
+
+Life-cycle events of the claims and members (each is written in the commit of the change, signed by the member who **acts**): `claim.taken` (`oh team claim`, the take key and the launches), `claim.released` (`data.owner` is the member who held the claim, `data.reason` one of `manual`, `session_end`, `expired`, `cleanup`, `member_removed`, `left_team`, `bulk`), `claim.transferred` (`data.from`, `data.to`, `data.reason`: `manual`, `expired`, `stale`, `bulk`, `member_removed`) and `member.removed` (`data.member`, `data.self` when the member left, `data.claims_transferred` / `data.to` / `data.claims_released`; project `_team`). Scripts that read the events must tolerate the new type `member.removed`.
 
 ---
 
@@ -244,16 +246,24 @@ oh team claim TICKET-123 --worktree feat/ticket-123
 Changes the owner of an existing claim without releasing it. Handing a claim in progress to yourself is one more ticket in progress: it is refused at the limit (see [`oh team claim`](#oh-team-claim)); handing it to someone else is not.
 
 ```
-oh team claim transfer <ticket-id> --to <member-id> [-p <project>]
+oh team claim transfer <ticket-id> --to <member-id> [-p <project>] [--force]
+oh team claim transfer --from <member-id> (--to <member-id> | --release) [--force]
 ```
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--to` | | string | Target member (required) |
+| `--to` | | string | Member who receives the claim; must be a card of the team (required with a ticket) |
+| `--from` | | string | Without a ticket: the member whose **open** claims all move, in one commit (finished claims stay where they are) |
+| `--release` | | bool | With `--from`: release the claims instead of handing them over |
+| `--force` | | bool | Confirm without asking when the claim belongs to another member, or for a batch (required without a terminal) |
 | `--project` | `-p` | string | Project (detected from the current folder if omitted) |
+
+The claim of another member, and any batch, is handed over after a confirmation that **names the owner** (`--force` answers it). A finished ticket is not handed over. The takeover brief, the claim and the `claim.transferred` event are one commit, and the event is signed by **you** (the member who acts), not by the previous owner. Handing the claims of a member who left to yourself is checked against your limit of tickets in progress.
 
 ```bash
 oh team claim transfer TICKET-123 --to bob
+oh team claim transfer --from alice --to bob     # alice left: all her open claims go to bob
+oh team claim transfer --from alice --release    # or they are released
 ```
 
 ### oh team release
@@ -261,16 +271,35 @@ oh team claim transfer TICKET-123 --to bob
 Releases a claimed ticket (it becomes available to the other members again).
 
 ```
-oh team release <ticket-id> [-p <project>]
+oh team release <ticket-id> [-p <project>] [--force]
 ```
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
 | `--project` | `-p` | string | Project (detected from the current folder if omitted) |
+| `--force` | | bool | Release the claim of another member without asking (required without a terminal) |
+
+The claim of another member is released only after a confirmation that names its owner; if it changed hands in the meantime the command says who holds it now and releases nothing. A `claim.released` event signed by you, with the owner it had, is in the same commit.
 
 ```bash
 oh team release TICKET-123
 ```
+
+### oh team member remove
+
+Removes the card of **another** member from `members.toml`. Reserved to the `lead` role: a member who is not a lead is told so before anything is asked and nothing is written. **A team with no lead is not locked** (the same rule as for the roles and the enforced settings of the team config): any member may remove a card. You do not remove your own card with this command: leave the team with [`oh teams leave --remove-member`](#oh-teams-leave).
+
+```
+oh team member remove <member-id> [--to <member-id> | --release] [--yes]
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--to` | string | Member who receives the open claims of the removed member |
+| `--release` | bool | Release them instead |
+| `--yes` | bool | Without confirmation (required without a terminal) |
+
+A member who still holds open claims is not removed without an answer (`--to` or `--release`); the claims, the takeover briefs and the card are one commit, with a `claim.transferred` or `claim.released` event per claim and a `member.removed` event, all signed by you. The finished claims stay where they are until the cleanup of finished tickets. `oh doctor` reports claims of members who have no card any more.
 
 ---
 
@@ -408,9 +437,25 @@ oh teams set <id> default                 # default team (default false: remove 
 `member-id` must be a card of the team-state when the clone is there (a colleague's id would make their card yours). `repo`:
 The URL is checked before `hub.toml` changes: the access (probe, token asked and kept as for a rejoin) then the **same team-state** (the repository must share the history of your clone, otherwise it is another team; an empty repository is refused). The clone, its folder, your card, the claims and the keys of the team stay as they are; only the `origin` of the clone and `state_repo` change.
 
+### oh teams leave
+
+Leave a team on this machine, in this order: release **your** open claims (one transaction), empty the queue of pending claim operations (applied while the clone is still there, what remains is listed), delete the clone of the team-state, delete the keychain keys of the team (`openhub.team.<id>.*` and the git token and user of its repository, unless another team uses the same repository), then remove the team from `hub.toml` (and its default mark) and detach its projects.
+
+```
+oh teams leave <team-id> [--remove-member] [--force] [--yes]
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--remove-member` | bool | Also remove your card from `members.toml`. By default **it stays**: it carries your history (events, briefs) |
+| `--force` | bool | Go on when the team-state cannot be reached (your claims then stay until their lease runs out) or when the clone holds commits or files the remote does not have |
+| `--yes` | bool | Leave without confirmation (required without a terminal) |
+
+The command shows what it will do before asking. Nothing is deleted when the team-state cannot be reached or when the access is refused (without `--force`). The folder is deleted only when it is the clone of the repository of the team and no other team of `hub.toml` uses it; a solo space only leaves `hub.toml` (its workflows stay on the machine). The same action is « Quitter l'équipe » on `d` in the Teams view.
+
 ### oh teams remove
 
-Remove a team from the hub; attached projects become projects without a team.
+Remove a team from `hub.toml` **only**; attached projects become projects without a team. The clone, your claims and the keychain keys stay: to really leave a team use [`oh teams leave`](#oh-teams-leave).
 
 ```
 oh teams remove [team-id] [--yes]
@@ -506,5 +551,7 @@ Reference summary; the full contract (statuses, lease, end of session, queue) is
 **End of a session.** For each claim of the session: finished → kept; ticket closed → terminal status; in review (label `review` / `ready-for-review` or `review` status) → **kept**; a checkpoint waiting, `cp-2` put off with work left, state of the checkpoints unreadable → kept with the `session-ended` label; otherwise released. A kept claim is no longer renewed and expires when its lease ends, except a claim in review, which does not expire.
 
 **Durable queue.** The end-of-session decisions and the lease renewals that were not pushed are written to `.git/oh-claims-queue.json` of the team-state clone, then applied in one commit as soon as the repository answers (end of the session, beat of the daemon, `claims-queue` task every 15 minutes). `oh doctor` (`claims_queue`) reports what has been waiting for more than 15 minutes; `oh doctor --fix` applies it after a confirmation.
+
+**Team-state checks of `oh doctor`** (warnings, never a failure; only what is wrong is said), for each enabled team that has a clone: `claims_daemon` (the daemon is stopped while claims of open sessions need its heartbeat), `claims_sync` (the tracker was never synchronized from this machine, or not for 3 intervals with `auto_sync`, 14 days without), `claims_board_status` (claims in a status that is no column of the board), `claims_duplicates` (two claims for one issue of the tracker, e.g. `SRU-42` and `42`, in a project or in two projects of one tracker project), `claims_gone_members` (open claims of members who have no card; the command is given: `oh team claim transfer --from <member> --to … | --release`) and `member_removed` (your own card was removed from the team).
 
 **Forgotten claim:** `oh team release <ticket-id> -p <project>` frees it by hand. `oh doctor` also reports orphan claims (ticket closed, or every session that worked on it ended); the ones taken under the former ID of a recreated project are attached to the local project by `oh doctor --fix` (see [`oh doctor`](cli-infra.en.md#oh-doctor)).

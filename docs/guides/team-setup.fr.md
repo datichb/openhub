@@ -462,7 +462,12 @@ oh team release SRU-142
 
 # Transférer à un autre membre
 oh team claim transfer SRU-142 --to alice
+
+# Alice est partie : toutes ses réservations ouvertes passent à bob (ou `--release` les libère)
+oh team claim transfer --from alice --to bob
 ```
+
+Libérer ou transférer la réservation d'**un autre** membre demande une confirmation qui nomme son propriétaire (`--force` sans terminal). Chaque libération, transfert et prise laisse un événement (`claim.released`, `claim.transferred`, `claim.taken`) **signé du membre qui agit**, visible dans `oh team activity` (`--member` montre aussi ce qui est arrivé à un membre).
 
 Le tableau des statuts, ce qui met un ticket en REVIEW, le bail d'une réservation et ce que devient la réservation à la fin d'une session sont décrits en fin de guide : [Modèle de statut](#modèle-de-statut) et [Bail et fin de session](#bail-et-fin-de-session).
 
@@ -783,13 +788,27 @@ oh teams add --repo git@gitlab.com:org/team-state.git --member-id alice
 
 Le dépôt d'une équipe a déménagé ou été renommé : `oh teams set <id> repo <url>` vérifie l'accès et que c'est le même team-state, puis change l'URL (le clone, votre fiche et les clés restent).
 
-Supprimer une équipe (détache tous les projets associés) :
+### Quitter une équipe
 
 ```bash
-oh teams remove <team-id>
+oh teams leave <team-id>                  # votre fiche reste dans l'équipe (elle porte votre historique)
+oh teams leave <team-id> --remove-member  # votre fiche part aussi
 ```
 
-**Dans la TUI**, la vue Équipes (`Ctrl+P` › `teams`, ou Accueil › Équipes) fait la même chose : `d` retire l'équipe (la confirmation annonce les projets qu'elle détache, et la liste ce qui a été détaché), `x` l'archive, `R` la restaure, `e` la renomme, `*` en fait l'équipe par défaut (`★`, comme `oh teams default <id>`), `p` ouvre sa vue Équipe, `n` ouvre la fenêtre « Nouvelle équipe ». Si l'équipe archivée ou retirée était l'équipe par défaut, le message dit laquelle la remplace.
+Dans cet ordre : vos réservations ouvertes sont libérées (une transaction), la file des opérations de réservation en attente est appliquée, le clone est supprimé, les clés du trousseau de l'équipe sont supprimées (token et utilisateur de l'accès git, `openhub.team.<id>.*`), puis l'équipe quitte `hub.toml` et ses projets sont détachés. La commande liste tout cela et demande d'abord. Sans accès au team-state rien n'est supprimé (`--force` continue quand même ; vos réservations s'éteignent alors avec leur bail). Un clone qui garde un travail jamais poussé n'est pas supprimé sans `--force`.
+
+`oh teams remove <team-id>` retire seulement l'équipe de `hub.toml` (détache ses projets) : le clone, les réservations et les clés restent.
+
+### Retirer un membre (lead)
+
+```bash
+oh team member remove bob --to alice      # ses réservations ouvertes passent à alice
+oh team member remove bob --release       # ou elles sont libérées
+```
+
+Seul un membre de rôle `lead` retire la fiche d'**un autre** ; une équipe **sans lead** n'est pas verrouillée (comme pour les rôles et les réglages imposés). Les réservations, les briefs et la fiche sont un seul commit, avec un événement `member.removed`. `oh doctor` signale les réservations de membres qui n'ont plus de fiche, avec les commandes qui règlent le cas, et prévient un membre dont la propre fiche a été retirée.
+
+**Dans la TUI**, la vue Équipes (`Ctrl+P` › `teams`, ou Accueil › Équipes) fait la même chose : `d` propose *Quitter l'équipe* (comme `oh teams leave`, la liste de ce qu'elle fait est dans la confirmation), *Quitter et retirer ma fiche*, ou *Retirer de hub.toml seulement* (la confirmation annonce les projets qu'elle détache, et la liste ce qui a été détaché), `x` l'archive, `R` la restaure, `e` la renomme, `*` en fait l'équipe par défaut (`★`, comme `oh teams default <id>`), `p` ouvre sa vue Équipe, `n` ouvre la fenêtre « Nouvelle équipe ». Si l'équipe archivée ou retirée était l'équipe par défaut, le message dit laquelle la remplace.
 
 ### Détacher un projet de son équipe
 

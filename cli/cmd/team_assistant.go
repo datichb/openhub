@@ -93,6 +93,18 @@ func reconfigurable(team config.TeamConfig) bool {
 	return team.Enabled && !team.Solo && team.StateRepo != ""
 }
 
+// archivedTeam reports whether team is a shared team that was archived: the
+// one thing to do is to restore it (oh teams restore), not to create or
+// reconfigure anything.
+func archivedTeam(team config.TeamConfig) bool {
+	return team.ID != "" && !team.Enabled && !team.Solo && team.StateRepo != ""
+}
+
+// archivedTeamMessage tells to restore an archived team before reconfiguring it.
+func archivedTeamMessage(team config.TeamConfig) string {
+	return i18n.Tf("v54l.init.archived", team.ID, "oh teams restore "+team.ID)
+}
+
 // rejectExistingTeam refuses the repository of a team the hub already has: that
 // is « Reconfigurer » (or nothing to do), not a new team.
 func (w *teamAssistant) rejectExistingTeam(repo string) string {

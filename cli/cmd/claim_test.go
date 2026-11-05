@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -39,9 +38,20 @@ func newTransferCmd(t *testing.T, project, to string) *cobra.Command {
 	t.Helper()
 	cmd := &cobra.Command{Use: "transfer"}
 	cmd.Flags().String("to", to, "")
+	cmd.Flags().String("from", "", "")
+	cmd.Flags().Bool("release", false, "")
+	cmd.Flags().Bool("force", true, "") // the tests run without a terminal
 	cmd.Flags().StringP("project", "p", project, "")
 	cmd.SetContext(context.Background())
 	return cmd
+}
+
+// addTeamMembers gives cards to the members the test hands claims to.
+func addTeamMembers(t *testing.T, repo *teamstate.Repo, ids ...string) {
+	t.Helper()
+	for _, id := range ids {
+		require.NoError(t, repo.AddMember(context.Background(), teamstate.Member{ID: id, DisplayName: id, Role: "dev"}))
+	}
 }
 
 func TestRunClaim_Success(t *testing.T) {
@@ -165,20 +175,34 @@ func TestRunClaimTransfer_Success(t *testing.T) {
 
 	cmd := newTransferCmd(t, "myproject", "alice")
 	err = runClaimTransfer(cmd, []string{"XFER-1"})
+	require.ErrorContains(t, err, "alice is not a card of the team", "the target is a member of the team")
+	updated, err := repo.GetClaim(ctx, "myproject", "XFER-1")
 	require.NoError(t, err)
+	assert.Equal(t, "testuser", updated.ClaimedBy)
+
+	addTeamMembers(t, repo, "alice")
+	require.NoError(t, runClaimTransfer(cmd, []string{"XFER-1"}))
 
 	assert.Contains(t, stdout.String(), "alice")
 	assert.Contains(t, stdout.String(), "XFER-1")
 
 	// Verify ownership changed
-	updated, err := repo.GetClaim(ctx, "myproject", "XFER-1")
+	updated, err = repo.GetClaim(ctx, "myproject", "XFER-1")
 	require.NoError(t, err)
 	assert.Equal(t, "alice", updated.ClaimedBy)
 
-	// Verify takeover brief was generated
+	// The takeover brief and the event are in the commit of the transfer
 	briefsDir := filepath.Join(repo.Path(), "projects", "myproject", "takeover-briefs")
-	entries, _ := os.ReadDir(briefsDir)
-	_ = fmt.Sprintf("briefs: %d", len(entries)) // brief generation is best-effort
+	entries, err := os.ReadDir(briefsDir)
+	require.NoError(t, err)
+	assert.Len(t, entries, 2, "brief .toml and .md")
+	events, err := repo.ListEvents(ctx, "myproject", time.Time{})
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	assert.Equal(t, teamstate.EventClaimTransferred, events[0].Type)
+	assert.Equal(t, "testuser", events[0].Actor, "signed by the member who hands the claim over")
+	assert.Equal(t, "alice", events[0].Data["to"])
+	assert.Equal(t, "testuser", events[0].Data["from"])
 }
 
 const claimsProject = "myproject"

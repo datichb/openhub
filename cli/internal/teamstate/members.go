@@ -135,22 +135,28 @@ func (r *Repo) AddMember(ctx context.Context, m Member) error {
 	})
 }
 
-// RemoveMember removes a member by ID from members.toml.
+// RemoveMember removes a member by ID from members.toml, in one commit with a
+// member.removed event signed by the member of ctx (WithActor). Another
+// member's card is removed by a lead only (ErrRemoveNeedsLead; a team with no
+// lead is not locked); the claims of the member are left as they are, see
+// ReassignClaims for a departure that hands them over.
 func (r *Repo) RemoveMember(ctx context.Context, id string) error {
-	return r.withWriteLock(ctx, func(ctx context.Context) error {
-		mf, err := r.readMembersFile()
+	return r.Transact(ctx, func(ctx context.Context, tx *Tx) (TxResult, error) {
+		members, _, err := r.memberIDs()
 		if err != nil {
-			return err
+			return TxResult{}, err
 		}
-		if _, exists := mf.Members[id]; !exists {
-			return ErrMemberNotFound
+		if _, exists := members[id]; !exists {
+			return TxResult{}, ErrMemberNotFound
 		}
-		delete(mf.Members, id)
-		if err := r.writeMembersFile(mf); err != nil {
-			return err
+		actor := ActorOf(ctx)
+		if err := checkMemberRemoval(actor, members, id); err != nil {
+			return TxResult{}, err
 		}
-		msg := fmt.Sprintf("members: remove %s", id)
-		return r.commitAndPush(ctx, msg, "members.toml")
+		if err := r.removeMemberInTx(tx, id, actor, "", 0, 0); err != nil {
+			return TxResult{}, err
+		}
+		return TxResult{Message: fmt.Sprintf("members: remove %s", id)}, nil
 	})
 }
 

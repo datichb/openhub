@@ -186,7 +186,7 @@ oh team activity [options]
 | Flag | Type | Défaut | Description |
 |------|------|--------|-------------|
 | `--limit` | int | `20` | Nombre maximal d'événements |
-| `--member` | string | | Filtrer par membre |
+| `--member` | string | | Filtrer par membre : ce qu'il a fait **et** ce qui lui est arrivé (réservation transférée ou libérée, fiche retirée) |
 | `--project` | string | | Filtrer par projet |
 | `--today` | bool | `false` | Événements du jour seulement |
 | `--week` | bool | `false` | 7 derniers jours |
@@ -195,6 +195,8 @@ oh team activity [options]
 oh team activity --today
 oh team activity --member alice --limit 50
 ```
+
+Événements de cycle de vie des réservations et des membres (chacun est écrit dans le commit du changement, signé du membre qui **agit**) : `claim.taken` (`oh team claim`, la touche de prise et les lancements), `claim.released` (`data.owner` est le membre qui détenait la réservation, `data.reason` l'un de `manual`, `session_end`, `expired`, `cleanup`, `member_removed`, `left_team`, `bulk`), `claim.transferred` (`data.from`, `data.to`, `data.reason` : `manual`, `expired`, `stale`, `bulk`, `member_removed`) et `member.removed` (`data.member`, `data.self` quand le membre est parti, `data.claims_transferred` / `data.to` / `data.claims_released` ; projet `_team`). Les scripts qui lisent les événements doivent tolérer le nouveau type `member.removed`.
 
 ---
 
@@ -245,16 +247,24 @@ oh team claim TICKET-123 --worktree feat/ticket-123
 Change le propriétaire d'un claim existant sans le libérer. Se passer un claim en cours à soi-même est un ticket de plus en cours : refusé à la limite (voir [`oh team claim`](#oh-team-claim)) ; le passer à un autre membre ne l'est pas.
 
 ```
-oh team claim transfer <ticket-id> --to <member-id> [-p <projet>]
+oh team claim transfer <ticket-id> --to <member-id> [-p <projet>] [--force]
+oh team claim transfer --from <member-id> (--to <member-id> | --release) [--force]
 ```
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
-| `--to` | | string | Membre destinataire (obligatoire) |
+| `--to` | | string | Membre qui reçoit le claim ; doit avoir une fiche dans l'équipe (obligatoire avec un ticket) |
+| `--from` | | string | Sans ticket : le membre dont **toutes les réservations ouvertes** passent, en un seul commit (les réservations terminées restent en place) |
+| `--release` | | bool | Avec `--from` : libérer les réservations au lieu de les transférer |
+| `--force` | | bool | Confirmer sans question quand le claim est celui d'un autre membre, ou pour un lot (obligatoire sans terminal) |
 | `--project` | `-p` | string | Projet (détecté depuis le dossier courant si omis) |
+
+Le claim d'un autre membre, et tout lot, passe après une confirmation qui **nomme le propriétaire** (`--force` y répond). Un ticket terminé ne se transfère pas. Le brief de reprise, le claim et l'événement `claim.transferred` sont un seul commit, et l'événement est signé de **vous** (le membre qui agit), pas de l'ancien propriétaire. Se passer les claims d'un membre parti est contrôlé contre votre limite de tickets en cours.
 
 ```bash
 oh team claim transfer TICKET-123 --to bob
+oh team claim transfer --from alice --to bob     # alice est partie : toutes ses réservations ouvertes passent à bob
+oh team claim transfer --from alice --release    # ou elles sont libérées
 ```
 
 ### oh team release
@@ -262,16 +272,35 @@ oh team claim transfer TICKET-123 --to bob
 Libère un ticket réclamé (il redevient disponible pour les autres membres).
 
 ```
-oh team release <ticket-id> [-p <projet>]
+oh team release <ticket-id> [-p <projet>] [--force]
 ```
 
 | Flag | Court | Type | Description |
 |------|-------|------|-------------|
 | `--project` | `-p` | string | Projet (détecté depuis le dossier courant si omis) |
+| `--force` | | bool | Libérer sans question le claim d'un autre membre (obligatoire sans terminal) |
+
+Le claim d'un autre membre n'est libéré qu'après une confirmation qui nomme son propriétaire ; s'il a changé de main entre-temps, la commande dit qui le détient et ne libère rien. Un événement `claim.released` signé de vous, avec le propriétaire qu'il avait, est dans le même commit.
 
 ```bash
 oh team release TICKET-123
 ```
+
+### oh team member remove
+
+Retire la fiche d'un **autre** membre de `members.toml`. Réservé au rôle `lead` : un membre qui ne l'est pas le sait avant qu'on lui demande quoi que ce soit et rien n'est écrit. **Une équipe sans lead n'est pas verrouillée** (même règle que pour les rôles et les réglages imposés de la config d'équipe) : n'importe quel membre peut retirer une fiche. Pour votre propre fiche, quittez l'équipe avec [`oh teams leave --remove-member`](#oh-teams-leave).
+
+```
+oh team member remove <member-id> [--to <member-id> | --release] [--yes]
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--to` | string | Membre qui reçoit les réservations ouvertes du membre retiré |
+| `--release` | bool | Les libérer à la place |
+| `--yes` | bool | Sans confirmation (obligatoire sans terminal) |
+
+Un membre qui garde des réservations ouvertes n'est pas retiré sans réponse (`--to` ou `--release`) ; les réservations, les briefs de reprise et la fiche sont un seul commit, avec un événement `claim.transferred` ou `claim.released` par réservation et un événement `member.removed`, tous signés de vous. Les réservations terminées restent en place jusqu'au nettoyage des tickets terminés. `oh doctor` signale les réservations de membres qui n'ont plus de fiche.
 
 ---
 
@@ -409,9 +438,25 @@ oh teams set <id> default                 # équipe par défaut (default false :
 `member-id` doit être une fiche du team-state quand le clone est là (l'identifiant d'un collègue ferait de sa fiche la vôtre). `repo` :
 L'URL est vérifiée avant que `hub.toml` change : l'accès (sonde, token demandé et gardé comme pour un rejoin) puis le **même team-state** (le dépôt doit partager l'historique de votre clone, sinon c'est une autre équipe ; un dépôt vide est refusé). Le clone, son dossier, votre fiche, les claims et les clés de l'équipe restent tels quels ; seul l'`origin` du clone et `state_repo` changent.
 
+### oh teams leave
+
+Quitte une équipe sur cette machine, dans cet ordre : libère **vos** réservations ouvertes (une transaction), vide la file des opérations de réservation en attente (appliquée tant que le clone existe, ce qui reste est listé), supprime le clone du team-state, supprime les clés du trousseau de l'équipe (`openhub.team.<id>.*` ainsi que le token et l'utilisateur git de son dépôt, sauf si une autre équipe utilise le même dépôt), puis retire l'équipe de `hub.toml` (et sa marque de défaut) et détache ses projets.
+
+```
+oh teams leave <team-id> [--remove-member] [--force] [--yes]
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--remove-member` | bool | Retire aussi votre fiche de `members.toml`. Par défaut **elle reste** : elle porte votre historique (événements, briefs) |
+| `--force` | bool | Continue quand le team-state est injoignable (vos réservations restent alors jusqu'à l'expiration de leur bail) ou quand le clone garde des commits ou des fichiers que le dépôt n'a pas |
+| `--yes` | bool | Quitte sans confirmation (obligatoire sans terminal) |
+
+La commande montre ce qu'elle va faire avant de demander. Rien n'est supprimé quand le team-state est injoignable ou que l'accès est refusé (sans `--force`). Le dossier n'est supprimé que s'il est le clone du dépôt de l'équipe et qu'aucune autre équipe de `hub.toml` ne l'utilise ; un espace solo ne quitte que `hub.toml` (ses workflows restent sur la machine). La même action est « Quitter l'équipe » sur `d` dans la vue Équipes.
+
 ### oh teams remove
 
-Supprimer une équipe du hub ; les projets rattachés deviennent des projets sans équipe.
+Retire une équipe de `hub.toml` **seulement** ; les projets rattachés deviennent des projets sans équipe. Le clone, vos réservations et les clés du trousseau restent : pour vraiment quitter une équipe, utilisez [`oh teams leave`](#oh-teams-leave).
 
 ```
 oh teams remove [team-id] [--yes]
@@ -507,5 +552,7 @@ Résumé de référence ; le contrat complet (statuts, bail, fin de session, fil
 **Fin de session.** Pour chaque réservation de la session : terminée → gardée ; ticket clos → statut terminal ; en revue (label `review` / `ready-for-review` ou statut `review`) → **gardée** ; checkpoint en attente, `cp-2` reporté avec du travail laissé, état des checkpoints illisible → gardée avec le label `session-ended` ; sinon libérée. Une réservation gardée n'est plus renouvelée et expire à la fin de son bail, sauf la réservation en revue, qui n'expire pas.
 
 **File durable.** Les décisions de fin de session et les renouvellements non poussés sont écrits dans `.git/oh-claims-queue.json` du clone du team-state, puis appliqués en un commit dès que le dépôt répond (fin de session, battement du démon, tâche `claims-queue` toutes les 15 minutes). `oh doctor` (`claims_queue`) signale ce qui attend depuis plus de 15 minutes ; `oh doctor --fix` l'applique après confirmation.
+
+**Contrôles du team-state de `oh doctor`** (avertissements, jamais un échec ; seul ce qui ne va pas est dit), pour chaque équipe activée qui a un clone : `claims_daemon` (le démon est arrêté alors que des réservations de sessions ouvertes ont besoin de son battement), `claims_sync` (le tracker n'a jamais été synchronisé depuis cette machine, ou pas depuis 3 intervalles avec `auto_sync`, 14 jours sans), `claims_board_status` (réservations dans un statut qui n'est pas une colonne du board), `claims_duplicates` (deux réservations pour une même issue du tracker, p. ex. `SRU-42` et `42`, dans un projet ou dans deux projets d'un même projet du tracker), `claims_gone_members` (réservations ouvertes de membres sans fiche ; la commande est donnée : `oh team claim transfer --from <membre> --to … | --release`) et `member_removed` (votre propre fiche a été retirée de l'équipe).
 
 **Réservation oubliée :** `oh team release <ticket-id> -p <projet>` la libère à la main. `oh doctor` signale aussi les réservations orphelines (ticket clos, ou toutes les sessions qui l'ont traité terminées) ; celles prises sous l'ancien ID d'un projet recréé sont rattachées au projet local par `oh doctor --fix` (voir [`oh doctor`](cli-infra.fr.md#oh-doctor)).

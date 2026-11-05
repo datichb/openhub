@@ -34,7 +34,18 @@ func (e Event) DescribeAs(names EventNames) string {
 	case EventClaimTaken:
 		return i18n.Tf("teamstate.event.claim_taken", subject)
 	case EventClaimReleased:
+		if why := e.dataText("reason"); why != "" && why != ReleaseManual {
+			if owner := e.dataText("owner"); owner != "" && owner != e.Actor {
+				if names != nil {
+					owner = names.Member(owner)
+				}
+				return i18n.Tf("v54l.event.claim_released_of", subject, owner, i18n.T("v54l.event.reason."+why))
+			}
+			return i18n.Tf("v54l.event.claim_released_why", subject, i18n.T("v54l.event.reason."+why))
+		}
 		return i18n.Tf("teamstate.event.claim_released", subject)
+	case EventMemberRemoved:
+		return e.describeMemberRemoved(names)
 	case EventClaimTransferred:
 		if to := e.dataText("to"); to != "" {
 			if names != nil {
@@ -129,4 +140,46 @@ func (e Event) dataKeys() string {
 		return strings.Join(parts, ", ")
 	}
 	return ""
+}
+
+// describeMemberRemoved is the phrase of a member.removed event: who left, and
+// what became of their claims.
+func (e Event) describeMemberRemoved(names EventNames) string {
+	member := e.dataText("member")
+	if names != nil {
+		member = names.Member(member)
+	}
+	phrase := i18n.Tf("v54l.event.member_removed", member)
+	if e.dataText("self") == "true" {
+		phrase = i18n.Tf("v54l.event.member_left", member)
+	}
+	if n := e.dataText("claims_transferred"); n != "" {
+		to := e.dataText("to")
+		if names != nil {
+			to = names.Member(to)
+		}
+		phrase += " " + i18n.Tf("v54l.event.claims_transferred", n, to)
+	}
+	if n := e.dataText("claims_released"); n != "" {
+		phrase += " " + i18n.Tf("v54l.event.claims_released", n)
+	}
+	return phrase
+}
+
+// Involves reports whether the member is concerned by the event: they did it
+// (the actor), or it happened to them — the owner of a claim that was released
+// or handed over, the member a claim went to, the member who left.
+func (e Event) Involves(member string) bool {
+	if member == "" {
+		return true
+	}
+	if e.Actor == member {
+		return true
+	}
+	for _, k := range []string{"owner", "from", "to", "member"} {
+		if e.dataText(k) == member {
+			return true
+		}
+	}
+	return false
 }

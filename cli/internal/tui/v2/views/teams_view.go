@@ -12,6 +12,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/textfmt"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
@@ -48,6 +49,7 @@ type TeamsView struct {
 	onDefault  func(teamID string) error
 	onArchive  func(teamID string, archive bool) (note string, err error)
 	onRemove   func(teamID string) (detached []string, note string, err error)
+	prepare    func(teamID string, removeMember bool) TeamLeave
 	projectsOf func(teamID string) []string
 	undoStack  *widgets.UndoStack[[]config.TeamConfig]
 
@@ -56,6 +58,19 @@ type TeamsView struct {
 	memberNames func(ctx context.Context, teams []config.TeamConfig) map[string]string
 	shown       map[string]string
 	nameLoads   loadSlot
+	planLoads   loadSlot
+}
+
+// TeamLeave is a departure from a team, ready to run off the event loop.
+type TeamLeave struct {
+	// Plan says what leaving does, one line per step (it reads the clone and
+	// the keychain).
+	Plan func(ctx context.Context) []string
+	// Leave releases the claims of the member, deletes the clone and the keys
+	// of the keychain, removes the team from hub.toml and detaches its
+	// projects. It reaches the team-state. It returns what it did, one line
+	// per step.
+	Leave func(ctx context.Context) (summary []string, err error)
 }
 
 // TeamsViewDeps holds the dependencies for constructing a TeamsView.
@@ -92,6 +107,11 @@ type TeamsViewDeps struct {
 	// team. Nil: the view only removes the team from its list and saves it
 	// (the projects stay attached).
 	OnRemove func(teamID string) (detached []string, note string, err error)
+	// PrepareLeave readies « Quitter l'équipe » for a team: it is called on the
+	// event loop (it takes what it needs from the Config the loop owns) and
+	// gives the two steps that run off the loop. Nil: the view only offers to
+	// remove the team from hub.toml.
+	PrepareLeave func(teamID string, removeMember bool) TeamLeave
 	// ProjectsOf names the projects attached to a team, for the confirmation
 	// of a removal. Nil: none is announced.
 	ProjectsOf func(teamID string) []string
@@ -117,6 +137,7 @@ func NewTeamsView(deps TeamsViewDeps) *TeamsView {
 		onDefault:  deps.OnSetDefault,
 		onArchive:  deps.OnArchive,
 		onRemove:   deps.OnRemove,
+		prepare:    deps.PrepareLeave,
 		projectsOf: deps.ProjectsOf,
 		undoStack:  widgets.NewUndoStack[[]config.TeamConfig](10),
 
@@ -153,6 +174,7 @@ func (v *TeamsView) Mount(content *tview.Flex, app *tview.Application) {
 
 func (v *TeamsView) Unmount() {
 	v.nameLoads.Invalidate()
+	v.planLoads.Invalidate()
 	v.page = nil
 }
 
@@ -553,11 +575,85 @@ func (v *TeamsView) handleAdd() {
 	})
 }
 
+// handleDelete is d. A team with a team-state offers two ways out: leave it
+// (the claims of the member are released, the clone and the keys are deleted,
+// then hub.toml), or only take it out of hub.toml. The other cases ask for the
+// second directly.
 func (v *TeamsView) handleDelete() {
 	team := v.currentTeam()
 	if team == nil || v.shell == nil {
 		return
 	}
+	if v.prepare == nil || team.Solo {
+		v.confirmRemove(team)
+		return
+	}
+	teamID := team.ID
+	v.shell.ShowSelectModal(i18n.Tf("v54l.teams.delete.title", team.DisplayName()), []SelectOption{
+		{Label: i18n.T("v54l.teams.delete.leave"), Value: "leave"},
+		{Label: i18n.T("v54l.teams.delete.leave_card"), Value: "leave_card"},
+		{Label: i18n.T("v54l.teams.delete.remove"), Value: "remove"},
+	}, "", func(choice string) {
+		t := v.teamByID(teamID)
+		if t == nil {
+			return
+		}
+		switch choice {
+		case "leave":
+			v.confirmLeave(t, false)
+		case "leave_card":
+			v.confirmLeave(t, true)
+		case "remove":
+			v.confirmRemove(t)
+		}
+	})
+}
+
+// confirmLeave shows what leaving does (read off the event loop), then leaves
+// on the confirmation.
+func (v *TeamsView) confirmLeave(team *config.TeamConfig, removeMember bool) {
+	name := team.DisplayName()
+	leave := v.prepare(team.ID, removeMember)
+	plan := func(context.Context) ([]string, error) { return nil, nil }
+	if leave.Plan != nil {
+		read := leave.Plan
+		plan = func(ctx context.Context) ([]string, error) { return read(ctx), nil }
+	}
+	load(v.app, shellContext(v.shell), &v.planLoads, plan, func(lines []string, _ error) {
+		if v.page == nil || v.shell == nil {
+			return
+		}
+		v.shell.Confirm(i18n.Tf("v54l.teams.leave.confirm_title", name), strings.Join(lines, "\n"), true, func() { v.doLeave(name, leave) })
+	})
+}
+
+// doLeave leaves the team in the background (the team-state is reached) and
+// says what it did.
+func (v *TeamsView) doLeave(name string, leave TeamLeave) {
+	if leave.Leave == nil {
+		return
+	}
+	app, ctx := v.app, shellContext(v.shell)
+	v.shell.ShowToastMsg(i18n.Tf("v54l.teams.leaving", name), true)
+	safego.Go(func() {
+		summary, err := leave.Leave(ctx)
+		if app == nil {
+			return
+		}
+		queueIfLive(ctx, app, func() {
+			v.rebuild()
+			if err != nil {
+				v.shell.ShowToastMsg(i18n.Tf("v54l.teams.leave_failed", name, err.Error()), false)
+				return
+			}
+			v.shell.ShowToastMsg(strings.Join(append([]string{i18n.Tf("v54l.teams.left", name)}, summary...), " · "), true)
+		})
+	})
+}
+
+// confirmRemove asks to take the team out of hub.toml (its projects are
+// detached) and does it.
+func (v *TeamsView) confirmRemove(team *config.TeamConfig) {
 	teamID := team.ID
 	name := v.teamName(teamID)
 	detail := i18n.T("tui.teams.delete_detail")

@@ -115,12 +115,32 @@ type BoardLayout struct {
 	LabelStatusMapping map[string]string
 }
 
+// ClaimHeldError is what OnClaim and OnTakeOver answer for a ticket another
+// member holds: the board says who, it is not a failure.
+type ClaimHeldError struct {
+	// Owner is the name of the member who holds the claim.
+	Owner string
+	// Expired: the lease of the claim is past, it may be taken over.
+	Expired bool
+}
+
+func (e *ClaimHeldError) Error() string { return i18n.Tf("v54l.board.held", e.Owner) }
+
 // BoardActions provides callbacks for ticket actions on the board. They act
 // on the project of the card (the team-state directory ID, "" when the card
 // has none), which is not the active project of the hub on a board of several.
 type BoardActions struct {
-	OnClaim    func(project, ticketID string) error
+	// OnClaim takes the ticket for the member. A ticket another member holds
+	// gives a *ClaimHeldError (and nothing is changed).
+	OnClaim func(project, ticketID string) error
+	// OnTakeOver takes over the claim of another member that has expired
+	// (its lease is past): the claim moves to the member with a takeover
+	// brief. A claim that is not expired any more gives a *ClaimHeldError.
+	OnTakeOver func(project, ticketID string) error
 	OnRelease  func(project, ticketID string) error
+	// OnReassign hands all the open claims of the member from to the member to,
+	// or releases them (to ""), in one commit; it returns how many it moved.
+	OnReassign func(from, to string) (moved int, err error)
 	OnTransfer func(project, ticketID, toMember string) error
 	OnStatus   func(project, ticketID, newStatus string) error
 	Members    func() []SelectOption // returns team members for transfer
@@ -657,6 +677,7 @@ func (v *TeamBoardView) buildTeamCard(t TeamTicket) widgets.Card {
 
 	// ── Line 3: @assignee · label1 · label2 (workflow labels filtered) ──
 	parts := []string{formatAssignee(t.Assignee, theme.ColorTagOf(theme.ActiveMode.Primary))}
+	parts = append(parts, claimBadges(t)...)
 	parts = append(parts, ticketLabelParts(t.Labels, v.cfg.LabelStatusMapping)...)
 	meta := strings.Join(parts, " · ")
 
@@ -813,6 +834,23 @@ func formatAssignee(assignee, colorTag string) string {
 	return colorTag + "@" + tview.Escape(assignee) + theme.TagColor
 }
 
+// claimBadges are the badges of the claim of a card: the lease (« bail 05/11
+// 14:30 »), its expiry once past, and the session that ended and left the claim
+// behind.
+func claimBadges(t TeamTicket) []string {
+	var parts []string
+	switch {
+	case t.Expired:
+		parts = append(parts, theme.Paint(theme.WarningHex, tview.Escape(theme.SymWarning+" "+i18n.T("v54l.board.badge.expired"))))
+	case !t.LeaseUntil.IsZero():
+		parts = append(parts, theme.Paint(theme.TextMutedHex, tview.Escape(i18n.Tf("v54l.board.badge.lease", textfmt.ShortDateTime(t.LeaseUntil)))))
+	}
+	if t.SessionEnded {
+		parts = append(parts, theme.Paint(theme.WarningHex, tview.Escape(i18n.T("v54l.board.badge.session_ended"))))
+	}
+	return parts
+}
+
 // ticketLabelParts renders one markup chunk per ticket label, shared by both
 // team boards. Workflow labels (keys of workflow, already shown by the column)
 // are skipped. Known labels get a badge, the others are shown in brackets;
@@ -824,6 +862,8 @@ func ticketLabelParts(labels []string, workflow map[string]string) []string {
 			continue
 		}
 		switch l {
+		case teamstate.LabelSessionEnded:
+			continue // shown as the badge of the claim (claimBadges)
 		case teamstate.LabelAgentReviewed:
 			parts = append(parts, theme.Paint(theme.SuccessHex, bracketed("AI")))
 		case teamstate.LabelNeedsHumanReview:
@@ -1119,6 +1159,16 @@ func (v *TeamBoardView) formatTicketDetail(ticket *TeamTicket) string {
 	}
 	fmt.Fprintf(&detail, "  %s   %s\n", label("Assignee:"), tview.Escape(assignee))
 
+	switch {
+	case ticket.Expired:
+		fmt.Fprintf(&detail, "  %s   %s\n", label(i18n.T("v54l.board.detail.lease")), tview.Escape(i18n.Tf("v54l.board.detail.expired", textfmt.DateTime(ticket.LeaseUntil))))
+	case !ticket.LeaseUntil.IsZero():
+		fmt.Fprintf(&detail, "  %s   %s\n", label(i18n.T("v54l.board.detail.lease")), tview.Escape(textfmt.DateTime(ticket.LeaseUntil)))
+	}
+	if ticket.SessionEnded {
+		fmt.Fprintf(&detail, "  %s   %s\n", label(i18n.T("v54l.board.detail.lease")), tview.Escape(i18n.T("v54l.board.detail.session_ended")))
+	}
+
 	if ticket.Priority != "" {
 		fmt.Fprintf(&detail, "  %s   %s\n", label(i18n.T("tui.teamboard.detail.priority")), tview.Escape(ticket.Priority))
 	}
@@ -1227,18 +1277,128 @@ func (v *TeamBoardView) showTeamBoardQuickActions() {
 // ContextCommands implements CommandProvider — injects ticket-specific commands
 // into the omnibar when the team board view is active and a ticket is selected.
 func (v *TeamBoardView) ContextCommands() []ContextCommand {
+	out := v.reassignCommands()
 	if v.cfg.QuickActions == nil {
-		return nil
+		return out
 	}
 	ticket, ok := v.selectedTeamTicket()
 	if !ok {
-		return nil
+		return out
 	}
 	tc := v.ticketContext(ticket)
 	if tc.Role == "" {
-		return ticketContextCommands("team.board.run.", tc, v.cfg.QuickActions)
+		return append(out, ticketContextCommands("team.board.run.", tc, v.cfg.QuickActions)...)
 	}
-	return v.cardCommands("team.board.run.", tc)
+	return append(out, v.cardCommands("team.board.run.", tc)...)
+}
+
+// reassignCommands is the command that hands over or releases all the claims
+// of a member (a member who left): available as soon as the board can do it.
+func (v *TeamBoardView) reassignCommands() []ContextCommand {
+	if v.actions == nil || v.actions.OnReassign == nil || v.actions.Members == nil {
+		return nil
+	}
+	return []ContextCommand{{
+		ID:          "team.board.reassign",
+		Label:       i18n.T("v54l.board.reassign.label"),
+		Aliases:     []string{"reassign", "transfer claims", "release claims"},
+		Description: i18n.T("v54l.board.reassign.desc"),
+		Category:    i18n.T("tui.board.category_actions"),
+		Action:      v.reassignClaims,
+	}}
+}
+
+// reassignClaims asks whose claims, to whom (or released), confirms with the
+// number of claims and the member named, then moves them in one commit.
+func (v *TeamBoardView) reassignClaims() {
+	if v.actions == nil || v.actions.OnReassign == nil || v.actions.Members == nil || v.shell == nil || v.actionInProgress.Load() {
+		return
+	}
+	members := v.actions.Members()
+	names := make(map[string]string, len(members))
+	for _, m := range members {
+		names[m.Value] = m.Label
+	}
+	// The members who hold open claims on the board, with how many.
+	counts := map[string]int{}
+	for _, t := range v.allTickets {
+		if t.AssigneeID == "" || v.finishedColumn(t.Status) {
+			continue
+		}
+		counts[t.AssigneeID]++
+		if _, ok := names[t.AssigneeID]; !ok {
+			names[t.AssigneeID] = t.Assignee // a member who has no card any more
+		}
+	}
+	holders := make([]SelectOption, 0, len(counts))
+	for id, n := range counts {
+		holders = append(holders, SelectOption{Label: fmt.Sprintf("%s (%d)", names[id], n), Value: id})
+	}
+	sort.Slice(holders, func(i, j int) bool { return holders[i].Label < holders[j].Label })
+	if len(holders) == 0 {
+		v.shell.ShowToastMsg(i18n.T("v54l.board.reassign.none"), false)
+		return
+	}
+	v.shell.ShowSelectModal(i18n.T("v54l.board.reassign.from"), holders, "", func(from string) {
+		targets := []SelectOption{{Label: i18n.T("v54l.board.reassign.release"), Value: releaseTarget}}
+		for _, m := range members {
+			if m.Value != from {
+				targets = append(targets, m)
+			}
+		}
+		v.shell.ShowSelectModal(i18n.Tf("v54l.board.reassign.to", names[from]), targets, "", func(to string) {
+			detail := i18n.Tf("v54l.board.reassign.detail_release", counts[from], names[from])
+			title := i18n.Tf("v54l.board.reassign.title_release", counts[from], names[from])
+			target := ""
+			if to != releaseTarget {
+				target = to
+				detail = i18n.Tf("v54l.board.reassign.detail_to", counts[from], names[from], names[to])
+				title = i18n.Tf("v54l.board.reassign.title_to", counts[from], names[from], names[to])
+			}
+			v.shell.Confirm(title, detail, true, func() { v.doReassign(from, target, names) })
+		})
+	})
+}
+
+// releaseTarget is the value of the choice « release » in the list of the
+// members who receive the claims.
+const releaseTarget = "\x00release"
+
+// finishedColumn reports whether the column of the board is a terminal one.
+func (v *TeamBoardView) finishedColumn(status string) bool {
+	for _, col := range v.allColumns {
+		if col.Status == status {
+			return col.Role == teamstate.ColumnRoleTerminal
+		}
+	}
+	return false
+}
+
+func (v *TeamBoardView) doReassign(from, to string, names map[string]string) {
+	if v.actionInProgress.Swap(true) {
+		return
+	}
+	onReassign, app, ctx := v.actions.OnReassign, v.app, shellContext(v.shell)
+	safego.Go(func() {
+		moved, err := onReassign(from, to)
+		if app == nil {
+			return
+		}
+		queueIfLive(ctx, app, func() {
+			v.actionInProgress.Store(false)
+			switch {
+			case err != nil:
+				v.shell.ShowToastMsg(i18n.T("v54l.board.reassign.failed")+err.Error(), false)
+			case to == "":
+				v.shell.ShowToastMsg(i18n.Tf("v54l.board.reassign.released", moved, names[from]), true)
+			default:
+				v.shell.ShowToastMsg(i18n.Tf("v54l.board.reassign.done", moved, names[from], names[to]), true)
+			}
+			if err == nil && v.cfg.RefreshFunc != nil {
+				v.reload(nil)
+			}
+		})
+	})
 }
 
 // cardRef is the card an action works on: the team-state project it is in
@@ -1265,6 +1425,16 @@ func (v *TeamBoardView) claimTicket() {
 	if !ok {
 		return
 	}
+	// A ticket that has an owner is not taken: the board says who holds it,
+	// and offers to take over a claim that has expired.
+	if t, ok := v.selectedTeamTicket(); ok && t.AssigneeID != "" {
+		if t.AssigneeID == v.memberID() {
+			v.shell.ShowToastMsg(i18n.Tf("v54l.board.yours", card.ticket), true)
+			return
+		}
+		v.heldBy(card, &ClaimHeldError{Owner: t.Assignee, Expired: t.Expired})
+		return
+	}
 	v.actionInProgress.Store(true)
 	onClaim, app, ctx := v.actions.OnClaim, v.app, shellContext(v.shell)
 	safego.Go(func() { // an action, not a read: its result is shown even if the board was refreshed
@@ -1274,13 +1444,57 @@ func (v *TeamBoardView) claimTicket() {
 		}
 		queueIfLive(ctx, app, func() {
 			v.actionInProgress.Store(false)
-			if err != nil {
+			var held *ClaimHeldError
+			switch {
+			case errors.As(err, &held):
+				v.heldBy(card, held)
+				v.reload(nil)
+			case err != nil:
 				v.shell.ShowToastMsg(i18n.T("tui.teamboard.claim_failed")+err.Error(), false)
-			} else {
+			default:
 				v.shell.ShowToastMsg(i18n.T("tui.teamboard.claim_success")+card.ticket, true)
 				if v.cfg.RefreshFunc != nil {
 					v.reload(nil)
 				}
+			}
+		})
+	})
+}
+
+// heldBy says that the ticket is held by another member; for a claim that has
+// expired it offers to take it over (the confirmation names the owner).
+func (v *TeamBoardView) heldBy(card cardRef, held *ClaimHeldError) {
+	if !held.Expired || v.actions == nil || v.actions.OnTakeOver == nil {
+		v.shell.ShowToastMsg(i18n.Tf("v54l.board.held_toast", card.ticket, held.Owner), false)
+		return
+	}
+	v.shell.Confirm(i18n.Tf("v54l.board.takeover.title", card.ticket),
+		i18n.Tf("v54l.board.takeover.detail", held.Owner), false, func() { v.doTakeOver(card) })
+}
+
+func (v *TeamBoardView) doTakeOver(card cardRef) {
+	if v.actionInProgress.Swap(true) {
+		return
+	}
+	onTakeOver, app, ctx := v.actions.OnTakeOver, v.app, shellContext(v.shell)
+	safego.Go(func() {
+		err := onTakeOver(card.project, card.ticket)
+		if app == nil {
+			return
+		}
+		queueIfLive(ctx, app, func() {
+			v.actionInProgress.Store(false)
+			var held *ClaimHeldError
+			switch {
+			case errors.As(err, &held):
+				v.shell.ShowToastMsg(i18n.Tf("v54l.board.held_toast", card.ticket, held.Owner), false)
+			case err != nil:
+				v.shell.ShowToastMsg(i18n.T("v54l.board.takeover.failed")+err.Error(), false)
+			default:
+				v.shell.ShowToastMsg(i18n.Tf("v54l.board.takeover.done", card.ticket), true)
+			}
+			if err == nil || held != nil {
+				v.reload(nil)
 			}
 		})
 	})
@@ -1297,7 +1511,12 @@ func (v *TeamBoardView) releaseTicket() {
 	if !ok {
 		return
 	}
-	v.shell.Confirm(i18n.T("tui.confirm.release.title"), i18n.Tf("tui.confirm.release.detail", card.ticket), true, func() {
+	title, detail := i18n.T("tui.confirm.release.title"), i18n.Tf("tui.confirm.release.detail", card.ticket)
+	if t, ok := v.selectedTeamTicket(); ok && t.AssigneeID != "" && t.AssigneeID != v.memberID() {
+		// The claim of another member: the question names them.
+		title, detail = i18n.Tf("v54l.board.release.other_title", t.Assignee), i18n.Tf("v54l.board.release.other_detail", card.ticket, t.Assignee)
+	}
+	v.shell.Confirm(title, detail, true, func() {
 		v.doReleaseTicket(card)
 	})
 }
@@ -1342,6 +1561,17 @@ func (v *TeamBoardView) transferTicket() {
 	if !ok {
 		return
 	}
+	if t, ok := v.selectedTeamTicket(); ok && t.AssigneeID != "" && t.AssigneeID != v.memberID() {
+		// The claim of another member changes hands without them: the question names them.
+		v.shell.Confirm(i18n.Tf("v54l.board.transfer.other_title", t.Assignee),
+			i18n.Tf("v54l.board.transfer.other_detail", card.ticket, t.Assignee), true, func() { v.pickTransferTarget(card) })
+		return
+	}
+	v.pickTransferTarget(card)
+}
+
+// pickTransferTarget asks which member receives the claim, then hands it over.
+func (v *TeamBoardView) pickTransferTarget(card cardRef) {
 	members := v.actions.Members()
 	if len(members) == 0 {
 		v.shell.ShowToastMsg(i18n.T("tui.teamboard.no_members"), false)

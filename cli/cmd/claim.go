@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -26,22 +26,6 @@ var claimCmd = &cobra.Command{
 	RunE:  runClaim,
 }
 
-var releaseCmd = &cobra.Command{
-	Use:   "release <ticket-id>",
-	Short: i18n.T("cmd.release.short"),
-	Long:  i18n.T("cmd.release.long"),
-	Args:  cobra.ExactArgs(1),
-	RunE:  runRelease,
-}
-
-var claimTransferCmd = &cobra.Command{
-	Use:   "transfer <ticket-id>",
-	Short: i18n.T("cmd.claim.transfer.short"),
-	Long:  i18n.T("cmd.claim.transfer.long"),
-	Args:  cobra.ExactArgs(1),
-	RunE:  runClaimTransfer,
-}
-
 func init() {
 	teamCmd.AddCommand(claimCmd)
 	teamCmd.AddCommand(releaseCmd)
@@ -51,12 +35,6 @@ func init() {
 	claimCmd.Flags().String("worktree", "", i18n.T("cmd.claim.flags.worktree"))
 	claimCmd.Flags().Bool("planned", false, i18n.T("cmd.claim.flags.planned"))
 	addYesFlag(claimCmd)
-
-	releaseCmd.Flags().StringP("project", "p", "", i18n.T("cmd.claim.flags.project"))
-
-	claimTransferCmd.Flags().String("to", "", i18n.T("cmd.claim.transfer.flags.to"))
-	claimTransferCmd.Flags().StringP("project", "p", "", i18n.T("cmd.claim.flags.project"))
-	_ = claimTransferCmd.MarkFlagRequired("to")
 }
 
 func runClaim(cmd *cobra.Command, args []string) error {
@@ -88,11 +66,20 @@ func runClaim(cmd *cobra.Command, args []string) error {
 			theme.Bold.Render("oh team init")))
 	}
 
-	// Check max_ticket_wip policy before claiming
+	// Check max_ticket_wip policy before claiming. It counts the reservations
+	// the member holds that are not finished (planned, in progress, in review…):
+	// a finished one stays on the board until its retention but is no longer
+	// work. (max_in_progress_per_member counts the work in progress only.)
 	activeClaims := 0
 	allClaims, _ := repo.ListClaims(ctx, "")
+	var terminals []string
+	if cfg, cerr := repo.LoadConfig(ctx); cerr == nil && cfg != nil {
+		terminals = cfg.Board.TerminalStatuses()
+	} else {
+		terminals = teamstate.BoardConfig{}.TerminalStatuses()
+	}
 	for _, c := range allClaims {
-		if c.ClaimedBy == memberID {
+		if c.ClaimedBy == memberID && !slices.Contains(terminals, c.Status) {
 			activeClaims++
 		}
 	}
@@ -154,7 +141,8 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		Status:    initialStatus,
 	}
 
-	existing, err := repo.CreateClaim(ctx, claim)
+	// The claim.taken event goes in the commit of the claim.
+	existing, err := repo.CreateClaim(teamstate.WithClaimEvent(ctx, memberID), claim)
 	if errors.Is(err, teamstate.ErrClaimExists) {
 		return claimExists(cmd, a, repo, existing, project, ticketID, memberID)
 	}
@@ -163,23 +151,13 @@ func runClaim(cmd *cobra.Command, args []string) error {
 	}
 
 	cliout.Success(a.IO.Out, i18n.Tf("cmd.claim.success", project, ticketID, memberID))
-
-	// Emit team event (best-effort, do not block on error).
-	_ = repo.AppendEvent(ctx, teamstate.Event{
-		Actor:   memberID,
-		Type:    teamstate.EventClaimTaken,
-		Project: project,
-		Ticket:  ticketID,
-	})
-
 	return nil
 }
 
 // claimTakeover is what moving the claim of another member to oneself asks
 // of the team-state: the takeover brief and the transfer.
 type claimTakeover interface {
-	teamstate.BriefWriter
-	teamstate.ClaimWriter
+	teamstate.ClaimLifecycle
 }
 
 // claimConflictStore is what answering a ticket that is already claimed asks
@@ -253,7 +231,7 @@ func claimExists(cmd *cobra.Command, a *app.App, repo claimConflictStore, existi
 	}
 	fmt.Fprintf(a.IO.Out, "%s\n",
 		i18n.Tf("cmd.claim.transfer_hint",
-			theme.Bold.Render("oh claim transfer "+ticketID+" --to "+memberID)))
+			theme.Bold.Render("oh team claim transfer "+ticketID+" --to "+memberID)))
 
 	// Emit conflict event (best-effort).
 	_ = repo.AppendEvent(ctx, teamstate.Event{
@@ -294,123 +272,14 @@ func takeOverExpiredClaim(cmd *cobra.Command, a *app.App, repo claimTakeover, ex
 		return nil
 	}
 
-	brief, briefErr := repo.GenerateRawBrief(ctx, project, ticketID, previousOwner, memberID, reason)
-	if briefErr == nil {
-		if err := repo.SaveBrief(ctx, brief); err != nil {
-			slog.Warn("brief not saved", "ticket", ticketID, "error", err)
-		} else {
-			cliout.Success(a.IO.Out, i18n.T("cmd.claim.brief_generated"))
-		}
+	// The takeover brief, the claim and the claim.transferred event (signed by
+	// the member who takes over) are one commit.
+	if _, err := repo.TransferClaimWith(teamstate.WithActor(ctx, memberID), project, ticketID, memberID,
+		teamstate.TransferOpts{Reason: reason, BriefReason: reason}); err != nil {
+		return explainHandOver(fmt.Errorf(i18n.T("cmd.claim.transferring_claim"), err), memberID)
 	}
-	if err := repo.TransferClaim(ctx, project, ticketID, memberID); err != nil {
-		return fmt.Errorf(i18n.T("cmd.claim.transferring_claim"), err)
-	}
+	cliout.Success(a.IO.Out, i18n.T("cmd.claim.brief_generated"))
 	cliout.Success(a.IO.Out, i18n.Tf("cmd.claim.transferred_from_to", project, ticketID, previousOwner, memberID))
-	return nil
-}
-
-func runRelease(cmd *cobra.Command, args []string) error {
-	a := MustApp()
-	ctx := cmd.Context()
-
-	repo := teamRepo
-
-	ticketID := args[0]
-	project, _ := cmd.Flags().GetString("project")
-	if project == "" {
-		project = detectCurrentProject(ctx, a)
-		if project == "" {
-			return errors.New(i18n.T("cmd.claim.project_not_detected"))
-		}
-	}
-
-	if err := repo.ReleaseClaim(ctx, project, ticketID); err != nil {
-		if err == teamstate.ErrClaimNotFound {
-			cliout.Warn(a.IO.Out, i18n.Tf("cmd.release.not_found", project, ticketID))
-			return nil
-		}
-		return fmt.Errorf(i18n.T("cmd.claim.releasing_claim"), err)
-	}
-
-	cliout.Success(a.IO.Out, i18n.Tf("cmd.release.success", project, ticketID))
-
-	_ = repo.AppendEvent(ctx, teamstate.Event{
-		Actor:   commandMember(ctx, a),
-		Type:    teamstate.EventClaimReleased,
-		Project: project,
-		Ticket:  ticketID,
-	})
-
-	return nil
-}
-
-func runClaimTransfer(cmd *cobra.Command, args []string) error {
-	a := MustApp()
-	ctx := cmd.Context()
-
-	repo := teamRepo
-
-	ticketID := args[0]
-	to, _ := cmd.Flags().GetString("to")
-	project, _ := cmd.Flags().GetString("project")
-	if project == "" {
-		project = detectCurrentProject(ctx, a)
-		if project == "" {
-			return errors.New(i18n.T("cmd.claim.project_not_detected"))
-		}
-	}
-
-	// Get existing claim info before transfer (for brief generation)
-	existingClaim, _ := repo.GetClaim(ctx, project, ticketID)
-	var previousOwner string
-	if existingClaim != nil {
-		previousOwner = existingClaim.ClaimedBy
-	}
-
-	// Handing a claim in progress to oneself is one more ticket in progress.
-	if me := commandMember(ctx, a); to == me {
-		if err := checkTransferToSelfRoom(ctx, repo, trackerLocalOf(ctx, a), me, existingClaim); err != nil {
-			return err
-		}
-	}
-
-	if err := repo.TransferClaim(ctx, project, ticketID, to); err != nil {
-		if err == teamstate.ErrClaimNotFound {
-			cliout.Warn(a.IO.Out, i18n.Tf("cmd.claim.transfer.not_found", project, ticketID))
-			return nil
-		}
-		return fmt.Errorf(i18n.T("cmd.claim.transferring_claim"), err)
-	}
-
-	cliout.Success(a.IO.Out, i18n.Tf("cmd.claim.transfer.success", project, ticketID, theme.Bold.Render(to)))
-
-	// Generate takeover brief automatically
-	if previousOwner != "" {
-		fmt.Fprintf(a.IO.Out, "\n%s %s\n",
-			theme.Subtitle.Render(theme.IconArrow),
-			i18n.T("cmd.claim.transfer.generating_brief"))
-
-		brief, err := repo.GenerateRawBrief(ctx, project, ticketID, previousOwner, to, "transfer")
-		if err != nil {
-			cliout.Warn(a.IO.Out, i18n.Tf("cmd.claim.transfer.brief_error", err))
-		} else {
-			if err := repo.SaveBrief(ctx, brief); err != nil {
-				cliout.Warn(a.IO.Out, i18n.Tf("cmd.claim.transfer.brief_save_error", err))
-			} else {
-				cliout.Success(a.IO.Out, i18n.Tf("cmd.claim.transfer.brief_done",
-					theme.Subtitle.Render("oh takeover-brief show "+ticketID)))
-			}
-		}
-	}
-
-	_ = repo.AppendEvent(ctx, teamstate.Event{
-		Actor:   previousOwner,
-		Type:    teamstate.EventClaimTransferred,
-		Project: project,
-		Ticket:  ticketID,
-		Data:    map[string]interface{}{"to": to},
-	})
-
 	return nil
 }
 

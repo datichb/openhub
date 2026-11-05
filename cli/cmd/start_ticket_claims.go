@@ -60,21 +60,29 @@ func startTicketClaim(ctx context.Context, repo ticketClaimStore, projectID, mem
 	}
 	session := runsvc.StartedSession(ctx)
 	workStatus := boardCfg.DefaultWorkStatus()
-	existing, err := repo.CreateClaim(ctx, teamstate.Claim{TicketID: ticketID, Project: projectID, ClaimedBy: member, Status: workStatus, Session: session})
+	// The claim.taken event goes in the commit of the claim.
+	existing, err := repo.CreateClaim(teamstate.WithClaimEvent(ctx, member), teamstate.Claim{TicketID: ticketID, Project: projectID, ClaimedBy: member, Status: workStatus, Session: session})
 	switch {
 	case err == nil:
 		return i18n.Tf("cmd.run.claim.taken", projectID, ticketID)
 	case errors.Is(err, teamstate.ErrOffline), errors.Is(err, teamstate.ErrBusy):
-		// The team-state cannot be reached: a claim the member already holds
+		// The team-state cannot be reached. A claim the member already holds
 		// (read in the clone) is handed to the session when the network is
-		// back, ahead of what the previous session had queued for it.
-		if session == "" {
-			return ""
+		// back, ahead of what the previous session had queued for it; a ticket
+		// nobody holds (in the clone) is taken then, if it is still free.
+		if session != "" {
+			if queued, qerr := repo.QueueAdoptClaim(projectID, ticketID, member, session); qerr == nil && queued {
+				return i18n.Tf("cmd.claims.start.adopt_queued", projectID, ticketID)
+			}
 		}
-		if queued, qerr := repo.QueueAdoptClaim(projectID, ticketID, member, session); qerr == nil && queued {
-			return i18n.Tf("cmd.claims.start.adopt_queued", projectID, ticketID)
+		queued, qerr := repo.QueueCreateClaim(projectID, ticketID, member, session, workStatus)
+		switch {
+		case qerr != nil:
+			return i18n.Tf("v54l.claims.start.offline", projectID, ticketID)
+		case queued:
+			return i18n.Tf("v54l.claims.start.create_queued", projectID, ticketID)
 		}
-		return ""
+		return "" // the clone has a claim on the ticket already
 	case teamstate.IsAuthError(err):
 		// A refused access is not offline: the claim is not queued, the member
 		// is told (oh doctor) instead of finding the ticket unclaimed later.

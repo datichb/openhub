@@ -69,6 +69,26 @@ type ClaimWriter interface {
 	TouchClaims(ctx context.Context, refs []ClaimRef, member, session string, now time.Time) ([]ClaimRef, error)
 }
 
+// ClaimLifecycle releases and hands over a claim with the events of what was
+// done, signed by the member who acts (WithActor).
+type ClaimLifecycle interface {
+	ReleaseClaimAs(ctx context.Context, project, ticketID string, opts ReleaseOpts) (Claim, error)
+	TransferClaimWith(ctx context.Context, project, ticketID, newOwner string, opts TransferOpts) (previousOwner string, err error)
+}
+
+// MemberClaimMover moves, releases and counts the claims of a member, and
+// removes the card of a member in the same commit.
+type MemberClaimMover interface {
+	OpenClaimsOf(ctx context.Context, member string) (open, done []Claim, err error)
+	ReassignClaims(ctx context.Context, opts ReassignOpts) (ReassignResult, error)
+	HasLead(ctx context.Context) bool
+}
+
+// PendingWorkReader tells what a clone holds that the remote lacks.
+type PendingWorkReader interface {
+	PendingWork(ctx context.Context) (PendingWork, error)
+}
+
 // ClaimLabeler adds and removes the labels of a claim.
 type ClaimLabeler interface {
 	AddClaimLabel(ctx context.Context, project, ticketID, label string) error
@@ -243,6 +263,8 @@ type ClaimRehomer interface {
 type ClaimAdopter interface {
 	AdoptClaimDurable(ctx context.Context, project, ticketID, member, session string) (adopted, queued bool, err error)
 	QueueAdoptClaim(project, ticketID, member, session string) (queued bool, err error)
+	// QueueCreateClaim queues the taking of a ticket that has no claim yet.
+	QueueCreateClaim(project, ticketID, member, session, status string) (queued bool, err error)
 }
 
 // ClaimAdoptionReader tells the session a queued adoption gave a claim to.

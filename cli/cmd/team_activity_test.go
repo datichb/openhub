@@ -120,3 +120,40 @@ func TestTeamStatusFollowsTheBoardAndShowsTheReserve(t *testing.T) {
 	assert.Contains(t, out, "departed (no longer in the team)")
 	assert.Contains(t, out, "p/GONE-1")
 }
+
+// --member keeps what the member did and what happened to them: a claim handed
+// to them, released under their feet, their card removed.
+func TestTeamActivityMemberFilterFollowsWhatHappenedToTheMember(t *testing.T) {
+	i18ntest.Set(t, "en")
+	_, repo, stdout := setupClaimTestApp(t)
+	ctx := context.Background()
+	for _, e := range []teamstate.Event{
+		{Actor: "lea", Type: teamstate.EventClaimTransferred, Project: "api", Ticket: "bd-1", Data: map[string]interface{}{"from": "ana", "to": "bob"}},
+		{Actor: "lea", Type: teamstate.EventClaimReleased, Project: "api", Ticket: "bd-2", Data: map[string]interface{}{"owner": "ana", "reason": "left_team"}},
+		{Actor: "zed", Type: teamstate.EventClaimTaken, Project: "api", Ticket: "bd-3"},
+		{Actor: "lea", Type: teamstate.EventMemberRemoved, Project: teamstate.TeamEventsProject, Data: map[string]interface{}{"member": "ana"}},
+	} {
+		require.NoError(t, repo.AppendEvent(ctx, e))
+	}
+	run := func(member string) string {
+		stdout.Reset()
+		cmd := &cobra.Command{}
+		cmd.SetContext(ctx)
+		cmd.Flags().Bool("today", true, "")
+		cmd.Flags().Bool("week", false, "")
+		cmd.Flags().String("project", "", "")
+		cmd.Flags().String("member", member, "")
+		cmd.Flags().Int("limit", 50, "")
+		require.NoError(t, runTeamActivity(cmd, nil))
+		return stdout.String()
+	}
+
+	out := run("ana")
+	assert.Contains(t, out, "bd-1", "handed to someone else")
+	assert.Contains(t, out, "bd-2", "released under their feet")
+	assert.Contains(t, out, "removed from the team")
+	assert.NotContains(t, out, "bd-3")
+	out = run("bob")
+	assert.Contains(t, out, "bd-1", "the member a claim went to")
+	assert.NotContains(t, out, "bd-2")
+}

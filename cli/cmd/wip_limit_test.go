@@ -12,6 +12,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // wipTeam is a team of one member (testuser) whose limit of tickets in
@@ -21,6 +22,7 @@ func wipTeam(t *testing.T, limit, inProgress int) (*app.App, *teamstate.Repo) {
 	i18ntest.Set(t, "en")
 	a, repo := setupBeat(t)
 	setTeamLimit(t, repo, &limit)
+	addTeamMembers(t, repo, "alice", "bob")
 	for i := 1; i <= inProgress; i++ {
 		claimsCreate(t, repo, fmt.Sprintf("W-%d", i), "testuser", "")
 	}
@@ -158,9 +160,13 @@ func TestTeamBoardActionsAreRefusedAtTheInProgressLimit(t *testing.T) {
 	_, gerr := repo.GetClaim(ctx, claimsProject, "NEW-1")
 	assert.ErrorIs(t, gerr, teamstate.ErrClaimNotFound)
 
-	// A ticket someone holds: left as it is, no refusal.
+	// A ticket someone holds: left as it is, no refusal of the limit; the board
+	// says who holds it.
 	claimsCreate(t, repo, "B-1", "bob", "")
-	require.NoError(t, actions.OnClaim(claimsProject, "B-1"))
+	var held *views.ClaimHeldError
+	require.ErrorAs(t, actions.OnClaim(claimsProject, "B-1"), &held)
+	assert.Equal(t, "bob", held.Owner)
+	assert.False(t, held.Expired)
 	assert.Equal(t, "bob", claimsOnDisk(t, repo, "B-1").ClaimedBy)
 
 	// A pool ticket is a take too.

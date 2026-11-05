@@ -36,6 +36,7 @@ const (
 	EventClaimConflict    = "claim.conflict"
 	EventClaimTransferred = "claim.transferred"
 	EventClaimReleased    = "claim.released"
+	EventMemberRemoved    = "member.removed"
 	EventWikiProposal     = "wiki.proposal"
 	EventWikiAccepted     = "wiki.accepted"
 	EventWikiRejected     = "wiki.rejected"
@@ -57,9 +58,12 @@ func (r *Repo) AppendEvent(ctx context.Context, e Event) error {
 }
 
 // AppendEventAsync fires off AppendEvent in a background goroutine.
-// The event is written to the local JSONL file even if the push fails;
-// it will be pushed on the next successful operation.
-// Errors are logged as warnings and never block the caller.
+// Errors are logged as warnings and never block the caller. The event is a
+// transaction like any other: when the remote cannot be reached nothing is
+// committed and the event is lost (only the warning remains). The events that
+// matter are written in the commit of the change they describe (WithClaimEvent,
+// ReleaseClaimAs, TransferClaimWith, ReassignClaims), so they are never lost
+// apart from it.
 func (r *Repo) AppendEventAsync(e Event) {
 	safego.Go(func() {
 		ctx, cancel := context.WithTimeout(WithLockWait(context.Background(), BackgroundLockWait), BackgroundLockWait+30*time.Second)

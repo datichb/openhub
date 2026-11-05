@@ -112,6 +112,11 @@ func TestSyncRetentionOfDoneClaimsIsNotUndoneByTheNextRun(t *testing.T) {
 	res, err := NewEngine(tr, repo, cfg, stateDir).Run(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, 1, res.ClaimsReleased, "the retention released the done claim")
+	events, err := repo.ListEvents(ctx, "p", time.Time{})
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	assert.Equal(t, teamstate.EventClaimReleased, events[0].Type)
+	assert.Equal(t, teamstate.ReleaseCleanup, events[0].Data["reason"])
 	_, err = repo.GetClaim(ctx, "p", "1")
 	require.ErrorIs(t, err, teamstate.ErrClaimNotFound)
 
@@ -176,6 +181,14 @@ func TestSyncReleasesExpiredClaimsOnlyWhenTheTeamAsksForIt(t *testing.T) {
 				require.Len(t, res.Warnings, 2, "each release is said")
 				assert.Contains(t, res.Warnings[0].Message, "alice")
 				assert.Contains(t, gittest.Run(t, clone, "log", "-1", "--format=%s"), "2 expired")
+				events, err := repo.ListEvents(ctx, "p", time.Time{})
+				require.NoError(t, err)
+				require.Len(t, events, 2, "each release leaves a claim.released event in the commit of the run")
+				for _, e := range events {
+					assert.Equal(t, teamstate.EventClaimReleased, e.Type)
+					assert.Equal(t, "alice", e.Data["owner"])
+					assert.Equal(t, teamstate.ReleaseExpired, e.Data["reason"])
+				}
 
 				// The next run does not recover what it released.
 				res, err = NewEngine(tr, repo, cfg, stateDir).Run(ctx)

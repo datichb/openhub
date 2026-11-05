@@ -172,6 +172,26 @@ func buildTeamsView(a *app.App) views.View {
 		OnRemove: func(teamID string) ([]string, string, error) {
 			return removeTeam(context.Background(), a, teamID)
 		},
+		PrepareLeave: func(teamID string, removeMember bool) views.TeamLeave {
+			env := tuiLeaveEnv(a) // on the loop: the copy of hub.toml is taken here
+			opts := leaveOptions{RemoveMember: removeMember}
+			return views.TeamLeave{
+				Plan: func(ctx context.Context) []string {
+					plan, err := planLeave(ctx, env, teamID)
+					if err != nil {
+						return []string{err.Error()}
+					}
+					return plan.Lines(opts)
+				},
+				Leave: func(ctx context.Context) ([]string, error) {
+					rep, err := leaveTeam(ctx, env, teamID, opts)
+					if rep == nil {
+						return nil, err
+					}
+					return rep.Summary(teamID), err
+				},
+			}
+		},
 		ProjectsOf: func(teamID string) []string { return teamProjectNames(context.Background(), a, teamID) },
 		OnNavigate: func(viewID string) {
 			if tuiShell != nil {

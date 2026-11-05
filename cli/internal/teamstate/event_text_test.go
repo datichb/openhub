@@ -84,7 +84,7 @@ func TestEventDescribeAs(t *testing.T) {
 func TestEveryEventTypeHasASymbol(t *testing.T) {
 	types := []string{
 		EventSessionComplete, EventReviewReady, EventReviewApproved, EventReviewRejected, EventAuditFinding,
-		EventClaimTaken, EventClaimConflict, EventClaimTransferred, EventClaimReleased, EventClaimExpiring, EventClaimExpired,
+		EventClaimTaken, EventClaimConflict, EventClaimTransferred, EventClaimReleased, EventClaimExpiring, EventClaimExpired, EventMemberRemoved,
 		EventWikiProposal, EventWikiAccepted, EventWikiRejected,
 		EventWorkflowPublished, EventWorkflowRestored, EventWorkflowArchived, EventConfigChanged,
 	}
@@ -98,4 +98,18 @@ func TestEveryEventTypeHasASymbol(t *testing.T) {
 		assert.Equal(t, typ, Event{Type: typ}.Glyph().Type)
 	}
 	assert.Len(t, glyph.Events, len(types), "a row of glyph.Events without an event")
+}
+
+func TestEventInvolvesTheMemberItHappenedTo(t *testing.T) {
+	released := Event{Actor: "lea", Type: EventClaimReleased, Data: map[string]interface{}{"owner": "ana"}}
+	transferred := Event{Actor: "lea", Type: EventClaimTransferred, Data: map[string]interface{}{"from": "ana", "to": "bob"}}
+	removed := Event{Actor: "lea", Type: EventMemberRemoved, Data: map[string]interface{}{"member": "ana"}}
+	for _, e := range []Event{released, transferred, removed} {
+		assert.True(t, e.Involves("lea"), "the actor")
+		assert.True(t, e.Involves("ana"), "the member it happened to")
+		assert.False(t, e.Involves("zed"))
+		assert.True(t, e.Involves(""), "no filter")
+	}
+	assert.True(t, transferred.Involves("bob"), "the member a claim went to")
+	assert.False(t, released.Involves("bob"))
 }
