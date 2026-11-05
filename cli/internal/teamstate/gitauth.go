@@ -124,10 +124,16 @@ var networkCommands = map[string]bool{"clone": true, "pull": true, "push": true,
 // creds, when not nil, are given to git instead of the ones the source holds
 // (a token that is checked before it is kept).
 func gitCommand(ctx context.Context, remote, dir string, creds *GitCredentials, sshOpts string, env []string, args ...string) (cmd *exec.Cmd, cleanup func()) {
+	// Only the commands that talk to the remote get a token: a local command
+	// (status, add, commit, rev-parse…) neither reads the keychain nor writes
+	// an askpass.
+	network := networkCommand(args)
 	given := GitCredentials{}
-	if creds != nil {
+	switch {
+	case !network:
+	case creds != nil:
 		given = *creds
-	} else {
+	default:
 		given = credentialsFor(ctx, remote)
 	}
 	cleanup = func() {}
@@ -149,7 +155,7 @@ func gitCommand(ctx context.Context, remote, dir string, creds *GitCredentials, 
 		"GIT_TERMINAL_PROMPT=0",
 		"GIT_SSH_COMMAND=ssh -o BatchMode=yes "+sshOpts,
 	)
-	if networkCommand(args) {
+	if network {
 		// The refusals of a server are recognised by their words (IsAuthError):
 		// git says them in English, not in the language of the machine.
 		cmd.Env = append(cmd.Env, "LC_ALL=C")
