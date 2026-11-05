@@ -388,7 +388,7 @@ func TestDefaultBoardConfig(t *testing.T) {
 	require.Len(t, cfg.Columns, 6)
 
 	expectedIDs := []string{"todo", "in_progress", "review", "validation", "done", "blocked"}
-	expectedRoles := []string{ColumnRoleInitial, ColumnRoleActive, ColumnRoleActive, ColumnRoleActive, ColumnRoleTerminal, ColumnRoleBlocked}
+	expectedRoles := []string{ColumnRoleInitial, ColumnRoleActive, ColumnRoleReview, ColumnRoleActive, ColumnRoleTerminal, ColumnRoleBlocked} // like the default board of the TUI
 
 	for i, col := range cfg.Columns {
 		assert.Equal(t, expectedIDs[i], col.ID, "column %d ID", i)

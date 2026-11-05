@@ -235,11 +235,12 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				// and oh team claim renews it.
 				//
 				// Try creating a new claim first.
+				workStatus := layout.Load().Board.DefaultWorkStatus()
 				_, err := repo.CreateClaim(ctx, teamstate.Claim{
 					TicketID:  ticketID,
 					Project:   projectID,
 					ClaimedBy: memberID,
-					Status:    teamstate.ClaimStatusInProgress,
+					Status:    workStatus,
 				})
 				if err == nil {
 					return nil // new claim created
@@ -258,7 +259,6 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				}
 
 				// Pool ticket: claim it for ourselves.
-				workStatus := layout.Load().Board.DefaultWorkStatus()
 				if poolErr := repo.ClaimPoolTicket(ctx, projectID, ticketID, memberID, workStatus); poolErr != nil {
 					return poolErr
 				}
@@ -313,14 +313,21 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				projectID := boardProjectID(a, cardProject)
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
+				// The column the card is dropped on stands for a status of the
+				// board (the TODO column of the default board is the status
+				// planned): the team-state knows the statuses, not the columns.
+				status, _, known := layout.Load().Board.ResolveStatus(newStatus)
+				if !known {
+					return fmt.Errorf("%w: %q", teamstate.ErrInvalidStatus, newStatus)
+				}
 				// A card of the member moved to a column of work in progress is one
 				// more ticket in progress.
 				if c, gerr := repo.GetClaim(ctx, projectID, ticketID); gerr == nil {
-					if err := checkStatusMoveRoom(ctx, repo, a.Config.Tracker, a.Config.ActiveTeam().MemberID, c, newStatus); err != nil {
+					if err := checkStatusMoveRoom(ctx, repo, a.Config.Tracker, a.Config.ActiveTeam().MemberID, c, status); err != nil {
 						return err
 					}
 				}
-				return repo.UpdateClaimStatus(ctx, projectID, ticketID, newStatus)
+				return repo.UpdateClaimStatus(ctx, projectID, ticketID, status)
 			},
 		},
 		QuickActions: buildBoardQuickActions(a),

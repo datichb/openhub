@@ -253,7 +253,7 @@ func DefaultBoardConfig() BoardConfig {
 		Columns: []BoardColumnConfig{
 			{ID: "todo", Name: "TODO", Role: ColumnRoleInitial},
 			{ID: "in_progress", Name: "IN PROGRESS", Role: ColumnRoleActive},
-			{ID: "review", Name: "REVIEW", Role: ColumnRoleActive},
+			{ID: "review", Name: "REVIEW", Role: ColumnRoleReview},
 			{ID: "validation", Name: "VALIDATION", Role: ColumnRoleActive},
 			{ID: "done", Name: "DONE", Role: ColumnRoleTerminal},
 			{ID: "blocked", Name: "BLOCKED", Role: ColumnRoleBlocked},

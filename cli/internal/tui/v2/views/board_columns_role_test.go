@@ -38,7 +38,8 @@ func TestColumnsCarryTheirRole(t *testing.T) {
 func TestReviewStatusStandsInForTheReviewRole(t *testing.T) {
 	t.Parallel()
 	saved := ColumnsFromConfig(teamstate.DefaultBoardConfig())
-	assert.Equal(t, "review", rolesOf(saved)["review"], "the default columns saved, where review is an active column")
+	assert.Equal(t, "review", rolesOf(saved)["review"], "the default columns saved declare it")
+	assert.Equal(t, rolesOf(DefaultColumns()), rolesOf(saved), "the board of the TUI by default and the one the assistants save agree")
 	assert.Equal(t, "active", rolesOf(saved)["validation"])
 
 	// A column declares it: the review status is an ordinary active column.

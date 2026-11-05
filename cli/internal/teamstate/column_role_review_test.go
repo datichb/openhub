@@ -38,7 +38,7 @@ func TestReviewStatuses(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, []string{"mr"}, reviewBoard().ReviewStatuses())
 	assert.Equal(t, []string{ClaimStatusReview}, BoardConfig{}.ReviewStatuses(), "default board")
-	assert.Equal(t, []string{ClaimStatusReview}, DefaultBoardConfig().ReviewStatuses(), "default columns saved: review is an active column")
+	assert.Equal(t, []string{ClaimStatusReview}, DefaultBoardConfig().ReviewStatuses(), "default columns saved: the review column declares the role")
 	own := BoardConfig{Columns: []BoardColumnConfig{{ID: "a", Name: "A", Role: ColumnRoleInitial}, {ID: "z", Name: "Z", Role: ColumnRoleTerminal}}}
 	assert.Equal(t, []string{ClaimStatusReview}, own.ReviewStatuses())
 }

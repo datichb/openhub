@@ -1,6 +1,7 @@
 package views
 
 import (
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -219,4 +220,34 @@ func TestTeamBoardPullRateDefaults(t *testing.T) {
 	assert.Equal(t, time.Minute, (&TeamBoardView{}).pullRate())
 	assert.Zero(t, (&TeamBoardView{cfg: TeamBoardViewConfig{PullRate: -1}}).pullRate())
 	assert.Equal(t, time.Second, (&TeamBoardView{cfg: TeamBoardViewConfig{PullRate: time.Second}}).pullRate())
+}
+
+// The menu of the status offers the columns a card may move to: not its own,
+// not a transition the team-state refuses, and the TODO column of the default
+// board is the status planned.
+func TestTeamBoardStatusMenuOffersTheAllowedMoves(t *testing.T) {
+	frLocale(t)
+	v := &TeamBoardView{allColumns: DefaultColumns()}
+	values := func(from string) []string {
+		var out []string
+		for _, o := range v.statusMoves(from) {
+			out = append(out, o.Value)
+		}
+		return out
+	}
+	assert.Equal(t, []string{"in_progress"}, values("planned"), "from TODO only the work starts")
+	assert.Equal(t, []string{"review", "blocked"}, values("in_progress"))
+	assert.Equal(t, []string{"in_progress", "validation", "done"}, values("review"))
+	assert.Equal(t, []string{"in_progress"}, values("done"), "a done card is reopened")
+
+	// A board of its own: the statuses the team-state does not know have no
+	// rule, any column goes.
+	v.cfg.BoardConfig = teamstate.BoardConfig{Columns: []teamstate.BoardColumnConfig{
+		{ID: "backlog", Name: "Backlog", Role: teamstate.ColumnRoleInitial},
+		{ID: "dev", Name: "Dev"},
+		{ID: "shipped", Name: "Shipped", Role: teamstate.ColumnRoleTerminal},
+	}}
+	v.allColumns = ColumnsFromConfig(v.cfg.BoardConfig)
+	assert.Equal(t, []string{"backlog", "shipped"}, values("dev"))
+	assert.Equal(t, []string{"dev", "shipped"}, values("planned"), "planned is the backlog column of this board")
 }

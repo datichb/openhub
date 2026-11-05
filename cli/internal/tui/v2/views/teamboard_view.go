@@ -1378,6 +1378,27 @@ func (v *TeamBoardView) transferTicket() {
 	})
 }
 
+// statusMoves are the columns a claim in status from may be moved to: those
+// whose status stands for a status of the board (the TODO column of the default
+// board is the status planned) other than its own, and that the team-state
+// accepts as a transition from it (teamstate.IsValidBoardTransition).
+func (v *TeamBoardView) statusMoves(from string) []SelectOption {
+	board := v.cfg.BoardConfig
+	here, _, _ := board.ResolveStatus(from)
+	if here == teamstate.ClaimStatusPlanned {
+		here = board.InitialStatus() // the legacy status of the initial column
+	}
+	var out []SelectOption
+	for _, col := range v.allColumns {
+		to, _, ok := board.ResolveStatus(col.Status)
+		if !ok || to == here || to == from || !teamstate.IsValidBoardTransition(from, to) {
+			continue
+		}
+		out = append(out, SelectOption{Label: col.Name, Value: col.Status})
+	}
+	return out
+}
+
 func (v *TeamBoardView) changeStatus() {
 	if v.actions == nil || v.actions.OnStatus == nil || v.shell == nil {
 		return
@@ -1390,16 +1411,18 @@ func (v *TeamBoardView) changeStatus() {
 		return
 	}
 
-	statusOptions := make([]SelectOption, len(v.allColumns))
-	for i, col := range v.allColumns {
-		statusOptions[i] = SelectOption{Label: col.Name, Value: col.Status}
-	}
-
-	// Pre-select the ticket's current status so the user sees it highlighted.
+	// Only the columns the card may move to: the transitions between the
+	// statuses of the board that the team-state refuses are not offered.
 	currentStatus := ""
 	if ticket, ok := v.selectedTeamTicket(); ok {
 		currentStatus = ticket.Status
 	}
+	statusOptions := v.statusMoves(currentStatus)
+	if len(statusOptions) == 0 {
+		v.shell.ShowToastMsg(i18n.T("v54y.teamboard.no_status_move"), false)
+		return
+	}
+	currentStatus = "" // the current column is not offered
 
 	v.shell.ShowSelectModal(i18n.Tf("tui.teamboard.status_title", card.ticket), statusOptions, currentStatus, func(newStatus string) {
 		if v.actionInProgress.Swap(true) {
