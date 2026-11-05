@@ -8,10 +8,20 @@ Les fonctions d'équipe reposent sur un dépôt git **team-state** partage (clai
 
 ### oh team init
 
-Assistant interactif de configuration de l'équipe, en 4 étapes adaptatives : configuration globale (reprise, sessions), identité (inscription dans l'équipe), notifications Mattermost (optionnel), policies d'équipe (conventions automatisées). Le dépôt team-state doit exister au préalable sur GitLab ou GitHub ; s'il est déjà configuré, seules les étapes utiles sont proposées. L'assistant crée les dossiers du dépôt (`projects/`, `wiki/`, `catalog/`…) et les commite (« team: init structure »). Si ce commit échoue (hors ligne, refus du dépôt distant), l'inscription continue et l'assistant le dit (ligne d'avertissement, puis dans l'étape du dépôt) : les dossiers existent en local et sont commités à la prochaine exécution de `oh team init`.
+**Crée une équipe** : assistant interactif sur un **nouveau** dépôt team-state, toujours (même si vous avez déjà une ou plusieurs équipes ; chacune a son dépôt). Le dépôt doit exister au préalable sur GitLab ou GitHub (vide ou non). Rien n'est cloné, tiré ni poussé avant le premier écran : le dépôt, la **sonde d'accès**, l'accès et le clone sont des étapes de l'assistant (avec un indicateur d'attente), puis la configuration globale (reprise, sessions), votre identité (votre fiche de membre), les notifications Mattermost (optionnel) et les policies d'équipe (conventions automatisées).
+
+- **Sonde d'accès** : pour « Créer », c'est un `git push --dry-run` (rien n'est envoyé ni créé) : un token qui peut lire sans pouvoir écrire (GitLab : `read_repository` seul) est refusé ici, avant toute question. Un token ou une clé refusés ouvrent l'étape « Accès » (token HTTPS vérifié puis gardé dans le trousseau de oh ; clé SSH à charger dans l'agent). Sur un GitLab, un « dépôt introuvable » est traité comme un accès probablement manquant (GitLab répond 404 à un token qui ne voit pas le projet).
+- **Identité** : si l'identifiant est déjà pris, l'écran d'erreur propose « Modifier mon identité » et **« C'est moi »** (la fiche qui existe est rattachée telle quelle, rien n'est écrasé). L'identifiant d'une fiche d'un collègue n'est jamais pris pour le vôtre parce que vous l'avez dans une autre équipe.
+- `hub.toml` est écrit **juste après** que votre fiche est dans le team-state : un assistant interrompu ensuite laisse une équipe configurée, pas une fiche dans une équipe que le hub ne connaît pas.
+- L'assistant crée les dossiers du dépôt (`projects/`, `wiki/`, `catalog/`…) et les commite (« team: init structure »). Si ce commit échoue (hors ligne, refus du dépôt distant), l'inscription continue et l'assistant le dit : les dossiers existent en local et sont commités à la prochaine exécution.
+- Le dépôt d'une équipe que le hub a déjà est refusé : c'est « Reconfigurer » (ci-dessous), ou rejoindre.
+
+#### Reconfigurer (`--reconfigure`)
+
+Reprend l'assistant sur l'équipe déjà configurée : sonde et accès, synchronisation du clone (cloné s'il ne l'a jamais été, par exemple après `oh teams add` d'une ancienne version), puis les mêmes étapes de configuration, de fiche, de notifications et de policies, préremplies. `--team <id>` (option persistante de `oh team`) désigne l'équipe ; sans elle, c'est l'équipe par défaut. Dans la TUI : commande « Reconfigurer l'équipe » de la palette, en mode équipe. Une équipe archivée ou solo n'est pas reconfigurable.
 
 ```
-oh team init [--solo [--id <id>] [--name <nom>] [--member-id <id>] [--project <projet>]]
+oh team init [--reconfigure [--team <id>]] [--solo [--id <id>] [--name <nom>] [--member-id <id>] [--project <projet>]]
 ```
 
 #### Espace solo (`--solo`)
@@ -24,6 +34,7 @@ oh team init --solo --project web-app
 
 | Flag | Type | Description |
 |------|------|-------------|
+| `--reconfigure` | bool | Reconfigure l'équipe déjà configurée au lieu d'en créer une nouvelle |
 | `--solo` | bool | Crée un espace solo au lieu de lancer l'assistant |
 | `--id` | string | Identifiant de l'espace (défaut : `solo`) |
 | `--name` | string | Nom affiché |
@@ -45,14 +56,15 @@ oh team promote --remote git@gitlab.com:acme/team-state.git
 | `--remote` | string | URL d'un dépôt git **vide** (obligatoire) |
 | `--team` | string | Espace solo à partager, si vous en avez plusieurs |
 
-En cas d'échec (dépôt absent, non vide, accès refusé), l'espace reste solo. Les autres membres rejoignent ensuite l'équipe avec `oh team init` en saisissant l'URL du dépôt.
+Le droit d'écrire est vérifié avant tout push (`git push --dry-run`). En cas d'échec (dépôt absent, non vide, accès refusé ou en lecture seule), l'espace reste solo. Les autres membres rejoignent ensuite l'équipe avec `oh team rejoin --repo <url>`.
 
 ### oh team rejoin
 
-Rejoint une équipe existante après une réinstallation du hub : clone le dépôt team-state, vérifie l'identité via GitLab et restaure la configuration. Ne pas lancer pendant que la TUI effectue des opérations d'équipe sur le même clone (le verrou ne protège pas contre un autre processus).
+Rejoint une équipe existante : nouveau membre, ou réinstallation du hub. Dans l'ordre : l'**accès** au dépôt (sonde ; pour un dépôt HTTPS la commande demande le nom d'utilisateur et le token, les vérifie, puis les garde dans le trousseau de oh ; pour SSH elle dit quoi vérifier), le **clone** du team-state, **qui vous êtes** (une fiche de la liste, ou la création de la vôtre), puis le nom sur le tracker, le token de l'API GitLab, l'écriture de `hub.toml` et la vérification d'identité via GitLab. Rien n'est cloné avant que l'accès réponde. Ne pas lancer pendant que la TUI effectue des opérations d'équipe sur le même clone (le verrou ne protège pas contre un autre processus).
 
 ```
 oh team rejoin [--repo <url>] [--member-id <id>] [--gitlab-url <url>] [--tracker-username <nom>] [--no-retro-tag]
+               [--new-member [--display-name <nom>] [--gitlab-username <handle>] [--role <rôle>]]
 ```
 
 | Flag | Type | Description |
@@ -62,6 +74,10 @@ oh team rejoin [--repo <url>] [--member-id <id>] [--gitlab-url <url>] [--tracker
 | `--gitlab-url` | string | GitLab réel du dépôt quand son adresse est un alias SSH (`git@mon-alias:…`) ; enregistré dans `hub.toml` (`gitlab_url`) et utilisé pour la vérification d'identité |
 | `--tracker-username` | string | Votre nom d'utilisateur sur le tracker, écrit dans votre fiche de membre du dépôt d'équipe (vide = inchangé). Sans l'option, la commande le demande quand le tracker de l'équipe est sur un autre serveur que le dépôt d'équipe et que votre fiche n'a pas de nom (Entrée = laisser vide) |
 | `--no-retro-tag` | bool | Ne pas rattacher les sessions existantes à votre identité |
+| `--new-member` | bool | Crée votre propre fiche (`--member-id` en est l'identifiant ; sans l'option, le premier choix de la liste « Je ne suis pas dans la liste » fait de même) |
+| `--display-name`, `--gitlab-username`, `--role` | string | Nom affiché, handle GitLab (facultatif, unique dans l'équipe) et rôle (`lead`, `dev`, `reviewer` ; `dev` par défaut) de la fiche créée |
+
+**Votre fiche.** Un identifiant déjà pris est refusé, avec « C'est ma fiche ? » : la fiche qui existe est alors rattachée telle quelle. Avant de **publier** une fiche neuve avec un handle GitLab, la commande vérifie (sans bloquer) que le token GitLab dont elle dispose est bien celui de ce handle ; s'il appartient à quelqu'un d'autre, elle le dit et demande s'il faut publier quand même. Les réponses sont lues sur l'entrée du terminal (le token n'est pas affiché).
 
 Un nom écrit avec un `@` initial est enregistré sans (`@benjamin.datiche` → `benjamin.datiche`). Si l'écriture échoue (hors ligne), le rejoin réussit quand même et la commande à relancer est affichée : `oh team profile --tracker-username <nom>`. L'étape HTTPS des assistants (jeton du dépôt) est sautée quand le dépôt cloné répond à `git ls-remote` sans jeton.
 
@@ -313,7 +329,7 @@ oh teams list
 
 ### oh teams add
 
-Ajouter une équipe au hub.
+Ajouter une équipe au hub : **alias de `oh team rejoin`** (sonde et réglage de l'accès, clone, choix ou création de votre fiche, vérification de l'identité), avec un identifiant et un nom d'équipe au choix. Il n'écrit plus `hub.toml` seul avec un `member_id` non vérifié (l'identifiant d'un collègue devenait « votre » fiche). Les sessions de cette machine ne sont pas rattachées à la nouvelle équipe.
 
 ```bash
 oh teams add --repo git@github.com:org/team-state.git --member-id alice
@@ -322,10 +338,22 @@ oh teams add --repo git@github.com:org/team-state.git --member-id alice
 | Flag | Type | Description |
 |------|------|-------------|
 | `--repo` | string | URL du dépôt git team-state (`git@…` ou `https://…`) |
-| `--member-id` | string | Votre identifiant membre dans l'équipe |
+| `--member-id` | string | Votre identifiant membre dans l'équipe (la liste est proposée si omis) |
 | `--id` | string | Identifiant local de l'équipe (dérive du dépôt si omis) |
 | `--name` | string | Nom d'affichage (optionnel) |
 | `--gitlab-url` | string | GitLab réel du dépôt quand son adresse est un alias SSH (optionnel) |
+
+Les autres options de `oh team rejoin` (`--new-member`, `--display-name`, `--gitlab-username`, `--role`, `--tracker-username`) sont acceptées.
+
+### oh teams set
+
+Change un réglage d'une équipe. Aujourd'hui : `repo`, quand le dépôt a déménagé ou été renommé sur le serveur.
+
+```bash
+oh teams set <id> repo <url> [--gitlab-url <url>]
+```
+
+L'URL est vérifiée avant que `hub.toml` change : l'accès (sonde, token demandé et gardé comme pour un rejoin) puis le **même team-state** (le dépôt doit partager l'historique de votre clone, sinon c'est une autre équipe ; un dépôt vide est refusé). Le clone, son dossier, votre fiche, les claims et les clés de l'équipe restent tels quels ; seul l'`origin` du clone et `state_repo` changent.
 
 ### oh teams remove
 

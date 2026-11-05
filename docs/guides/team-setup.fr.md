@@ -22,13 +22,13 @@ Le repo sera peuplé automatiquement par `oh team init`.
 
 ## 2. Initialiser les fonctions d'équipe
 
-Chaque membre exécute :
+La personne qui **crée** l'équipe exécute :
 
 ```bash
 oh team init
 ```
 
-Ou depuis le TUI, tapez `team init` dans l'omnibar (`Ctrl+P`).
+Ou depuis le TUI, la commande « Créer une équipe » de la palette (`Ctrl+P`, `team init`). Elle crée toujours une nouvelle équipe sur un nouveau dépôt, même si vous en avez déjà une. Les **autres membres** rejoignent avec `oh team rejoin --repo <url>` (ou « Rejoindre une équipe » dans la palette, ou `oh teams add`, qui en est l'alias). Pour **reconfigurer** une équipe qui existe : `oh team init --reconfigure` (option `--team <id>`), ou « Reconfigurer l'équipe » dans la palette.
 
 ### Mode CLI (terminal)
 
@@ -47,7 +47,8 @@ dans la palette (`team init`, `team rejoin`) :
 
 1. **Dépôt** : l'URL du repo team-state et, facultatif, le serveur GitLab quand l'URL est un alias SSH.
 2. **Sonde d'accès** : `git ls-remote` en lecture seule, sans aucune invite, avec un indicateur
-   d'attente. Elle utilise ce que git a déjà (agent SSH, assistant d'identifiants, `netrc`, dépôt
+   d'attente. Pour « Créer », qui écrit en premier, c'est un `git push --dry-run` (rien n'est
+   envoyé) : un token en lecture seule est refusé ici, pas au premier push. Elle utilise ce que git a déjà (agent SSH, assistant d'identifiants, `netrc`, dépôt
    public) et le token que `oh` garde pour ce dépôt. Rien n'est cloné ni écrit.
 3. **Accès** : cette étape n'apparaît que si la sonde est refusée pour une raison d'accès.
    - **HTTPS** : l'assistant demande un token (nom d'utilisateur `oauth2` par défaut pour GitLab),
@@ -745,11 +746,13 @@ Lister toutes les équipes configurées :
 oh teams list
 ```
 
-Ajouter une nouvelle équipe :
+Ajouter une équipe (alias de `oh team rejoin` : l'accès au dépôt est vérifié et réglé, le team-state cloné, votre fiche choisie ou créée) :
 
 ```bash
 oh teams add --repo git@gitlab.com:org/team-state.git --member-id alice
 ```
+
+Le dépôt d'une équipe a déménagé ou été renommé : `oh teams set <id> repo <url>` vérifie l'accès et que c'est le même team-state, puis change l'URL (le clone, votre fiche et les clés restent).
 
 Supprimer une équipe (détache tous les projets associés) :
 
@@ -780,7 +783,11 @@ L'archivage met `enabled = false` dans hub.toml. La restauration réactive l'éq
 
 ### "team-state repo not cloned"
 
-Lance `oh team init` pour configurer les fonctions d'équipe.
+Crée l'équipe avec `oh team init`, ou rejoins-la avec `oh team rejoin --repo <url>`.
+
+### Une alerte « Accès au team-state refusé » (token expiré)
+
+Le token git du dépôt a expiré ou a été révoqué après que l'équipe a été rejointe. Le démon le dit **une fois** (alerte ✗ dans « À traiter », sous la session la plus récente de l'équipe) et cesse d'essayer ce dépôt tant que le token que `oh` garde pour lui ne change pas (une clé SSH est réessayée toutes les 30 minutes). Pendant ce temps, les claims de vos sessions ne sont plus renouvelés et les opérations en file attendent. `oh doctor` (contrôle « Accès au team-state ») le confirme. Renouvelez l'accès : `oh team rejoin --repo <url>` (étape « Accès »), ou « Rejoindre une équipe » dans la palette.
 
 ### "sync conflict after retries"
 

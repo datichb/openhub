@@ -9,6 +9,34 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added
+
+- **`oh team init --reconfigure`** (option `--team <id>`) et commande de palette **« Reconfigurer l'équipe »** : l'assistant sur l'équipe déjà configurée (sonde et accès, synchronisation du clone, puis configuration, fiche, notifications, policies préremplies). « Créer une équipe » et « Reconfigurer » sont désormais deux actions distinctes.
+- **`oh team rejoin` crée votre fiche** : premier choix de la liste (« Je ne suis pas dans la liste ») ou `--new-member` avec `--member-id`, `--display-name`, `--gitlab-username`, `--role`. Un identifiant déjà pris propose « C'est ma fiche ? » (rattachée telle quelle).
+- **`oh teams set <id> repo <url>`** : suit un dépôt déplacé ou renommé sur le serveur, après avoir vérifié l'accès et que le dépôt contient le même team-state (`Repo.VerifyRemote` : historique commun ; un autre dépôt ou un dépôt vide est refusé). Le clone, la fiche et les clés restent.
+- **Contrôle `oh doctor` « Accès au team-state »** : sonde en lecture de chaque dépôt d'équipe partagé ; un token expiré est un échec qui donne la commande pour le renouveler, un dépôt injoignable un avertissement ; sauté avec `--offline`.
+- **Alerte « À traiter » quand le token git d'un team-state expire** (une seule par dépôt, sous la session la plus récente de l'équipe), et API `daemon.RaiseAlert` / `accessWatch` pour les tâches du démon qui travaillent sur un team-state.
+- **`teamstate.ProbeRemoteWrite`** (`git push --dry-run`) : la sonde de « Créer une équipe » et de `oh team promote` vérifie le droit d'écrire, pas seulement de lire.
+
+### Changed
+
+- **`oh team init` crée toujours une nouvelle équipe** (nouveau dépôt), même quand une équipe existe ; le dépôt d'une équipe que le hub a déjà est refusé (« reconfigurez-la »). Rien n'est cloné, tiré ni poussé avant le premier écran : le dépôt, la sonde, l'accès et le clone sont des étapes de l'assistant, avec indicateur d'attente, hors du fil de la TUI. L'aperçu « ✓ clé SSH configurée… », qui n'était pas vérifié, est remplacé par une explication.
+- **`oh team rejoin`** sonde l'accès **avant** de cloner : pour un dépôt HTTPS il demande le nom d'utilisateur et le token (lus sur l'entrée de l'application, masqués sur un terminal), les vérifie puis les garde dans le trousseau ; pour SSH il dit quoi vérifier. L'identité GitLab de la fiche neuve est vérifiée (sans bloquer) **avant** de la publier, aussi dans les assistants `oh init` et de la palette.
+- **`oh teams add` est un alias de `oh team rejoin`** (sonde, clone, fiche choisie ou créée, identité vérifiée), avec `--id` et `--name`. `--member-id` n'est plus obligatoire. Il n'écrit plus `hub.toml` seul avec un `member_id` non vérifié.
+- **`C'est moi`** et l'écriture de `hub.toml` juste après la fiche dans `oh team init` et la palette ; l'identifiant d'une fiche de collègue n'est plus pris pour le vôtre parce que vous l'avez dans une autre équipe.
+- **Le battement des claims du démon tourne à pas fixe (5 minutes)**, chaque équipe étant filtrée par sa période (`heartbeat_minutes`) : une équipe rejointe après le démarrage du démon est suivie sans le redémarrer (la boucle prenait la plus courte période connue au démarrage, et ne tournait pas si aucune équipe n'en avait).
+- `oh team promote` vérifie le droit d'écrire avant de pousser l'historique, et invite avec `oh team rejoin --repo <url>` (et non `oh team init`, qui crée une équipe). La commande de palette `team.init` s'intitule « Créer une équipe ».
+
+### Fixed
+
+- **Un refus d'accès est un type, `*teamstate.AuthError`, pour toutes les opérations et les deux protocoles** (clone, pull, push, sondes, transactions). Le préfixe français « push échoué — » est supprimé ; `classifyRemoteError` garde la cause ; un refus de clé SSH n'est plus un simple avertissement de pull ; un « dépôt introuvable » d'un GitLab (qui répond 404 à un token qui ne voit pas le projet) est un accès probablement manquant. La reconnaissance ne dépend plus de la langue de l'interface.
+- **La sonde de « Créer » attrapait un token en lecture seule trop tard** (`ls-remote` l'acceptait, le premier push échouait après toutes les questions) ; c'est maintenant un push à blanc.
+- **Token git expiré après coup** : le démon écrivait un avertissement à chaque battement et à chaque vidage de file, avec deux essais réseau par battement, et n'alertait personne. Une alerte, puis plus aucun essai tant que le token ne change pas ; démarrer une session sur un ticket dit quand le claim n'a pas pu être pris faute d'accès.
+- `askpass` n'est plus écrit (ni le trousseau lu) pour les commandes git locales du team-state.
+- La détection d'un clone existant du même dépôt compare les dépôts comme git (schéma, `.git`, casse de l'hôte) et considère toutes les équipes de `hub.toml` ; son message n'est plus codé en français.
+- Une équipe ajoutée à `hub.toml` mais jamais clonée n'échoue plus avec `ErrNotCloned` dans les étapes de l'assistant : la synchronisation la clone.
+- `oh team config status` ne teste plus les projets mappés après un échec de connexion.
+
 ## [5.3.3] — 2026-11-04
 
 Version corrective issue d'un audit complet du mode équipe : elle corrige les défauts qui pouvaient **perdre ou abîmer des données d'équipe**. `oh team config status` ne supprime plus les collègues de `members.toml` ; une modification de `config.toml` ne remplace plus celle d'un collègue (conflit signalé) et un fichier illisible n'est plus effacé ; une équipe sans `state_path` ne lance plus git dans le dossier courant ; deux dépôts de même nom ne se remplacent plus ; la synchro du tracker n'écrase plus les statuts et labels posés dans le hub ; le token git n'écrase plus le token d'API GitLab. Ruptures légères (synchro, `oh team config`, chemin des nouveaux clones) décrites dans la [migration 5.3.2 → 5.3.3](docs/guides/migration-v5.fr.md#depuis-la-532-vers-la-533) ; pas de migration de la base.
