@@ -4,7 +4,7 @@
 
 ## Activation
 
-Le serveur MCP Linear est placé automatiquement dans le paquet de session au lancement lorsque `[linear].enabled = true` dans `hub.toml`.
+Le serveur MCP Linear est placé automatiquement dans le paquet de session au lancement lorsque `[mcp.linear]` a `enabled = true` **et** `token_key` dans `hub.toml` (voir le [guide](../guides/linear-integration.fr.md)).
 
 ```json
 // Déclaré dans le paquet de session au lancement
@@ -20,11 +20,7 @@ Le serveur MCP Linear est placé automatiquement dans le paquet de session au la
 
 ## Authentification
 
-Définir la variable d'environnement `LINEAR_API_KEY` avec une clé API personnelle Linear.
-
-```bash
-export LINEAR_API_KEY=lin_api_xxxxxxxxxxxxxxxxxxxx
-```
+Une clé API personnelle Linear, rangée dans le trousseau de `oh` (`oh secrets set --global openhub.mcp.linear.token`) et désignée par `token_key` dans `[mcp.linear]`. Le serveur la lit dans la variable `LINEAR_API_KEY`, que `oh mcp serve linear --token-key …` remplit depuis le trousseau ; exportée dans votre shell, elle n'atteint pas les sessions (l'environnement des agents est filtré).
 
 Pour générer une clé : Paramètres Linear → API → Clés API personnelles → Créer une clé
 

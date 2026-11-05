@@ -4,7 +4,7 @@
 
 ## Activation
 
-The GitHub MCP server is put in the session bundle automatically at launch when `[github].enabled = true` in `hub.toml`.
+The GitHub MCP server is put in the session bundle automatically at launch when `[mcp.github]` has `enabled = true` **and** `token_key` in `hub.toml` (see [`[mcp.github]`](config.en.md#github-and-linear-mcp-servers)).
 
 ```json
 // Declared in the session bundle at launch
@@ -20,11 +20,7 @@ The GitHub MCP server is put in the session bundle automatically at launch when 
 
 ## Authentication
 
-Set the `GITHUB_TOKEN` environment variable with a personal access token (PAT) or GitHub App token.
-
-```bash
-export GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
-```
+A personal access token (PAT) or GitHub App token, kept in the keychain of `oh` (`oh secrets set --global openhub.mcp.github.token`) and designated by `token_key` in `[mcp.github]`. The server reads it from the `GITHUB_TOKEN` variable (or `GH_TOKEN`), which `oh mcp serve github --token-key …` fills from the keychain; `GITHUB_TOKEN` exported in your shell does not reach the sessions (the environment of the agents is filtered).
 
 Required token scopes:
 - `repo` — read access to repositories, issues, pull requests

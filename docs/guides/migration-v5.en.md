@@ -440,3 +440,90 @@ A change of `config.toml` (TUI, wizards, `oh team config`) is applied on the lat
 A team without `state_path` now gets the path of its clone when `hub.toml` is read (the old clone of the right repository if it exists): no git command runs in the current folder any more. New clones go to `~/.oh/team-states/<host>/<group>/<repository>`. Two repositories with the same name (`acme/team-state`, `beta/team-state`) coexist: the second gets the ID `beta-team-state`. An ID chosen with `--id` is no longer rewritten, and a team never replaces another one. No clone is moved or cloned again.
 
 **To do**: nothing; if a script assumed the ID of a team is the name of its repository, read `oh teams list`.
+
+## From 5.3 to 5.4
+
+5.4 makes team mode consistent from end to end: one rule to choose the team, access checked before the clone, automatic tracker sync, governed configuration, adjustable notifications and a real life cycle (leaving a team, removing a member). Several commands that a script may call change behaviour (**light breaking changes** flagged below). The database does not change and no file is migrated. Without team mode, nothing to do.
+
+**1. Teams: one rule for "which team?"**
+
+| In 5.3 | Since 5.4 |
+|---|---|
+| Commands and the TUI each aimed at "the active team" or the first team of `hub.toml`; the repository and the member could come from two different teams | `--team`, then the team chosen in the TUI, then the team of the **project** (`-p`, otherwise the current folder), then the default team, then the first enabled team. The repository and the member always come from the same team. `--team` is accepted by every subcommand of `oh team` (`oh team profile --team` and `oh team promote --team` are unchanged) |
+| The default team was the first one of `hub.toml`, an archived one if there was no other | `oh teams default <id>` writes `default = true` in `[[teams]]`; without it, the first **enabled** team, as before. An archived team is never the default team any more (all archived: no default team) |
+| `oh team init` configured the existing team, or created one | **Light breaking change**: `oh team init` always creates a new team on a new repository. To reconfigure: `oh team init --reconfigure [--team <id>]` (palette: "Reconfigure the team"). `oh team init` and `oh team rejoin` **refuse** `--team` (it was ignored) |
+
+In the folder of a project of team B, `oh team status` now acts on B, not on the first team. A project is attached to a team with `oh project set-team <project> <team>` (or `oh project add --team`), or in the TUI with "Attach the project to a team".
+
+**To do**: with several teams, `oh teams default <id>`. A script that reran `oh team init` to reconfigure adds `--reconfigure`; a script that aimed at the first team from a project folder adds `--team <id>`.
+
+**2. Team-state access and SSH**
+
+| In 5.3 | Since 5.4 |
+|---|---|
+| `oh team rejoin --repo` cloned before any probe and only asked for the API token | It probes access **before** cloning: for HTTPS, user name and git token are asked, checked and kept in the keychain. It can create your card (`--new-member` with `--member-id`, `--display-name`, `--gitlab-username`, `--role`) |
+| `oh teams add` only wrote `hub.toml`, with an unchecked `member_id` | Alias of `oh team rejoin` (probe, clone, checked card); `--member-id` is optional. `oh teams set <id> repo <url>` follows a moved or renamed repository, after checking it |
+| "Create" and `oh team promote` probed read-only: a `read_repository` token passed, the push failed | A dry-run push checks the right to write, from the probe |
+| An expired git token filled the daemon log without any alert | One "To handle" alert per repository, no more attempts until the token changes; `oh doctor` check "Team-state access" |
+| An SSH server missing from `~/.ssh/known_hosts` was accepted silently (`accept-new`) | **Light breaking change**: the wizards (`oh init`, `oh team init`, `oh team rejoin`, `oh teams add`, `oh teams set <id> repo`, `oh team promote --remote`, palette) show the SHA256 fingerprint and ask for confirmation, once per server. **Without a terminal the command is refused.** The daemon no longer connects to such a server (team added by hand in `hub.toml`): "To handle" alert, then it resumes as soon as the server is known |
+
+**To do**: in CI or in a script, check the fingerprint of the server then run `ssh -T git@<host>` once (or `ssh-keyscan <host> >> ~/.ssh/known_hosts`). `oh doctor` reports unknown servers ("Known SSH server") without contacting them. Hosts that are already known, `@cert-authority` and everyday `pull`/`push` do not change. Limits: `ProxyJump`/`ProxyCommand`, `GIT_SSH` and `core.sshCommand` are not handled by the confirmation. An expired git token is renewed with `oh team rejoin --repo <url>`.
+
+**3. Tracker sync**
+
+| In 5.3 | Since 5.4 |
+|---|---|
+| `auto_sync` and `sync_interval_minutes` were only read for display | The daemon syncs every `sync_interval_minutes` (5 by default) and the board when it opens. One member per interval (`sync.lock` at the root of the team-state, ignored by older `oh`) |
+| Every active project of the hub was linked to the tracker of the team | **Light breaking change**: only the projects attached to the team (`team_id`) are. "No hub project is linked to the tracker": `oh project set-team`. Existing claims stay |
+| A ticket was called `42` | It carries the identifier written by `ticket_pattern` (`SRU-42`); existing claims keep theirs, without duplicates |
+| A 403 stopped the whole sync and asked to replace the token | A 403 is an error of the tracker project: the other projects are synced |
+| Default TODO column of the board: `todo` (move refused) | Status `planned`; the `s` menu only offers the allowed moves; the MCP verdict follows the columns of the board and is signed by the member |
+
+**To do**: if `auto_sync = true` was set without effect, the sync starts running: check the setting. Attach projects to their team.
+
+**4. TUI**
+
+The home screen always has a Teams section with "➕ New team" (Create, Join, Solo space). Teams view: `p` (Team view), `*` (default), `e` (rename), `x` (archive), `R` (restore); **`d` also detaches the projects** of the removed team (light breaking change) and, for a team that has a team-state, offers to leave it. "Team of the project" becomes "Attach the project to a team" (Project view) and the Team field of the project configuration is a list. "Team history" is gone: use "Activity". Team commands are in the "Team" category and available without a restart after a creation or a join. `Ctrl+T` no longer offers solo spaces.
+
+**To do**: nothing.
+
+**5. Team configuration**
+
+| In 5.3 | Since 5.4 |
+|---|---|
+| Webhook: `mattermost_webhook`, shown in clear, sometimes without effect | `webhook_url` + `type` + `enabled = true`; without `enabled = true`, nothing is sent. `mattermost_webhook` is still read, `oh doctor --fix` migrates it. Webhook masked everywhere; `oh doctor` warns if the team-state repository is public |
+| Any member could change the enforced settings, without a trace | **Light breaking change**: `*_enforced`, `[limits.enforced]` and `[governance]` are reserved to the `lead` role (`role` in `members.toml`); only a lead changes a role. A team without a lead is not locked; `[governance] config = "any_member"` reopens it to everyone. Every publication leaves a `config_changed` event (keys and author, never the values) in `oh team activity` |
+| The `[tracker]` of `hub.toml` applied to every team; a member could exceed or lift `max_in_progress_per_member` | **Light breaking change**: `[teams.tracker]` under a `[[teams]]` wins over `[tracker]` (which stays the default); wizards and the detail write the team's section. The team cap can no longer be exceeded or lifted; a team that chose nothing leaves the choice |
+| `config.toml` lost its unknown keys and kept default values, `[parallel]` and `type_enforced` | Unknown keys are kept; default values, `[parallel]` and `type_enforced` are no longer written. A 5.4 that publishes removes these keys from a file written by a 5.3 |
+| TUI: several ways of saving in one screen | Shared: draft published with `Ctrl+S`; personal: saved on its own; `Esc` with a draft asks what to do |
+| `oh teams set <id> repo <url>` only | `oh teams set <id> repo|name|member-id|enabled|default [value]` (2 or 3 arguments); `oh team config get|set|unset|show [--origin]` sets any key without a terminal |
+
+`max_ticket_wip` no longer counts finished claims. `oh doctor` gains a "Team configuration" check (former keys, out-of-bounds values, `--fix`).
+
+**To do**: add `enabled = true` to webhooks; give the `lead` role to whoever sets the enforced keys (or `any_member`); a script that reads `oh team activity` tolerates the `config_changed` type.
+
+**6. Notifications**
+
+| In 5.3 | Since 5.4 |
+|---|---|
+| A webhook could (in theory) receive every event | **Light breaking change**: by default only review (`review.*`), wiki (`wiki.*`) and agent messages. For `claim.*`, `session.complete` or `config_changed`: `events = [...]` on `[notification]` or on the destination (`oh team config set notification.events "review.*, claim.*"`). These events were in practice never sent |
+| No personal recipient | Mentions with the `mattermost_username` of the cards (Mattermost, Slack); `mention = false` turns them off |
+| Webhook text in French, with identifiers | The sender's language, names of members and projects |
+| A single `[session] notify` switch | `hub.toml [notifications]` (Settings › Notifications), reloaded live; `[session] notify = "off"` still turns system notifications off as long as `[notifications] system` is not written |
+| End of a step: system notification; each notification replaced the previous one | End of a step: toast (`events.step_done = "system"` to get it back); one notification per family (decisions, budget, errors, alerts…) |
+| Decision open when going to sleep: lost (`gone`) | Kept (marked asleep), notification "asleep with a pending decision", resumed on wake-up |
+| A failing webhook lost the message | Message kept in `~/.oh/notify/outbox/` and resent by the daemon |
+| MCP tool `team_notify`: "Notification sent." even when nothing was sent | Error when nothing left; message signed, limited to 1000 characters and 5 per 10 minutes |
+
+**To do**: list in `events` the families the webhook must receive.
+
+**7. Team and claim life cycle**
+
+| In 5.3 | Since 5.4 |
+|---|---|
+| No way to leave a team: `oh teams remove` only touched `hub.toml` | `oh teams leave <id>` releases your claims, deletes the clone and the keychain keys, removes the team from `hub.toml`; the card stays unless `--remove-member`. `oh teams remove` still only touches `hub.toml` |
+| Removing a member: impossible | `oh team member remove <member> [--to <member> \| --release]` (`lead` role; a team without a lead is not locked). `oh team claim transfer --from … (--to \| --release)` moves all the claims of a member |
+| Releasing or transferring the claim of someone else: unchecked | **Light breaking change**: confirmation naming the owner; without a terminal, `--force`. A transfer to a member without a card, or of a finished ticket, is refused |
+| `claim.transferred` signed by the former owner; few events | Signed by whoever transfers. New events in `oh team activity`: `member.removed`, `claim.released` and `claim.taken` (sync, board, launches, session ends) |
+
+**To do**: scripts that release or transfer the claim of another member add `--force`; those that read the activity tolerate the new types.

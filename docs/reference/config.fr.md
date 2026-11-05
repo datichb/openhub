@@ -71,6 +71,11 @@ enabled = false
 enabled = false
 token_key = "openhub.mcp.gslides.token"
 
+[mcp.github]
+enabled = false
+token_key = "openhub.mcp.github.token"   # nom de la clé dans le trousseau (PAS le token)
+write_enabled = false              # outil d'écriture create_issue (lecture seule sinon)
+
 [mcp.linear]
 enabled = false
 token_key = "openhub.mcp.linear.token"   # nom de la clé dans le trousseau (PAS la clé API)
@@ -169,8 +174,12 @@ Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`
 | | `projects` | — | Projet oh → nom de cible |
 | `[limits]` | `max_active_sessions`, `session_budget_usd`, `daily_budget_usd`, `memory_mb`, `models` | non définies | Restrictions I6 du hub (`oh budget set`) |
 | `[deploy]` | `instruction_files` | `[]` | Fichiers du projet ajoutés aux instructions des agents du paquet |
+| `[mcp.github]` | `enabled` | `false` | Active le serveur MCP GitHub (dépôts, issues, pull requests, Actions) dans les paquets de session. Écrit à la main dans `hub.toml` ([détail](#serveurs-mcp-github-et-linear)) |
+| | `token_key` | vide | Nom de la clé du trousseau qui porte le token GitHub, jamais le token lui-même (`openhub.mcp.github.token`). **À écrire** : sans lui, le serveur n'est pas placé dans le paquet |
+| | `write_enabled` | `false` | Ajoute l'outil d'écriture `create_issue` (opt-in, `GITHUB_WRITE_ENABLED` dans le serveur) ; lecture seule sans lui |
+| | `url`, `trusted_url` | vides | Sans effet pour GitHub : le serveur appelle toujours `https://api.github.com` |
 | `[mcp.linear]` | `enabled` | `false` | Active le serveur MCP Linear (issues, cycles, projets, API GraphQL de Linear) dans les paquets de session. Écrit à la main dans `hub.toml` : `oh mcp setup` et `oh config set` ne connaissent pas Linear ([guide](../guides/linear-integration.fr.md)) |
-| | `token_key` | `openhub.mcp.linear.token` (si vide) | Nom de la clé du trousseau qui porte la clé API personnelle Linear, jamais la clé elle-même (`oh secrets set --global openhub.mcp.linear.token`). Une variable `LINEAR_API_KEY` déjà définie passe avant la clé du trousseau |
+| | `token_key` | vide | Nom de la clé du trousseau qui porte la clé API personnelle Linear, jamais la clé elle-même (`openhub.mcp.linear.token`, rangée par `oh secrets set --global openhub.mcp.linear.token`). **À écrire** : sans lui, le serveur n'est pas placé dans le paquet. Une variable `LINEAR_API_KEY` déjà définie dans le processus du serveur passe avant la clé du trousseau |
 | | `write_enabled` | `false` | Ajoute les outils d'écriture `create_issue` et `update_issue` au serveur (opt-in, `LINEAR_WRITE_ENABLED` dans le serveur) ; sans lui, lecture seule |
 | | `url`, `trusted_url` | vides | Sans effet pour Linear : le serveur appelle toujours `https://api.linear.app/graphql` |
 | `[websearch]` | `enabled` | `false` | Permissions WebSearch / WebFetch |
@@ -184,6 +193,30 @@ Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`
 | | `log_max_mb`, `log_keep` | `20`, `3` | Taille au-delà de laquelle un journal est décalé, copies gardées |
 
 Voir [conteneur](../guides/container.fr.md), [exécution distante](../guides/remote-runners.fr.md) et [sessions v5](../guides/sessions-v5.fr.md#restrictions).
+
+### Serveurs MCP `github` et `linear`
+
+`[mcp.github]` et `[mcp.linear]` ont les mêmes clés que `[mcp.gitlab]`, mais `oh mcp setup` et `oh config set` ne les connaissent pas : on les écrit à la main dans `hub.toml` (`oh mcp enable|disable github` change seulement `enabled`, avec `-p <projet>` pour un projet). Le token se range dans le trousseau, `token_key` en porte le **nom** :
+
+```bash
+oh secrets set --global openhub.mcp.github.token
+```
+
+```toml
+[mcp.github]
+enabled = true
+token_key = "openhub.mcp.github.token"
+write_enabled = false
+```
+
+| Clé | Valeur | Défaut | Effet |
+|---|---|---|---|
+| `enabled` | booléen | `false` | Place `oh mcp serve github` dans le paquet de session (le projet peut le surcharger : `oh mcp enable github -p <projet>`) |
+| `token_key` | texte | vide | Clé du trousseau du token (PAT ou GitHub App ; scopes `repo`, `workflow`). Vide : le serveur n'est pas placé dans le paquet, sans message, même avec `enabled = true` |
+| `write_enabled` | booléen | `false` | Ajoute `create_issue` ; personnel, jamais recommandé par l'équipe |
+| `url`, `trusted_url` | texte | vides | Sans effet : l'adresse de l'API GitHub est fixe |
+
+Une variable `GITHUB_TOKEN` exportée dans votre shell n'atteint pas les sessions : l'environnement des agents est filtré et `GITHUB_TOKEN` et `LINEAR_API_KEY` ne passent jamais, même avec `env_allow`. Pages des serveurs : [GitHub](mcp-github.fr.md), [Linear](mcp-linear.fr.md) ; guide : [Linear](../guides/linear-integration.fr.md).
 
 ### Lecture stricte de `hub.toml`
 
