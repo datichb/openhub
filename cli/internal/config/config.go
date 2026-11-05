@@ -473,6 +473,33 @@ func ValidateTeams(teams []TeamConfig) error {
 	return validateSingleDefault(teams)
 }
 
+// DefaultTeamMarks lists the teams marked default = true, in hub.toml order.
+func DefaultTeamMarks(teams []TeamConfig) []string {
+	var ids []string
+	for _, t := range teams {
+		if t.Default {
+			ids = append(ids, t.ID)
+		}
+	}
+	return ids
+}
+
+// KeepFirstDefaultTeam clears default on every team but the first one marked,
+// the one DefaultTeam answers; it reports whether it changed anything.
+func (c *Config) KeepFirstDefaultTeam() bool {
+	changed, seen := false, false
+	for i := range c.Teams {
+		switch {
+		case !c.Teams[i].Default:
+		case seen:
+			c.Teams[i].Default, changed = false, true
+		default:
+			seen = true
+		}
+	}
+	return changed
+}
+
 func validateSingleDefault(teams []TeamConfig) error {
 	first := ""
 	for _, t := range teams {
@@ -780,6 +807,10 @@ func readDisk() (*Config, error) {
 		c.Team = TeamConfig{}
 	}
 	c.normalizeStatePaths()
+	// Two teams marked default read as the first one (DefaultTeam does): the
+	// extra mark is dropped here, or no later save would be accepted
+	// (ValidateTeams) until someone edited hub.toml by hand.
+	c.KeepFirstDefaultTeam()
 	c.src = stamp
 	return c, nil
 }

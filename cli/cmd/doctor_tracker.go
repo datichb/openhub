@@ -230,7 +230,7 @@ func trackerConnectionResult(ctx context.Context, p trackerProbe) doctor.Result 
 	}
 	cctx, cancel := context.WithTimeout(ctx, doctorConnectionTimeout)
 	defer cancel()
-	username, err := t.TestConnection(cctx)
+	username, err := testTrackerConnection(cctx, t, p.creds)
 	server := tracker.ServerOf(p.creds.BaseURL)
 	var rejected *tracker.TokenRejectedError
 	switch {
@@ -334,7 +334,7 @@ func trackerIdentityResults(ctx context.Context, probes []trackerProbe, svc iden
 			continue
 		}
 		cctx, cancel := context.WithTimeout(ctx, doctorConnectionTimeout)
-		username, err := t.TestConnection(cctx)
+		username, err := testTrackerConnection(cctx, t, p.creds)
 		cancel()
 		if err != nil || username == "" {
 			continue // tracker_connection reports it
