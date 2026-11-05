@@ -445,9 +445,14 @@ oh team claim SRU-142 --worktree feat/SRU-142-user-auth
 # Release when done
 oh team release SRU-142
 
-# Transfer to another member
+# Transfer to another member (the target must have a card in the team)
 oh team claim transfer SRU-142 --to alice
+
+# Alice left: all her open claims go to bob (or `--release` frees them)
+oh team claim transfer --from alice --to bob
 ```
+
+Releasing or handing over the claim of **another** member asks a confirmation that names its owner (`--force` without a terminal). Each release, transfer and taking leaves an event (`claim.released`, `claim.transferred`, `claim.taken`) **signed by the member who acts** and visible in `oh team activity` (`--member` also shows what happened to a member).
 
 The table of the statuses, what puts a ticket in REVIEW, the lease of a claim and what becomes of the claim when a session ends are described at the end of this guide: [Status model](#status-model) and [Lease and end of session](#lease-and-end-of-session).
 
@@ -770,13 +775,27 @@ oh teams add --repo git@gitlab.com:org/team-state.git --member-id alice
 
 The repository of a team moved or was renamed: `oh teams set <id> repo <url>` checks the access and that it is the same team-state, then changes the URL (the clone, your card and the keys stay).
 
-Remove a team (detaches all associated projects):
+### Leave a team
 
 ```bash
-oh teams remove <team-id>
+oh teams leave <team-id>                  # your card stays in the team (it carries your history)
+oh teams leave <team-id> --remove-member  # your card goes too
 ```
 
-**In the TUI**, the Teams view (`Ctrl+P` › `teams`, or Home › Teams) does the same: `d` removes the team (the confirmation announces the projects it detaches, and the list says what was detached), `x` archives it, `R` restores it, `e` renames it, `*` makes it the default team (`★`, like `oh teams default <id>`), `p` opens its Team view, `n` opens the "New team" window. When the archived or removed team was the default team, the message says which one replaces it.
+In this order: your open claims are released (one transaction), the queue of pending claim operations is applied, the clone is deleted, the keychain keys of the team are deleted (token and user of the git access, `openhub.team.<id>.*`), then the team leaves `hub.toml` and its projects are detached. The command lists all this and asks first. Without access to the team-state nothing is deleted (`--force` goes on anyway; your claims then run out with their lease). A clone that holds work never pushed is not deleted without `--force`.
+
+`oh teams remove <team-id>` only takes the team out of `hub.toml` (detaches its projects): the clone, the claims and the keys stay.
+
+### Remove a member (lead)
+
+```bash
+oh team member remove bob --to alice      # his open claims go to alice
+oh team member remove bob --release       # or they are released
+```
+
+Only a member with the `lead` role may remove **another** member's card; a team with **no lead** is not locked (as for the roles and the enforced settings). The claims, the briefs and the card are one commit, with a `member.removed` event. `oh doctor` reports claims of members who have no card any more, with the commands that settle them, and tells a member whose own card was removed.
+
+**In the TUI**, the Teams view (`Ctrl+P` › `teams`, or Home › Teams) does the same: `d` offers *Leave the team* (the same as `oh teams leave`, with the list of what it does in the confirmation), *Leave and remove my card*, or *Remove from hub.toml only* (the confirmation announces the projects it detaches, and the list says what was detached), `x` archives it, `R` restores it, `e` renames it, `*` makes it the default team (`★`, like `oh teams default <id>`), `p` opens its Team view, `n` opens the "New team" window. When the archived or removed team was the default team, the message says which one replaces it.
 
 ### Detach a project from its team
 

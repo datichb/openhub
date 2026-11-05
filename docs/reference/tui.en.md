@@ -407,6 +407,14 @@ An unavailable action stays in the list, dimmed, with the reason (“`spec` is n
 
 The launch form of a workflow that takes a Beads id, given `#<iid>`, says why it does not read it and what to launch instead, rather than “Could not load”.
 
+#### Claims on the team board
+
+- **Take (`c`)**: on a ticket someone holds, the board says « already held by X » instead of announcing a claim that was not made. On your own ticket: « already yours ».
+- **Badges on the card**: `lease 05/11 14:30` (end of the lease of the claim), `⚠ expired` once the lease is past, `session ended` when the session ended and left the claim (label `session-ended`). The detail (`Enter`) gives the date.
+- **Taking over an expired claim**: `c` on an expired card asks « Take over <ticket>? » (the question names the owner); if yes, the claim becomes yours with a takeover brief and a `claim.transferred` event signed by you. A claim whose lease was renewed meanwhile is not taken over.
+- **Release (`x`) and transfer (`t`)** of the claim of another member: the confirmation names them (« Release the claim of Alice? »). A claim that changed hands between the display and the action is not released: the board says who holds it.
+- **Hand over the claims of a member**: palette command « Hand over the claims of a member… » (the members who hold open claims with their number, then a member who receives them or « Release them », then a confirmation). One commit, one event per claim, signed by you. In the CLI: `oh team claim transfer --from`.
+
 ### Board columns editor
 
 Team home → **Board Columns**, or `C` on the team board (an active team with a cloned team-state is needed; back from the editor, the board reads its tickets again with the new columns). The editor sets the columns of the team board (the `[board]` section of the team configuration, see [`config.en.md`](config.en.md#board-section)) and the rules that put a tracker label or status in a column. It is a wizard step: `Esc` asks « Quit the wizard? », and nothing is written until `Ctrl+S` is pressed.
@@ -448,7 +456,7 @@ The tracker discovery wizard ("Discover the tracker") uses the same editor for i
 | Provider | `Space` default, `Enter` / `e` modify, `s` set up, `d` clear the configuration and the key of the keychain (confirmed) |
 | MCP (hub, project, team) | `Space` enable, `Enter` modify, `t` token or test, `m` write mode (hub view), `Ctrl+S` save (team), `u` undo, `T` approve the URL imposed by the team (hub view; confirmed, see [`oh mcp trust`](cli-mcp.en.md#oh-mcp-trust)) |
 | Secrets | `Enter` / `e` modify, `n` create, `d` delete (confirmed) |
-| Teams | `Enter` team detail, `p` Team view (not for a solo space or an archived team), `n` new team (the *Create* / *Join* / *Solo space* window; the list shows the team when you come back), `*` set as default (`★`), `e` rename, `x` archive, `R` restore, `d` remove (confirmed: announces and detaches the attached projects), `s` sync, `u` undo. The list ends with the **➕ New team** row, which is the whole list with no team |
+| Teams | `Enter` team detail, `p` Team view (not for a solo space or an archived team), `n` new team (the *Create* / *Join* / *Solo space* window; the list shows the team when you come back), `*` set as default (`★`), `e` rename, `x` archive, `R` restore, `d` remove: *Leave the team* (releases your claims, deletes the clone and the keys, then removes the team; the confirmation lists everything), *Leave and remove my card*, or *Remove from hub.toml only* (detaches the attached projects; the clone and the claims stay), `s` sync, `u` undo. The list ends with the **➕ New team** row, which is the whole list with no team |
 | Team detail | the team opened in the list (else the default team; « No team to configure » and a `Ctrl+S` with no effect when there is none): `Space` toggle, `Enter` modify, `Ctrl+S` save, `s` sync, `t` test, `u` undo, `T` discover the tracker, `K` provider key of the team |
 | Patterns | `Enter` see, `n` create, `y` validate, `d` delete (confirmed) |
 | Policies | `Enter` detail, `n` create, `t` template, `e` edit, `d` delete (confirmed), `c` check |

@@ -407,6 +407,14 @@ Une action indisponible reste dans la liste, en gris, avec la raison (« `spec` 
 
 Le formulaire de lancement d'un workflow à id Beads sur lequel on a saisi `#<iid>` dit pourquoi il ne le lit pas et quoi lancer à la place, au lieu de « Impossible de charger ».
 
+#### Réservations sur le board d'équipe
+
+- **Prendre (`c`)** : sur un ticket que quelqu'un détient, le board dit « déjà pris par X » au lieu d'annoncer une prise qui n'a pas eu lieu. Sur un ticket à soi : « déjà à vous ».
+- **Badges sur la carte** : `bail 05/11 14:30` (fin du bail du claim), `⚠ expiré` une fois le bail dépassé, `session terminée` quand la session a pris fin en laissant le claim (label `session-ended`). Le détail (`Entrée`) donne la date.
+- **Reprise d'un claim expiré** : `c` sur une carte expirée demande « Reprendre <ticket> ? » (la question nomme le propriétaire) ; si oui, le claim passe à vous avec un brief de reprise et un événement `claim.transferred` signé de vous. Un claim dont le bail a été renouvelé entre-temps n'est pas repris.
+- **Libérer (`x`) et transférer (`t`)** le claim d'un autre membre : la confirmation le nomme (« Libérer la réservation de Alice ? »). Un claim qui a changé de main entre l'affichage et l'action n'est pas libéré : le board dit qui le détient.
+- **Réassigner les réservations d'un membre** : commande de palette « Réassigner les réservations d'un membre… » (membres qui détiennent des réservations ouvertes avec leur nombre, puis un membre qui reçoit ou « Les libérer », puis confirmation). Tout est un seul commit, un événement par réservation, signé de vous. Même chose en CLI : `oh team claim transfer --from`.
+
 ### Éditeur de colonnes du board
 
 Accueil de l'équipe → **Colonnes du board**, ou `C` sur le board d'équipe (il faut une équipe active et son team-state cloné ; au retour de l'éditeur, le board relit ses tickets avec les nouvelles colonnes). L'éditeur règle les colonnes du board d'équipe (section `[board]` de la configuration d'équipe, voir [`config.fr.md`](config.fr.md#section-board)) et les règles qui rangent un label ou un statut du tracker dans une colonne. C'est une étape d'assistant : `Échap` demande « Quitter l'assistant ? », et rien n'est écrit tant que `Ctrl+S` n'a pas été pressé.
@@ -448,7 +456,7 @@ L'assistant de découverte du tracker (« Découvrir le tracker ») utilise le m
 | Fournisseur | `Espace` par défaut, `Entrée` / `e` modifier, `s` configurer, `d` effacer la configuration et la clé du trousseau (confirmé) |
 | MCP (hub, projet, équipe) | `Espace` activer, `Entrée` modifier, `t` jeton ou test, `m` mode écriture (vue du hub), `Ctrl+S` enregistrer (équipe), `u` annuler, `T` approuver l'URL imposée par l'équipe (vue du hub ; confirmé, voir [`oh mcp trust`](cli-mcp.fr.md#oh-mcp-trust)) |
 | Secrets | `Entrée` / `e` modifier, `n` créer, `d` supprimer (confirmé) |
-| Équipes | `Entrée` détail de l'équipe, `p` vue Équipe (ni espace solo ni équipe archivée), `n` nouvelle équipe (la fenêtre *Créer* / *Rejoindre* / *Espace solo* ; la liste montre l'équipe au retour), `*` définir par défaut (`★`), `e` renommer, `x` archiver, `R` restaurer, `d` retirer (confirmé : annonce et détache les projets rattachés), `s` synchroniser, `u` annuler. La liste se termine par la ligne **➕ Nouvelle équipe**, qui est toute la liste sans équipe |
+| Équipes | `Entrée` détail de l'équipe, `p` vue Équipe (ni espace solo ni équipe archivée), `n` nouvelle équipe (la fenêtre *Créer* / *Rejoindre* / *Espace solo* ; la liste montre l'équipe au retour), `*` définir par défaut (`★`), `e` renommer, `x` archiver, `R` restaurer, `d` retirer : *Quitter l'équipe* (libère vos réservations, supprime le clone et les clés, puis retire l'équipe ; la fenêtre de confirmation liste tout), *Quitter et retirer ma fiche*, ou *Retirer de hub.toml seulement* (détache les projets rattachés ; le clone et les réservations restent), `s` synchroniser, `u` annuler. La liste se termine par la ligne **➕ Nouvelle équipe**, qui est toute la liste sans équipe |
 | Détail d'équipe | l'équipe ouverte dans la liste (sinon l'équipe par défaut ; « Aucune équipe à configurer » et `Ctrl+S` sans effet quand il n'y en a pas) : `Espace` basculer, `Entrée` modifier, `Ctrl+S` enregistrer, `s` synchroniser, `t` tester, `u` annuler, `T` découvrir le tracker, `K` clé du fournisseur de l'équipe |
 | Patterns | `Entrée` voir, `n` créer, `y` valider, `d` supprimer (confirmé) |
 | Policies | `Entrée` détail, `n` créer, `t` modèle, `e` éditer, `d` supprimer (confirmé), `c` vérifier |
