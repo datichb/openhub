@@ -26,10 +26,20 @@ oh team status                    # the team of the project of the current folde
 
 ### oh team init
 
-Interactive wizard configuring the team, in 4 adaptive steps: global config (takeover, sessions), identity (team registration), Mattermost notifications (optional), team policies (automated conventions). The team-state repository must exist beforehand on GitLab or GitHub; when it is already configured, only the relevant steps are offered. The wizard creates the folders of the repository (`projects/`, `wiki/`, `catalog/`…) and commits them (« team: init structure »). If that commit fails (offline, remote refusal), the join goes on and the wizard says so (warning line, then in the repository step): the folders exist locally and are committed the next time `oh team init` runs.
+**Creates a team**: an interactive wizard on a **new** team-state repository, always (even when you already have one or several teams; each has its own repository). The repository must exist beforehand on GitLab or GitHub (empty or not). Nothing is cloned, pulled or pushed before the first screen: the repository, the **access probe**, the access and the clone are steps of the wizard (with a wait indicator), then the global config (takeover, sessions), your identity (your member card), the Mattermost notifications (optional) and the team policies (automated conventions).
+
+- **Access probe**: for « Create », it is a `git push --dry-run` (nothing is sent or created): a token that can read without being able to write (GitLab: `read_repository` only) is refused here, before any question. A refused token or key opens the « Access » step (HTTPS token checked then kept in the keychain of oh; SSH key to load in the agent). On a GitLab, « repository not found » is treated as a probably missing access (GitLab answers 404 to a token that cannot see the project).
+- **Identity**: when the ID is already taken, the error screen offers « Change my identity » and **« That's me »** (the card that exists is attached as it is, nothing is overwritten). The ID of a colleague's card is never taken for yours because you have it in another team.
+- `hub.toml` is written **right after** your card is in the team-state: a wizard interrupted afterwards leaves a configured team, not a card in a team the hub does not know.
+- The wizard creates the folders of the repository (`projects/`, `wiki/`, `catalog/`…) and commits them (« team: init structure »). If that commit fails (offline, remote refusal), the join goes on and the wizard says so: the folders exist locally and are committed the next time it runs.
+- The repository of a team the hub already has is refused: that is « Reconfigure » (below), or joining.
+
+#### Reconfigure (`--reconfigure`)
+
+Runs the wizard again on the team that is already configured: probe and access, synchronisation of the clone (cloned if it never was, for instance after `oh teams add` of an older version), then the same configuration, card, notifications and policies steps, pre-filled. `--team <id>` (persistent option of `oh team`) names the team; without it, the default team. In the TUI: the « Reconfigure the team » command of the palette, in team mode. An archived or solo team cannot be reconfigured.
 
 ```
-oh team init [--solo [--id <id>] [--name <name>] [--member-id <id>] [--project <project>]]
+oh team init [--reconfigure [--team <id>]] [--solo [--id <id>] [--name <name>] [--member-id <id>] [--project <project>]]
 ```
 
 #### Solo space (`--solo`)
@@ -63,14 +73,15 @@ oh team promote --remote git@gitlab.com:acme/team-state.git
 | `--remote` | string | URL of an **empty** git repository (required) |
 | `--team` | string | Solo space to share, when you have several (the `--team` flag of `oh team`) |
 
-On failure (missing or non-empty repository, access denied), the space stays solo. Other members then join the team with `oh team init` and enter the repository URL.
+The right to write is checked before anything is pushed (`git push --dry-run`). On failure (missing or non-empty repository, access denied or read-only), the space stays solo. Other members then join the team with `oh team rejoin --repo <url>`.
 
 ### oh team rejoin
 
-Rejoins an existing team after reinstalling the hub: clones the team-state repository, verifies the identity through GitLab and restores the configuration. Do not run it while the TUI performs team operations on the same clone (the lock does not protect against another process).
+Joins an existing team: a new member, or a reinstallation of the hub. In this order: the **access** to the repository (probe; for an HTTPS repository the command asks the user name and the token, checks them, then keeps them in the keychain of oh; for SSH it says what to check), the **clone** of the team-state, **who you are** (a card of the list, or the creation of your own), then the name on the tracker, the GitLab API token, the writing of `hub.toml` and the identity check through GitLab. Nothing is cloned before the access answers. Do not run it while the TUI performs team operations on the same clone (the lock does not protect against another process).
 
 ```
 oh team rejoin [--repo <url>] [--member-id <id>] [--gitlab-url <url>] [--tracker-username <name>] [--no-retro-tag]
+               [--new-member [--display-name <name>] [--gitlab-username <handle>] [--role <role>]]
 ```
 
 | Flag | Type | Description |
@@ -80,6 +91,10 @@ oh team rejoin [--repo <url>] [--member-id <id>] [--gitlab-url <url>] [--tracker
 | `--gitlab-url` | string | Real GitLab of the repository when its address is an SSH alias (`git@my-alias:…`); saved in `hub.toml` (`gitlab_url`) and used for the identity check |
 | `--tracker-username` | string | Your user name on the tracker, written to your member profile in the team repository (empty = unchanged). Without the option, the command asks for it when the team tracker is on another server than the team repository and your profile has no name (Enter = leave empty) |
 | `--no-retro-tag` | bool | Do not link existing sessions to your identity |
+| `--new-member` | bool | Creates your own card (`--member-id` is its ID; without the option, the first choice of the list « I am not in the list » does the same) |
+| `--display-name`, `--gitlab-username`, `--role` | string | Display name, GitLab handle (optional, unique in the team) and role (`lead`, `dev`, `reviewer`; `dev` by default) of the card created |
+
+**Your card.** An ID that is already taken is refused, with « Is that your card? »: the card that exists is then attached as it is. Before a new card with a GitLab handle is **published**, the command checks (without blocking) that the GitLab token it has is the one of that handle; if it belongs to somebody else, it says so and asks whether to publish anyway. The answers are read on the input of the terminal (the token is not echoed).
 
 A name written with a leading `@` is saved without it (`@benjamin.datiche` → `benjamin.datiche`). If the write fails (offline), the rejoin succeeds anyway and the command to run again is shown: `oh team profile --tracker-username <name>`. The HTTPS step of the wizards (repository token) is skipped when the cloned repository answers `git ls-remote` without a token.
 
@@ -343,7 +358,7 @@ The team is marked `default = true` in `hub.toml` (only one has it). Without a m
 
 ### oh teams add
 
-Add a team to the hub.
+Add a team to the hub: an **alias of `oh team rejoin`** (probe and set up the access, clone, pick or create your card, verify the identity), with an ID and a team name of your choice. It no longer writes `hub.toml` alone with an unchecked `member_id` (the ID of a colleague became « your » card). The sessions of this machine are not linked to the new team.
 
 ```bash
 oh teams add --repo git@github.com:org/team-state.git --member-id alice
@@ -352,10 +367,22 @@ oh teams add --repo git@github.com:org/team-state.git --member-id alice
 | Flag | Type | Description |
 |------|------|-------------|
 | `--repo` | string | Team-state git repository URL (`git@…` or `https://…`) |
-| `--member-id` | string | Your member id in the team |
+| `--member-id` | string | Your member id in the team (the list is offered if omitted) |
 | `--id` | string | Local team id (derived from the repository if omitted) |
 | `--name` | string | Display name (optional) |
 | `--gitlab-url` | string | Real GitLab of the repository when its address is an SSH alias (optional) |
+
+The other options of `oh team rejoin` (`--new-member`, `--display-name`, `--gitlab-username`, `--role`, `--tracker-username`) are accepted.
+
+### oh teams set
+
+Change a setting of a team. Today: `repo`, when the repository was moved or renamed on the server.
+
+```bash
+oh teams set <id> repo <url> [--gitlab-url <url>]
+```
+
+The URL is checked before `hub.toml` changes: the access (probe, token asked and kept as for a rejoin) then the **same team-state** (the repository must share the history of your clone, otherwise it is another team; an empty repository is refused). The clone, its folder, your card, the claims and the keys of the team stay as they are; only the `origin` of the clone and `state_repo` change.
 
 ### oh teams remove
 

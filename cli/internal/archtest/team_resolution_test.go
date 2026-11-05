@@ -15,10 +15,8 @@ import (
 // another team. The files below still read it, for a reason each; a new use is
 // refused (a lower count is fine).
 var activeTeamAllowed = map[string]int{
-	// The assistants that create or reconfigure a team (init, rejoin) start from
-	// the hub team they find: the access/identity lot rewrites them.
-	"cmd/team.go":             18,
-	"cmd/tui_team_actions.go": 5,
+	// The palette « Reconfigurer » and oh init start from the hub team they find.
+	"cmd/tui_team_actions.go": 1,
 	"cmd/init_wizard.go":      1,
 	"cmd/team_identity.go":    1, // identity of the member in the default team: the same person in every team
 	"cmd/history.go":          1, // member of the sessions of the history: the default team

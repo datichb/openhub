@@ -120,8 +120,8 @@ func (r *Repo) Promote(ctx context.Context, remote string) error {
 	}
 	if _, err := r.git(ctx, r.path, "push", "-u", "origin", "HEAD"); err != nil {
 		_, _ = r.git(ctx, r.path, "remote", "remove", "origin")
-		if isAuthError(err) {
-			return fmt.Errorf("%s", authErrorMessage(remote))
+		if authErr := accessError(remote, err); authErr != nil {
+			return authErr
 		}
 		return fmt.Errorf("pushing to %s: %w", remote, err)
 	}

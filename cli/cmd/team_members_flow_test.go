@@ -398,11 +398,27 @@ func TestTeamIdentityStepRefusesATakenID(t *testing.T) {
 	s := &teamStepState{Ctx: t.Context(), Repo: repo, MemberID: "ben", DisplayName: "Impostor", Role: "dev"}
 	step := buildTeamIdentityStep(s, teamStepOpts{})
 
-	assert.Contains(t, step.Validate(), "ben")
+	// A taken ID is not refused by the form: the step refuses it, with the
+	// buttons that recover (« C'est moi » attaches the card that exists).
+	assert.Empty(t, step.Validate())
 	err := step.OnDone()
 	require.Error(t, err)
 	assert.ErrorIs(t, err, teamstate.ErrMemberExists)
 	assert.Equal(t, "Benjamin", cardsOf(t, bare)["ben"].DisplayName)
+	var claim *views.ErrorAction
+	for _, action := range step.ErrorActions(err) {
+		if action.Label == i18n.T("v532m.join.action_claim") {
+			claim = &action
+		}
+	}
+	require.NotNil(t, claim, "« C'est moi » is offered")
+	claim.Before()
+	assert.True(t, s.Claim)
+	assert.Empty(t, step.Validate())
+	require.NoError(t, step.OnDone(), "the card that exists is attached")
+	assert.False(t, s.Claim)
+	assert.Equal(t, "Benjamin", cardsOf(t, bare)["ben"].DisplayName, "as it is: nothing of the impostor's form is written")
+	assert.Equal(t, "lead", cardsOf(t, bare)["ben"].Role)
 
 	s.MemberID, s.GitLabUsername = "eve", "ben.g"
 	assert.Contains(t, step.Validate(), "ben.g")

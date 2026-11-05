@@ -56,6 +56,17 @@ type teamAccess struct {
 	// of the repository form ("" = the usual « Valider »).
 	RequiredKey string
 	NextLabel   string
+	// Write tells that the assistant writes to the repository before anything
+	// else (« Créer une équipe »: the structure, the first card): the probe is
+	// a dry-run push, so that a token that reads and does not write is caught
+	// here (nil: a read is enough).
+	Write func() bool
+	// FixedRepo: the repository is the one of a team that exists (« Reconfigurer »),
+	// there is no URL to change.
+	FixedRepo bool
+	// Reject gives a reason why the URL cannot be used ("" = it can): « Créer »
+	// refuses the repository of a team that already exists (nil: none).
+	Reject func(repo string) string
 
 	// Username and Token are what the user typed in the access step.
 	Username, Token string
@@ -95,6 +106,22 @@ func (a *teamAccess) abandon() {
 
 func (a *teamAccess) repo() string { return strings.TrimSpace(*a.Repo) }
 
+func (a *teamAccess) writes() bool { return a.Write != nil && a.Write() }
+
+// probe asks the repository the question of the assistant: can it be read, or
+// (a.Write) written to, with the credentials given (nil: what git and oh hold).
+func (a *teamAccess) probe(ctx context.Context, repo string, creds *teamstate.GitCredentials) error {
+	switch {
+	case a.writes() && creds != nil:
+		return teamstate.ProbeRemoteWriteAs(ctx, repo, *creds)
+	case a.writes():
+		return teamstate.ProbeRemoteWrite(ctx, repo)
+	case creds != nil:
+		return teamstate.ProbeRemoteAs(ctx, repo, *creds)
+	}
+	return teamstate.ProbeRemote(ctx, repo)
+}
+
 // RepoStep asks for the repository (and the GitLab of an SSH alias).
 func (a *teamAccess) RepoStep() views.WizardStep {
 	return views.WizardStep{
@@ -106,6 +133,11 @@ func (a *teamAccess) RepoStep() views.WizardStep {
 		Validate: func() string {
 			if a.repo() == "" {
 				return i18n.T(firstNonEmpty(a.RequiredKey, "cmd.init.wizard_team_repo_required"))
+			}
+			if a.Reject != nil {
+				if msg := a.Reject(a.repo()); msg != "" {
+					return msg
+				}
 			}
 			if a.GitLabURL != nil {
 				return teamGitLabURLProblem(*a.GitLabURL)
@@ -150,7 +182,7 @@ func (a *teamAccess) ProbeStep() views.WizardStep {
 				a.Token, a.probed = "", *a.Repo // another repository: another token
 			}
 			a.Open, a.NeedAccess, a.ForceAccess, a.TokenStored, a.ProbeErr = false, false, false, false, nil
-			err := teamstate.ProbeRemote(a.ctx(), *a.Repo)
+			err := a.probe(a.ctx(), *a.Repo, nil)
 			switch {
 			case err == nil:
 				a.Open = true
@@ -209,7 +241,7 @@ func (a *teamAccess) AccessStep() views.WizardStep {
 				form.AddButton(i18n.T("wizard.hint.submit"), func() { onDone() })
 				return form
 			}
-			form.AddTextView("", i18n.Tf("v532w.access.ssh_intro", a.repo(), a.cause()), 70, 9, true, false)
+			form.AddTextView("", i18n.Tf("v532w.access.ssh_intro", a.repo(), a.cause()), 70, 11, true, false)
 			form.AddButton(i18n.T("v532w.error.retry"), func() { onDone() })
 			return form
 		},
@@ -235,14 +267,15 @@ func (a *teamAccess) checkAccess() error {
 	if teamstate.IsHTTPS(repo) {
 		user := firstNonEmpty(strings.TrimSpace(a.Username), defaultGitUser)
 		token := strings.TrimSpace(a.Token)
-		if err = teamstate.ProbeRemoteAs(ctx, repo, teamstate.GitCredentials{Username: user, Token: token}); err == nil {
+		creds := teamstate.GitCredentials{Username: user, Token: token}
+		if err = a.probe(ctx, repo, &creds); err == nil {
 			if saveErr := saveTeamGitToken(ctx, a.app(), repo, user, token); saveErr != nil {
 				return saveErr
 			}
 			a.TokenStored = true
 		}
 	} else {
-		err = teamstate.ProbeRemote(ctx, repo)
+		err = a.probe(ctx, repo, nil)
 	}
 	if err != nil {
 		a.ProbeErr = err
@@ -284,10 +317,10 @@ func (a *teamAccess) errorActions(err error, onAccess bool) []views.ErrorAction 
 			GoToStep: stepTeamAccess,
 		})
 	}
-	actions = append(actions,
-		views.ErrorAction{Label: i18n.T("v532w.error.retry"), Retry: true},
-		views.ErrorAction{Label: i18n.T("v532w.action.change_url"), GoToStep: stepTeamRepo},
-	)
+	actions = append(actions, views.ErrorAction{Label: i18n.T("v532w.error.retry"), Retry: true})
+	if !a.FixedRepo {
+		actions = append(actions, views.ErrorAction{Label: i18n.T("v532w.action.change_url"), GoToStep: stepTeamRepo})
+	}
 	if a.Quit {
 		return append(actions, views.ErrorAction{Label: i18n.T("v532w.action.quit"), Quit: true})
 	}
@@ -298,6 +331,10 @@ func (a *teamAccess) errorActions(err error, onAccess bool) []views.ErrorAction 
 func gitCause(err error) string {
 	if err == nil {
 		return ""
+	}
+	// an access error words the fix for the user: the cause is what git said
+	if authErr := teamstate.AccessError(err); authErr != nil && authErr.Cause != nil {
+		err = authErr.Cause
 	}
 	var first string
 	for _, line := range strings.Split(err.Error(), "\n") {

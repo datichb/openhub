@@ -75,6 +75,10 @@ func startTicketClaim(ctx context.Context, repo ticketClaimStore, projectID, mem
 			return i18n.Tf("cmd.claims.start.adopt_queued", projectID, ticketID)
 		}
 		return ""
+	case teamstate.IsAuthError(err):
+		// A refused access is not offline: the claim is not queued, the member
+		// is told (oh doctor) instead of finding the ticket unclaimed later.
+		return i18n.Tf("v54a.claims.start.access", projectID, ticketID)
 	case errors.Is(err, teamstate.ErrClaimExists) && existing != nil:
 		if existing.ClaimedBy != member {
 			return i18n.Tf("cmd.run.claim.other", ticketID, existing.ClaimedBy)

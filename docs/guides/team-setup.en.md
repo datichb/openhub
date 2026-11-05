@@ -22,13 +22,13 @@ The repository will be populated automatically by `oh team init`.
 
 ## 2. Initialize team features
 
-Each team member runs:
+The person who **creates** the team runs:
 
 ```bash
 oh team init
 ```
 
-Or from the TUI, type `team init` in the omnibar (`Ctrl+P`).
+Or from the TUI, the « Create a team » command of the palette (`Ctrl+P`, `team init`). It always creates a new team on a new repository, even if you already have one. The **other members** join with `oh team rejoin --repo <url>` (or « Rejoin a team » in the palette, or `oh teams add`, which is its alias). To **reconfigure** a team that exists: `oh team init --reconfigure` (option `--team <id>`), or « Reconfigure the team » in the palette.
 
 ### CLI mode (terminal)
 
@@ -47,7 +47,8 @@ The wizard follows the same order for "Create" and "Rejoin", in `oh init` and in
 
 1. **Repository**: the team-state repo URL and, optionally, the GitLab server when the URL is an SSH alias.
 2. **Access probe**: `git ls-remote`, read-only, with every prompt disabled and a waiting
-   indicator. It uses what git already has (SSH agent, credential helper, `netrc`, a public
+   indicator. For « Create », which writes first, it is a `git push --dry-run` (nothing is
+   sent): a read-only token is refused here, not at the first push. It uses what git already has (SSH agent, credential helper, `netrc`, a public
    repository) and the token `oh` keeps for that repository. Nothing is cloned or written.
 3. **Access**: this step only appears when the probe is refused for an access reason.
    - **HTTPS**: the wizard asks for a token (user name `oauth2` by default for GitLab),
@@ -741,6 +742,10 @@ Add a new team:
 oh teams add --repo git@gitlab.com:org/team-state.git --member-id alice
 ```
 
+`oh teams add` is an alias of `oh team rejoin`: the access to the repository is checked and set up, the team-state cloned, your card picked or created.
+
+The repository of a team moved or was renamed: `oh teams set <id> repo <url>` checks the access and that it is the same team-state, then changes the URL (the clone, your card and the keys stay).
+
 Remove a team (detaches all associated projects):
 
 ```bash
@@ -770,7 +775,11 @@ Archiving sets `enabled = false` in hub.toml. Restoring re-enables it.
 
 ### "team-state repo not cloned"
 
-Run `oh team init` to set up team features.
+Create the team with `oh team init`, or join it with `oh team rejoin --repo <url>`.
+
+### A "Team-state access refused" alert (expired token)
+
+The git token of the repository expired or was revoked after the team was joined. The daemon says it **once** (a ✗ alert in "To handle", under the most recent session of the team) and stops trying that repository until the token `oh` holds for it changes (an SSH key is tried again every 30 minutes). Meanwhile the claims of your sessions are no longer renewed and queued operations wait. `oh doctor` (the "Team-state access" check) confirms it. Renew the access: `oh team rejoin --repo <url>` ("Access" step), or "Rejoin a team" in the palette.
 
 ### "sync conflict after retries"
 

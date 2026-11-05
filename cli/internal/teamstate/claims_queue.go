@@ -485,8 +485,8 @@ type HeartbeatResult struct {
 // their leases (TouchClaims, one commit, none while the leases are long)
 // then applies the queue (FlushClaimQueue). When the renewal fails, it is
 // queued (one touch per claim) to be replayed by a later beat, and the queue
-// is not flushed in the same breath if the cause is the network or a busy
-// clone. The errors are the ones of the two steps, joined.
+// is not flushed in the same breath if the cause is the network, a busy
+// clone or a refused access. The errors are the ones of the two steps, joined.
 func (r *Repo) Heartbeat(ctx context.Context, refs []ClaimRef, member, session string, now time.Time) (HeartbeatResult, error) {
 	var res HeartbeatResult
 	var errs []error
@@ -498,7 +498,9 @@ func (r *Repo) Heartbeat(ctx context.Context, refs []ClaimRef, member, session s
 		if ctx.Err() == nil && !errors.Is(err, ErrNotCloned) {
 			res.Queued = r.queueTouches(refs, member, session, now)
 		}
-		if errors.Is(err, ErrOffline) || errors.Is(err, ErrBusy) {
+		// the queue would meet the same wall: one attempt on the network per
+		// beat, not two (a refused access waits for new credentials)
+		if errors.Is(err, ErrOffline) || errors.Is(err, ErrBusy) || IsAuthError(err) {
 			return res, errors.Join(errs...)
 		}
 	}

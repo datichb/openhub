@@ -31,6 +31,10 @@ type teamRejoinParams struct {
 	// TrackerUsername is the name of the member on the tracker, written to its
 	// profile in the team-state (nil = not touched, empty = cleared).
 	TrackerUsername *string
+	// TeamID and TeamName are the ID and the name asked for the team in
+	// hub.toml (empty: derived from the repository; the team of this
+	// repository keeps its own).
+	TeamID, TeamName string
 }
 
 // teamRejoinResult holds the output of a successful rejoin operation.
@@ -153,6 +157,8 @@ func teamRejoinCore(ctx context.Context, a *app.App, p teamRejoinParams) (*teamR
 	// has one, keeps its ID (the one chosen with --id included) and its folder;
 	// a new one gets an ID no other repository's team has.
 	newTeam := config.TeamConfig{
+		ID:        p.TeamID,
+		Name:      p.TeamName,
 		Enabled:   true,
 		StateRepo: p.StateRepo,
 		StatePath: statePath,

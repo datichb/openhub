@@ -85,11 +85,9 @@ func init() {
 	teamsCmd.AddCommand(teamsArchiveCmd)
 	teamsCmd.AddCommand(teamsRestoreCmd)
 
-	teamsAddCmd.Flags().String("repo", "", i18n.T("cmd.teams.add.flags.repo"))
-	teamsAddCmd.Flags().String("member-id", "", i18n.T("cmd.teams.add.flags.member_id"))
+	addTeamRejoinFlags(teamsAddCmd)
 	teamsAddCmd.Flags().String("id", "", i18n.T("cmd.teams.add.flags.id"))
 	teamsAddCmd.Flags().String("name", "", i18n.T("cmd.teams.add.flags.name"))
-	teamsAddCmd.Flags().String("gitlab-url", "", i18n.T("cmd.team.rejoin.flags.gitlab_url"))
 
 	addYesFlag(teamsRemoveCmd)
 }
@@ -104,7 +102,7 @@ func runTeamsList(cmd *cobra.Command, _ []string) error {
 		fmt.Fprintf(a.IO.Out, "%s %s\n",
 			theme.Subtitle.Render(theme.IconInfo),
 			i18n.Tf("cmd.teams.list.empty",
-				theme.Bold.Render("oh teams add --repo <url> --member-id <id>")))
+				theme.Bold.Render("oh team rejoin --repo <url>")))
 		return nil
 	}
 
@@ -165,78 +163,44 @@ func runTeamsList(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
+// runTeamsAdd is `oh teams add`: the same command as `oh team rejoin` (the access
+// is probed and set up, the team-state cloned, the member picked or created and
+// verified, hub.toml written), with the ID and the name of the team to choose.
+// It used to write hub.toml alone, with a member_id nobody checked: the ID of
+// a colleague became "your" card.
 func runTeamsAdd(cmd *cobra.Command, _ []string) error {
 	a := MustApp()
+	ctx := cmd.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
-	repo, _ := cmd.Flags().GetString("repo")
-	memberID, _ := cmd.Flags().GetString("member-id")
-	id, _ := cmd.Flags().GetString("id")
-	name, _ := cmd.Flags().GetString("name")
-	gitlabURL, _ := cmd.Flags().GetString("gitlab-url")
-	gitlabURL = strings.TrimSpace(gitlabURL)
-	if msg := teamGitLabURLProblem(gitlabURL); msg != "" {
+	f := readRejoinFlags(cmd)
+	f.noRetroTag = true // the sessions of this machine belong to the first team
+	f.teamID, _ = cmd.Flags().GetString("id")
+	f.teamName, _ = cmd.Flags().GetString("name")
+	f.gitlabURL = strings.TrimSpace(f.gitlabURL)
+	if msg := teamGitLabURLProblem(f.gitlabURL); msg != "" {
 		return errors.New(msg)
 	}
-
-	if repo == "" {
+	if f.repo == "" {
 		return errors.New(i18n.T("cmd.teams.add.repo_required"))
 	}
-	if memberID == "" {
-		return errors.New(i18n.T("cmd.teams.add.member_id_required"))
-	}
 
-	// Without --id, the ID is derived from the repo: its name, or another one
-	// when the team of a different repository already has it.
-	teamID := func(c *config.Config) string {
-		if id != "" {
-			return id
+	// A duplicate is told before anything is asked or cloned
+	if f.teamID != "" {
+		if existing := a.Config.FindTeam(f.teamID); existing != nil {
+			return errors.New(i18n.Tf("cmd.teams.add.duplicate_id", f.teamID, existing.StateRepo))
 		}
-		return c.TeamIDFor(repo)
+	}
+	if existing := a.Config.FindTeamByRepo(f.repo); existing != nil {
+		return errors.New(i18n.Tf("cmd.teams.add.duplicate_repo", existing.ID))
 	}
 
-	// Check for duplicates, on the loaded config and again on the file at the
-	// time of the write
-	checkDuplicate := func(c *config.Config) error {
-		if existing := c.FindTeam(teamID(c)); existing != nil {
-			return errors.New(i18n.Tf("cmd.teams.add.duplicate_id", teamID(c), existing.StateRepo))
-		}
-		if existing := c.FindTeamByRepo(repo); existing != nil {
-			return errors.New(i18n.Tf("cmd.teams.add.duplicate_repo", existing.ID))
-		}
-		return nil
+	r := &cliRejoin{ctx: ctx, a: a, p: newCLIPrompter(a), flags: f}
+	if err := r.run(); err != nil {
+		return fmt.Errorf("%s: %w", i18n.Tf("v54a.teams.add.failed", f.repo), err)
 	}
-	if err := checkDuplicate(a.Config); err != nil {
-		return err
-	}
-
-	// Build the new team entry
-	newTeam := config.TeamConfig{
-		Name:      name,
-		Enabled:   true,
-		StateRepo: repo,
-		StatePath: teamStatePathFor(a, repo),
-		MemberID:  memberID,
-		GitLabURL: gitlabURL,
-	}
-
-	if err := updateHubConfig(a, func(c *config.Config) error {
-		if err := checkDuplicate(c); err != nil {
-			return err
-		}
-		newTeam.ID = teamID(c)
-		c.Teams = append(c.Teams, newTeam)
-		return nil
-	}); err != nil {
-		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
-	}
-
-	cliout.Success(a.IO.Out, i18n.Tf("cmd.teams.add.success", theme.Bold.Render(newTeam.DisplayName())))
-	fmt.Fprintf(a.IO.Out, "%s\n", i18n.Tf("cmd.teams.add.detail_id", id))
-	fmt.Fprintf(a.IO.Out, "%s\n", i18n.Tf("cmd.teams.add.detail_repo", repo))
-	fmt.Fprintf(a.IO.Out, "%s\n", i18n.Tf("cmd.teams.add.detail_member", memberID))
-	fmt.Fprintf(a.IO.Out, "\n%s\n",
-		i18n.Tf("cmd.teams.add.sync_hint", theme.Bold.Render("oh team init")))
-
 	return nil
 }
 

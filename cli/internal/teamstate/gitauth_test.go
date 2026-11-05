@@ -219,7 +219,8 @@ func TestIsAuthErrorCoversSSH(t *testing.T) {
 		assert.Equal(t, tt.want, IsAuthError(errors.New(tt.msg)), tt.msg)
 	}
 	assert.False(t, IsAuthError(nil))
-	// the narrow check of the pull is unchanged: an SSH refusal on a pull stays a warning
+	// the narrow check (the HTTPS words) does not know ssh; accessError does
+	assert.NotNil(t, accessError("git@gitlab:org/t.git", errors.New("Permission denied (publickey)")))
 	assert.False(t, isAuthError(errors.New("Permission denied (publickey)")))
 }
 

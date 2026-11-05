@@ -14,183 +14,67 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/datichb/openhub/cli/internal/app"
+	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/teamstate"
-	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Team Init action (hub-level)
+// « Créer une équipe » and « Reconfigurer » (teamAssistant)
 // ─────────────────────────────────────────────────────────────────────────────
 
-func actionTeamInit() {
+// actionTeamInit is « Créer une équipe »: a new repository, always, even when
+// the hub has teams already.
+func actionTeamInit() { openTeamAssistant(nil) }
+
+// actionTeamReconfigure is « Reconfigurer l'équipe »: the assistant on the team
+// that is open.
+func actionTeamReconfigure() {
 	if tuiShell == nil {
 		return
 	}
+	team := MustApp().Config.ActiveTeam()
+	reconfigureTeam(&team)
+}
 
+// reconfigureTeam opens the assistant on team (the action of the detail of a
+// team on the team it shows).
+func reconfigureTeam(team *config.TeamConfig) {
+	if tuiShell == nil {
+		return
+	}
+	if !reconfigurable(*team) {
+		tuiShell.ShowToast(i18n.T("v54a.init.nothing_to_reconfigure_tui"), shell.ToastWarning)
+		return
+	}
+	openTeamAssistant(team)
+}
+
+// openTeamAssistant pushes the assistant that creates a team (team nil) or
+// reconfigures team. Nothing is cloned, pulled or pushed before it is on the
+// screen: the probe of the access and the clone are steps with a spinner.
+func openTeamAssistant(team *config.TeamConfig) {
+	if tuiShell == nil {
+		return
+	}
 	a := MustApp()
 	ctx := tuiShell.Context()
+	w := newTeamAssistant(ctx, a, team)
 
-	// ── Shared state (captured by step closures) ────────────────────
-	var (
-		stateRepo string
-		statePath string // the clone: of the configured team, else derived from the URL once it is typed
-		repo      *teamstate.Repo
-
-		hasConfig, hasPolicies bool
-		existingCfg            *teamstate.TeamConfig
-
-		staleDaysStr       = "3"
-		memberID           = a.Config.ActiveTeam().MemberID
-		displayName        string
-		gitlabUsername     string
-		mattermostUsername string
-		trackerUsername    string
-		role               string
-
-		webhookURL string
-		channel    string
-		botName    = "OpenHub"
-
-		hasMember bool
-
-		structureWarning string // the commit of the structure of the team-state failed
-	)
-
-	// Pre-fill from existing hub.toml if already configured
-	if at := a.Config.ActiveTeam(); at.StateRepo != "" {
-		stateRepo = at.StateRepo
-		statePath = at.StatePath
-		repo = teamstate.NewRepo(stateRepo, statePath)
-		if repo.IsCloned() {
-			_ = repo.Pull(ctx)
-			if warn, err := ensureTeamStructure(ctx, repo); err != nil {
-				slog.Warn("team.init.structure_failed", "error", err)
-			} else if warn != "" {
-				structureWarning = warn
-				tuiShell.ShowToast(warn, shell.ToastWarning)
-			}
-			hasConfig = repo.HasConfig()
-			hasPolicies = repo.HasPolicies()
-			existingCfg, _ = repo.LoadConfig(ctx)
-			if hasConfig && existingCfg != nil {
-				staleDaysStr = fmt.Sprintf("%d", existingCfg.Takeover.StaleDays)
-				webhookURL = existingCfg.Notification.MattermostWebhook
-				channel = existingCfg.Notification.Channel
-				botName = existingCfg.Notification.BotName
-			}
-			hasMember = memberID != "" && repo.HasMember(ctx, memberID)
-			if hasMember {
-				if m, err := repo.GetMember(ctx, memberID); err == nil && m != nil {
-					displayName = m.DisplayName
-					gitlabUsername = m.GitLabUsername
-					mattermostUsername = m.MattermostUsername
-					trackerUsername = m.TrackerUsername
-					role = m.Role
-				}
-			}
-		}
-	}
-
-	// ── Build shared team step state ────────────────────────────────
-	tss := &teamStepState{
-		Ctx:                ctx,
-		HasConfig:          hasConfig,
-		HasPolicies:        hasPolicies,
-		ExistingCfg:        existingCfg,
-		HasMember:          hasMember,
-		StaleDaysStr:       staleDaysStr,
-		MemberID:           memberID,
-		DisplayName:        displayName,
-		GitLabUsername:     gitlabUsername,
-		TrackerUsername:    trackerUsername,
-		MattermostUsername: mattermostUsername,
-		Role:               role,
-		WebhookURL:         webhookURL,
-		Channel:            channel,
-		BotName:            botName,
-	}
-	if repo != nil { // a nil *Repo in the interface would not be nil
-		tss.Repo = repo
-	}
-	// ── Steps 0: the repository, the probe of the access, the access ───
-	// (team_access.go), then the clone. Only when no team is configured yet.
-	noTeamYet := func() bool { return a.Config.ActiveTeam().StateRepo == "" }
-	access := &teamAccess{
-		Ctx:         func() context.Context { return ctx },
-		App:         func() *app.App { return a },
-		Repo:        &stateRepo,
-		Active:      noTeamYet,
-		Quit:        true, // the wizard is only the team: giving it up is leaving it
-		RequiredKey: "cmd.team.init.validate.repo_required",
-	}
-	cloneStep := views.WizardStep{
-		ID:           "team_clone",
-		Label:        i18n.T("v532w.clone.label"),
-		Required:     true,
-		BackSkip:     true,
-		SkipIf:       func() bool { return !noTeamYet() },
-		ErrorActions: access.ErrorActions,
-		Processing:   i18n.T("cmd.team.init.processing_repo"),
-		OnDone: func() error {
-			if existing, found := findExistingCloneForRemote(ctx, a, stateRepo); found {
-				return errors.New(
-					i18n.Tf("tui.team.clone_exists", existing.Path, existing.Source))
-			}
-			statePath = teamStatePathFor(a, stateRepo)
-			repo = teamstate.NewRepo(stateRepo, statePath)
-			if repo.IsCloned() {
-				if err := repo.CheckRemote(); err != nil {
-					return err
-				}
-				_ = repo.Pull(ctx)
-			} else {
-				if err := repo.Clone(ctx); err != nil {
-					return fmt.Errorf(i18n.T("cmd.tui_team_actions.cloning_team_state"), err)
-				}
-			}
-			warn, err := ensureTeamStructure(ctx, repo)
-			if err != nil {
-				return fmt.Errorf(i18n.T("cmd.tui_team_actions.init_structure"), err)
-			}
-			structureWarning = warn
-			// Now that the repo is available, the steps that follow work on it
-			tss.useRepo(repo)
-			return nil
-		},
-		InfoFields: func() []views.InfoField {
-			fields := []views.InfoField{{Label: "Repo", Value: stateRepo}}
-			if structureWarning != "" {
-				fields = append(fields, views.InfoField{Label: theme.IconWarning + " " + i18n.T("cmd.team.init.structure_label"), Value: structureWarning})
-			}
-			return fields
-		},
-	}
-
-	stepOpts := teamStepOpts{}
-
-	configStep := buildTeamConfigStep(tss, stepOpts)
-	identityStep := buildTeamIdentityStep(tss, stepOpts)
-	notifStep := buildTeamNotifStep(tss, stepOpts)
-	policiesStep := buildTeamPoliciesStep(tss, stepOpts)
-
-	// ── Step 7: Tracker discovery (optional) ──────────────────────────
+	// ── Tracker discovery (optional) ──────────────────────────────────
 	var launchDiscoveryAfter bool
 	trackerStep := views.WizardStep{
-		Label: i18n.T("cmd.init.wizard_step_tracker_setup"),
-		SkipIf: func() bool {
-			return stateRepo == ""
-		},
+		Label:  i18n.T("cmd.init.wizard_step_tracker_setup"),
+		SkipIf: func() bool { return w.repo == nil },
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
 
-			repo := teamstate.NewRepo(stateRepo, statePath)
 			trackerConfigured := false
-			if teamCfg, err := repo.LoadConfig(ctx); err == nil && teamCfg.Tracker.Type != "" {
+			if teamCfg, err := w.repo.LoadConfig(ctx); err == nil && teamCfg.Tracker.Type != "" {
 				trackerConfigured = true
 				hint := i18n.T("cmd.init.wizard_tracker_configured") + "\n" +
 					i18n.Tf("cmd.init.wizard_tracker_info",
@@ -234,49 +118,30 @@ func actionTeamInit() {
 		},
 	}
 
-	// ── Build and push the inline wizard ────────────────────────────
+	title := i18n.T("v54a.team.create.title")
+	if team != nil {
+		title = i18n.Tf("v54a.team.reconfigure.title", team.DisplayName())
+	}
 	wizard := views.NewInlineWizardView(views.InlineWizardConfig{
-		ID:    "wizard.team.init",
-		Title: i18n.T("tui.team.init"),
-		Steps: []views.WizardStep{
-			access.RepoStep(), access.ProbeStep(), access.AccessStep(), cloneStep,
-			configStep, identityStep, notifStep, policiesStep, trackerStep,
-		},
+		ID:                 "wizard.team.init",
+		Title:              title,
+		Steps:              append(w.steps(), trackerStep),
 		SummaryTargetView:  "team.detail",
 		SummaryTargetLabel: i18n.T("wizard.summary.goto_team_detail"),
 		OnComplete: func(completed bool, err error) {
-			if !completed || err != nil {
+			// hub.toml was written when the card of the member was (teamAssistant)
+			if !completed || err != nil || !launchDiscoveryAfter {
 				return
 			}
-			// Sync state from shared struct (builders mutate the struct, not local vars)
-			memberID = tss.MemberID
-
-			// Persist hub.toml team config
-			if stateRepo == "" {
-				stateRepo = a.Config.ActiveTeam().StateRepo
-			}
-			if stateRepo == "" || statePath == "" {
-				return
-			}
-			if memberID == "" {
-				memberID = a.Config.ActiveTeam().MemberID
-			}
-			if err := writeTeamConfig(stateRepo, statePath, memberID); err != nil {
-				slog.Warn("failed to write team config", "error", err)
-			}
-
-			// Launch discovery wizard if requested.
-			if launchDiscoveryAfter {
-				// Small delay to let the summary screen render before pushing the new wizard.
-				safego.Go(func() {
-					time.Sleep(200 * time.Millisecond)
-					if tuiShell != nil {
-						queueOnShell(tuiShell, func() {
-							actionTrackerDiscovery()
-						})
-					}
-				})
-			}
+			// Small delay to let the summary screen render before pushing the new wizard.
+			safego.Go(func() {
+				time.Sleep(200 * time.Millisecond)
+				if tuiShell != nil {
+					queueOnShell(tuiShell, func() {
+						actionTrackerDiscovery()
+					})
+				}
+			})
 		},
 	})
 

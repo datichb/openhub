@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"strconv"
 
 	"github.com/rivo/tview"
@@ -51,7 +52,23 @@ type teamStepState struct {
 	StaleDaysStr string
 
 	// Identity step
-	MemberID           string
+	MemberID string
+	// SuggestedID: MemberID is only a suggestion (who the person is in
+	// another team), not the card they already have here: that one is OwnID,
+	// the member_id hub.toml has for this repository. A creation never takes
+	// the card of a colleague for the person's own.
+	SuggestedID bool
+	OwnID       string
+	// Claim is « C'est moi »: the card with the ID exists and is the
+	// person's (identityErrorActions).
+	Claim bool
+	// OnJoined runs once the card is in the team-state: the assistant writes
+	// hub.toml there, so that an interrupted wizard does not leave a card in
+	// a team hub.toml does not know.
+	OnJoined func(memberID string) error
+	// AccessActions are the buttons of the access (teamAccess.ErrorActions)
+	// the error screens of the identity step add to their own; nil: none.
+	AccessActions      func(error) []views.ErrorAction
 	DisplayName        string
 	GitLabUsername     string
 	TrackerUsername    string
@@ -81,7 +98,11 @@ func (s *teamStepState) useRepo(repo teamStepStore) {
 		s.Channel = s.ExistingCfg.Notification.Channel
 		s.BotName = s.ExistingCfg.Notification.BotName
 	}
-	s.HasMember = s.MemberID != "" && repo.HasMember(s.Ctx, s.MemberID)
+	own := s.MemberID
+	if s.SuggestedID {
+		own = s.OwnID
+	}
+	s.HasMember = own != "" && own == s.MemberID && repo.HasMember(s.Ctx, s.MemberID)
 	if s.HasMember {
 		if m, err := repo.GetMember(s.Ctx, s.MemberID); err == nil && m != nil {
 			s.DisplayName = m.DisplayName
@@ -168,6 +189,30 @@ func (s *teamStepState) identityFields() identityFields {
 		Mattermost: &s.MattermostUsername, Tracker: &s.TrackerUsername, LockID: s.HasMember, DefaultRole: creatorRole}
 }
 
+// identityProblem is why the identity form cannot be submitted, "" when it
+// can: the format of the fields, and a GitLab handle that is a colleague's. A
+// taken ID is not refused here: the step refuses it with the buttons that
+// recover from it (« C'est moi » attaches the card that exists).
+func (s *teamStepState) identityProblem() string {
+	f := s.identityFields()
+	if msg := f.problem(nil, "", ""); msg != "" || s.Repo == nil || s.Claim {
+		return msg
+	}
+	members, _ := s.Repo.ListMembers(s.Ctx)
+	if err := teamstate.CheckJoin(members, f.member(), teamstate.JoinModeFor(s.ownID(), f.member().ID, false)); err != nil && !errors.Is(err, teamstate.ErrMemberExists) {
+		return joinRefusalText(err, "v532m.join.id_taken_hint")
+	}
+	return ""
+}
+
+// accessActions are the buttons of the access, when the assistant has them.
+func (s *teamStepState) accessActions(err error) []views.ErrorAction {
+	if s.AccessActions == nil {
+		return nil
+	}
+	return s.AccessActions(err)
+}
+
 // ownID is the card the person already has in this team: the member_id
 // hub.toml has, when the team-state holds that card.
 func (s *teamStepState) ownID() string {
@@ -184,16 +229,7 @@ func buildTeamIdentityStep(s *teamStepState, opts teamStepOpts) views.WizardStep
 		Processing: i18n.T("cmd.team.init.processing_identity"),
 		Required:   true,
 		SkipIf:     func() bool { return opts.shouldSkip(s) },
-		Validate: func() string {
-			var members []teamstate.Member
-			if s.Repo != nil {
-				members, _ = s.Repo.ListMembers(s.Ctx)
-				if members == nil {
-					members = []teamstate.Member{}
-				}
-			}
-			return s.identityFields().problem(members, s.ownID(), "v532m.join.id_taken_other")
-		},
+		Validate:   s.identityProblem,
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
 			s.identityFields().addTo(form)
@@ -209,18 +245,17 @@ func buildTeamIdentityStep(s *teamStepState, opts teamStepOpts) views.WizardStep
 			f := s.identityFields()
 			m := f.member()
 			s.MemberID = m.ID
-			_, err := s.Repo.JoinMember(s.Ctx, m, teamstate.JoinModeFor(s.ownID(), m.ID, false))
-			return joinRefusalError(err, "v532m.join.id_taken_other")
-		},
-		ErrorActions: func(err error) []views.ErrorAction {
-			if !isJoinRefusal(err) {
-				return nil
+			_, err := s.Repo.JoinMember(s.Ctx, m, teamstate.JoinModeFor(s.ownID(), m.ID, s.Claim))
+			if err != nil {
+				return joinRefusalError(err, "v532m.join.id_taken_hint")
 			}
-			return []views.ErrorAction{
-				{Label: i18n.T("v532w.error.retry"), Retry: true},
-				{Label: i18n.T("v532m.join.action_change"), GoToStep: "team_identity"},
+			s.Claim = false
+			if s.OnJoined != nil {
+				return s.OnJoined(m.ID)
 			}
+			return nil
 		},
+		ErrorActions: identityErrorActions(&s.Claim, "team_identity", "team_identity", s.accessActions),
 		InfoFields: func() []views.InfoField {
 			return []views.InfoField{
 				{Label: i18n.T("cmd.init.wizard_team_info_member_id"), Value: s.MemberID},

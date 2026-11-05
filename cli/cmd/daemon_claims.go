@@ -24,6 +24,14 @@ import (
 // session. The same callback serves the detached daemon and the one inside
 // the oh process (Windows): both start from daemonOptions.
 
+// claimsBeatStep is the step of the heartbeat loop of the daemon. It is fixed:
+// the period of each team (heartbeat_minutes of its config.toml) is read at
+// every step and decides whether the team is due (claimsBeater.due), so that a
+// team joined after the daemon started, or whose period was changed, is
+// followed without restarting it. The loop used to run at the shortest period
+// known at the start, and not at all when no team had one then.
+const claimsBeatStep = 5 * time.Minute
+
 // claimsQueueEvery is how often the claims-queue task of the daemon tries to
 // empty the queue (it also runs when the daemon starts). Nothing is read from
 // git while the queue is empty.
@@ -57,13 +65,16 @@ type claimsBeater struct {
 
 	mu   sync.Mutex // one beat or flush at a time
 	last map[string]time.Time
+	// access remembers the repositories that refused the access (the token
+	// expired): one alert, then no attempts until the credentials change.
+	access *accessWatch
 }
 
 // readHubConfig reads hub.toml as it is now (a variable for the tests).
 var readHubConfig = config.Read
 
 func newClaimsBeater(a *app.App) *claimsBeater {
-	return &claimsBeater{a: a, now: time.Now, last: map[string]time.Time{}, config: func() *config.Config {
+	return &claimsBeater{a: a, now: time.Now, last: map[string]time.Time{}, access: daemonAccess, config: func() *config.Config {
 		if cfg, err := readHubConfig(); err == nil && cfg != nil {
 			return cfg
 		}
@@ -107,27 +118,6 @@ func claimTeams(ctx context.Context, a *app.App, cfg *config.Config) []*claimsTe
 		t.projects[projects[i].ID] = true
 	}
 	return out
-}
-
-// every is the period of the heartbeat loop: the shortest heartbeat of the
-// teams of this machine (0: no team has one, the loop does not run). A team
-// whose period is longer is beaten less often (beat).
-func (b *claimsBeater) every(ctx context.Context) time.Duration {
-	var every time.Duration
-	for _, t := range b.teams(ctx) {
-		if d := heartbeatOf(ctx, t.repo); d > 0 && (every == 0 || d < every) {
-			every = d
-		}
-	}
-	return every
-}
-
-func heartbeatOf(ctx context.Context, repo teamstate.ConfigReader) time.Duration {
-	cfg, err := repo.LoadConfig(ctx)
-	if err != nil || cfg == nil {
-		return 0
-	}
-	return cfg.Claim.HeartbeatInterval()
 }
 
 // openSessions are the sessions that still hold their claims: not over (a
@@ -238,6 +228,9 @@ func (b *claimsBeater) beat(ctx context.Context) error {
 	now := b.now()
 	var errs []error
 	for _, t := range teams {
+		if b.access.Blocked(ctx, t.repo, now) {
+			continue // the access was refused: nothing to try until the token changes
+		}
 		var claimCfg teamstate.ClaimConfig
 		if cfg, err := t.repo.LoadConfig(ctx); err == nil && cfg != nil {
 			claimCfg = cfg.Claim
@@ -261,8 +254,13 @@ func (b *claimsBeater) beat(ctx context.Context) error {
 				slog.Debug("ohd: claims heartbeat: team-state not reached", "repo", key, "error", err)
 				continue
 			}
+			if b.access.Report(ctx, t.repo, t.sessionsOf(open), err, now) {
+				continue
+			}
 			errs = append(errs, err)
+			continue
 		}
+		b.access.Accepted(key)
 	}
 	return errors.Join(errs...)
 }
@@ -280,7 +278,11 @@ func (b *claimsBeater) flush(ctx context.Context) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	bctx := teamstate.WithLockWait(ctx, teamstate.BackgroundLockWait)
+	open := b.openSessions(ctx)
 	for _, t := range b.teams(ctx) {
+		if b.access.Blocked(ctx, t.repo, b.now()) {
+			continue
+		}
 		applied, dropped, err := t.repo.FlushClaimQueue(bctx)
 		switch {
 		case err == nil:
@@ -289,17 +291,29 @@ func (b *claimsBeater) flush(ctx context.Context) {
 			}
 		case errors.Is(err, teamstate.ErrOffline), errors.Is(err, teamstate.ErrBusy):
 			slog.Debug("ohd: claims queue not emptied", "repo", t.repo.Path(), "error", err)
+		case b.access.Report(ctx, t.repo, t.sessionsOf(open), err, b.now()):
 		default:
 			slog.Warn("ohd: claims queue not emptied", "repo", t.repo.Path(), "error", err)
 		}
 	}
 }
 
+// sessionsOf are the open sessions that work on the projects of the team.
+func (t *claimsTeam) sessionsOf(open []domain.Session) []domain.Session {
+	var out []domain.Session
+	for _, s := range open {
+		if t.projects[s.ProjectID] {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
 // claimsDaemonOptions sets the claims heartbeat and the claims-queue task of
 // the daemon.
-func claimsDaemonOptions(ctx context.Context, a *app.App, opts *daemon.Options) {
+func claimsDaemonOptions(_ context.Context, a *app.App, opts *daemon.Options) {
 	b := newClaimsBeater(a)
 	opts.OnClaimsHeartbeat = b.beat
-	opts.ClaimsHeartbeatEvery = b.every(ctx)
+	opts.ClaimsHeartbeatEvery = claimsBeatStep
 	opts.Tasks = append(opts.Tasks, daemon.Task{Name: "claims-queue", Every: claimsQueueEvery, Run: b.flush})
 }
