@@ -55,6 +55,10 @@ func reconfigureTeam(team *config.TeamConfig) {
 	if tuiShell == nil {
 		return
 	}
+	if archivedTeam(*team) {
+		tuiShell.ShowToast(archivedTeamMessage(*team), shell.ToastWarning)
+		return
+	}
 	if !reconfigurable(*team) {
 		tuiShell.ShowToast(i18n.T("v54a.init.nothing_to_reconfigure_tui"), shell.ToastWarning)
 		return

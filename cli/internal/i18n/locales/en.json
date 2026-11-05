@@ -6847,5 +6847,6 @@
   "v54l.board.reassign.detail_release": "The %[1]d open claims of %[2]s are removed: other members will be able to take them. The events are signed by you.",
   "v54l.board.reassign.failed": "Hand-over failed: ",
   "v54l.board.reassign.released": "%[1]d claim(s) of %[2]s released",
-  "v54l.board.reassign.done": "%[1]d claim(s) of %[2]s handed to %[3]s"
+  "v54l.board.reassign.done": "%[1]d claim(s) of %[2]s handed to %[3]s",
+  "v54l.init.archived": "Team %[1]s is archived: restore it first (R in the Teams view, or %[2]s), then reconfigure it."
 }
