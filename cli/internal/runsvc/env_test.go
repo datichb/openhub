@@ -143,6 +143,7 @@ func TestWithMachineShellEnvAllowList(t *testing.T) {
 	t.Setenv("LC_ALL", "C")
 	t.Setenv("GEMINI_API_KEY", "g-secret")
 	t.Setenv("GH_TOKEN", "gh-secret")
+	t.Setenv("NPM_TOKEN", "npm-secret")
 	t.Setenv("SSH_AUTH_SOCK", "/tmp/agent")
 	t.Setenv("MYCO_REGION", "eu")
 	t.Setenv("ANTHROPIC_API_KEY", "a-secret")
@@ -150,14 +151,15 @@ func TestWithMachineShellEnvAllowList(t *testing.T) {
 	env := withMachineShellEnv(sessionspec.RuntimeLocal, nil, nil)
 	assert.Equal(t, "http://proxy:3128", env["HTTPS_PROXY"])
 	assert.Equal(t, "C", env["LC_ALL"])
-	for _, k := range []string{"GEMINI_API_KEY", "GH_TOKEN", "SSH_AUTH_SOCK", "MYCO_REGION", "ANTHROPIC_API_KEY"} {
+	for _, k := range []string{"GEMINI_API_KEY", "GH_TOKEN", "NPM_TOKEN", "SSH_AUTH_SOCK", "MYCO_REGION", "ANTHROPIC_API_KEY"} {
 		assert.NotContains(t, env, k)
 	}
 
-	env = withMachineShellEnv(sessionspec.RuntimeLocal, nil, nil, "SSH_AUTH_SOCK", "MYCO_*", "GEMINI_API_KEY", "ANTHROPIC_API_KEY")
+	env = withMachineShellEnv(sessionspec.RuntimeLocal, nil, nil, "SSH_AUTH_SOCK", "MYCO_*", "GEMINI_API_KEY", "NPM_TOKEN", "GH_TOKEN", "ANTHROPIC_API_KEY")
 	assert.Equal(t, "/tmp/agent", env["SSH_AUTH_SOCK"])
 	assert.Equal(t, "eu", env["MYCO_REGION"])
 	assert.Equal(t, "g-secret", env["GEMINI_API_KEY"], "the user decides")
-	assert.NotContains(t, env, "GH_TOKEN")
+	assert.Equal(t, "npm-secret", env["NPM_TOKEN"], "the user decides")
+	assert.NotContains(t, env, "GH_TOKEN", "the other name of GITHUB_TOKEN: removed although listed (gh auth login, or the GitHub MCP server of oh)")
 	assert.NotContains(t, env, "ANTHROPIC_API_KEY", "the credentials oh manages stay behind the proxy")
 }

@@ -3,7 +3,7 @@
 // runs (audit v5, S-28).
 //
 // The filter is an allow-list. A deny-list always misses a secret (the
-// GEMINI_API_KEY, GH_TOKEN, NPM_TOKEN… of the day): what the tool and its
+// GEMINI_API_KEY, NPM_TOKEN… of the day): what the tool and its
 // processes need is listed, the rest does not pass. The user adds variables
 // with [execution] env_allow (names, or PREFIX_* patterns).
 //
@@ -55,8 +55,10 @@ var baseNames = []string{
 // basePrefixes are the families that always pass (LC_ALL, LC_CTYPE…, XDG_*).
 var basePrefixes = []string{"LC_", "XDG_"}
 
-// hardDenied are the credentials oh manages itself: they reach the tool only
-// as the session token of the credential proxy, whatever env_allow says.
+// hardDenied are the credentials oh manages itself, and the other names they
+// go by (GH_TOKEN for GITHUB_TOKEN…): they reach the tool only as the session
+// token of the credential proxy, whatever env_allow says. The aliases are the
+// ones the tool that reads the credential documents.
 var hardDenied = map[string]bool{
 	"AWS_BEARER_TOKEN_BEDROCK": true,
 	"AWS_ACCESS_KEY_ID":        true,
@@ -64,10 +66,17 @@ var hardDenied = map[string]bool{
 	"AWS_SESSION_TOKEN":        true,
 	"AWS_PROFILE":              true,
 	"ANTHROPIC_API_KEY":        true,
+	"ANTHROPIC_AUTH_TOKEN":     true,
 	"OPENAI_API_KEY":           true,
 	"OPENROUTER_API_KEY":       true,
 	"GITLAB_TOKEN":             true,
+	"GITLAB_ACCESS_TOKEN":      true,
+	"GITLAB_PRIVATE_TOKEN":     true,
+	"GITLAB_OAUTH_TOKEN":       true,
 	"GITHUB_TOKEN":             true,
+	"GH_TOKEN":                 true,
+	"GITHUB_ENTERPRISE_TOKEN":  true,
+	"GH_ENTERPRISE_TOKEN":      true,
 	"FIGMA_TOKEN":              true,
 	"JIRA_TOKEN":               true,
 	"LINEAR_API_KEY":           true,
@@ -93,7 +102,8 @@ func hasPrefix(name, prefix string) bool {
 }
 
 // HardDenied reports whether oh removes a variable even when env_allow
-// lists it: the credentials of the providers and services oh manages.
+// lists it: the credentials of the providers and services oh manages, under
+// all the names they go by.
 func HardDenied(name string) bool {
 	if foldCase {
 		name = strings.ToUpper(name)

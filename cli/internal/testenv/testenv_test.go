@@ -152,7 +152,13 @@ func TestFakeSecrets(t *testing.T) {
 
 	set := SetFakeSecrets(t)
 	assert.Equal(t, secrets, set)
-	assert.Equal(t, secrets["GH_TOKEN"], os.Getenv("GH_TOKEN"))
+	for name, value := range secrets {
+		assert.Equal(t, value, os.Getenv(name), name)
+	}
+	for _, name := range []string{"GH_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "GITLAB_ACCESS_TOKEN",
+		"GITLAB_PRIVATE_TOKEN", "GITLAB_OAUTH_TOKEN", "ANTHROPIC_AUTH_TOKEN", "NPM_TOKEN"} {
+		assert.Contains(t, secrets, name, "the other names of the managed tokens are part of the fakes")
+	}
 }
 
 func TestLeaks(t *testing.T) {

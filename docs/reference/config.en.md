@@ -216,7 +216,7 @@ write_enabled = false
 | `write_enabled` | boolean | `false` | Adds `create_issue`; personal, never recommended by the team |
 | `url`, `trusted_url` | text | empty | No effect: the address of the GitHub API is fixed |
 
-A `GITHUB_TOKEN` variable exported in your shell does not reach the sessions: the environment of the agents is filtered, and `GITHUB_TOKEN` and `LINEAR_API_KEY` never pass, even with `env_allow`. Server pages: [GitHub](mcp-github.en.md), [Linear](mcp-linear.en.md); guide: [Linear](../guides/linear-integration.en.md).
+A `GITHUB_TOKEN` (or `GH_TOKEN`) variable exported in your shell does not reach the sessions: the environment of the agents is filtered, and `GITHUB_TOKEN`, `GH_TOKEN` and `LINEAR_API_KEY` never pass, even with `env_allow`. Server pages: [GitHub](mcp-github.en.md), [Linear](mcp-linear.en.md); guide: [Linear](../guides/linear-integration.en.md).
 
 ### Strict reading of `hub.toml`
 
@@ -258,7 +258,7 @@ An error stops oh and names the file, the line, the column and the key of the fi
 
 ## The environment of the agents
 
-In a local session, the tool server (opencode) and the shells of the agents do not inherit your whole environment: **only an allow-list passes**. A list of forbidden names always misses the secret of the day (`GEMINI_API_KEY`, `GH_TOKEN`, `NPM_TOKEN`, a database URL…); here what is needed is named, and the rest does not pass.
+In a local session, the tool server (opencode) and the shells of the agents do not inherit your whole environment: **only an allow-list passes**. A list of forbidden names always misses the secret of the day (`GEMINI_API_KEY`, `NPM_TOKEN`, a database URL…); here what is needed is named, and the rest does not pass.
 
 **The base list** (always passes):
 
@@ -282,7 +282,8 @@ oh config unset execution.env_allow
 ```
 
 - A bare `*`, a pattern shorter than two characters before the star, or anything that is not a name are refused.
-- The credentials that oh manages itself (`AWS_BEARER_TOKEN_BEDROCK`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_PROFILE`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `GITLAB_TOKEN`, `GITHUB_TOKEN`, `FIGMA_TOKEN`, `JIRA_TOKEN`, `LINEAR_API_KEY`, `GOOGLE_ACCESS_TOKEN`, `OH_PASSPHRASE`) stay removed whatever the list says: the agents only get the session token of the oh proxy.
+- The credentials that oh manages itself, **and their other names** (`AWS_BEARER_TOKEN_BEDROCK`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_PROFILE`, `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `GITLAB_TOKEN`, `GITLAB_ACCESS_TOKEN`, `GITLAB_PRIVATE_TOKEN`, `GITLAB_OAUTH_TOKEN`, `GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, `GH_ENTERPRISE_TOKEN`, `FIGMA_TOKEN`, `JIRA_TOKEN`, `LINEAR_API_KEY`, `GOOGLE_ACCESS_TOKEN`, `OH_PASSPHRASE`) stay removed whatever the list says, exact name or pattern (`GH_*`): the agents only get the session token of the oh proxy. `GH_TOKEN` is the other name of `GITHUB_TOKEN`: it is removed even when listed.
+- **`gh` in a session**: since `GH_TOKEN` does not get in, sign `gh` in with `gh auth login` (`gh` stores the token itself, in the system keychain or in its configuration under `HOME`, which the filter lets through; the agents then use it with the rights of that token), or go through the GitHub MCP server of oh ([GitHub MCP](mcp-github.en.md)).
 - A secret-looking name you add (`*_KEY`, `*_TOKEN`, `*_SECRET`, `*_PASSWORD`…) is allowed but reported by `oh doctor` (⚠): the agents can read it and send it wherever their tools reach.
 - `oh doctor` also lists, by name only, the variables of your environment that are held back, to help you decide what to add.
 - The setting applies when a server starts (new group, restart, resume of a sleeping session). A running group keeps its environment.

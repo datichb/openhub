@@ -8,14 +8,18 @@ import (
 
 // FakeSecretNames are the credentials a user may have in the environment of
 // the shell that starts oh, and that must never reach an agent: the ones oh
-// manages itself (they only reach the tool as the session token of the
-// credential proxy) and the ones it does not (GEMINI_API_KEY, GH_TOKEN…, held
-// back by the allow-list of internal/envfilter), including the keys of the
-// tests that call a real model.
+// manages itself, under every name the tools read them (GITHUB_TOKEN and
+// GH_TOKEN, GITLAB_TOKEN and GITLAB_ACCESS_TOKEN…; they only reach the tool as
+// the session token of the credential proxy, when they reach it at all) and
+// the ones it does not (GEMINI_API_KEY, NPM_TOKEN…, held back by the
+// allow-list of internal/envfilter), including the keys of the tests that call
+// a real model.
 var FakeSecretNames = []string{
 	"AWS_BEARER_TOKEN_BEDROCK", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
-	"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY",
-	"GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN",
+	"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "OPENAI_API_KEY", "GEMINI_API_KEY",
+	"GITHUB_TOKEN", "GH_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "GH_ENTERPRISE_TOKEN",
+	"GITLAB_TOKEN", "GITLAB_ACCESS_TOKEN", "GITLAB_PRIVATE_TOKEN", "GITLAB_OAUTH_TOKEN",
+	"NPM_TOKEN",
 	"OH_EVAL_BEDROCK_TOKEN", "OH_E2E_BEDROCK_TOKEN",
 }
 

@@ -216,7 +216,7 @@ write_enabled = false
 | `write_enabled` | booléen | `false` | Ajoute `create_issue` ; personnel, jamais recommandé par l'équipe |
 | `url`, `trusted_url` | texte | vides | Sans effet : l'adresse de l'API GitHub est fixe |
 
-Une variable `GITHUB_TOKEN` exportée dans votre shell n'atteint pas les sessions : l'environnement des agents est filtré et `GITHUB_TOKEN` et `LINEAR_API_KEY` ne passent jamais, même avec `env_allow`. Pages des serveurs : [GitHub](mcp-github.fr.md), [Linear](mcp-linear.fr.md) ; guide : [Linear](../guides/linear-integration.fr.md).
+Une variable `GITHUB_TOKEN` (ou `GH_TOKEN`) exportée dans votre shell n'atteint pas les sessions : l'environnement des agents est filtré et `GITHUB_TOKEN`, `GH_TOKEN` et `LINEAR_API_KEY` ne passent jamais, même avec `env_allow`. Pages des serveurs : [GitHub](mcp-github.fr.md), [Linear](mcp-linear.fr.md) ; guide : [Linear](../guides/linear-integration.fr.md).
 
 ### Lecture stricte de `hub.toml`
 
@@ -258,7 +258,7 @@ Une erreur arrête oh et nomme le fichier, la ligne, la colonne et la clé de la
 
 ## L'environnement des agents
 
-Dans une session locale, le serveur de l'outil (opencode) et les shells des agents n'héritent pas de tout votre environnement : **seule une liste blanche passe**. Une liste de noms interdits oublie toujours le secret du jour (`GEMINI_API_KEY`, `GH_TOKEN`, `NPM_TOKEN`, une URL de base de données…) ; ici, ce qui est nécessaire est nommé, et le reste ne passe pas.
+Dans une session locale, le serveur de l'outil (opencode) et les shells des agents n'héritent pas de tout votre environnement : **seule une liste blanche passe**. Une liste de noms interdits oublie toujours le secret du jour (`GEMINI_API_KEY`, `NPM_TOKEN`, une URL de base de données…) ; ici, ce qui est nécessaire est nommé, et le reste ne passe pas.
 
 **La liste de base** (passe toujours) :
 
@@ -282,7 +282,8 @@ oh config unset execution.env_allow
 ```
 
 - Un `*` seul, un motif de moins de deux caractères avant l'étoile, ou tout ce qui n'est pas un nom sont refusés.
-- Les identifiants qu'oh gère lui-même (`AWS_BEARER_TOKEN_BEDROCK`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_PROFILE`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `GITLAB_TOKEN`, `GITHUB_TOKEN`, `FIGMA_TOKEN`, `JIRA_TOKEN`, `LINEAR_API_KEY`, `GOOGLE_ACCESS_TOKEN`, `OH_PASSPHRASE`) restent retirés quoi que dise la liste : les agents n'ont que le jeton de session du proxy d'oh.
+- Les identifiants qu'oh gère lui-même, **et leurs autres noms** (`AWS_BEARER_TOKEN_BEDROCK`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_PROFILE`, `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `GITLAB_TOKEN`, `GITLAB_ACCESS_TOKEN`, `GITLAB_PRIVATE_TOKEN`, `GITLAB_OAUTH_TOKEN`, `GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, `GH_ENTERPRISE_TOKEN`, `FIGMA_TOKEN`, `JIRA_TOKEN`, `LINEAR_API_KEY`, `GOOGLE_ACCESS_TOKEN`, `OH_PASSPHRASE`) restent retirés quoi que dise la liste, nom exact ou motif (`GH_*`) : les agents n'ont que le jeton de session du proxy d'oh. `GH_TOKEN` est l'autre nom de `GITHUB_TOKEN` : il est retiré même listé.
+- **`gh` dans une session** : comme `GH_TOKEN` n'y passe pas, authentifiez `gh` avec `gh auth login` (`gh` range le jeton lui-même, dans le trousseau du système ou dans sa configuration sous `HOME`, que le filtre laisse passer ; les agents s'en servent alors avec les droits de ce jeton), ou passez par le serveur MCP GitHub d'oh ([MCP GitHub](mcp-github.fr.md)).
 - Un nom qui ressemble à un secret que vous ajoutez (`*_KEY`, `*_TOKEN`, `*_SECRET`, `*_PASSWORD`…) est autorisé mais signalé par `oh doctor` (⚠) : les agents peuvent le lire et l'envoyer partout où leurs outils accèdent.
 - `oh doctor` liste aussi, par leur nom seulement, les variables de votre environnement qui sont retenues, pour vous aider à décider quoi ajouter.
 - Le réglage s'applique au démarrage d'un serveur (nouveau groupe, redémarrage, reprise d'une session en veille). Un groupe qui tourne garde son environnement.

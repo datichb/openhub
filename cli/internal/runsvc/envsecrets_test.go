@@ -27,12 +27,16 @@ import (
 // patterns (PREFIX_* only), AWS_* is one.
 var wideEnvAllow = []string{"AWS_*", "*_TOKEN", "*_KEY"}
 
+// namesOfTheTokensListed is a user who lists the tokens of the forges by every
+// name the tools read them under (GH_TOKEN as well as GITHUB_TOKEN).
+var namesOfTheTokensListed = []string{"GITHUB_TOKEN", "GH_TOKEN", "GH_*", "GITHUB_*", "GITLAB_*", "ANTHROPIC_*"}
+
 func TestSessionEnvironmentHoldsNoCredential(t *testing.T) {
 	secrets := testenv.SetFakeSecrets(t)
 	t.Setenv("LANG", "fr_FR.UTF-8")
 
 	for _, kind := range []sessionspec.RuntimeKind{sessionspec.RuntimeLocal, sessionspec.RuntimeContainer} {
-		for name, extra := range map[string][]string{"base list": nil, "wide env_allow": wideEnvAllow} {
+		for name, extra := range map[string][]string{"base list": nil, "wide env_allow": wideEnvAllow, "tokens listed": namesOfTheTokensListed} {
 			t.Run(string(kind)+"/"+name, func(t *testing.T) {
 				f := newRTFixture(t)
 				f.svc.SessionsDir = t.TempDir()
@@ -75,15 +79,29 @@ func TestSessionEnvironmentHoldsNoCredential(t *testing.T) {
 
 // The part of the shell environment that comes from the machine, on its own:
 // the wide env_allow lets no credential through, and a name the user wrote
-// passes (his decision, `oh doctor` warns), except the credentials oh manages.
+// passes (his decision, `oh doctor` warns), except the credentials oh manages,
+// whatever the name (GH_TOKEN as well as GITHUB_TOKEN).
 func TestMachineShellEnvironmentHoldsNoCredential(t *testing.T) {
 	secrets := testenv.SetFakeSecrets(t)
 	got := withMachineShellEnv(sessionspec.RuntimeLocal, map[string]string{"FOO": "bar"}, []string{"/oh/run/bin"}, wideEnvAllow...)
 	assert.Empty(t, testenv.LeaksInMap(secrets, got))
-	got = withMachineShellEnv(sessionspec.RuntimeLocal, nil, nil, "GH_*", "GEMINI_API_KEY")
-	assert.Equal(t, secrets["GH_TOKEN"], got["GH_TOKEN"], "a name the user wrote passes: his decision (oh doctor warns)")
+	got = withMachineShellEnv(sessionspec.RuntimeLocal, nil, nil, "GH_*", "GEMINI_API_KEY", "NPM_TOKEN")
+	assert.Equal(t, secrets["NPM_TOKEN"], got["NPM_TOKEN"], "a name the user wrote passes: his decision (oh doctor warns)")
 	assert.Equal(t, secrets["GEMINI_API_KEY"], got["GEMINI_API_KEY"])
-	for _, n := range []string{"AWS_BEARER_TOKEN_BEDROCK", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GITHUB_TOKEN", "GITLAB_TOKEN"} {
+	for _, n := range []string{"AWS_BEARER_TOKEN_BEDROCK", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "ANTHROPIC_API_KEY", "OPENAI_API_KEY",
+		"GITHUB_TOKEN", "GITLAB_TOKEN"} {
 		assert.NotContains(t, got, n)
+	}
+
+	// The other names of the managed tokens: removed although the user lists
+	// them, by name and by pattern (gh reads GH_TOKEN as GITHUB_TOKEN).
+	listed := []string{"GH_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "GITLAB_ACCESS_TOKEN", "GITLAB_PRIVATE_TOKEN",
+		"GITLAB_OAUTH_TOKEN", "ANTHROPIC_AUTH_TOKEN"}
+	for _, extra := range [][]string{listed, {"GH_*", "GITHUB_*", "GITLAB_*", "ANTHROPIC_*"}} {
+		got = withMachineShellEnv(sessionspec.RuntimeLocal, nil, nil, extra...)
+		for _, n := range listed {
+			assert.NotContains(t, got, n, "removed although env_allow lists %v", extra)
+		}
+		assert.Empty(t, testenv.LeaksInMap(secrets, got))
 	}
 }
