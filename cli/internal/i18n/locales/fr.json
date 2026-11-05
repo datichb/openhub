@@ -6431,5 +6431,13 @@
   "v54r.teams.default.archived": "L'équipe %[1]s est archivée : restaure-la d'abord (%[2]s) pour en faire l'équipe par défaut.",
   "v54r.teams.archive.default_moved": "%[1]s était l'équipe par défaut : l'équipe par défaut est maintenant %[2]s.",
   "v54r.teams.archive.default_none": "%s était l'équipe par défaut : aucune autre équipe n'est activée.",
+  "v54r.project.set_team.short": "Rattacher un projet à une équipe",
+  "v54r.project.set_team.long": "Rattache le projet à l'équipe (son travail — réservations, board, tracker — va alors dans le team-state de cette équipe). L'équipe doit exister et ne pas être archivée. Un espace solo est accepté : le projet y reçoit ses dossiers de workflows.",
+  "v54r.project.set_team.done": "Le projet %[1]s est rattaché à l'équipe %[2]s.",
+  "v54r.project.set_team.unchanged": "Le projet %[1]s appartient déjà à l'équipe %[2]s.",
+  "v54r.project.set_team.moved": "Les réservations de ce projet restent dans le team-state de %s : libère-les là-bas si besoin.",
+  "v54r.project.set_team.solo_not_cloned": "L'espace solo %s n'a pas de dossier local : il ne peut pas recevoir de projet.",
+  "v54r.project.add.team_needs_name": "--team va avec --name : le formulaire interactif demande l'équipe.",
+  "v54r.project.add.flag_team": "Équipe à laquelle rattacher le projet (identifiant)",
   "v54r.team.wizard_summary": "%[1]d équipe(s) — premier choix : %[2]s (membre : %[3]s)"
 }

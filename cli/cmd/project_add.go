@@ -14,6 +14,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/beads"
+	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	providerPkg "github.com/datichb/openhub/cli/internal/provider"
@@ -30,6 +31,7 @@ func projectAddCmd() *cobra.Command {
 		name     string
 		path     string
 		language string
+		teamID   string
 	)
 
 	cmd := &cobra.Command{
@@ -41,7 +43,16 @@ func projectAddCmd() *cobra.Command {
 
 			// If no flags provided, run interactive form
 			if name == "" && path == "" {
+				if teamID != "" {
+					return fmt.Errorf("%s", i18n.T("v54r.project.add.team_needs_name"))
+				}
 				return runProjectAddInteractive(ctx, a)
+			}
+			// The team is checked before anything is created.
+			if teamID != "" {
+				if err := checkProjectTeam(a, teamID); err != nil {
+					return err
+				}
 			}
 
 			// Non-interactive mode (minimal — no agents/provider wizard)
@@ -57,7 +68,7 @@ func projectAddCmd() *cobra.Command {
 				return fmt.Errorf(i18n.T("cmd.project_add.resolving_path"), err)
 			}
 
-			return doCreateProjectMinimal(ctx, a, name, absPath, language)
+			return doCreateProjectMinimal(ctx, a, name, absPath, language, teamID)
 		},
 	}
 
@@ -65,6 +76,7 @@ func projectAddCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&path, "path", "d", "", "")
 	cmd.Flags().StringVarP(&language, "language", "l", "", "")
 	cmd.Flags().BoolVarP(&projectAddYes, "yes", "y", false, "")
+	cmd.Flags().StringVar(&teamID, "team", "", i18n.T("v54r.project.add.flag_team"))
 
 	return cmd
 }
@@ -374,7 +386,8 @@ func runProjectAddInteractive(ctx context.Context, a *app.App) error {
 // ── Non-interactive (minimal) ──
 
 // doCreateProjectMinimal creates a project with only basic fields (CLI flags mode).
-func doCreateProjectMinimal(ctx context.Context, a *app.App, name, absPath, language string) error {
+// teamID ("" = none) attaches the project to that team.
+func doCreateProjectMinimal(ctx context.Context, a *app.App, name, absPath, language, teamID string) error {
 	if _, err := os.Stat(absPath); os.IsNotExist(err) {
 		return fmt.Errorf("%s", i18n.Tf("cmd.project.add.dir_not_exist", absPath))
 	}
@@ -391,13 +404,20 @@ func doCreateProjectMinimal(ctx context.Context, a *app.App, name, absPath, lang
 		UpdatedAt: now,
 	}
 
-	if _, _, err := upsertProject(ctx, a.Projects, p); err != nil {
+	created, _, err := upsertProject(ctx, a.Projects, p)
+	if err != nil {
 		return fmt.Errorf(i18n.T("cmd.project_add.creating_project"), err)
 	}
 
 	fmt.Fprintf(a.IO.Out, "%s %s\n",
 		theme.SuccessStyle.Render(theme.IconSuccess),
 		i18n.Tf("cmd.project.registered", theme.Bold.Render(name), absPath))
+	if teamID != "" {
+		if err := setProjectTeam(ctx, a, created, teamID); err != nil {
+			return err
+		}
+		cliout.Success(a.IO.Out, i18n.Tf("v54r.project.set_team.done", theme.Bold.Render(name), theme.Bold.Render(teamID)))
+	}
 	printBeadsClean(a.IO.Out, a, absPath, projectAddYes)
 	return nil
 }

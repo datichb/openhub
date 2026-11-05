@@ -130,15 +130,9 @@ func runTUI(l tuiLaunch) error {
 		Notifications: notifStore,
 		BeforeQuit:    func(quit func()) { beforeQuit(a, tuiShell)(quit) },
 		Compact:       func() string { return a.Config.CLI.Compact },
-		TeamsProvider: func() []views.SelectOption {
-			var out []views.SelectOption
-			for _, t := range a.Config.Teams {
-				if t.Enabled {
-					out = append(out, views.SelectOption{Label: t.DisplayName(), Value: t.ID})
-				}
-			}
-			return out
-		},
+		// Ctrl+T offers the teams, as the home does: no solo space (it has no
+		// team features), no archived team; the default team comes first.
+		TeamsProvider: func() []views.SelectOption { return teamSelectorOptions(a.Config) },
 		// Ctrl+T enters the project mode: both run off the event loop.
 		ProjectsProvider: func() []views.SelectOption {
 			projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
