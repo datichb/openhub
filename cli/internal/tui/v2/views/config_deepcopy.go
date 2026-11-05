@@ -1,11 +1,13 @@
 package views
 
 import (
+	"maps"
 	"slices"
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/limits"
+	"github.com/datichb/openhub/cli/internal/notifypolicy"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
 
@@ -33,6 +35,7 @@ func deepCopyConfig(c *config.Config) config.Config {
 	// Clone Execution.EnvAllow and Limits.Models slices
 	cp.Execution.EnvAllow = slices.Clone(c.Execution.EnvAllow)
 	cp.Limits = cloneLimits(c.Limits)
+	cp.Notifications = cloneNotifications(c.Notifications)
 
 	// Clone Models maps
 	if c.Models.Families != nil {
@@ -222,10 +225,16 @@ func deepCopyTeamConfig(c *teamstate.TeamConfig) teamstate.TeamConfig {
 		copy(cp.Tracker.UnassignedLabels, c.Tracker.UnassignedLabels)
 	}
 
-	// Clone Notification.Destinations slice
+	// Clone Notification: events lists, mention switches, destinations
+	cp.Notification.Events = slices.Clone(c.Notification.Events)
+	cp.Notification.Mention = cloneBoolPtr(c.Notification.Mention)
 	if c.Notification.Destinations != nil {
 		cp.Notification.Destinations = make([]teamstate.NotificationDestination, len(c.Notification.Destinations))
 		copy(cp.Notification.Destinations, c.Notification.Destinations)
+		for i := range cp.Notification.Destinations {
+			cp.Notification.Destinations[i].Events = slices.Clone(c.Notification.Destinations[i].Events)
+			cp.Notification.Destinations[i].Mention = cloneBoolPtr(c.Notification.Destinations[i].Mention)
+		}
 	}
 
 	// Clone Board.Columns slice
@@ -277,4 +286,18 @@ func cloneStringMap(m map[string]string) map[string]string {
 		cp[k] = v
 	}
 	return cp
+}
+
+func cloneBoolPtr(b *bool) *bool {
+	if b == nil {
+		return nil
+	}
+	v := *b
+	return &v
+}
+
+func cloneNotifications(n notifypolicy.Settings) notifypolicy.Settings {
+	n.System, n.Sound, n.WhenTUIFocused = cloneBoolPtr(n.System), cloneBoolPtr(n.Sound), cloneBoolPtr(n.WhenTUIFocused)
+	n.Events = maps.Clone(n.Events)
+	return n
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/limits"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/theme"
@@ -48,6 +49,9 @@ type SettingsViewConfig struct {
 	// "" = unknown), read in its team-state. It may block: the view calls it
 	// off the event loop, with the active team captured on it.
 	TrackerType func(ctx context.Context, team config.TeamConfig) string
+	// PushLabelsEnforced tells whether the team imposes push_labels (the
+	// setting of the hub is then locked). Same rules as TrackerType.
+	PushLabelsEnforced func(ctx context.Context, team config.TeamConfig) bool
 }
 
 // SettingsView displays and edits hub.toml using the unified configField system.
@@ -67,6 +71,9 @@ type SettingsView struct {
 	toolRead bool
 	// trackerType is the type of the tracker of the team, read at mount.
 	trackerType string
+	// pushLabelsEnforced is true when the team imposes push_labels
+	// (tracker.push_labels_enforced), read at mount.
+	pushLabelsEnforced bool
 	// reading is true while a refresh reads hub.toml: the fields cannot be
 	// edited, the result would replace the edit.
 	reading bool
@@ -150,14 +157,18 @@ func (v *SettingsView) Mount(content *tview.Flex, app *tview.Application) {
 		team = v.live.ActiveTeam()
 	}
 	load(app, v.ctx, &v.loads, func(ctx context.Context) (settingsRead, error) {
-		return settingsRead{tool: v.readTool(), tracker: v.readTrackerType(ctx, team)}, nil
+		r := settingsRead{tool: v.readTool(), tracker: v.readTrackerType(ctx, team)}
+		if v.cfg.PushLabelsEnforced != nil {
+			r.pushEnforced = v.cfg.PushLabelsEnforced(ctx, team)
+		}
+		return r, nil
 	}, func(r settingsRead, err error) {
 		owned := ownsFocus(app, content)
 		if err != nil {
 			setState(loading, stateError, err.Error())
 			return
 		}
-		v.tool, v.toolRead, v.trackerType = r.tool, true, r.tracker
+		v.tool, v.toolRead, v.trackerType, v.pushLabelsEnforced = r.tool, true, r.tracker, r.pushEnforced
 
 		v.list = widgets.NewSectionedList()
 		v.list.SetApp(app)
@@ -185,8 +196,9 @@ type settingsTool struct{ client, name string }
 // settingsRead is what the view reads off the event loop at mount: the tool
 // client and the type of the tracker of the team.
 type settingsRead struct {
-	tool    settingsTool
-	tracker string
+	tool         settingsTool
+	tracker      string
+	pushEnforced bool
 }
 
 // readTrackerType asks for the type of the tracker of the team (a read of the
@@ -631,6 +643,8 @@ func (v *SettingsView) buildFields() {
 	}...)
 	v.fields = append(v.fields, v.remoteFields()...)
 	v.fields = insertFieldsAfter(v.fields, "session_idle_sleep", v.budgetFields())
+	v.fields = insertFieldsAfter(v.fields, "limits_"+limits.FieldModels, v.notifyFields())
+	v.lockPushLabels()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
