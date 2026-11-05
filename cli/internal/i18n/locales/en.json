@@ -6426,5 +6426,9 @@
   "v54a.rejoin.claim_question": "Is that your card? (it is attached as it is, nothing is changed)",
   "v54a.rejoin.publish_anyway": "Publish the card anyway?",
   "v54a.join.publish_anyway": "Publish anyway",
-  "v54a.teams.add.failed": "Team %s not added"
+  "v54a.teams.add.failed": "Team %s not added",
+  "v54a.access.alert.title": "Team-state access refused",
+  "v54a.access.alert.message_https": "The git token of %[1]s was refused (%[2]s): it has probably expired or been revoked. The claims of your sessions are no longer renewed and the queued operations wait.\nNo more attempts are made until the token changes. Renew it: oh team rejoin --repo %[3]s (step « Access »), or the Access step of « Rejoin a team ».",
+  "v54a.access.alert.message_ssh": "The SSH access to %[1]s was refused (%[2]s). The claims of your sessions are no longer renewed and the queued operations wait.\nLoad your key in the agent (ssh-add -l, ssh-add) and check that the server accepts it; the daemon tries again in half an hour. Check with: oh doctor.",
+  "v54a.claims.start.access": "The access to the team-state of %s is refused: the claim of %s was not taken (oh doctor)."
 }

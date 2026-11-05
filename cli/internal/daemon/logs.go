@@ -72,6 +72,7 @@ func (d *Daemon) runTask(ctx context.Context, t Task) {
 	}
 	tick := time.NewTicker(every)
 	defer tick.Stop()
+	ctx = WithAlerts(ctx, d)
 	for {
 		safeRun(ctx, t)
 		select {

@@ -118,7 +118,7 @@ func TestClaimsQueueTaskEmptiesTheQueue(t *testing.T) {
 	require.Len(t, opts.Tasks, 1)
 	assert.Equal(t, "claims-queue", opts.Tasks[0].Name)
 	assert.NotNil(t, opts.OnClaimsHeartbeat)
-	assert.Equal(t, time.Hour, opts.ClaimsHeartbeatEvery, "heartbeat_minutes of the team (default 60)")
+	assert.Equal(t, claimsBeatStep, opts.ClaimsHeartbeatEvery, "a fixed step: the period of each team is read at every beat (due)")
 
 	opts.Tasks[0].Run(context.Background())
 	claimsGone(t, repo, "pt-open")
@@ -154,14 +154,12 @@ func TestClaimsBeatHeartbeatOff(t *testing.T) {
 	before := claimsOnDisk(t, repo, "pt-a").LeaseUntil
 
 	b := beaterOf(a, time.Now().Add(13*time.Hour))
-	assert.Zero(t, b.every(context.Background()), "no heartbeat loop")
 	require.NoError(t, b.beat(context.Background()))
 	assert.Equal(t, before, claimsOnDisk(t, repo, "pt-a").LeaseUntil, "no renewal")
 	claimsGone(t, repo, "pt-gone")
 }
 
-// Two teams: one call per team repository, each with its own claims; the
-// loop beats at the shortest period of the two.
+// Two teams: one call per team repository, each with its own claims.
 func TestClaimsBeatSeveralTeams(t *testing.T) {
 	a, repo1 := setupBeat(t, openSession("ses_1", "pt-a"))
 	bare2, clone2 := claimRepos(t)
@@ -179,7 +177,6 @@ func TestClaimsBeatSeveralTeams(t *testing.T) {
 
 	start := time.Now().Add(13 * time.Hour)
 	b := beaterOf(a, start)
-	assert.Equal(t, 30*time.Minute, b.every(context.Background()))
 	require.NoError(t, b.beat(context.Background()))
 	lease := func(repo *teamstate.Repo, project, id string) time.Time {
 		c, err := repo.GetClaim(t.Context(), project, id)

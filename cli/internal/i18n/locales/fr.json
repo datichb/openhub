@@ -6426,5 +6426,9 @@
   "v54a.rejoin.claim_question": "Est-ce votre fiche ? (elle est rattachée telle quelle, rien n'est modifié)",
   "v54a.rejoin.publish_anyway": "Publier la fiche quand même ?",
   "v54a.join.publish_anyway": "Publier quand même",
-  "v54a.teams.add.failed": "Équipe %s non ajoutée"
+  "v54a.teams.add.failed": "Équipe %s non ajoutée",
+  "v54a.access.alert.title": "Accès au team-state refusé",
+  "v54a.access.alert.message_https": "Le token git de %[1]s a été refusé (%[2]s) : il a probablement expiré ou été révoqué. Les claims de vos sessions ne sont plus renouvelés et les opérations en file attendent.\nAucun nouvel essai n'est fait tant que le token ne change pas. Renouvelez-le : oh team rejoin --repo %[3]s (étape « Accès »), ou l'étape Accès de « Rejoindre une équipe ».",
+  "v54a.access.alert.message_ssh": "L'accès SSH à %[1]s a été refusé (%[2]s). Les claims de vos sessions ne sont plus renouvelés et les opérations en file attendent.\nChargez votre clé dans l'agent (ssh-add -l, ssh-add) et vérifiez que le serveur l'accepte ; le démon réessaie dans une demi-heure. Contrôle : oh doctor.",
+  "v54a.claims.start.access": "L'accès au team-state de %s est refusé : le claim de %s n'a pas été pris (oh doctor)."
 }

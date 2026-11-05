@@ -31,6 +31,7 @@ func (d *Daemon) runClaimsHeartbeat(ctx context.Context) {
 	}
 	tick := time.NewTicker(every)
 	defer tick.Stop()
+	ctx = WithAlerts(ctx, d)
 	for {
 		d.claimsBeat(ctx, beat)
 		select {
