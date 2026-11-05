@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
@@ -46,6 +47,9 @@ func (r *Repo) ListMembers(ctx context.Context) ([]Member, error) {
 		m.ID = id
 		members = append(members, m)
 	}
+	// The file is a map: without a sort, the lists of the TUI and of the
+	// commands change order on each read.
+	slices.SortFunc(members, func(a, b Member) int { return strings.Compare(a.ID, b.ID) })
 	return members, nil
 }
 

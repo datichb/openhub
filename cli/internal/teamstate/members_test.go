@@ -108,6 +108,21 @@ func TestMemberLookupErrors(t *testing.T) {
 	})
 }
 
+func TestListMembersIsSortedByID(t *testing.T) {
+	t.Parallel()
+	repo, _ := setupGitTestRepo(t)
+	writeMembersToml(t, repo, "[members.zoe]\ndisplay_name = \"Zoé\"\n[members.ben]\ndisplay_name = \"Benjamin\"\n[members.mia]\ndisplay_name = \"Mia\"\n[members.alice]\ndisplay_name = \"Alice\"\n")
+	for range 20 {
+		members, err := repo.ListMembers(t.Context())
+		require.NoError(t, err)
+		ids := make([]string, 0, len(members))
+		for _, m := range members {
+			ids = append(ids, m.ID)
+		}
+		require.Equal(t, []string{"alice", "ben", "mia", "zoe"}, ids, "the same order on each read, whatever the order of the map")
+	}
+}
+
 func TestMembersCRUD(t *testing.T) {
 	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
