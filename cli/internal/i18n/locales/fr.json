@@ -6953,5 +6953,7 @@
   "v54l.board.reassign.done": "%[1]d réservation(s) de %[2]s transférée(s) à %[3]s",
   "v54l.init.archived": "L'équipe %[1]s est archivée : restaurez-la d'abord (touche R de la vue Équipes, ou %[2]s), puis reconfigurez-la.",
   "v54l.claims.start.create_queued": "Hors ligne : %[1]s/%[2]s sera réservé à votre nom au retour du réseau, s'il est encore libre.",
-  "v54l.claims.start.offline": "Hors ligne : %[1]s/%[2]s n'a pas pu être réservé (une réservation existe peut-être déjà) ; relancez « oh team claim » une fois en ligne."
+  "v54l.claims.start.offline": "Hors ligne : %[1]s/%[2]s n'a pas pu être réservé (une réservation existe peut-être déjà) ; relancez « oh team claim » une fois en ligne.",
+  "v541b.home.solo_one": "%d espace solo ›",
+  "v541b.home.solo_many": "%d espaces solo ›"
 }

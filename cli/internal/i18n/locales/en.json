@@ -6953,5 +6953,7 @@
   "v54l.board.reassign.done": "%[1]d claim(s) of %[2]s handed to %[3]s",
   "v54l.init.archived": "Team %[1]s is archived: restore it first (R in the Teams view, or %[2]s), then reconfigure it.",
   "v54l.claims.start.create_queued": "Offline: %[1]s/%[2]s will be claimed in your name when the network is back, if it is still free.",
-  "v54l.claims.start.offline": "Offline: %[1]s/%[2]s could not be claimed (a claim may already exist); run \"oh team claim\" once online."
+  "v54l.claims.start.offline": "Offline: %[1]s/%[2]s could not be claimed (a claim may already exist); run \"oh team claim\" once online.",
+  "v541b.home.solo_one": "%d solo space ›",
+  "v541b.home.solo_many": "%d solo spaces ›"
 }

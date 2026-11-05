@@ -1,0 +1,24 @@
+     ── Système ──                                                 ▲ │   ── Projets ──                                                  ▲   
+                                                                     │                                                                      
+     🔧   Configuration                                               │   📁   api                                                            
+       Configuration du hub                                          │     /src/api                                                         
+     📊   Métriques                                                   │   ➕   Ajouter un projet                                              
+       Statistiques d'usage                                          │     Nouveau projet                                                   
+     🔬   Doctor                                                      │                                                                      
+       Diagnostic & santé                                            │                                                                      
+     🔑   Secrets                                                     │   ── Équipes ──                                                      
+       Tokens & clés d'API                                           │                                                                      
+     🔔   Notifications                                               │   👥   Acme Platform                                                  
+       Historique des notifications de cette session                 │     ★ par défaut · 4 membres · 2 en cours                            
+     🧱   Catalogue des briques                                       │   👥   lab                                                            
+       Catalogue des agents et skills (origine, coût, workflows)     │     pas encore synchronisée                                          
+                                                                     │   ➕   Nouvelle équipe                                                
+                                                                     │     Créer, rejoindre une équipe ou ouvrir un espace solo             
+                                                                     │                                                                      
+                                                                     │                                                                      
+                                                                     │                                                                      
+                                                                     │                                                                      
+                                                                     │                                                                      
+                                                                     │                                                                      
+                                                                     │                                                                      
+                                                                     │                                                                      

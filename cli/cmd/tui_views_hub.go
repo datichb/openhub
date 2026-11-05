@@ -54,9 +54,10 @@ func buildHomeView(a *app.App, sessionsSection views.SessionsSectionConfig, star
 		OnAddProject: func() {
 			actionProjectAdd()
 		},
-		OnNewTeam: actionTeamNew,
-		Start:     startSection,
-		ToolLine:  tuiToolLine,
+		OnNewTeam:  actionTeamNew,
+		SoloSpaces: func() int { return a.Config.SoloTeamCount() },
+		Start:      startSection,
+		ToolLine:   tuiToolLine,
 	})
 }
 
