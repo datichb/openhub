@@ -11,7 +11,7 @@ oh v5 lance chaque session à partir d'un **workflow** (`oh run <workflow>`), da
 3. **Lancez `oh doctor` en premier.** Le premier lancement migre la base (27 → 49, avec copie, §19) et les anciennes surcharges `[workflow]` (§9) ; il n'y a pas de commande de migration à lancer : elle tourne au démarrage de toute commande **sauf `oh init` et `oh purge`**. Ne modifiez pas `hub.toml` à la main avant ce premier lancement.
 4. **Corrigez ce que `oh doctor` signale** : `hub.toml` refusé (§13), clés héritées, anciens déploiements (§8), `~/.oh/skills` (§10), version d'opencode. `oh doctor --fix` répare après un récapitulatif et une confirmation (`--yes` sans terminal).
 5. **Retirez les anciens déploiements** : `oh migrate deploy-cleanup` (§8).
-6. **Autorisez les variables d'environnement** dont vos agents ont besoin : `oh config set execution.env_allow "SSH_AUTH_SOCK, GH_TOKEN"` (§14).
+6. **Autorisez les variables d'environnement** dont vos agents ont besoin : `oh config set execution.env_allow "SSH_AUTH_SOCK, MYCO_*"` (§14).
 7. **En équipe** : `oh mcp trust <service>` pour chaque URL imposée (§20), et lisez le mode équipe (§17).
 8. **Mettez à jour scripts et CI** : `oh deploy`/`oh sync`, `oh start` → `oh run`, `--yes` (§12), code de sortie 2 (§11).
 9. **Vérifiez vos workflows** : `oh workflow validate --all` (§15).
@@ -192,11 +192,13 @@ En 4.2.0, le serveur opencode et les shells des agents recevaient **tout** votre
 Pour autoriser ce dont vos agents ont besoin (par noms ou préfixes `PREFIXE_*`) :
 
 ```bash
-oh config set execution.env_allow "SSH_AUTH_SOCK, GH_TOKEN, MYCO_*"
+oh config set execution.env_allow "SSH_AUTH_SOCK, MYCO_*"
 ```
 
+> **`GH_TOKEN` et `gh`.** Depuis la 5.4.1, `GH_TOKEN` est retiré même listé : `gh auth login` (le jeton est rangé par `gh` lui-même) ou le serveur MCP GitHub d'oh ([MCP GitHub](../reference/mcp-github.fr.md)).
+
 - `oh doctor` liste, par nom seulement, les variables retenues, et avertit quand un nom qui ressemble à un secret est autorisé (l'agent peut le lire et l'envoyer partout où ses outils portent).
-- Restent refusés quoi qu'on écrive : les identifiants que oh gère lui-même (`AWS_*`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GITLAB_TOKEN`, `GITHUB_TOKEN`, `OH_PASSPHRASE`…). `ZDOTDIR`, `BASH_ENV` et `ENV` ne sont pas dans la liste de base.
+- Restent refusés quoi qu'on écrive : les identifiants que oh gère lui-même (`AWS_*`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GITLAB_TOKEN`, `GITHUB_TOKEN`, `GH_TOKEN`, `OH_PASSPHRASE`…). `ZDOTDIR`, `BASH_ENV` et `ENV` ne sont pas dans la liste de base.
 - Les conteneurs et les jobs distants n'héritent jamais de votre environnement.
 
 Référence : [L'environnement des agents](../reference/config.fr.md#lenvironnement-des-agents).
