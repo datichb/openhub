@@ -87,18 +87,28 @@ func TestSettingsEnvAllowWarnsAboutSecrets(t *testing.T) {
 	v, cfg := execSettings(t)
 	f := settingsField(t, v, "exec_env_allow")
 
-	f.Set("GEMINI_API_KEY, GH_TOKEN, MYCO_*")
+	f.Set("GEMINI_API_KEY, NPM_TOKEN, MYCO_*")
 	note := f.Source()
 	assert.Contains(t, note, "⚠")
-	assert.Contains(t, note, "GEMINI_API_KEY, GH_TOKEN")
+	assert.Contains(t, note, "GEMINI_API_KEY, NPM_TOKEN")
 	assert.NotContains(t, note, "MYCO_*", "a prefix that does not look like a secret is not named")
-	assert.Equal(t, []string{"GEMINI_API_KEY", "GH_TOKEN", "MYCO_*"}, cfg.Execution.EnvAllow, "kept: a warning, not a refusal")
+	assert.Equal(t, []string{"GEMINI_API_KEY", "NPM_TOKEN", "MYCO_*"}, cfg.Execution.EnvAllow, "kept: a warning, not a refusal")
 
 	f.Set("ANTHROPIC_API_KEY, SSH_AUTH_SOCK")
 	note = f.Source()
 	assert.Contains(t, note, "ANTHROPIC_API_KEY")
 	assert.Contains(t, note, "removed anyway")
 	assert.NotContains(t, note, "⚠", "a managed credential is no leak: oh removes it")
+
+	// GH_TOKEN and the other names of the managed tokens are removed anyway,
+	// like GITHUB_TOKEN: no warning of a leak, a note that they are removed.
+	f.Set("GH_TOKEN, GITHUB_ENTERPRISE_TOKEN, GITLAB_ACCESS_TOKEN, ANTHROPIC_AUTH_TOKEN, MYCO_*")
+	note = f.Source()
+	assert.Contains(t, note, "GH_TOKEN, GITHUB_ENTERPRISE_TOKEN, GITLAB_ACCESS_TOKEN, ANTHROPIC_AUTH_TOKEN")
+	assert.Contains(t, note, "removed anyway")
+	assert.NotContains(t, note, "⚠")
+	assert.Equal(t, []string{"GH_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "GITLAB_ACCESS_TOKEN", "ANTHROPIC_AUTH_TOKEN", "MYCO_*"}, cfg.Execution.EnvAllow,
+		"kept: a note, not a refusal")
 
 	f.Set("SSH_AUTH_SOCK, JAVA_OPTS")
 	assert.Empty(t, f.Source())
