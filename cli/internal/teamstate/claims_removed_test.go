@@ -40,3 +40,24 @@ func TestClaimRemovedOnPurpose(t *testing.T) {
 	}
 	assert.False(t, repo.ClaimRemovedOnPurpose(ctx, "p", "../etc"), "an unsafe name is refused")
 }
+
+// A commit that does other things as well names the claims it removed on
+// purpose in its body.
+func TestClaimRemovedOnPurposeReadsTheTrailersOfTheBody(t *testing.T) {
+	t.Parallel()
+	repo, _ := setupGitTestRepo(t)
+	ctx := context.Background()
+	for _, id := range []string{"named", "other", "unnamed"} {
+		createUnder(t, repo, "p", Claim{TicketID: id, ClaimedBy: "alice", Status: ClaimStatusInProgress})
+	}
+	gittest.Run(t, repo.Path(), "rm", "-q", "projects/p/claims/named.toml", "projects/p/claims/other.toml")
+	msg := WithReleasedTrailers("sync: 0 created", []Claim{{Project: "p", TicketID: "named"}})
+	gittest.Run(t, repo.Path(), "commit", "-qm", msg)
+	gittest.Run(t, repo.Path(), "rm", "-q", "projects/p/claims/unnamed.toml")
+	gittest.Run(t, repo.Path(), "commit", "-qm", "sync: 0 created")
+
+	assert.True(t, repo.ClaimRemovedOnPurpose(ctx, "p", "named"))
+	assert.False(t, repo.ClaimRemovedOnPurpose(ctx, "p", "other"), "removed by the same commit but not named")
+	assert.False(t, repo.ClaimRemovedOnPurpose(ctx, "p", "unnamed"))
+	assert.Equal(t, "sync: 0 created", WithReleasedTrailers("sync: 0 created", nil))
+}

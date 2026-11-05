@@ -60,14 +60,15 @@ var literalSinkFuncs = map[string]bool{"askInput": true, "askYN": true, "askSele
 // reason. They are exact literals (any file of the guard).
 var literalExceptions = map[string]string{
 	// File names and technical identifiers.
-	"oh-backup-%s.tar.gz":          "file name",
-	"oh-history-%s.json":           "file name",
-	"oh — OpenHub CLI %s":          "product name and version",
-	"Google Slides":                "product name",
-	"Amazon Bedrock":               "product name",
-	"GitHub Copilot":               "product name",
-	"exit status %d":               "text of an error that is never printed (ExitError), for errors.Is/As",
-	"  %s%s%s  oh (OpenHub CLI)\n": "product name",
+	"oh-backup-%s.tar.gz":                   "file name",
+	"oh-history-%s.json":                    "file name",
+	"oh — OpenHub CLI %s":                   "product name and version",
+	"Google Slides":                         "product name",
+	"Amazon Bedrock":                        "product name",
+	"GitHub Copilot":                        "product name",
+	"exit status %d":                        "text of an error that is never printed (ExitError), for errors.Is/As",
+	"team board: no tracker to synchronize": "sentinel (views.ErrNoTracker) that the board tests with errors.Is and never prints",
+	"  %s%s%s  oh (OpenHub CLI)\n":          "product name",
 	// Text written into other systems, in a fixed language: git commit
 	// messages, documents committed to the team-state, prompts for the agents.
 	"patterns: add %s":                     "git commit message",

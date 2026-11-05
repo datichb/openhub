@@ -128,7 +128,7 @@ oh team config status
 
 ### oh team status
 
-Affiche qui travaille sur quoi : claims actifs, membres, tickets en cours.
+Affiche qui travaille sur quoi : claims actifs, membres, tickets en cours. Le résumé (actifs, en revue, bloqués) compte par **rôle des colonnes du board** de l'équipe (`active`, `review`, `blocked`), pas par le nom de statuts fixes. Les tickets de la réserve (sans propriétaire) et ceux d'un membre qui n'est plus dans l'équipe sont listés après les membres.
 
 ```
 oh team status [--detail]
@@ -253,7 +253,8 @@ La commande, la touche de synchronisation (`s`) des écrans d'équipe et la sync
 - **Attribution par nom.** Les issues sont attribuées aux membres par `tracker_username`, à défaut `gitlab_username`. Quand des issues vues par la synchro (issues de vos réservations, réserve `auto_plan_unassigned`) sont assignées à des noms qui ne sont ceux d'aucun membre, et que votre fiche n'a pas de `tracker_username` (ou aucun nom, sur un tracker du même serveur que le dépôt), le résumé ajoute un avertissement qui liste ces noms (cinq au plus) et donne la commande : `oh team profile --team <équipe> --tracker-username <nom>`. Avec `auto_plan_assigned` seul, la synchro n'interroge que les noms connus et ne voit pas les autres : `oh doctor` (contrôle « Identité sur le tracker ») couvre ce cas.
 
 - **`[tracker] enabled = false`** (dans le `hub.toml` local ou dans la config d'équipe) coupe la synchronisation partout. La commande affiche un avis et sort avec le code 0 ; les écrans refusent avec un message ; la synchronisation automatique ne fait rien. Avant la v5.0, les écrans synchronisaient quand même.
-- Un projet sans équipe utilise l'équipe du hub (équipe par défaut de `hub.toml`) pour son tracker.
+- Seuls les projets rattachés à l'équipe (`team_id`) sont liés à son tracker ; un projet sans équipe ou d'une autre équipe n'est pas synchronisé avec elle. Sans projet de l'équipe, la commande le dit (« aucun projet du hub n'est lié au tracker »).
+- **Synchronisation automatique** (`auto_sync`) : le démon et l'ouverture du board synchronisent à l'intervalle `sync_interval_minutes`, un seul membre par intervalle (bail `sync.lock`) ; la commande, elle, n'attend pas le bail. Voir [`config.fr.md`](config.fr.md#section-tracker).
 - **Ordre de recherche du jeton GitLab** (le premier trouvé l'emporte ; `GITLAB_TOKEN` toujours en premier) :
 
   | # | Source | Clé du trousseau |
@@ -265,7 +266,7 @@ La commande, la touche de synchronisation (`s`) des écrans d'équipe et la sync
   | 5 | Jeton MCP du hub | clé de `[mcp.gitlab] token`, puis `openhub.mcp.gitlab.token` (et son ancien nom `gitlab-token`) |
   | 6 | Ancienne clé du tracker | `openhub.tracker.gitlab.token` |
 
-  **Chaque source est rattachée à un serveur et ne répond que pour lui** (v5.1) : le jeton du dépôt d'équipe n'est jamais envoyé à un tracker qui est sur un autre GitLab. Le serveur de la variable d'environnement est `OH_GITLAB_URL` (sinon `GITLAB_URL`) : sans l'une des deux, `GITLAB_TOKEN` n'est utilisé nulle part. Celui de `tracker_token_key` et de l'ancienne clé du tracker est `tracker_token_url`, sinon (implicite) le tracker ; celui des jetons MCP est `[mcp.gitlab] url`, sinon (implicite) `https://gitlab.com` ; celui du jeton d'équipe est le `gitlab_url` de l'équipe s'il est déclaré (dépôt joint par un alias SSH), sinon l'hôte du `state_repo`. Sans jeton pour le serveur appelé, la commande s'arrête en nommant le serveur, les sources lues et la commande qui déclare la clé ; voir [le serveur de chaque jeton GitLab](config.fr.md#le-serveur-de-chaque-jeton-gitlab). Un refus du serveur (HTTP 401 / 403) nomme la source, la clé et le serveur. `oh team config status` lit le même ordre (clé et serveur de `hub.toml` compris) et affiche `token_key` et `token_url`.
+  **Chaque source est rattachée à un serveur et ne répond que pour lui** (v5.1) : le jeton du dépôt d'équipe n'est jamais envoyé à un tracker qui est sur un autre GitLab. Le serveur de la variable d'environnement est `OH_GITLAB_URL` (sinon `GITLAB_URL`) : sans l'une des deux, `GITLAB_TOKEN` n'est utilisé nulle part. Celui de `tracker_token_key` et de l'ancienne clé du tracker est `tracker_token_url`, sinon (implicite) le tracker ; celui des jetons MCP est `[mcp.gitlab] url`, sinon (implicite) `https://gitlab.com` ; celui du jeton d'équipe est le `gitlab_url` de l'équipe s'il est déclaré (dépôt joint par un alias SSH), sinon l'hôte du `state_repo`. Sans jeton pour le serveur appelé, la commande s'arrête en nommant le serveur, les sources lues et la commande qui déclare la clé ; voir [le serveur de chaque jeton GitLab](config.fr.md#le-serveur-de-chaque-jeton-gitlab). Un refus du serveur nomme la source, la clé et le serveur : un 401 est un jeton refusé (à remplacer, il arrête la synchro), un 403 est un accès refusé à une ressource (portée du jeton, rôle dans le projet : il ne concerne que ce projet du tracker). `oh team config status` lit le même ordre (clé et serveur de `hub.toml` compris) et affiche `token_key` et `token_url`.
 
   Jira garde son propre ordre (`JIRA_TOKEN`, puis `tracker_token_key`).
 

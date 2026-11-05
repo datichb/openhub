@@ -6439,5 +6439,12 @@
   "v54r.project.set_team.solo_not_cloned": "The solo space %s has no local folder: it cannot receive a project.",
   "v54r.project.add.team_needs_name": "--team goes with --name: the interactive form asks for the team.",
   "v54r.project.add.flag_team": "Team to attach the project to (identifier)",
-  "v54r.team.wizard_summary": "%[1]d team(s) — first choice: %[2]s (member: %[3]s)"
+  "v54r.team.wizard_summary": "%[1]d team(s) — first choice: %[2]s (member: %[3]s)",
+  "v54y.tracker.token.forbidden": "the server %s refused access (HTTP %d): the token is known but has no right on this resource — source: %s. Check its scope (api, read_api) and your role in the project; the token does not need replacing.",
+  "v54y.tracker.token.forbidden_unknown": "the server %s refused access (HTTP %d): the token is known but has no right on this resource. Check its scope (api, read_api) and your role in the project; the token does not need replacing.",
+  "v54y.tracker.sync.assignee_changed": "ticket %[1]s: assigned to %[2]s on the tracker (member %[3]s) but claimed by %[4]s — the claim is not changed (oh team claim transfer)",
+  "v54y.sync.summary": "Tracker sync: %d created, %d updated, %d released, %d warning(s)",
+  "v54y.teamboard.no_status_move": "No move possible from this column (board transitions).",
+  "v54y.team.status.reserve": "(reserve)",
+  "v54y.team.status.gone": "%s (no longer in the team)"
 }

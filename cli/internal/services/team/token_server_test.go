@@ -141,7 +141,7 @@ func TestRefusedTokenNamesItsSourceKeyAndServer(t *testing.T) {
 	e.writeTracker(t, "")
 	secrets := fakeSecrets{config.TeamGitLabTokenKey("core"): "team-token"}
 	// the fake server of newTrackerEnv refuses an empty token only: use one that refuses all
-	refusing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusForbidden) }))
+	refusing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusUnauthorized) }))
 	t.Cleanup(refusing.Close)
 	e.cfg.Teams[0].StateRepo = refusing.URL + "/acme/core.git"
 	e.writeTrackerAt(t, refusing.URL)
@@ -157,7 +157,7 @@ func TestRefusedTokenNamesItsSourceKeyAndServer(t *testing.T) {
 	assert.Equal(t, tracker.TokenSourceTeam, rejected.Origin.Source)
 	assert.Equal(t, config.TeamGitLabTokenKey("core"), rejected.Origin.Key)
 	assert.Equal(t, tracker.ServerOf(refusing.URL), tracker.ServerOf(rejected.Origin.Server))
-	assert.Equal(t, http.StatusForbidden, rejected.Status)
+	assert.Equal(t, http.StatusUnauthorized, rejected.Status)
 }
 
 func TestServersOfTheTokenSources(t *testing.T) {

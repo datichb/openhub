@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -238,7 +239,9 @@ func (e *trackerEnv) writeTrackerAt(t *testing.T, url string) {
 	require.NoError(t, os.WriteFile(filepath.Join(e.repo.Path(), "config.toml"), []byte("[tracker]\n"+e.trackerTOMLAt(url, "")), 0o644))
 }
 
-func linkedProjects() fakeProjects { return fakeProjects{{ID: "p1", Name: "app"}} }
+func linkedProjects() fakeProjects {
+	return fakeProjects{{ID: "p1", Name: "app", TeamID: strPtr("core")}}
+}
 
 func TestTrackerEngineTypedErrors(t *testing.T) {
 	t.Run("no team", func(t *testing.T) {
@@ -278,7 +281,7 @@ func TestTrackerEngineTypedErrors(t *testing.T) {
 		e.cfg.Tracker.Enabled = boolPtr(false)
 		_, err := e.service(linkedProjects(), fakeSecrets{}).TrackerEngine(t.Context(), nil)
 		assert.ErrorIs(t, err, ErrTrackerDisabled)
-		_, err = e.service(linkedProjects(), fakeSecrets{}).SyncTracker(t.Context(), SyncOptions{Pull: true})
+		_, err = e.service(linkedProjects(), fakeSecrets{}).SyncTracker(t.Context(), SyncOptions{})
 		assert.ErrorIs(t, err, ErrTrackerDisabled, "the sync (CLI and screen) honors enabled = false")
 		assert.Zero(t, e.requests.Load(), "nothing reaches the tracker")
 	})
@@ -329,7 +332,6 @@ func TestSyncTrackerRunsAgainstTheFakeServer(t *testing.T) {
 
 	var started, finished string
 	res, err := e.service(linkedProjects(), secrets).SyncTracker(t.Context(), SyncOptions{
-		Pull: true,
 		OnRun: func(trackerType string) func() {
 			started = trackerType
 			return func() { finished = trackerType }
@@ -348,7 +350,7 @@ func TestSyncTrackerProjectOverrideAndTeamOfTheProject(t *testing.T) {
 	e := newTrackerEnv(t, "")
 	e.writeTracker(t, "")
 	e.cfg.Teams = append(e.cfg.Teams, config.TeamConfig{ID: "ops", Enabled: true, StateRepo: "git@h:acme/ops.git", StatePath: filepath.Join(t.TempDir(), "missing")})
-	svc := e.service(fakeProjects{{ID: "p1", TrackerConfig: &domain.ProjectTrackerConfig{TrackerProject: "acme/other"}}}, fakeSecrets{config.TeamGitLabTokenKey("core"): "tok"})
+	svc := e.service(fakeProjects{{ID: "p1", TeamID: strPtr("core"), TrackerConfig: &domain.ProjectTrackerConfig{TrackerProject: "acme/other"}}}, fakeSecrets{config.TeamGitLabTokenKey("core"): "tok"})
 
 	res, err := svc.SyncTracker(t.Context(), SyncOptions{})
 	require.NoError(t, err)
@@ -362,6 +364,32 @@ func TestSyncTrackerProjectOverrideAndTeamOfTheProject(t *testing.T) {
 	res, err = svc.SyncTracker(t.Context(), SyncOptions{Project: &domain.Project{ID: "x"}})
 	require.NoError(t, err)
 	assert.NotNil(t, res)
+}
+
+// Only the projects of the team are linked to its tracker: a project of
+// another team, a solo project and a project of no team have their claims in
+// another team-state, or in none.
+func TestSyncTrackerLinksOnlyTheProjectsOfTheTeam(t *testing.T) {
+	e := newTrackerEnv(t, "")
+	e.writeTracker(t, "")
+	e.cfg.Teams = append(e.cfg.Teams,
+		config.TeamConfig{ID: "ops", Enabled: true, StateRepo: "git@h:acme/ops.git", StatePath: filepath.Join(t.TempDir(), "ops")},
+		config.TeamConfig{ID: "solo", Enabled: true, Solo: true, StateRepo: "git@h:me/solo.git", StatePath: filepath.Join(t.TempDir(), "solo")})
+	projects := fakeProjects{
+		{ID: "mine", TeamID: strPtr("core")},
+		{ID: "theirs", TeamID: strPtr("ops")},
+		{ID: "private", TeamID: strPtr("solo")},
+		{ID: "orphan"},
+		{ID: "legacy", TeamConfig: &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeInherit}},
+		{ID: "ghost", TeamID: strPtr("nowhere")},
+	}
+	res, err := e.service(projects, fakeSecrets{config.TeamGitLabTokenKey("core"): "tok"}).SyncTracker(t.Context(), SyncOptions{})
+	require.NoError(t, err)
+	var linked []string
+	for _, p := range res.Projects {
+		linked = append(linked, p.ProjectID)
+	}
+	assert.ElementsMatch(t, []string{"mine", "legacy"}, linked)
 }
 
 func TestTrackerOf(t *testing.T) {
@@ -387,4 +415,45 @@ func TestTrackerOf(t *testing.T) {
 		assert.Equal(t, TrackerKind{}, New(&config.Config{}, nil, nil).TrackerOf(t.Context(), &domain.Project{ID: "p1"}))
 		assert.Equal(t, TrackerKind{}, New(&config.Config{}, nil, nil).TrackerOf(t.Context(), nil))
 	})
+}
+
+// The automatic sync is refused unless the team turned auto_sync on; it takes
+// the lease of its interval (sync.lock) and TeamSyncInterval tells the
+// interval to the daemon.
+func TestSyncTrackerAutoNeedsAutoSyncAndTakesTheLease(t *testing.T) {
+	secrets := fakeSecrets{config.TeamGitLabTokenKey("core"): "tok"}
+	project := &domain.Project{TeamID: strPtr("core")}
+
+	off := newTrackerEnv(t, "")
+	off.writeTracker(t, "")
+	_, err := off.service(linkedProjects(), secrets).SyncTracker(t.Context(), SyncOptions{Project: project, Auto: true})
+	assert.ErrorIs(t, err, tracker.ErrAutoSyncDisabled)
+	interval, on, err := off.service(linkedProjects(), secrets).TeamSyncInterval(t.Context(), project)
+	require.NoError(t, err)
+	assert.False(t, on)
+	assert.Equal(t, tracker.DefaultSyncInterval, interval)
+
+	e := newTrackerEnv(t, "")
+	e.writeTracker(t, "auto_sync = true\nsync_interval_minutes = 3\n")
+	svc := e.service(linkedProjects(), secrets)
+	interval, on, err = svc.TeamSyncInterval(t.Context(), project)
+	require.NoError(t, err)
+	assert.True(t, on)
+	assert.Equal(t, 3*time.Minute, interval)
+
+	res, err := svc.SyncTracker(t.Context(), SyncOptions{Project: project, Auto: true})
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	lock, err := e.repo.ReadSyncLock()
+	require.NoError(t, err)
+	require.NotNil(t, lock)
+	assert.Equal(t, "alice", lock.Member)
+
+	_, err = svc.SyncTracker(t.Context(), SyncOptions{Project: project, Auto: true})
+	var held *tracker.LeaseHeldError
+	require.ErrorAs(t, err, &held, "the interval is covered: the next automatic run leaves it alone")
+	assert.Equal(t, "alice", held.Member)
+
+	_, err = svc.SyncTracker(t.Context(), SyncOptions{Project: project})
+	assert.NoError(t, err, "a request of the user does not wait for the lease")
 }

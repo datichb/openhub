@@ -61,7 +61,8 @@ type EffectiveTrackerConfig struct {
 
 	// Enabled controls whether tracker sync runs for this member.
 	Enabled bool
-	// AutoSync controls whether sync runs automatically on team view open.
+	// AutoSync controls whether the sync runs by itself: by the daemon at each
+	// SyncIntervalMinutes (one member per interval) and when the board opens.
 	AutoSync bool
 	// PushLabels controls whether hub labels are pushed back to the tracker.
 	// This is the RESOLVED value: it already accounts for WriteEnabled.
@@ -85,7 +86,8 @@ type EffectiveTrackerConfig struct {
 	UnassignedLabels []string
 	// MaxUnassignedIssues caps the number of unassigned issues fetched per project.
 	MaxUnassignedIssues int
-	// SyncIntervalMinutes is the board polling interval (0 = disabled).
+	// SyncIntervalMinutes is the interval of the automatic sync (AutoSync) and
+	// the length of its lease (0: 5 minutes).
 	SyncIntervalMinutes int
 
 	// ── Insight fields (for TUI display) ──────────────────────────────────────

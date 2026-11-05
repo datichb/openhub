@@ -99,6 +99,7 @@ type Store interface {
 	teamstate.ClaimCleaner
 	teamstate.ClaimExpirer
 	teamstate.ClaimRemovalJudge
+	teamstate.SyncLockReader
 }
 
 // Engine reconciles team-state claims with an external tracker.
@@ -109,13 +110,18 @@ type Engine struct {
 	boardCfg teamstate.BoardConfig
 	state    *SyncState
 	stateDir string
-	// consecutiveTokenErrors tracks auth failures to mute auto-sync after 3.
-	consecutiveTokenErrors int
 	// identity is who runs the sync (see SetIdentity); unknown holds, for the
 	// run in progress, the tracker names assigned to issues that match no
 	// member (lower case → name as the tracker writes it).
 	identity Identity
 	unknown  map[string]string
+	// index says which hub project holds the claim of each issue of the
+	// tracker, for the run in progress.
+	index *issueIndex
+	// released are the claims the run removes on purpose (the done claims past
+	// their retention, the expired ones): the commit of the run names them, so
+	// that no member takes them for claims lost by accident.
+	released []teamstate.Claim
 }
 
 // Identity says who runs the sync, to warn when their tracker name is missing.
@@ -127,6 +133,10 @@ type Identity struct {
 	// CrossServer: the tracker is not on the server of the team-state
 	// repository, so the GitLab name of the member is not their name there.
 	CrossServer bool
+	// TokenFingerprint identifies the token of the tracker without being it
+	// (see TokenFingerprint): the refusals counted by the circuit breaker are
+	// those of that token.
+	TokenFingerprint string
 }
 
 // SetIdentity tells the engine who runs the sync. When issues of the tracker
@@ -146,7 +156,53 @@ func NewEngine(t Tracker, repo Store, cfg teamstate.TrackerConfig, stateDir stri
 	}
 }
 
-// Run executes a full sync cycle and returns the aggregated result.
+// RunTimeout bounds a run: the wait for the lock of the team-state clone (a
+// background writer) and the sync itself. A caller that wants the run to be
+// cut earlier gives a context that is.
+const RunTimeout = teamstate.BackgroundLockWait + 60*time.Second
+
+// DefaultSyncInterval is sync_interval_minutes when the team sets none.
+const DefaultSyncInterval = 5 * time.Minute
+
+var (
+	// ErrAutoSyncDisabled: an automatic run was asked while the team has not
+	// turned auto_sync on.
+	ErrAutoSyncDisabled = errors.New("tracker: automatic sync is not enabled (auto_sync = false)")
+	// ErrAutoSyncMuted: the server refused the token three times in a row; the
+	// automatic sync waits for another token (a manual sync still tries).
+	ErrAutoSyncMuted = errors.New("tracker: automatic sync stopped after repeated refusals of the token")
+)
+
+// LeaseHeldError: the automatic sync of another run holds the lease of the
+// team (sync.lock) and it has not expired: that run synchronizes this interval.
+type LeaseHeldError struct {
+	// Member is the member whose sync holds the lease.
+	Member string
+	// Until is the end of the lease.
+	Until time.Time
+}
+
+func (e *LeaseHeldError) Error() string {
+	return fmt.Sprintf("tracker: the sync of %s holds the lease until %s", e.Member, e.Until.Local().Format("15:04:05"))
+}
+
+// SyncInterval is the interval of the automatic sync (sync_interval_minutes, 5
+// minutes when unset) and the length of the lease the sync takes.
+func (e *Engine) SyncInterval() time.Duration {
+	if m := e.cfg.SyncIntervalMinutes; m > 0 {
+		return time.Duration(m) * time.Minute
+	}
+	return DefaultSyncInterval
+}
+
+// AutoSyncEnabled reports whether the team asked for the automatic sync
+// (auto_sync).
+func (e *Engine) AutoSyncEnabled() bool { return e.cfg.AutoSync }
+
+// Run executes a full sync cycle on request (oh team sync-tracker, the r key of
+// the board) and returns the aggregated result. It does not wait for the
+// lease of the automatic sync and, when the team has auto_sync on, takes it
+// (the others leave the next interval to this sync).
 //
 // Strategy:
 //  1. Pull the team-state repo to get the latest claims.
@@ -157,13 +213,39 @@ func NewEngine(t Tracker, repo Store, cfg teamstate.TrackerConfig, stateDir stri
 // The single commit approach minimises round-trips and reduces the concurrency
 // window for conflicts — if two members sync simultaneously, at most one of them
 // will encounter a non-fast-forward push and retry with rebase.
-func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
-	slog.Debug("tracker.sync.start", "projects", len(e.cfg.Projects), "autoplan", e.cfg.AutoPlanAssigned) //nolint:staticcheck // backward compat: deprecated field
+func (e *Engine) Run(ctx context.Context) (*SyncResult, error) { return e.run(ctx, false) }
+
+// RunAuto is the run of the automatic sync (daemon, opening of the board). It
+// fails with ErrAutoSyncDisabled when the team did not turn auto_sync on, with
+// ErrAutoSyncMuted when the server refused the token three times in a row, and
+// with a *LeaseHeldError when the sync of another run (a colleague, another
+// machine) holds the lease of this interval: one member synchronizes per
+// interval. The lease is a sync.lock of the team-state (member and expiry),
+// written by the sync itself in its commit, so that two members who start
+// together are told apart by the push: the second one finds the lease of the
+// first when it runs its transaction again.
+func (e *Engine) RunAuto(ctx context.Context) (*SyncResult, error) { return e.run(ctx, true) }
+
+func (e *Engine) run(ctx context.Context, auto bool) (*SyncResult, error) {
+	slog.Debug("tracker.sync.start", "projects", len(e.cfg.Projects), "autoplan", e.cfg.AutoPlanAssigned, "auto", auto) //nolint:staticcheck // backward compat: deprecated field
 	start := time.Now()
+
+	if auto {
+		if !e.cfg.AutoSync {
+			return nil, ErrAutoSyncDisabled
+		}
+		if !e.ShouldAutoSync() {
+			return nil, ErrAutoSyncMuted
+		}
+		// Off the network: a lease the clone already shows is a lease.
+		if lock, err := e.repo.ReadSyncLock(); err == nil && lock.Held(start) {
+			return nil, &LeaseHeldError{Member: lock.Member, Until: lock.ExpiresAt.Time()}
+		}
+	}
 
 	// Global timeout to bound the total sync wall time (plus the wait for
 	// the lock of the team-state clone: a background writer).
-	ctx, cancel := context.WithTimeout(teamstate.WithLockWait(ctx, teamstate.BackgroundLockWait), teamstate.BackgroundLockWait+60*time.Second)
+	ctx, cancel := context.WithTimeout(teamstate.WithLockWait(ctx, teamstate.BackgroundLockWait), RunTimeout)
 	defer cancel()
 
 	// Load (or initialise) the local sync state.
@@ -187,29 +269,59 @@ func (e *Engine) Run(ctx context.Context) (*SyncResult, error) {
 	// again on top of it.
 	var result *SyncResult
 	var fatal, abort error
-	txErr := e.repo.Transact(ctx, func(ctx context.Context, _ *teamstate.Tx) (teamstate.TxResult, error) {
-		result = &SyncResult{SyncedAt: time.Now().UTC()}
+	var held *LeaseHeldError
+	txErr := e.repo.Transact(ctx, func(ctx context.Context, tx *teamstate.Tx) (teamstate.TxResult, error) {
+		now := time.Now().UTC()
+		held = nil
+		if auto {
+			// The latest state of the team-state: a colleague may have taken
+			// the lease since the clone was read.
+			if lock, err := tx.ReadSyncLock(); err == nil && lock.Held(now) {
+				held = &LeaseHeldError{Member: lock.Member, Until: lock.ExpiresAt.Time()}
+				return teamstate.TxResult{}, held
+			}
+		}
+		result = &SyncResult{SyncedAt: now}
 		fatal, abort = e.reconcileAll(ctx, result)
 		if abort != nil {
 			return teamstate.TxResult{}, abort
 		}
+		e.released = nil
 		e.cleanupDone(ctx, result)
 		e.releaseExpired(ctx, result)
+		if e.cfg.AutoSync && fatal == nil {
+			member := firstNonEmptyStr(e.identity.MemberID, "unknown")
+			if err := tx.WriteSyncLock(teamstate.NewSyncLock(member, now, e.SyncInterval())); err != nil {
+				slog.Warn("tracker.sync.lease_failed", "error", err)
+			}
+		}
 		msg := fmt.Sprintf("sync: %d created, %d updated, %d labels pushed, %d released",
 			result.ClaimsCreated, result.ClaimsUpdated, result.LabelsPushed, result.ClaimsReleased)
 		if result.ClaimsExpired > 0 {
 			msg += fmt.Sprintf(", %d expired", result.ClaimsExpired)
 		}
-		return teamstate.TxResult{Message: msg}, nil
+		return teamstate.TxResult{Message: teamstate.WithReleasedTrailers(msg, e.released)}, nil
 	})
 	if abort != nil {
 		return nil, abort
+	}
+	if held != nil && errors.Is(txErr, held) {
+		return nil, held
 	}
 	if txErr != nil {
 		// Nothing reached the team-state: neither a result nor the sync
 		// state (the timestamps of a run that pushed nothing) is kept.
 		slog.Warn("tracker.sync.push_failed", "error", txErr)
 		return nil, fmt.Errorf("sync engine: %w", txErr)
+	}
+
+	// The refusals of the token, counted once per run (the transaction may
+	// have run its build more than once): a run that got through clears them.
+	switch {
+	case fatal == nil:
+		e.state.ClearTokenFailures(e.breakerKey())
+	case errors.Is(fatal, ErrTokenInvalid):
+		e.state.NoteTokenFailure(e.breakerKey(), e.identity.TokenFingerprint, time.Now().UTC())
 	}
 
 	// Persist the updated sync timestamps.
@@ -258,12 +370,22 @@ func (e *Engine) reconcileAll(ctx context.Context, result *SyncResult) (fatal, a
 
 	trackerType := Type(e.cfg.Type)
 
-	for hubProjectID, trackerProjectID := range e.cfg.Projects { //nolint:staticcheck // backward compat: deprecated field
+	projects := e.cfg.Projects //nolint:staticcheck // backward compat: deprecated field
+	hubProjects := sortedKeys(projects)
+	if err := e.indexClaims(ctx, hubProjects); err != nil {
+		return nil, err
+	}
+
+	for _, hubProjectID := range hubProjects {
+		trackerProjectID := projects[hubProjectID]
 		slog.Debug("tracker.sync.project", "hub_project", hubProjectID, "tracker_project", trackerProjectID)
 		start := time.Now()
 		pr, projectErr := e.reconcileProject(ctx, hubProjectID, trackerProjectID, trackerType, memberByGitLab)
 		pr.Duration = time.Since(start)
 		result.Projects = append(result.Projects, pr)
+		for _, w := range pr.Warnings {
+			result.Warnings = append(result.Warnings, SyncWarning{ProjectID: hubProjectID, Message: w})
+		}
 		result.ClaimsCreated += pr.ClaimsCreated
 		result.ClaimsUpdated += pr.ClaimsUpdated
 		result.LabelsPushed += pr.LabelsPushed
@@ -271,7 +393,6 @@ func (e *Engine) reconcileAll(ctx context.Context, result *SyncResult) (fatal, a
 		if projectErr != nil {
 			// Fatal errors (token invalid, rate limit) abort the entire run.
 			if errors.Is(projectErr, ErrTokenInvalid) {
-				e.consecutiveTokenErrors++
 				return projectErr, nil
 			}
 			if IsRateLimited(projectErr) {
@@ -285,9 +406,58 @@ func (e *Engine) reconcileAll(ctx context.Context, result *SyncResult) (fatal, a
 		e.state.SetLastSync(trackerType, trackerProjectID, result.SyncedAt)
 	}
 
-	// Reset token error counter on a successful run.
-	e.consecutiveTokenErrors = 0
 	return nil, nil
+}
+
+// patternOf is the ticket pattern of a hub project (empty: none).
+func (e *Engine) patternOf(hubProjectID string) string {
+	return e.cfg.TicketPatterns[hubProjectID] //nolint:staticcheck // backward compat: deprecated field
+}
+
+// indexClaims records, for the run, the issue of every existing claim of the
+// hub projects (in the order given: the first project to hold an issue keeps
+// it), so that a claim is created once per issue of the tracker.
+func (e *Engine) indexClaims(ctx context.Context, hubProjects []string) error {
+	e.index = newIssueIndex()
+	for _, hub := range hubProjects {
+		claims, err := e.repo.ListClaims(ctx, hub)
+		if err != nil {
+			return fmt.Errorf("listing claims of %s: %w", hub, err)
+		}
+		trackerProject := e.cfg.Projects[hub] //nolint:staticcheck // backward compat: deprecated field
+		for i := range claims {
+			if iid, ok := claimIID(claims[i].ExternalIID, claims[i].TicketID, e.patternOf(hub)); ok {
+				e.index.note(trackerProject, iid, hub)
+			}
+		}
+	}
+	return nil
+}
+
+// issueClaimed reports whether the issue has a claim already: under the ID
+// the sync would give it, or under any other (the same number, in this hub
+// project or another one linked to the same tracker project).
+func (e *Engine) issueClaimed(claimedTickets map[string]bool, trackerProjectID string, issue *IssueState, ticketID string) bool {
+	return claimedTickets[ticketID] || (issue.IID > 0 && e.index.taken(trackerProjectID, issue.IID))
+}
+
+// removedOnPurpose reports whether the claim of the issue was released on
+// purpose, under the ID the sync gives it or under its bare number (the claims
+// made before the ID followed the pattern).
+func (e *Engine) removedOnPurpose(ctx context.Context, hubProjectID, ticketID string, iid int) bool {
+	if e.repo.ClaimRemovedOnPurpose(ctx, hubProjectID, ticketID) {
+		return true
+	}
+	bare := strconv.Itoa(iid)
+	return iid > 0 && bare != ticketID && e.repo.ClaimRemovedOnPurpose(ctx, hubProjectID, bare)
+}
+
+// noteClaimed records the claim the run creates for the issue.
+func (e *Engine) noteClaimed(hubProjectID, trackerProjectID string, claimedTickets map[string]bool, ticketID string, iid int) {
+	claimedTickets[ticketID] = true
+	if iid > 0 {
+		e.index.note(trackerProjectID, iid, hubProjectID)
+	}
 }
 
 // noteUnknownAssignees remembers the assignees of an issue that match no
@@ -403,15 +573,33 @@ func (e *Engine) releaseExpired(ctx context.Context, result *SyncResult) {
 // forgetKnown takes the claims the run released itself out of the known
 // tickets: they are gone on purpose, not lost.
 func (e *Engine) forgetKnown(released []teamstate.Claim) {
+	e.released = append(e.released, released...)
 	for _, c := range released {
 		e.state.ForgetKnownTicket(c.Project, c.TicketID)
 	}
 }
 
-// ShouldAutoSync reports whether the engine is eligible for an automatic sync.
-// Returns false after 3 consecutive token errors to avoid spamming the UI.
+// breakerKey identifies the token failures of this engine in the sync state:
+// the team and the tracker it syncs.
+func (e *Engine) breakerKey() string {
+	return firstNonEmptyStr(e.identity.TeamID, "-") + "/" + e.cfg.Type
+}
+
+// ShouldAutoSync reports whether an automatic sync may try: false once the
+// server refused the same token three times in a row (the count is kept in the
+// sync state, so that it holds from one run, and one process, to the next). A
+// manual sync always tries; another token, or a run that gets through, lifts
+// the stop.
 func (e *Engine) ShouldAutoSync() bool {
-	return e.consecutiveTokenErrors < 3
+	state := e.state
+	if state == nil {
+		loaded, err := LoadSyncState(e.stateDir)
+		if err != nil {
+			return true
+		}
+		state = loaded
+	}
+	return !state.TokenMuted(e.breakerKey(), e.identity.TokenFingerprint)
 }
 
 // FetchTicketDetail fetches the full title and description of a ticket from the
@@ -595,7 +783,7 @@ func (e *Engine) reconcileProject(
 		if len(issue.Assignees) > 0 {
 			assignee := strings.ToLower(issue.Assignees[0])
 			if m, ok := memberByGitLab[assignee]; ok && m.ID != c.ClaimedBy {
-				pr.ClaimsUpdated++ // counted as a warning-producing update
+				pr.Warnings = append(pr.Warnings, i18n.Tf("v54y.tracker.sync.assignee_changed", c.TicketID, issue.Assignees[0], m.ID, c.ClaimedBy))
 			}
 		}
 		e.noteUnknownAssignees(issue.Assignees, memberByGitLab)
@@ -697,10 +885,10 @@ func (e *Engine) recoverOrphans(
 	// purpose and the next snapshot no longer lists it.
 	var orphans []KnownTicket
 	for _, kt := range known {
-		if claimedTickets[kt.TicketID] {
+		if claimedTickets[kt.TicketID] || (kt.ExternalIID > 0 && e.index.taken(trackerProjectID, kt.ExternalIID)) {
 			continue
 		}
-		if e.repo.ClaimRemovedOnPurpose(ctx, hubProjectID, kt.TicketID) {
+		if e.removedOnPurpose(ctx, hubProjectID, kt.TicketID, kt.ExternalIID) {
 			slog.Debug("tracker.orphan.released", "project", hubProjectID, "ticket", kt.TicketID)
 			continue
 		}
@@ -715,6 +903,12 @@ func (e *Engine) recoverOrphans(
 	// Fetch each orphan individually and recreate the claim
 	var relPaths []string
 	for _, orphan := range orphans {
+		// The member who held it may have left the team since: the claim does
+		// not come back under the name of someone who is not there.
+		if orphan.ClaimedBy != "" && !e.repo.HasMember(ctx, orphan.ClaimedBy) {
+			slog.Debug("tracker.orphan.member_gone", "ticket", orphan.TicketID, "member", orphan.ClaimedBy)
+			continue
+		}
 		issue, err := e.tracker.FetchIssue(ctx, trackerProjectID, orphan.ExternalIID)
 		if err != nil {
 			if errors.Is(err, ErrIssueNotFound) {
@@ -754,7 +948,7 @@ func (e *Engine) recoverOrphans(
 			continue
 		}
 		relPaths = append(relPaths, relPath)
-		claimedTickets[orphan.TicketID] = true
+		e.noteClaimed(hubProjectID, trackerProjectID, claimedTickets, orphan.TicketID, orphan.ExternalIID)
 		pr.ClaimsCreated++
 		slog.Info("tracker.orphan.recovered", "ticket", orphan.TicketID, "status", initialStatus)
 	}
@@ -793,7 +987,8 @@ func (e *Engine) autoplan(
 	// time: an issue assigned long ago and not touched since has never been
 	// seen by a run that did.
 	var lastSync time.Time
-	if !firstSync && e.state.AutoPlanScan(trackerType, trackerProjectID) {
+	fullScan := firstSync || !e.state.AutoPlanScan(trackerType, trackerProjectID)
+	if !fullScan {
 		lastSync = e.state.LastSync(trackerType, trackerProjectID)
 	}
 	slog.Debug("tracker.autoplan.start", "project", hubProjectID, "members", len(memberByGitLab), "first_sync", firstSync)
@@ -825,8 +1020,14 @@ func (e *Engine) autoplan(
 		slog.Debug("tracker.autoplan.member", "username", username, "issues", len(issues))
 
 		for _, issue := range issues {
-			ticketID := ticketIDFromIssue(issue, "")
-			if claimedTickets[ticketID] || issue.IsClosed() {
+			ticketID := ticketIDFromIssue(issue, e.patternOf(hubProjectID))
+			if e.issueClaimed(claimedTickets, trackerProjectID, &issue, ticketID) || issue.IsClosed() {
+				continue
+			}
+			// A claim released on purpose is not made again by the complete
+			// scan; it comes back when the issue is updated on the tracker (the
+			// scans that follow only see what changed since the last sync).
+			if fullScan && e.removedOnPurpose(ctx, hubProjectID, ticketID, issue.IID) {
 				continue
 			}
 			// Use the configurable status mapping instead of always "planned".
@@ -843,7 +1044,7 @@ func (e *Engine) autoplan(
 				TrackerLabels: issue.Labels,
 				ExternalIID:   issue.IID,
 			})
-			claimedTickets[ticketID] = true
+			e.noteClaimed(hubProjectID, trackerProjectID, claimedTickets, ticketID, issue.IID)
 		}
 	}
 	if scanned {
@@ -854,12 +1055,8 @@ func (e *Engine) autoplan(
 		return nil
 	}
 
-	// Batch create: single pull → create all files → single commit+push
-	if err := e.repo.Pull(ctx); err != nil {
-		slog.Warn("tracker.autoplan.pull_failed", "error", err)
-		// Continue anyway — local creates may still succeed
-	}
-
+	// Batch create: all the files, one commit+push (the transaction of the run
+	// pulled when it started).
 	var relPaths []string
 	for i := range pending {
 		relPath, err := e.repo.CreateClaimLocal(pending[i])
@@ -975,7 +1172,7 @@ func (e *Engine) autopoolUnassigned(
 	// issues do not hide the others. Claims released on purpose are skipped by
 	// a scan and are not claims: when they crowd the window, it is widened by
 	// their number and the fetch is made again.
-	window := min(limit+len(claimedTickets), maxPoolWindow)
+	window := min(limit+len(claimedTickets)+e.index.count(trackerProjectID), maxPoolWindow)
 	for {
 		// Fetch issues: use ListIssuesByLabels (all assignees) when labels are
 		// configured, otherwise fall back to ListUnassignedIssues (no assignee only).
@@ -1006,13 +1203,13 @@ func (e *Engine) autopoolUnassigned(
 		pending, more = nil, false
 		released := 0
 		for _, issue := range issues {
-			ticketID := ticketIDFromIssue(issue, e.cfg.TicketPatterns[hubProjectID]) //nolint:staticcheck // backward compat: deprecated field
-			if claimedTickets[ticketID] {
+			ticketID := ticketIDFromIssue(issue, e.patternOf(hubProjectID))
+			if e.issueClaimed(claimedTickets, trackerProjectID, &issue, ticketID) {
 				continue
 			}
 			// A claim released on purpose is not made again by the passes of a
 			// scan; it comes back if the issue is updated on the tracker.
-			if fullScan && e.repo.ClaimRemovedOnPurpose(ctx, hubProjectID, ticketID) {
+			if fullScan && e.removedOnPurpose(ctx, hubProjectID, ticketID, issue.IID) {
 				released++
 				continue
 			}
@@ -1036,7 +1233,7 @@ func (e *Engine) autopoolUnassigned(
 		break
 	}
 	for i := range pending {
-		claimedTickets[pending[i].claim.TicketID] = true
+		e.noteClaimed(hubProjectID, trackerProjectID, claimedTickets, pending[i].claim.TicketID, pending[i].claim.ExternalIID)
 	}
 	covered := !more && !uncertain
 	if fullScan && truncated && !uncertain && !more {
@@ -1062,11 +1259,8 @@ func (e *Engine) autopoolUnassigned(
 		return nil
 	}
 
-	// Batch create: single pull → create all files → single commit+push
-	if err := e.repo.Pull(ctx); err != nil {
-		slog.Warn("tracker.autopool.pull_failed", "error", err)
-	}
-
+	// Batch create: all the files, one commit+push (the transaction of the run
+	// pulled when it started).
 	var relPaths []string
 	createFailed := false
 	for i := range pending {
@@ -1268,15 +1462,6 @@ func resolveIID(ticketID string, storedIID int, pattern string) (int, bool) {
 		return 0, false
 	}
 	return iid, true
-}
-
-// ticketIDFromIssue derives the hub ticket ID from a tracker IssueState.
-// For GitLab: "IID" (e.g. "42"). For Jira: "Key" (e.g. "SRU-42").
-func ticketIDFromIssue(issue IssueState, _ string) string {
-	if issue.Key != "" {
-		return issue.Key
-	}
-	return strconv.Itoa(issue.IID)
 }
 
 // issueState is the state of the issue as the claim records it: "open" or

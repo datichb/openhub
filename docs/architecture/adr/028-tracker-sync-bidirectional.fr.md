@@ -30,7 +30,7 @@ Introduire un package `cli/internal/tracker/` qui :
    - **Auto-plan** : issues assignées à des membres de l'équipe sans claim → claim créé automatiquement dans la colonne que son statut désigne, sans plafond par membre (le membre est borné par la limite de travail en cours `max_in_progress_per_member`, vérifiée là où un ticket est pris ou démarré, jamais par la synchro ; elle remplace l'ancienne `max_auto_plan_per_member`)
 4. Utilise `~/.oh/sync-state.json` (local, absent du git team-state) pour stocker `last_sync_at` par projet — transmis comme `updated_after` aux APIs des trackers pour des récupérations incrémentales
 5. Effectue un seul `CommitAndPush` par cycle de synchronisation (commit groupé) pour minimiser les conditions de concurrence
-6. Est déclenché : à l'ouverture de la vue équipe (si `auto_sync = true`), sur la touche `r`, et via la commande CLI `oh team sync-tracker`
+6. Est déclenché : par le démon toutes les `sync_interval_minutes` et à l'ouverture du board (si `auto_sync = true`, un seul membre par intervalle : voir l'amendement 5.4.0), sur la touche `r`, et via la commande CLI `oh team sync-tracker`
 
 Jira utilise `statusCategory.key` (`"done"` = fermé) plutôt que les noms d'état des issues — cela fonctionne universellement pour les workflows personnalisés.
 
@@ -44,6 +44,15 @@ Le texte ci-dessus laissait lire la synchro comme « le statut du claim = le sta
 - Une synchro dont la poussée vers le team-state échoue renvoie l'erreur et n'enregistre pas `sync-state.json`.
 
 Les champs sont facultatifs dans le TOML d'un claim : un `oh` plus ancien les ignore, un claim d'avant 5.3.3 se lit sans eux.
+
+## Amendement 5.4.0 : la synchronisation automatique, un membre par intervalle
+
+Jusqu'à la 5.3, `auto_sync` et `sync_interval_minutes` étaient lus pour l'affichage seulement : la promesse du point 6 n'était pas tenue. Elle l'est depuis la 5.4.0 :
+
+- **Le démon** de chaque membre a une tâche `tracker-sync` qui regarde chaque minute les équipes dont `auto_sync` est activé et lance `Engine.RunAuto` quand l'intervalle de l'équipe est écoulé ; le board lance la même synchro à son ouverture. Une synchro demandée (`Engine.Run`) reste immédiate.
+- **Élection par bail.** Les membres ont chacun leur démon, un seul synchronise par intervalle. La synchro écrit `sync.lock` à la racine du team-state (`member`, `acquired_at`, `expires_at` = maintenant + l'intervalle) **dans son propre commit**. `RunAuto` lit le bail (d'abord dans le clone, sans réseau, puis dans la transaction, après le pull) : bail en cours → `LeaseHeldError`, rien n'est écrit. Deux membres qui partent ensemble sont départagés par le push : le second voit son push refusé, rejoue la transaction et trouve le bail du premier. Un bail expiré est repris par la première synchro qui passe (le membre disparu ne bloque pas plus d'un intervalle). Le bail n'est pris que par une synchro qui est allée au bout (pas de jeton refusé) et seulement si `auto_sync` est activé. Une synchro demandée prend le bail sans l'attendre.
+- **Coupe-circuit.** Trois refus (HTTP 401) du même jeton en suivant arrêtent la synchro automatique ; le compte est dans `sync-state.json` (donc d'un processus à l'autre) avec l'empreinte du jeton, et un autre jeton le remet à zéro. Un 403 est une erreur du projet de tracker, pas du jeton.
+- **Les claims.** Seuls les projets de l'équipe sont liés à son tracker ; une issue a un seul claim par projet de tracker ; l'identifiant suit `ticket_pattern` ; les libérations faites par la synchro elle-même (nettoyage des claims faits, expirés) sont nommées dans le corps de son commit (`Released-claim:`) pour que ni une autre machine ni l'auto-plan ne les recréent.
 
 ## Alternatives Considérées
 

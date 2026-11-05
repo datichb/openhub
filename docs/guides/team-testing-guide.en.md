@@ -941,7 +941,8 @@ Legend:
 
 | Error | Behavior |
 |-------|----------|
-| Invalid token | 3 consecutive failures → `ShouldAutoSync() = false` |
+| Invalid token (401) | 3 consecutive refusals of the same token → the automatic sync stops (`ShouldAutoSync() = false`, count kept in `sync-state.json`) until another token |
+| Access refused (403) | Error of the tracker project: reported, the other projects are synchronized |
 | Rate limited | Stops all projects immediately |
 | Issue not found | Ignored (deleted on tracker) |
 | Error on one project | Log + continue with next project |

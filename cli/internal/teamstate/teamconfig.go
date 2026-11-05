@@ -253,7 +253,7 @@ func DefaultBoardConfig() BoardConfig {
 		Columns: []BoardColumnConfig{
 			{ID: "todo", Name: "TODO", Role: ColumnRoleInitial},
 			{ID: "in_progress", Name: "IN PROGRESS", Role: ColumnRoleActive},
-			{ID: "review", Name: "REVIEW", Role: ColumnRoleActive},
+			{ID: "review", Name: "REVIEW", Role: ColumnRoleReview},
 			{ID: "validation", Name: "VALIDATION", Role: ColumnRoleActive},
 			{ID: "done", Name: "DONE", Role: ColumnRoleTerminal},
 			{ID: "blocked", Name: "BLOCKED", Role: ColumnRoleBlocked},
@@ -583,10 +583,12 @@ type TrackerConfig struct {
 	// used for the server it is declared for; without this declaration the
 	// key is never sent to a server.
 	TrackerTokenURL string `toml:"tracker_token_url,omitempty"`
-	// AutoSync triggers a sync automatically when team views are opened.
+	// AutoSync turns the automatic tracker sync on: the daemon of a member
+	// synchronizes every SyncIntervalMinutes (a lease in sync.lock makes one
+	// member do it per interval) and the board synchronizes when it opens.
 	AutoSync bool `toml:"auto_sync"`
-	// SyncIntervalMinutes is the polling interval when the board is open.
-	// 0 means no timer-based sync (rely on view open / manual only).
+	// SyncIntervalMinutes is the interval of the automatic sync and the length
+	// of its lease (5 when auto_sync is on and it is not set).
 	SyncIntervalMinutes int `toml:"sync_interval_minutes"`
 	// AutoPlanAssigned automatically creates "planned" claims for tracker issues
 	// that are assigned to a team member but not yet claimed.

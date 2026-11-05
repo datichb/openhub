@@ -941,7 +941,8 @@ Légende:
 
 | Erreur | Comportement |
 |--------|-------------|
-| Token invalide | 3 échecs consécutifs → `ShouldAutoSync() = false` |
+| Token invalide (401) | 3 refus consécutifs du même jeton → la synchro automatique s'arrête (`ShouldAutoSync() = false`, compte gardé dans `sync-state.json`) jusqu'à un autre jeton |
+| Accès refusé (403) | Erreur du projet de tracker : signalée, les autres projets sont synchronisés |
 | Rate limited | Stop tous les projets immédiatement |
 | Issue not found | Ignore (supprimée sur tracker) |
 | Erreur sur un projet | Log + continue avec le projet suivant |

@@ -6439,5 +6439,12 @@
   "v54r.project.set_team.solo_not_cloned": "L'espace solo %s n'a pas de dossier local : il ne peut pas recevoir de projet.",
   "v54r.project.add.team_needs_name": "--team va avec --name : le formulaire interactif demande l'équipe.",
   "v54r.project.add.flag_team": "Équipe à laquelle rattacher le projet (identifiant)",
-  "v54r.team.wizard_summary": "%[1]d équipe(s) — premier choix : %[2]s (membre : %[3]s)"
+  "v54r.team.wizard_summary": "%[1]d équipe(s) — premier choix : %[2]s (membre : %[3]s)",
+  "v54y.tracker.token.forbidden": "le serveur %s a refusé l'accès (HTTP %d) : le jeton est connu mais n'a pas le droit d'accéder à cette ressource — source : %s. Vérifiez sa portée (api, read_api) et votre rôle dans le projet ; le jeton n'est pas à remplacer.",
+  "v54y.tracker.token.forbidden_unknown": "le serveur %s a refusé l'accès (HTTP %d) : le jeton est connu mais n'a pas le droit d'accéder à cette ressource. Vérifiez sa portée (api, read_api) et votre rôle dans le projet ; le jeton n'est pas à remplacer.",
+  "v54y.tracker.sync.assignee_changed": "ticket %[1]s : assigné à %[2]s sur le tracker (membre %[3]s), mais réservé par %[4]s — la réservation n'est pas changée (oh team claim transfer)",
+  "v54y.sync.summary": "Synchro du tracker : %d créées, %d mises à jour, %d libérées, %d avertissement(s)",
+  "v54y.teamboard.no_status_move": "Aucun déplacement possible depuis cette colonne (transitions du board).",
+  "v54y.team.status.reserve": "(réserve)",
+  "v54y.team.status.gone": "%s (n'est plus dans l'équipe)"
 }

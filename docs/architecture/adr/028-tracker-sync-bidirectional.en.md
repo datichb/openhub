@@ -30,7 +30,7 @@ Introduce a `cli/internal/tracker/` package that:
    - **Auto-plan**: issues assigned to team members without a claim → claim created automatically in the column its status maps to, with no cap per member (the member is bounded by the work-in-progress limit `max_in_progress_per_member`, checked where a ticket is taken or started, never by the sync; it replaces the former `max_auto_plan_per_member`)
 4. Uses `~/.oh/sync-state.json` (local, not in team-state git) to store `last_sync_at` per project — passed as `updated_after` to tracker APIs for incremental fetches
 5. Performs a single `CommitAndPush` per sync run (batch commit) to minimize race conditions
-6. Is triggered: on team view open (if `auto_sync = true`), on `r` key, and via `oh team sync-tracker` CLI command
+6. Is triggered: by the daemon every `sync_interval_minutes` and when the board opens (if `auto_sync = true`, one member per interval: see the 5.4.0 amendment), on `r` key, and via `oh team sync-tracker` CLI command
 
 Jira uses `statusCategory.key` (`"done"` = closed) instead of issue state names — this works universally across custom workflows.
 
@@ -44,6 +44,15 @@ The text above could be read as "the status of the claim = the mapped status of 
 - A sync whose push to the team-state fails returns the error and does not record `sync-state.json`.
 
 The fields are optional in the TOML of a claim: an older `oh` ignores them, a claim from before 5.3.3 reads without them.
+
+## Amendment 5.4.0: automatic sync, one member per interval
+
+Until 5.3, `auto_sync` and `sync_interval_minutes` were read for display only: the promise of point 6 was not kept. Since 5.4.0 it is:
+
+- **The daemon** of each member has a `tracker-sync` task that looks every minute at the teams with `auto_sync` on and calls `Engine.RunAuto` when the interval of the team has passed; the board starts the same sync when it opens. A requested sync (`Engine.Run`) stays immediate.
+- **Election by lease.** Members each have a daemon, only one synchronizes per interval. The sync writes `sync.lock` at the root of the team-state (`member`, `acquired_at`, `expires_at` = now + the interval) **in its own commit**. `RunAuto` reads the lease (first in the clone, without network, then in the transaction, after the pull): lease running → `LeaseHeldError`, nothing is written. Two members who start together are told apart by the push: the second one's push is rejected, it runs the transaction again and finds the lease of the first. An expired lease is taken over by the first sync that comes (a member who disappears blocks nobody for more than an interval). The lease is taken only by a sync that went through (token not refused) and only if `auto_sync` is on. A requested sync takes the lease without waiting for it.
+- **Circuit breaker.** Three refusals (HTTP 401) of the same token in a row stop the automatic sync; the count is in `sync-state.json` (so it holds from one process to the next) with the fingerprint of the token, and another token resets it. A 403 is an error of the tracker project, not of the token.
+- **Claims.** Only the projects of the team are linked to its tracker; an issue has one claim per tracker project; the ID follows `ticket_pattern`; the releases made by the sync itself (clean-up of done and expired claims) are named in the body of its commit (`Released-claim:`) so that neither another machine nor the auto-plan makes them again.
 
 ## Alternatives Considered
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
@@ -78,9 +79,13 @@ func (s *Service) TrackerEngine(ctx context.Context, project *domain.Project) (*
 type SyncOptions struct {
 	// Project selects the team (nil: the hub team).
 	Project *domain.Project
-	// Pull updates the local team-state before the sync (a failing pull is
-	// ignored: the local content is used).
-	Pull bool
+	// Auto is the automatic sync (daemon, opening of the board) and not a
+	// request of the user: it fails with tracker.ErrAutoSyncDisabled when the
+	// team did not turn auto_sync on, tracker.ErrAutoSyncMuted when the
+	// server refused the token three times in a row and a
+	// *tracker.LeaseHeldError when another sync holds the lease of this
+	// interval (one member synchronizes per interval).
+	Auto bool
 	// OnRun, if set, is called when the sync is about to start with the
 	// tracker type; the function it returns is called when the sync is over
 	// (progress display).
@@ -98,17 +103,30 @@ func (s *Service) SyncTracker(ctx context.Context, opts SyncOptions) (*tracker.S
 	if len(b.projects) == 0 {
 		return nil, ErrNoProjects
 	}
-	if opts.Pull {
-		if err := b.repo.Pull(ctx); err != nil {
-			slog.Debug("team.sync_tracker.pull_failed", "error", err)
-		}
-	}
 	if opts.OnRun != nil {
 		if done := opts.OnRun(b.trackerType); done != nil {
 			defer done()
 		}
 	}
+	if opts.Auto {
+		return b.engine.RunAuto(ctx)
+	}
 	return b.engine.Run(ctx)
+}
+
+// TeamSyncInterval is the interval of the automatic sync of the team of
+// project, and whether it is on: auto_sync of the team config or of hub.toml,
+// with the tracker enabled. It reads the clone, not the network.
+func (s *Service) TeamSyncInterval(ctx context.Context, project *domain.Project) (interval time.Duration, on bool, err error) {
+	set, err := s.loadTracker(ctx, project)
+	if err != nil {
+		return 0, false, err
+	}
+	interval = time.Duration(set.eff.SyncIntervalMinutes) * time.Minute
+	if interval <= 0 {
+		interval = tracker.DefaultSyncInterval
+	}
+	return interval, set.eff.AutoSync, nil
 }
 
 // trackerSetup is what the tracker of the team of project is built from: the
@@ -184,7 +202,8 @@ func (s *Service) build(ctx context.Context, project *domain.Project) (*built, e
 		return nil, &TrackerInitError{Err: err}
 	}
 
-	projects, patterns := s.trackerProjects(ctx, eff)
+	tc := s.ResolveTeam(project)
+	projects, patterns := s.trackerProjects(ctx, eff, tc)
 	slog.Debug("team.tracker_engine.ready", "type", eff.Type, "projects", len(projects))
 
 	hubDir := s.HubDir
@@ -192,10 +211,10 @@ func (s *Service) build(ctx context.Context, project *domain.Project) (*built, e
 		hubDir = config.HubDir()
 	}
 	engine := tracker.NewEngine(t, repo, engineConfig(eff, projects, patterns), hubDir)
-	tc := s.ResolveTeam(project)
 	engine.SetIdentity(tracker.Identity{
 		TeamID: tc.TeamID, MemberID: tc.MemberID,
-		CrossServer: crossServer(trackerBaseURL(eff), s.TeamRepoServer(project)),
+		CrossServer:      crossServer(trackerBaseURL(eff), s.TeamRepoServer(project)),
+		TokenFingerprint: tracker.TokenFingerprint(creds.Token),
 	})
 	return &built{
 		engine:      engine,
@@ -251,10 +270,12 @@ func engineConfig(eff tracker.EffectiveTrackerConfig, projects, patterns map[str
 }
 
 // trackerProjects builds the Projects and TicketPatterns maps of the engine
-// from the hub projects. For each active project it resolves the tracker
-// project and the ticket pattern with the cascade project override, then
-// team default, then the old maps (which win when they have entries).
-func (s *Service) trackerProjects(ctx context.Context, eff tracker.EffectiveTrackerConfig) (projects, patterns map[string]string) {
+// from the hub projects of the team tc (a project of another team, or of no
+// team, has its claims in another team-state, or in none). For each of them it
+// resolves the tracker project and the ticket pattern with the cascade
+// project override, then team default, then the old maps (which win when they
+// have entries).
+func (s *Service) trackerProjects(ctx context.Context, eff tracker.EffectiveTrackerConfig, tc config.ResolvedTeamConfig) (projects, patterns map[string]string) {
 	projects = eff.Projects
 	if projects == nil {
 		projects = make(map[string]string)
@@ -282,6 +303,9 @@ func (s *Service) trackerProjects(ctx context.Context, eff tracker.EffectiveTrac
 		return projects, patterns
 	}
 	for _, p := range all {
+		if !s.belongsTo(&p, tc) {
+			continue
+		}
 		trackerProject := eff.TrackerProject
 		if p.TrackerConfig != nil && p.TrackerConfig.TrackerProject != "" {
 			trackerProject = p.TrackerConfig.TrackerProject
@@ -298,4 +322,19 @@ func (s *Service) trackerProjects(ctx context.Context, eff tracker.EffectiveTrac
 	}
 	slog.Debug("team.tracker_projects", "count", len(projects), "projects", projects)
 	return projects, patterns
+}
+
+// belongsTo reports whether the hub project is one of the team tc: it is
+// attached to it (team_id, or the legacy team override that points to the same
+// team-state). A project of no team is a solo project: its tickets are not
+// the team's.
+func (s *Service) belongsTo(p *domain.Project, tc config.ResolvedTeamConfig) bool {
+	r := config.ResolveTeamForProject(s.Config, p)
+	if !r.Enabled || r.Solo {
+		return false
+	}
+	if r.TeamID != "" && tc.TeamID != "" {
+		return r.TeamID == tc.TeamID
+	}
+	return r.StateRepo == tc.StateRepo
 }

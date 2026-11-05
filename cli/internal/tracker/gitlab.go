@@ -64,6 +64,11 @@ func (g glIssue) toIssueState() IssueState {
 	}
 }
 
+// gitLabMaxPerPage is the size of the pages of the lists: the most GitLab
+// gives (a project of a few hundred issues takes a few requests, not dozens,
+// and the rate limit counts requests).
+const gitLabMaxPerPage = 100
+
 // ── Tracker interface ─────────────────────────────────────────────────────────
 
 func (c *gitLabClient) FetchIssue(ctx context.Context, projectID string, iid int) (*IssueState, error) {
@@ -87,7 +92,7 @@ func (c *gitLabClient) ListAssignedIssues(ctx context.Context, projectID string,
 	if !opts.UpdatedAfter.IsZero() {
 		q.Set("updated_after", opts.UpdatedAfter.UTC().Format(time.RFC3339))
 	}
-	perPage := 20
+	perPage := gitLabMaxPerPage
 	if opts.MaxResults > 0 && opts.MaxResults < perPage {
 		perPage = opts.MaxResults
 	}
@@ -121,7 +126,7 @@ func (c *gitLabClient) listIssuesWithAnyLabel(ctx context.Context, projectID str
 	if !updatedAfter.IsZero() {
 		q.Set("updated_after", updatedAfter.UTC().Format(time.RFC3339))
 	}
-	perPage := 20
+	perPage := gitLabMaxPerPage
 	if maxResults > 0 && maxResults < perPage {
 		perPage = maxResults
 	}

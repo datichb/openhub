@@ -224,8 +224,18 @@ func IsRateLimited(err error) bool {
 	return errors.As(err, &e)
 }
 
-// ErrTokenInvalid is returned on HTTP 401 / 403 from the tracker.
+// ErrTokenInvalid is returned on HTTP 401 from the tracker: the token is
+// refused, no request with it can succeed.
 var ErrTokenInvalid = errors.New("tracker authentication failed — token invalide ou expiré. Reconfigurer : oh secrets set <token_key> <new-token>")
+
+// ErrAccessDenied is returned on HTTP 403 from the tracker: the token is
+// known, but it has no right on that resource (a project it is not a member
+// of, a missing scope). It concerns the resource, not the token: the other
+// projects may answer.
+var ErrAccessDenied = errors.New("tracker access denied — the token has no right on this resource")
+
+// IsAccessDenied reports whether err is a refusal of access (HTTP 403).
+func IsAccessDenied(err error) bool { return errors.Is(err, ErrAccessDenied) }
 
 // New returns a Tracker implementation for the given config.
 func New(cfg Config) (Tracker, error) {

@@ -113,3 +113,95 @@ func TestReviewVerdictUnknownClaim(t *testing.T) {
 	require.True(t, isErr)
 	assert.Contains(t, text, "Claim not found")
 }
+
+// The verdict is one transaction: status, label and event in one commit, and
+// the actor of the event is the member of the session, not a fixed name.
+func TestReviewVerdictIsOneCommitSignedByTheMember(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	stateDir := setupHandlerWriteTest(t)
+	seedClaim(t, stateDir, "SRU-3", "in_progress")
+	before := gittest.Run(t, stateDir, "rev-list", "--count", "HEAD")
+
+	text, isErr := verdict(t, "SRU-3", "approved")
+	require.False(t, isErr, text)
+
+	after := gittest.Run(t, stateDir, "rev-list", "--count", "HEAD")
+	assert.Equal(t, mustInt(before)+1, mustInt(after), "one commit for the status (through review), the label and the event")
+	assert.Equal(t, gittest.Run(t, stateDir, "rev-parse", "HEAD"), gittest.Run(t, stateDir, "rev-parse", "origin/main"), "pushed")
+	assert.Contains(t, gittest.Run(t, stateDir, "log", "-1", "--format=%s"), "verdict: approved myproject/SRU-3")
+
+	events, err := os.ReadDir(filepath.Join(stateDir, "projects", "myproject", "events"))
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	data, err := os.ReadFile(filepath.Join(stateDir, "projects", "myproject", "events", events[0].Name()))
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"actor":"benjamin"`)
+	assert.NotContains(t, string(data), "orchestrator-dev")
+}
+
+// A failed transition leaves nothing: no label, no event, no commit.
+func TestReviewVerdictFailureLeavesNoEvent(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	stateDir := setupHandlerWriteTest(t)
+	seedClaim(t, stateDir, "SRU-4", "blocked")
+	head := gittest.Run(t, stateDir, "rev-parse", "HEAD")
+
+	_, isErr := verdict(t, "SRU-4", "approved")
+	require.True(t, isErr)
+	assert.Equal(t, head, gittest.Run(t, stateDir, "rev-parse", "HEAD"))
+	_, err := os.Stat(filepath.Join(stateDir, "projects", "myproject", "events"))
+	assert.True(t, os.IsNotExist(err), "no event")
+}
+
+// On a board of the team's own the verdict uses its columns: an approval ends
+// in the terminal column, a rejection goes back to the first column of work.
+func TestReviewVerdictUsesTheColumnsOfTheBoard(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	stateDir := setupHandlerWriteTest(t)
+	board := `
+[notification]
+enabled = false
+
+[[board.columns]]
+id = "backlog"
+name = "Backlog"
+role = "initial"
+
+[[board.columns]]
+id = "dev"
+name = "Dev"
+role = "active"
+
+[[board.columns]]
+id = "shipped"
+name = "Shipped"
+role = "terminal"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(stateDir, "config.toml"), []byte(board), 0o644))
+	gittest.Run(t, stateDir, "add", ".")
+	gittest.Run(t, stateDir, "commit", "-m", "board")
+	gittest.Run(t, stateDir, "push")
+	seedClaim(t, stateDir, "SRU-5", "dev")
+	seedClaim(t, stateDir, "SRU-6", "shipped")
+
+	text, isErr := verdict(t, "SRU-5", "approved")
+	require.False(t, isErr, text)
+	assert.Equal(t, "shipped", readClaim(t, stateDir, "SRU-5").Status)
+	assert.Contains(t, text, "Claim status → shipped")
+
+	text, isErr = verdict(t, "SRU-6", "rejected")
+	require.False(t, isErr, text)
+	assert.Equal(t, "dev", readClaim(t, stateDir, "SRU-6").Status)
+}
+
+func mustInt(s string) int {
+	var n int
+	_, _ = fmt.Sscanf(s, "%d", &n)
+	return n
+}

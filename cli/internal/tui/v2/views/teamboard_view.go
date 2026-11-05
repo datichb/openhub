@@ -2,7 +2,9 @@ package views
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"sort"
 	"strings"
@@ -46,10 +48,25 @@ type TeamBoardViewConfig struct {
 	// Called asynchronously on Mount and on 'r' keypress before RefreshFunc.
 	// If nil, no pull is attempted by the board (behaviour unchanged from before).
 	SyncFunc func() error
-	// TrackerSyncFunc performs a full tracker API sync (GitLab/Jira).
+	// TrackerSyncFunc performs a full tracker API sync (GitLab/Jira) and
+	// returns a one-line summary of it, which the board shows in a toast.
 	// Called on manual refresh ('r' key) BEFORE SyncFunc+RefreshFunc, but NOT
-	// on the auto-refresh timer. If nil, only git pull + local refresh is performed.
-	TrackerSyncFunc func() error
+	// on the auto-refresh timer. It returns ErrNoTracker when the team has no
+	// tracker to synchronize (not configured, disabled, no project linked): r
+	// is then the pull alone, without a failure. If nil, only git pull +
+	// local refresh is performed.
+	TrackerSyncFunc func() (string, error)
+	// PullRate is how often the board pulls the team-state by itself, to show
+	// the changes of the colleagues (the pull is quiet: no toast, and it
+	// leaves a clone that is busy alone). 0: a minute; negative: never. The
+	// timer RefreshRate only reads the local clone.
+	PullRate time.Duration
+	// OpenSyncFunc is the automatic tracker sync, run in the background when
+	// the board opens (once the pull is done): it returns a one-line summary of
+	// what the sync did ("" when it did nothing: auto_sync off, the lease of
+	// another member's sync, no tracker). An error is shown once per mount (a
+	// toast), then silent. If nil, the board does not synchronize by itself.
+	OpenSyncFunc func() (string, error)
 	// BoardConfig holds the team's custom board column layout.
 	// When empty (no custom columns), DefaultColumns() is used.
 	BoardConfig teamstate.BoardConfig
@@ -83,6 +100,13 @@ type TeamBoardViewConfig struct {
 	// If nil, the 'a' key quick-action feature is disabled.
 	QuickActions *BoardQuickActions
 }
+
+// ErrNoTracker is what a TrackerSyncFunc answers when the team has no tracker
+// to synchronize: the r key then only pulls the team-state.
+var ErrNoTracker = errors.New("team board: no tracker to synchronize")
+
+// defaultBoardPullRate is PullRate when it is not set.
+const defaultBoardPullRate = time.Minute
 
 // BoardLayout is the layout of the board of the team: its columns and the
 // labels that put a ticket in one of them.
@@ -153,6 +177,9 @@ type TeamBoardView struct {
 	// Stores a map[string]BeadsSummary keyed by external ref (e.g. "gitlab-693").
 	beadsSummary atomic.Value // holds map[string]BeadsSummary
 
+	openSyncs    loadSlot // the automatic sync of the opening of the board
+	trackerSyncs loadSlot // the tracker sync of the r key
+	pulls        loadSlot // the periodic pull
 	loaded       bool     // the tickets were read at least once since the mount
 	configured   bool     // the team-state is resolved (else the empty state says so)
 	loads        loadSlot // the reads of the tickets: only the latest is applied
@@ -277,9 +304,13 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 		// Async pull on entry so the board starts with fresh data.
 		syncFuncAsync(v.app, v.cfg.SyncFunc, v.shell, func(_ error) {
 			v.reload(nil)
+			v.syncOnOpen()
 		})
 		if app != nil {
 			everyOnLoop(shellContext(v.shell), app, rate, v.done, v.refreshIfIdle)
+			if pull := v.pullRate(); pull > 0 && v.cfg.SyncFunc != nil {
+				everyOnLoop(shellContext(v.shell), app, pull, v.done, v.pullIfIdle)
+			}
 		}
 	}
 
@@ -290,6 +321,34 @@ func (v *TeamBoardView) Mount(content *tview.Flex, app *tview.Application) {
 			everyOnLoop(shellContext(v.shell), app, 30*time.Second, v.done, v.loadSummary)
 		}
 	}
+}
+
+// syncOnOpen is the automatic tracker sync of the opening of the board
+// (OpenSyncFunc), off the event loop: the board reads its tickets again when
+// it did something, and says so in a toast. A failure is told once per mount.
+func (v *TeamBoardView) syncOnOpen() {
+	openSync := v.cfg.OpenSyncFunc
+	if openSync == nil || v.app == nil {
+		return
+	}
+	load(v.app, shellContext(v.shell), &v.openSyncs, func(context.Context) (string, error) {
+		return openSync()
+	}, func(summary string, err error) {
+		if v.columnCards == nil {
+			return // unmounted meanwhile
+		}
+		switch {
+		case err != nil:
+			if v.shell != nil {
+				v.shell.ShowToastMsg(i18n.T("tui.team.sync.error_prefix")+err.Error(), false)
+			}
+		case summary != "":
+			if v.shell != nil {
+				v.shell.ShowToastMsg(summary, true)
+			}
+			v.reload(nil)
+		}
+	})
 }
 
 // setColumns replaces the columns of the board: one card column each, the
@@ -361,6 +420,9 @@ func (v *TeamBoardView) Unmount() {
 	v.loads.Invalidate()
 	v.summaryReads.Invalidate()
 	v.detailReads.Invalidate()
+	v.openSyncs.Invalidate()
+	v.trackerSyncs.Invalidate()
+	v.pulls.Invalidate()
 	v.actionInProgress.Store(false)
 	v.once.Do(func() {
 		if v.done != nil {
@@ -410,22 +472,81 @@ func (v *TeamBoardView) HandleKey(event *tcell.EventKey) *tcell.EventKey {
 	return nil
 }
 
-// manualRefresh is r: tracker sync (API), git pull, then a new read of the
-// tickets. TrackerSyncFunc may be nil (no tracker configured).
+// manualRefresh is r: tracker sync (API) when the team has a tracker, git
+// pull, then a new read of the tickets. The sync says what it did in a toast;
+// a team without tracker only pulls, without a failure.
 func (v *TeamBoardView) manualRefresh() {
 	if v.cfg.RefreshFunc == nil || v.actionInProgress.Load() {
 		return
 	}
 	v.actionInProgress.Store(true)
-	trackerSync := v.cfg.TrackerSyncFunc
-	if trackerSync == nil {
-		trackerSync = func() error { return nil }
-	}
-	syncFuncAsync(v.app, trackerSync, v.shell, func(_ error) {
+	v.syncTracker(func() {
 		// Git pull to fetch our tracker-sync commits + colleagues' changes.
 		syncFuncAsync(v.app, v.cfg.SyncFunc, v.shell, func(_ error) {
 			v.reload(func() { v.actionInProgress.Store(false) })
 		})
+	})
+}
+
+// syncTracker runs TrackerSyncFunc off the event loop, then done (on the
+// loop). The toast says the sync is on its way (it takes seconds, and minutes
+// on a big project), then what it did or why it failed.
+func (v *TeamBoardView) syncTracker(done func()) {
+	trackerSync := v.cfg.TrackerSyncFunc
+	if trackerSync == nil || v.app == nil {
+		done()
+		return
+	}
+	if v.shell != nil {
+		v.shell.ShowToastMsg(i18n.T("tui.team.sync.in_progress"), true)
+	}
+	load(v.app, shellContext(v.shell), &v.trackerSyncs, func(context.Context) (string, error) {
+		return trackerSync()
+	}, func(summary string, err error) {
+		switch {
+		case errors.Is(err, ErrNoTracker):
+		case err != nil:
+			if v.shell != nil {
+				v.shell.ShowToastMsg(i18n.T("tui.team.sync.error_prefix")+err.Error(), false)
+			}
+		case summary != "":
+			if v.shell != nil {
+				v.shell.ShowToastMsg(summary, true)
+			}
+		}
+		done()
+	})
+}
+
+// pullRate is how often the board pulls by itself.
+func (v *TeamBoardView) pullRate() time.Duration {
+	switch rate := v.cfg.PullRate; {
+	case rate < 0:
+		return 0
+	case rate == 0:
+		return defaultBoardPullRate
+	default:
+		return rate
+	}
+}
+
+// pullIfIdle is the timer's pull: the changes of the colleagues come to a board
+// that stays open. It is quiet (a clone that is busy, or a remote that cannot
+// be reached, is not worth a toast every minute) and, like the refresh, leaves
+// the board alone while an action is on its way.
+func (v *TeamBoardView) pullIfIdle() {
+	pull := v.cfg.SyncFunc
+	if pull == nil || v.actionInProgress.Load() {
+		return
+	}
+	load(v.app, shellContext(v.shell), &v.pulls, func(context.Context) (struct{}, error) {
+		return struct{}{}, pull()
+	}, func(_ struct{}, err error) {
+		if err != nil && !teamstate.IsPullWarning(err) {
+			slog.Debug("team board: periodic pull failed", "error", err)
+			return
+		}
+		v.reload(nil)
 	})
 }
 
@@ -1257,6 +1378,27 @@ func (v *TeamBoardView) transferTicket() {
 	})
 }
 
+// statusMoves are the columns a claim in status from may be moved to: those
+// whose status stands for a status of the board (the TODO column of the default
+// board is the status planned) other than its own, and that the team-state
+// accepts as a transition from it (teamstate.IsValidBoardTransition).
+func (v *TeamBoardView) statusMoves(from string) []SelectOption {
+	board := v.cfg.BoardConfig
+	here, _, _ := board.ResolveStatus(from)
+	if here == teamstate.ClaimStatusPlanned {
+		here = board.InitialStatus() // the legacy status of the initial column
+	}
+	var out []SelectOption
+	for _, col := range v.allColumns {
+		to, _, ok := board.ResolveStatus(col.Status)
+		if !ok || to == here || to == from || !teamstate.IsValidBoardTransition(from, to) {
+			continue
+		}
+		out = append(out, SelectOption{Label: col.Name, Value: col.Status})
+	}
+	return out
+}
+
 func (v *TeamBoardView) changeStatus() {
 	if v.actions == nil || v.actions.OnStatus == nil || v.shell == nil {
 		return
@@ -1269,16 +1411,18 @@ func (v *TeamBoardView) changeStatus() {
 		return
 	}
 
-	statusOptions := make([]SelectOption, len(v.allColumns))
-	for i, col := range v.allColumns {
-		statusOptions[i] = SelectOption{Label: col.Name, Value: col.Status}
-	}
-
-	// Pre-select the ticket's current status so the user sees it highlighted.
+	// Only the columns the card may move to: the transitions between the
+	// statuses of the board that the team-state refuses are not offered.
 	currentStatus := ""
 	if ticket, ok := v.selectedTeamTicket(); ok {
 		currentStatus = ticket.Status
 	}
+	statusOptions := v.statusMoves(currentStatus)
+	if len(statusOptions) == 0 {
+		v.shell.ShowToastMsg(i18n.T("v54y.teamboard.no_status_move"), false)
+		return
+	}
+	currentStatus = "" // the current column is not offered
 
 	v.shell.ShowSelectModal(i18n.Tf("tui.teamboard.status_title", card.ticket), statusOptions, currentStatus, func(newStatus string) {
 		if v.actionInProgress.Swap(true) {

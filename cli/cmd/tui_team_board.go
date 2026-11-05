@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/safego"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/tracker"
 	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
@@ -144,23 +145,31 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 			}
 			return err
 		},
-		TrackerSyncFunc: func() error {
-			// Full tracker API sync (GitLab/Jira) — called on manual 'r' key only.
-			// Recover guard: runSyncTrackerForTUI may panic if app state is
-			// partially initialized (e.g. Projects store not loaded yet).
-			var err error
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						err = fmt.Errorf(i18n.T("cmd.tui_team_board.tracker_sync_panic"), r)
-						safego.LogRecovered("tracker_sync.panic", r)
-					}
-				}()
-				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-				defer cancel()
-				_, err = runSyncTrackerForTUI(a, ctx)
+		TrackerSyncFunc: func() (summary string, err error) {
+			// Full tracker API sync (GitLab/Jira) — called on the manual 'r'
+			// key only. Recover guard: it may panic if app state is partially
+			// initialized (e.g. Projects store not loaded yet).
+			defer func() {
+				if r := recover(); r != nil {
+					summary, err = "", fmt.Errorf(i18n.T("cmd.tui_team_board.tracker_sync_panic"), r)
+					safego.LogRecovered("tracker_sync.panic", r)
+				}
 			}()
-			return err
+			// No deadline of its own: the engine bounds the run (tracker.RunTimeout).
+			return syncTrackerForBoard(a, tuiContext())
+		},
+		OpenSyncFunc: func() (summary string, err error) {
+			// Same guard as the manual sync: a panic of a half-initialized app
+			// must not take the board down.
+			defer func() {
+				if r := recover(); r != nil {
+					summary, err = "", fmt.Errorf(i18n.T("cmd.tui_team_board.tracker_sync_panic"), r)
+					safego.LogRecovered("tracker_sync.panic", r)
+				}
+			}()
+			ctx, cancel := context.WithTimeout(tuiContext(), tracker.RunTimeout)
+			defer cancel()
+			return autoSyncForTUI(a, ctx)
 		},
 		Actions: &views.BoardActions{
 			Members: func() []views.SelectOption {
@@ -217,11 +226,12 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				// and oh team claim renews it.
 				//
 				// Try creating a new claim first.
+				workStatus := layout.Load().Board.DefaultWorkStatus()
 				_, err := repo.CreateClaim(ctx, teamstate.Claim{
 					TicketID:  ticketID,
 					Project:   projectID,
 					ClaimedBy: memberID,
-					Status:    teamstate.ClaimStatusInProgress,
+					Status:    workStatus,
 				})
 				if err == nil {
 					return nil // new claim created
@@ -240,7 +250,6 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				}
 
 				// Pool ticket: claim it for ourselves.
-				workStatus := layout.Load().Board.DefaultWorkStatus()
 				if poolErr := repo.ClaimPoolTicket(ctx, projectID, ticketID, memberID, workStatus); poolErr != nil {
 					return poolErr
 				}
@@ -295,14 +304,21 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				projectID := boardProjectID(a, cardProject)
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
+				// The column the card is dropped on stands for a status of the
+				// board (the TODO column of the default board is the status
+				// planned): the team-state knows the statuses, not the columns.
+				status, _, known := layout.Load().Board.ResolveStatus(newStatus)
+				if !known {
+					return fmt.Errorf("%w: %q", teamstate.ErrInvalidStatus, newStatus)
+				}
 				// A card of the member moved to a column of work in progress is one
 				// more ticket in progress.
 				if c, gerr := repo.GetClaim(ctx, projectID, ticketID); gerr == nil {
-					if err := checkStatusMoveRoom(ctx, repo, a.Config.Tracker, boardMember(), c, newStatus); err != nil {
+					if err := checkStatusMoveRoom(ctx, repo, a.Config.Tracker, boardMember(), c, status); err != nil {
 						return err
 					}
 				}
-				return repo.UpdateClaimStatus(ctx, projectID, ticketID, newStatus)
+				return repo.UpdateClaimStatus(ctx, projectID, ticketID, status)
 			},
 		},
 		QuickActions: buildBoardQuickActions(a),

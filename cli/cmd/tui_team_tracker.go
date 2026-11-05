@@ -65,7 +65,7 @@ func actionSyncTracker() {
 // The rules (team, enabled = false, credentials) are those of the team
 // service, like the command line; only the messages differ.
 func runSyncTrackerForTUI(a *app.App, ctx context.Context) (*views.SyncTrackerResult, error) {
-	syncResult, err := teamService(a).SyncTracker(ctx, teamsvc.SyncOptions{Pull: true})
+	syncResult, err := teamService(a).SyncTracker(ctx, teamsvc.SyncOptions{})
 	if err != nil {
 		return nil, syncTrackerTUIError(err)
 	}

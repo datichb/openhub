@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"sync"
 	"time"
 
@@ -320,6 +321,7 @@ var (
 type store interface {
 	teamstate.RepoInfo
 	teamstate.RepoSync
+	teamstate.BoardStatusSetter
 	teamstate.MemberReader
 	teamstate.ClaimReader
 	teamstate.ClaimWriter
@@ -740,12 +742,25 @@ func handleTeamTakeoverBrief(ctx context.Context, params json.RawMessage) (*prot
 
 // ── Review verdict handler ──────────────────────────────────────────────────
 
-// applyVerdictStatus moves the claim to the status a verdict leads to. An
-// approval of a claim still in progress goes through review before done:
-// in_progress → done is not an allowed transition. A claim already at the
-// target is left as it is. On a board without a review column, the approval
-// is applied directly, as the tracker sync does.
-func applyVerdictStatus(ctx context.Context, repo verdictStore, project, ticketID, target string) error {
+// verdictTarget is the status of the board a verdict leads to: an approval
+// finishes the claim (the first terminal column of the board), a rejection puts
+// it back to work (the first column of work). On the default board they are
+// done and in_progress.
+func verdictTarget(board teamstate.BoardConfig, approved bool) string {
+	if approved {
+		return board.TerminalStatuses()[0]
+	}
+	return board.DefaultWorkStatus()
+}
+
+// applyVerdictStatus moves the claim to the status a verdict leads to, within
+// the transaction of ctx. The transitions the board allows are used as they
+// are. An approval of a claim still at work goes through the review column
+// when the board has one and the transition to done is not allowed (in_progress
+// → done is not on the default board). A claim already at the target is left
+// as it is. On a board without a review column, the approval is applied
+// directly, as the tracker sync does.
+func applyVerdictStatus(ctx context.Context, repo verdictStore, board teamstate.BoardConfig, project, ticketID, target string) error {
 	claim, err := repo.GetClaim(ctx, project, ticketID)
 	if err != nil {
 		return err
@@ -753,16 +768,25 @@ func applyVerdictStatus(ctx context.Context, repo verdictStore, project, ticketI
 	if claim.Status == target {
 		return nil
 	}
-	if target == teamstate.ClaimStatusDone && claim.Status == teamstate.ClaimStatusInProgress {
-		err := repo.UpdateClaimStatus(ctx, project, ticketID, teamstate.ClaimStatusReview)
-		if errors.Is(err, teamstate.ErrInvalidStatus) {
-			return repo.UpdateClaimStatusFromTracker(ctx, project, ticketID, target)
+	if teamstate.IsValidBoardTransition(claim.Status, target) {
+		return repo.UpdateClaimStatus(ctx, project, ticketID, target)
+	}
+	if !slices.Contains(board.TerminalStatuses(), target) || claim.Status != board.DefaultWorkStatus() {
+		return repo.UpdateClaimStatus(ctx, project, ticketID, target) // refused, with the reason
+	}
+	for _, review := range board.ReviewStatuses() {
+		if !slices.Contains(board.AllStatuses(), review) {
+			continue
 		}
-		if err != nil {
-			return err
+		if teamstate.IsValidBoardTransition(claim.Status, review) && teamstate.IsValidBoardTransition(review, target) {
+			if err := repo.UpdateClaimStatus(ctx, project, ticketID, review); err != nil {
+				return err
+			}
+			return repo.UpdateClaimStatus(ctx, project, ticketID, target)
 		}
 	}
-	return repo.UpdateClaimStatus(ctx, project, ticketID, target)
+	// No review column on this board: the approval is applied directly.
+	return repo.UpdateClaimStatusFromTracker(ctx, project, ticketID, target)
 }
 
 func handleTeamReviewVerdict(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
@@ -793,50 +817,25 @@ func handleTeamReviewVerdict(ctx context.Context, params json.RawMessage) (*prot
 		return nil, err
 	}
 
-	// ── 1. Determine event type and target status ──
-	var eventType, targetStatus string
-	switch args.Verdict {
-	case "approved":
+	// ── 1. The board of the team gives the statuses; the member is the actor ──
+	var board teamstate.BoardConfig
+	if teamCfg, cfgErr := repo.LoadConfig(ctx); cfgErr == nil && teamCfg != nil {
+		board = teamCfg.Board
+	}
+	repo.SetBoardStatuses(board.AllStatuses())
+	actor := "unknown"
+	if team, terr := loadEffectiveTeamConfig(); terr == nil && team.MemberID != "" {
+		actor = team.MemberID
+	}
+
+	// ── 2. Event type and target status ──
+	approved := args.Verdict == "approved"
+	eventType := teamstate.EventReviewRejected
+	if approved {
 		eventType = teamstate.EventReviewApproved
-		targetStatus = teamstate.ClaimStatusDone
-	case "rejected":
-		eventType = teamstate.EventReviewRejected
-		targetStatus = teamstate.ClaimStatusInProgress
 	}
+	targetStatus := verdictTarget(board, approved)
 
-	// ── 2. Transition claim status ──
-	// A failed transition is reported: the verdict is neither recorded nor
-	// labelled over a claim left in the wrong column. Re-sending the verdict
-	// after a partial failure is safe (a claim already at the target is kept).
-	if err := applyVerdictStatus(ctx, repo, args.Project, args.TicketID, targetStatus); err != nil {
-		if errors.Is(err, teamstate.ErrClaimNotFound) {
-			return &protocol.ToolResult{
-				Content: []protocol.ContentBlock{{
-					Type: "text",
-					Text: fmt.Sprintf("Claim not found for ticket %q in project %q.", args.TicketID, args.Project),
-				}},
-				IsError: true,
-			}, nil
-		}
-		slog.Warn("teamstate.verdict.status_failed", "ticket", args.TicketID, "target", targetStatus, "error", err)
-		return &protocol.ToolResult{
-			Content: []protocol.ContentBlock{{
-				Type: "text",
-				Text: fmt.Sprintf("Verdict '%s' not recorded for %s/%s: claim status transition to %q failed: %s", args.Verdict, args.Project, args.TicketID, targetStatus, err),
-			}},
-			IsError: true,
-		}, nil
-	}
-	statusMsg := fmt.Sprintf(" Claim status → %s.", targetStatus)
-
-	// ── 3. Add agent-reviewed label on approval ──
-	if args.Verdict == "approved" {
-		if err := repo.AddClaimLabel(ctx, args.Project, args.TicketID, teamstate.LabelAgentReviewed); err != nil {
-			slog.Warn("teamstate.verdict.label_failed", "ticket", args.TicketID, "error", err)
-		}
-	}
-
-	// ── 4. Emit event ──
 	data := make(map[string]interface{})
 	if args.Reason != "" {
 		data["reason"] = args.Reason
@@ -847,19 +846,54 @@ func handleTeamReviewVerdict(ctx context.Context, params json.RawMessage) (*prot
 	if args.Cycle > 0 {
 		data["cycle"] = int(args.Cycle)
 	}
-
 	event := teamstate.Event{
-		Actor:   "orchestrator-dev",
+		Actor:   actor,
 		Type:    eventType,
 		Project: args.Project,
 		Ticket:  args.TicketID,
 		Data:    data,
 	}
-	if err := repo.AppendEvent(ctx, event); err != nil {
-		slog.Warn("teamstate.verdict.event_failed", "ticket", args.TicketID, "error", err)
-	}
 
-	// ── 5. Best-effort notification ──
+	// ── 3. Status, label and event: one transaction, one commit, one push ──
+	// A failure of any step leaves nothing: the verdict is neither recorded
+	// nor labelled over a claim left in the wrong column. Sending the verdict
+	// again after a failure is safe (a claim already at the target is kept).
+	err = repo.Transact(ctx, func(ctx context.Context, _ *teamstate.Tx) (teamstate.TxResult, error) {
+		if err := applyVerdictStatus(ctx, repo, board, args.Project, args.TicketID, targetStatus); err != nil {
+			return teamstate.TxResult{}, err
+		}
+		if approved {
+			if err := repo.AddClaimLabel(ctx, args.Project, args.TicketID, teamstate.LabelAgentReviewed); err != nil {
+				return teamstate.TxResult{}, fmt.Errorf("adding the %s label: %w", teamstate.LabelAgentReviewed, err)
+			}
+		}
+		if err := repo.AppendEvent(ctx, event); err != nil {
+			return teamstate.TxResult{}, fmt.Errorf("recording the event: %w", err)
+		}
+		return teamstate.TxResult{Message: fmt.Sprintf("verdict: %s %s/%s → %s", args.Verdict, args.Project, args.TicketID, targetStatus)}, nil
+	})
+	if err != nil {
+		if errors.Is(err, teamstate.ErrClaimNotFound) {
+			return &protocol.ToolResult{
+				Content: []protocol.ContentBlock{{
+					Type: "text",
+					Text: fmt.Sprintf("Claim not found for ticket %q in project %q.", args.TicketID, args.Project),
+				}},
+				IsError: true,
+			}, nil
+		}
+		slog.Warn("teamstate.verdict.failed", "ticket", args.TicketID, "target", targetStatus, "error", err)
+		return &protocol.ToolResult{
+			Content: []protocol.ContentBlock{{
+				Type: "text",
+				Text: fmt.Sprintf("Verdict '%s' not recorded for %s/%s: claim status transition to %q failed: %s", args.Verdict, args.Project, args.TicketID, targetStatus, err),
+			}},
+			IsError: true,
+		}, nil
+	}
+	statusMsg := fmt.Sprintf(" Claim status → %s.", targetStatus)
+
+	// ── 4. Best-effort notification ──
 	if teamCfg, cfgErr := repo.LoadConfig(ctx); cfgErr == nil {
 		d := notify.NewDispatcher(teamCfg)
 		_ = d.Dispatch(ctx, event)

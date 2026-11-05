@@ -3,6 +3,7 @@ package views
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -30,9 +31,11 @@ type TeamStatusView struct {
 
 // teamStatusData is what a read of the team-state gives back.
 type teamStatusData struct {
-	members    []teamstate.Member
-	claims     []teamstate.Claim
-	events     []teamstate.Event
+	members []teamstate.Member
+	claims  []teamstate.Claim
+	events  []teamstate.Event
+	// board is the board of the team (the default one when it has no config).
+	board      teamstate.BoardConfig
 	membersErr error
 	claimsErr  error
 	eventsErr  error
@@ -46,6 +49,7 @@ type teamStatusReader interface {
 	teamstate.MemberReader
 	teamstate.ClaimReader
 	teamstate.EventReader
+	teamstate.ConfigReader
 }
 
 var _ View = (*TeamStatusView)(nil)
@@ -149,6 +153,9 @@ func readTeamStatus(ctx context.Context, repo teamStatusReader) *teamStatusData 
 	d.members, d.membersErr = repo.ListMembers(ctx)
 	d.claims, d.claimsErr = repo.ListClaims(ctx, "")
 	d.events, d.eventsErr = repo.ListEventsLimited(ctx, "", 5)
+	if cfg, err := repo.LoadConfig(ctx); err == nil && cfg != nil {
+		d.board = cfg.Board
+	}
 	return &d
 }
 
@@ -229,27 +236,12 @@ func (v *TeamStatusView) render(tc TeamResolution, d *teamStatusData) {
 		sb.WriteString("\n")
 	}
 
-	// --- Status summary ---
-	statusCounts := make(map[string]int)
-	for _, c := range d.claims {
-		statusCounts[c.Status]++
-	}
+	// --- Status summary: the columns of the board of the team ---
 	if len(d.claims) > 0 {
 		fmt.Fprintf(&sb, "  %s%s%s\n\n  ", bold, i18n.T("tui.teamstatus.summary_header"), plain)
-		statuses := []struct {
-			key   string
-			label string
-		}{
-			{teamstate.ClaimStatusPlanned, i18n.T("tui.teamstatus.status_planned")},
-			{teamstate.ClaimStatusInProgress, i18n.T("tui.teamstatus.status_in_progress")},
-			{teamstate.ClaimStatusReview, i18n.T("tui.teamstatus.status_review")},
-			{teamstate.ClaimStatusValidation, i18n.T("tui.teamstatus.status_validation")},
-			{teamstate.ClaimStatusBlocked, i18n.T("tui.teamstatus.status_blocked")},
-			{teamstate.ClaimStatusDone, i18n.T("tui.teamstatus.status_done")},
-		}
 		var parts []string
-		for _, s := range statuses {
-			parts = append(parts, fmt.Sprintf("%s %d %s", theme.IconDot, statusCounts[s.key], s.label))
+		for _, s := range teamStatusSummary(d.board, d.claims) {
+			parts = append(parts, fmt.Sprintf("%s %d %s", theme.IconDot, s.Count, tview.Escape(s.Label)))
 		}
 		sb.WriteString(strings.Join(parts, "  "))
 		sb.WriteString("\n\n")
@@ -271,4 +263,58 @@ func (v *TeamStatusView) render(tc TeamResolution, d *teamStatusData) {
 	}
 
 	v.tv.SetText(sb.String())
+}
+
+// statusCount is a status of the board with the number of claims in it.
+type statusCount struct {
+	Label string
+	Count int
+}
+
+// teamStatusSummary counts the claims by status, in the order of the columns of
+// the board and under their names. The default board (no columns configured)
+// has its six statuses and their usual names. A claim in a status the board
+// does not have (a column removed since) is counted after the others under its
+// own name; the legacy status planned is the initial column.
+func teamStatusSummary(board teamstate.BoardConfig, claims []teamstate.Claim) []statusCount {
+	type column struct{ id, label string }
+	var cols []column
+	if board.HasCustomColumns() {
+		for _, c := range board.Columns {
+			cols = append(cols, column{c.ID, c.Name})
+		}
+	} else {
+		for _, s := range []struct{ id, key string }{
+			{teamstate.ClaimStatusPlanned, "tui.teamstatus.status_planned"},
+			{teamstate.ClaimStatusInProgress, "tui.teamstatus.status_in_progress"},
+			{teamstate.ClaimStatusReview, "tui.teamstatus.status_review"},
+			{teamstate.ClaimStatusValidation, "tui.teamstatus.status_validation"},
+			{teamstate.ClaimStatusBlocked, "tui.teamstatus.status_blocked"},
+			{teamstate.ClaimStatusDone, "tui.teamstatus.status_done"},
+		} {
+			cols = append(cols, column{s.id, i18n.T(s.key)})
+		}
+	}
+	counts := make(map[string]int, len(claims))
+	for _, c := range claims {
+		status := c.Status
+		if status == teamstate.ClaimStatusPlanned {
+			status = board.InitialStatus()
+		}
+		counts[status]++
+	}
+	out := make([]statusCount, 0, len(cols))
+	for _, c := range cols {
+		out = append(out, statusCount{c.label, counts[c.id]})
+		delete(counts, c.id)
+	}
+	rest := make([]string, 0, len(counts))
+	for status := range counts {
+		rest = append(rest, status)
+	}
+	sort.Strings(rest)
+	for _, status := range rest {
+		out = append(out, statusCount{status, counts[status]})
+	}
+	return out
 }

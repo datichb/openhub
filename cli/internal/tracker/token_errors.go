@@ -3,6 +3,7 @@ package tracker
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/datichb/openhub/cli/internal/config"
@@ -121,9 +122,10 @@ func IsMissingToken(err error) bool {
 	return errors.As(err, &e)
 }
 
-// TokenRejectedError is a refusal of the token by the server (HTTP 401 or
-// 403). It names the source of the token, its key and the server, so that the
-// user knows which token to replace. It matches ErrTokenInvalid.
+// TokenRejectedError is a refusal by the server (HTTP 401 or 403). It names the
+// source of the token, its key and the server, so that the user knows which
+// token is concerned. A 401 (the token is refused) matches ErrTokenInvalid, a
+// 403 (the token has no right on the resource) matches ErrAccessDenied.
 type TokenRejectedError struct {
 	Origin TokenOrigin
 	// Status is the HTTP status of the refusal.
@@ -131,6 +133,12 @@ type TokenRejectedError struct {
 }
 
 func (e *TokenRejectedError) Error() string {
+	if e.Status == http.StatusForbidden {
+		if e.Origin.Source == TokenSourceNone && e.Origin.Key == "" {
+			return i18n.Tf("v54y.tracker.token.forbidden_unknown", displayServer(e.Origin.Server), e.Status)
+		}
+		return i18n.Tf("v54y.tracker.token.forbidden", displayServer(e.Origin.Server), e.Status, e.Origin.Describe())
+	}
 	if e.Origin.Source == TokenSourceNone && e.Origin.Key == "" {
 		return i18n.Tf("tracker.token.rejected_unknown", displayServer(e.Origin.Server), e.Status)
 	}
@@ -146,8 +154,14 @@ func (c Config) rejected(status int) error {
 	return &TokenRejectedError{Origin: o, Status: status}
 }
 
-// Is makes the error match ErrTokenInvalid, which the sync engine tests.
-func (e *TokenRejectedError) Is(target error) bool { return target == ErrTokenInvalid }
+// Is makes the error match ErrTokenInvalid (HTTP 401, which stops the sync of
+// every project) or ErrAccessDenied (HTTP 403, which concerns one resource).
+func (e *TokenRejectedError) Is(target error) bool {
+	if e.Status == http.StatusForbidden {
+		return target == ErrAccessDenied
+	}
+	return target == ErrTokenInvalid
+}
 
 // refreshHint is the command that replaces the rejected token.
 func refreshHint(o TokenOrigin) string {
