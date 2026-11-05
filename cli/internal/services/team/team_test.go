@@ -215,7 +215,9 @@ func (e *trackerEnv) writeTrackerAt(t *testing.T, url string) {
 	require.NoError(t, os.WriteFile(filepath.Join(e.repo.Path(), "config.toml"), []byte("[tracker]\n"+e.trackerTOMLAt(url, "")), 0o644))
 }
 
-func linkedProjects() fakeProjects { return fakeProjects{{ID: "p1", Name: "app"}} }
+func linkedProjects() fakeProjects {
+	return fakeProjects{{ID: "p1", Name: "app", TeamID: strPtr("core")}}
+}
 
 func TestTrackerEngineTypedErrors(t *testing.T) {
 	t.Run("no team", func(t *testing.T) {
@@ -325,7 +327,7 @@ func TestSyncTrackerProjectOverrideAndTeamOfTheProject(t *testing.T) {
 	e := newTrackerEnv(t, "")
 	e.writeTracker(t, "")
 	e.cfg.Teams = append(e.cfg.Teams, config.TeamConfig{ID: "ops", Enabled: true, StateRepo: "git@h:acme/ops.git", StatePath: filepath.Join(t.TempDir(), "missing")})
-	svc := e.service(fakeProjects{{ID: "p1", TrackerConfig: &domain.ProjectTrackerConfig{TrackerProject: "acme/other"}}}, fakeSecrets{config.TeamGitLabTokenKey("core"): "tok"})
+	svc := e.service(fakeProjects{{ID: "p1", TeamID: strPtr("core"), TrackerConfig: &domain.ProjectTrackerConfig{TrackerProject: "acme/other"}}}, fakeSecrets{config.TeamGitLabTokenKey("core"): "tok"})
 
 	res, err := svc.SyncTracker(t.Context(), SyncOptions{})
 	require.NoError(t, err)
@@ -339,6 +341,32 @@ func TestSyncTrackerProjectOverrideAndTeamOfTheProject(t *testing.T) {
 	res, err = svc.SyncTracker(t.Context(), SyncOptions{Project: &domain.Project{ID: "x"}})
 	require.NoError(t, err)
 	assert.NotNil(t, res)
+}
+
+// Only the projects of the team are linked to its tracker: a project of
+// another team, a solo project and a project of no team have their claims in
+// another team-state, or in none.
+func TestSyncTrackerLinksOnlyTheProjectsOfTheTeam(t *testing.T) {
+	e := newTrackerEnv(t, "")
+	e.writeTracker(t, "")
+	e.cfg.Teams = append(e.cfg.Teams,
+		config.TeamConfig{ID: "ops", Enabled: true, StateRepo: "git@h:acme/ops.git", StatePath: filepath.Join(t.TempDir(), "ops")},
+		config.TeamConfig{ID: "solo", Enabled: true, Solo: true, StateRepo: "git@h:me/solo.git", StatePath: filepath.Join(t.TempDir(), "solo")})
+	projects := fakeProjects{
+		{ID: "mine", TeamID: strPtr("core")},
+		{ID: "theirs", TeamID: strPtr("ops")},
+		{ID: "private", TeamID: strPtr("solo")},
+		{ID: "orphan"},
+		{ID: "legacy", TeamConfig: &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeInherit}},
+		{ID: "ghost", TeamID: strPtr("nowhere")},
+	}
+	res, err := e.service(projects, fakeSecrets{config.TeamGitLabTokenKey("core"): "tok"}).SyncTracker(t.Context(), SyncOptions{})
+	require.NoError(t, err)
+	var linked []string
+	for _, p := range res.Projects {
+		linked = append(linked, p.ProjectID)
+	}
+	assert.ElementsMatch(t, []string{"mine", "legacy"}, linked)
 }
 
 func TestTrackerOf(t *testing.T) {

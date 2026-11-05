@@ -184,7 +184,8 @@ func (s *Service) build(ctx context.Context, project *domain.Project) (*built, e
 		return nil, &TrackerInitError{Err: err}
 	}
 
-	projects, patterns := s.trackerProjects(ctx, eff)
+	tc := s.ResolveTeam(project)
+	projects, patterns := s.trackerProjects(ctx, eff, tc)
 	slog.Debug("team.tracker_engine.ready", "type", eff.Type, "projects", len(projects))
 
 	hubDir := s.HubDir
@@ -192,7 +193,6 @@ func (s *Service) build(ctx context.Context, project *domain.Project) (*built, e
 		hubDir = config.HubDir()
 	}
 	engine := tracker.NewEngine(t, repo, engineConfig(eff, projects, patterns), hubDir)
-	tc := s.ResolveTeam(project)
 	engine.SetIdentity(tracker.Identity{
 		TeamID: tc.TeamID, MemberID: tc.MemberID,
 		CrossServer: crossServer(trackerBaseURL(eff), s.TeamRepoServer(project)),
@@ -251,10 +251,12 @@ func engineConfig(eff tracker.EffectiveTrackerConfig, projects, patterns map[str
 }
 
 // trackerProjects builds the Projects and TicketPatterns maps of the engine
-// from the hub projects. For each active project it resolves the tracker
-// project and the ticket pattern with the cascade project override, then
-// team default, then the old maps (which win when they have entries).
-func (s *Service) trackerProjects(ctx context.Context, eff tracker.EffectiveTrackerConfig) (projects, patterns map[string]string) {
+// from the hub projects of the team tc (a project of another team, or of no
+// team, has its claims in another team-state, or in none). For each of them it
+// resolves the tracker project and the ticket pattern with the cascade
+// project override, then team default, then the old maps (which win when they
+// have entries).
+func (s *Service) trackerProjects(ctx context.Context, eff tracker.EffectiveTrackerConfig, tc config.ResolvedTeamConfig) (projects, patterns map[string]string) {
 	projects = eff.Projects
 	if projects == nil {
 		projects = make(map[string]string)
@@ -282,6 +284,9 @@ func (s *Service) trackerProjects(ctx context.Context, eff tracker.EffectiveTrac
 		return projects, patterns
 	}
 	for _, p := range all {
+		if !s.belongsTo(&p, tc) {
+			continue
+		}
 		trackerProject := eff.TrackerProject
 		if p.TrackerConfig != nil && p.TrackerConfig.TrackerProject != "" {
 			trackerProject = p.TrackerConfig.TrackerProject
@@ -298,4 +303,19 @@ func (s *Service) trackerProjects(ctx context.Context, eff tracker.EffectiveTrac
 	}
 	slog.Debug("team.tracker_projects", "count", len(projects), "projects", projects)
 	return projects, patterns
+}
+
+// belongsTo reports whether the hub project is one of the team tc: it is
+// attached to it (team_id, or the legacy team override that points to the same
+// team-state). A project of no team is a solo project: its tickets are not
+// the team's.
+func (s *Service) belongsTo(p *domain.Project, tc config.ResolvedTeamConfig) bool {
+	r := config.ResolveTeamForProject(s.Config, p)
+	if !r.Enabled || r.Solo {
+		return false
+	}
+	if r.TeamID != "" && tc.TeamID != "" {
+		return r.TeamID == tc.TeamID
+	}
+	return r.StateRepo == tc.StateRepo
 }

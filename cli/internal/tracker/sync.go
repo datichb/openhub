@@ -116,6 +116,9 @@ type Engine struct {
 	// member (lower case → name as the tracker writes it).
 	identity Identity
 	unknown  map[string]string
+	// index says which hub project holds the claim of each issue of the
+	// tracker, for the run in progress.
+	index *issueIndex
 }
 
 // Identity says who runs the sync, to warn when their tracker name is missing.
@@ -258,7 +261,14 @@ func (e *Engine) reconcileAll(ctx context.Context, result *SyncResult) (fatal, a
 
 	trackerType := Type(e.cfg.Type)
 
-	for hubProjectID, trackerProjectID := range e.cfg.Projects { //nolint:staticcheck // backward compat: deprecated field
+	projects := e.cfg.Projects //nolint:staticcheck // backward compat: deprecated field
+	hubProjects := sortedKeys(projects)
+	if err := e.indexClaims(ctx, hubProjects); err != nil {
+		return nil, err
+	}
+
+	for _, hubProjectID := range hubProjects {
+		trackerProjectID := projects[hubProjectID]
 		slog.Debug("tracker.sync.project", "hub_project", hubProjectID, "tracker_project", trackerProjectID)
 		start := time.Now()
 		pr, projectErr := e.reconcileProject(ctx, hubProjectID, trackerProjectID, trackerType, memberByGitLab)
@@ -288,6 +298,57 @@ func (e *Engine) reconcileAll(ctx context.Context, result *SyncResult) (fatal, a
 	// Reset token error counter on a successful run.
 	e.consecutiveTokenErrors = 0
 	return nil, nil
+}
+
+// patternOf is the ticket pattern of a hub project (empty: none).
+func (e *Engine) patternOf(hubProjectID string) string {
+	return e.cfg.TicketPatterns[hubProjectID] //nolint:staticcheck // backward compat: deprecated field
+}
+
+// indexClaims records, for the run, the issue of every existing claim of the
+// hub projects (in the order given: the first project to hold an issue keeps
+// it), so that a claim is created once per issue of the tracker.
+func (e *Engine) indexClaims(ctx context.Context, hubProjects []string) error {
+	e.index = newIssueIndex()
+	for _, hub := range hubProjects {
+		claims, err := e.repo.ListClaims(ctx, hub)
+		if err != nil {
+			return fmt.Errorf("listing claims of %s: %w", hub, err)
+		}
+		trackerProject := e.cfg.Projects[hub] //nolint:staticcheck // backward compat: deprecated field
+		for i := range claims {
+			if iid, ok := claimIID(claims[i].ExternalIID, claims[i].TicketID, e.patternOf(hub)); ok {
+				e.index.note(trackerProject, iid, hub)
+			}
+		}
+	}
+	return nil
+}
+
+// issueClaimed reports whether the issue has a claim already: under the ID
+// the sync would give it, or under any other (the same number, in this hub
+// project or another one linked to the same tracker project).
+func (e *Engine) issueClaimed(claimedTickets map[string]bool, trackerProjectID string, issue *IssueState, ticketID string) bool {
+	return claimedTickets[ticketID] || (issue.IID > 0 && e.index.taken(trackerProjectID, issue.IID))
+}
+
+// removedOnPurpose reports whether the claim of the issue was released on
+// purpose, under the ID the sync gives it or under its bare number (the claims
+// made before the ID followed the pattern).
+func (e *Engine) removedOnPurpose(ctx context.Context, hubProjectID, ticketID string, iid int) bool {
+	if e.repo.ClaimRemovedOnPurpose(ctx, hubProjectID, ticketID) {
+		return true
+	}
+	bare := strconv.Itoa(iid)
+	return iid > 0 && bare != ticketID && e.repo.ClaimRemovedOnPurpose(ctx, hubProjectID, bare)
+}
+
+// noteClaimed records the claim the run creates for the issue.
+func (e *Engine) noteClaimed(hubProjectID, trackerProjectID string, claimedTickets map[string]bool, ticketID string, iid int) {
+	claimedTickets[ticketID] = true
+	if iid > 0 {
+		e.index.note(trackerProjectID, iid, hubProjectID)
+	}
 }
 
 // noteUnknownAssignees remembers the assignees of an issue that match no
@@ -697,10 +758,10 @@ func (e *Engine) recoverOrphans(
 	// purpose and the next snapshot no longer lists it.
 	var orphans []KnownTicket
 	for _, kt := range known {
-		if claimedTickets[kt.TicketID] {
+		if claimedTickets[kt.TicketID] || (kt.ExternalIID > 0 && e.index.taken(trackerProjectID, kt.ExternalIID)) {
 			continue
 		}
-		if e.repo.ClaimRemovedOnPurpose(ctx, hubProjectID, kt.TicketID) {
+		if e.removedOnPurpose(ctx, hubProjectID, kt.TicketID, kt.ExternalIID) {
 			slog.Debug("tracker.orphan.released", "project", hubProjectID, "ticket", kt.TicketID)
 			continue
 		}
@@ -754,7 +815,7 @@ func (e *Engine) recoverOrphans(
 			continue
 		}
 		relPaths = append(relPaths, relPath)
-		claimedTickets[orphan.TicketID] = true
+		e.noteClaimed(hubProjectID, trackerProjectID, claimedTickets, orphan.TicketID, orphan.ExternalIID)
 		pr.ClaimsCreated++
 		slog.Info("tracker.orphan.recovered", "ticket", orphan.TicketID, "status", initialStatus)
 	}
@@ -825,8 +886,8 @@ func (e *Engine) autoplan(
 		slog.Debug("tracker.autoplan.member", "username", username, "issues", len(issues))
 
 		for _, issue := range issues {
-			ticketID := ticketIDFromIssue(issue, "")
-			if claimedTickets[ticketID] || issue.IsClosed() {
+			ticketID := ticketIDFromIssue(issue, e.patternOf(hubProjectID))
+			if e.issueClaimed(claimedTickets, trackerProjectID, &issue, ticketID) || issue.IsClosed() {
 				continue
 			}
 			// Use the configurable status mapping instead of always "planned".
@@ -843,7 +904,7 @@ func (e *Engine) autoplan(
 				TrackerLabels: issue.Labels,
 				ExternalIID:   issue.IID,
 			})
-			claimedTickets[ticketID] = true
+			e.noteClaimed(hubProjectID, trackerProjectID, claimedTickets, ticketID, issue.IID)
 		}
 	}
 	if scanned {
@@ -975,7 +1036,7 @@ func (e *Engine) autopoolUnassigned(
 	// issues do not hide the others. Claims released on purpose are skipped by
 	// a scan and are not claims: when they crowd the window, it is widened by
 	// their number and the fetch is made again.
-	window := min(limit+len(claimedTickets), maxPoolWindow)
+	window := min(limit+len(claimedTickets)+e.index.count(trackerProjectID), maxPoolWindow)
 	for {
 		// Fetch issues: use ListIssuesByLabels (all assignees) when labels are
 		// configured, otherwise fall back to ListUnassignedIssues (no assignee only).
@@ -1006,13 +1067,13 @@ func (e *Engine) autopoolUnassigned(
 		pending, more = nil, false
 		released := 0
 		for _, issue := range issues {
-			ticketID := ticketIDFromIssue(issue, e.cfg.TicketPatterns[hubProjectID]) //nolint:staticcheck // backward compat: deprecated field
-			if claimedTickets[ticketID] {
+			ticketID := ticketIDFromIssue(issue, e.patternOf(hubProjectID))
+			if e.issueClaimed(claimedTickets, trackerProjectID, &issue, ticketID) {
 				continue
 			}
 			// A claim released on purpose is not made again by the passes of a
 			// scan; it comes back if the issue is updated on the tracker.
-			if fullScan && e.repo.ClaimRemovedOnPurpose(ctx, hubProjectID, ticketID) {
+			if fullScan && e.removedOnPurpose(ctx, hubProjectID, ticketID, issue.IID) {
 				released++
 				continue
 			}
@@ -1036,7 +1097,7 @@ func (e *Engine) autopoolUnassigned(
 		break
 	}
 	for i := range pending {
-		claimedTickets[pending[i].claim.TicketID] = true
+		e.noteClaimed(hubProjectID, trackerProjectID, claimedTickets, pending[i].claim.TicketID, pending[i].claim.ExternalIID)
 	}
 	covered := !more && !uncertain
 	if fullScan && truncated && !uncertain && !more {
@@ -1268,15 +1329,6 @@ func resolveIID(ticketID string, storedIID int, pattern string) (int, bool) {
 		return 0, false
 	}
 	return iid, true
-}
-
-// ticketIDFromIssue derives the hub ticket ID from a tracker IssueState.
-// For GitLab: "IID" (e.g. "42"). For Jira: "Key" (e.g. "SRU-42").
-func ticketIDFromIssue(issue IssueState, _ string) string {
-	if issue.Key != "" {
-		return issue.Key
-	}
-	return strconv.Itoa(issue.IID)
 }
 
 // issueState is the state of the issue as the claim records it: "open" or
