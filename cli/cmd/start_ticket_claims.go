@@ -17,13 +17,16 @@ import (
 // claimed in the team-state for the active member, or its claim moves from
 // the initial / planned status to the work status. Nil without a team.
 func startTicketClaims(a *app.App, project *domain.Project) func(ctx context.Context, projectID string, tickets []string) []string {
-	if project == nil || !teamEnabledForProject(a, project) || a.Config.ActiveTeam().MemberID == "" {
+	if project == nil {
 		return nil
 	}
 	tc := resolvedTeamConfig(a, project)
+	if !tc.Enabled || tc.MemberID == "" {
+		return nil
+	}
 	statePath := tc.StatePath
 	repo := teamstate.NewRepo(tc.StateRepo, statePath)
-	member := a.Config.ActiveTeam().MemberID
+	member := tc.MemberID
 	return func(ctx context.Context, projectID string, tickets []string) []string {
 		if !repo.IsCloned() {
 			return nil

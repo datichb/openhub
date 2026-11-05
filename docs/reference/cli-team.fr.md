@@ -6,6 +6,24 @@ Les fonctions d'équipe reposent sur un dépôt git **team-state** partage (clai
 
 ## Collaboration (oh team)
 
+### Quelle équipe ? (`--team`)
+
+Toutes les commandes `oh team …` (et `oh claim`, `oh release`, `oh policies`, `oh patterns`, `oh takeover-brief`…) agissent sur **une** équipe, choisie par la même règle, de la plus précise à la moins précise :
+
+1. `--team <id>` (flag persistant de `oh team`) : l'équipe nommée ; un identifiant inconnu est une erreur, une équipe archivée est refusée avec le renvoi vers `oh teams restore` ;
+2. l'équipe choisie dans la TUI (mode Équipe, ou équipe ouverte depuis la liste) ;
+3. l'équipe du projet : `-p, --project <projet>` quand la commande l'accepte, sinon le projet du dossier courant ;
+4. l'équipe par défaut (`default = true` dans `[[teams]]`, `oh teams default <id>`) ;
+5. à défaut, la première équipe activée de `hub.toml`.
+
+Un espace solo n'est jamais choisi sans `--team`, ni une équipe archivée. Le dépôt team-state et **votre identité de membre** viennent toujours de la même équipe. `oh team claim -p api --team beta` est refusé si le projet `api` appartient à une autre équipe que `beta` : rien n'est écrit dans le team-state de la mauvaise équipe.
+
+```bash
+oh team status --team beta        # l'équipe beta, quel que soit le dossier
+oh team claim -p api 42           # l'équipe du projet api
+oh team status                    # l'équipe du projet du dossier courant, sinon l'équipe par défaut
+```
+
 ### oh team init
 
 Assistant interactif de configuration de l'équipe, en 4 étapes adaptatives : configuration globale (reprise, sessions), identité (inscription dans l'équipe), notifications Mattermost (optionnel), policies d'équipe (conventions automatisées). Le dépôt team-state doit exister au préalable sur GitLab ou GitHub ; s'il est déjà configuré, seules les étapes utiles sont proposées. L'assistant crée les dossiers du dépôt (`projects/`, `wiki/`, `catalog/`…) et les commite (« team: init structure »). Si ce commit échoue (hors ligne, refus du dépôt distant), l'inscription continue et l'assistant le dit (ligne d'avertissement, puis dans l'étape du dépôt) : les dossiers existent en local et sont commités à la prochaine exécution de `oh team init`.
@@ -16,7 +34,7 @@ oh team init [--solo [--id <id>] [--name <nom>] [--member-id <id>] [--project <p
 
 #### Espace solo (`--solo`)
 
-Pour un projet sans équipe : crée un team-state local (dépôt git sans remote) dans `~/.oh/teams/<id>/`, qui accueille les workflows du projet. Le seul membre a le rôle `lead`. Les fonctions d'équipe (board, claims, notifications, serveur MCP `team`) restent désactivées ; l'équipe active n'est jamais un espace solo.
+Pour un projet sans équipe : crée un team-state local (dépôt git sans remote) dans `~/.oh/teams/<id>/`, qui accueille les workflows du projet. Le seul membre a le rôle `lead`. Les fonctions d'équipe (board, claims, notifications, serveur MCP `team`) restent désactivées ; l'équipe par défaut n'est jamais un espace solo.
 
 ```bash
 oh team init --solo --project web-app
@@ -43,7 +61,7 @@ oh team promote --remote git@gitlab.com:acme/team-state.git
 | Flag | Type | Description |
 |------|------|-------------|
 | `--remote` | string | URL d'un dépôt git **vide** (obligatoire) |
-| `--team` | string | Espace solo à partager, si vous en avez plusieurs |
+| `--team` | string | Espace solo à partager, si vous en avez plusieurs (le flag `--team` de `oh team`) |
 
 En cas d'échec (dépôt absent, non vide, accès refusé), l'espace reste solo. Les autres membres rejoignent ensuite l'équipe avec `oh team init` en saisissant l'URL du dépôt.
 
@@ -77,7 +95,7 @@ oh team profile [--team <id>] [--display-name <nom>] [--gitlab-username <nom>] [
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--team` | string | Équipe (identifiant) ; par défaut l'équipe du hub |
+| `--team` | string | Équipe (identifiant) ; par défaut l'équipe choisie [comme ci-dessus](#quelle-équipe----team) |
 | `--display-name` | string | Nom affiché (ne peut pas être vide) |
 | `--gitlab-username` | string | Nom d'utilisateur sur le GitLab du dépôt d'équipe (vérification d'identité au rejoin) |
 | `--mattermost-username` | string | Nom d'utilisateur Mattermost (mentions des notifications) |
@@ -301,15 +319,26 @@ Refuser une proposition (`r`) demande un **motif** (obligatoire : un motif vide 
 
 Un utilisateur peut appartenir à plusieurs équipes ; chaque projet est rattaché à 0 ou 1 équipe.
 
-`oh teams` gère les équipes de cette machine (lister, ajouter, retirer, détacher un projet, archiver, restaurer) ; `oh team` (au singulier) agit sur l'équipe active (statut, board, activité, config, synchronisation du tracker). Les deux commandes n'ont aucune sous-commande en commun : `oh teams` n'est donc pas un alias de `oh team`.
+`oh teams` gère les équipes de cette machine (lister, ajouter, retirer, détacher un projet, archiver, restaurer, choisir l'équipe par défaut) ; `oh team` (au singulier) agit sur une équipe, choisie comme [ci-dessus](#quelle-équipe----team) (statut, board, activité, config, synchronisation du tracker). Les deux commandes n'ont aucune sous-commande en commun : `oh teams` n'est donc pas un alias de `oh team`.
 
 ### oh teams list
 
-Lister les équipes configurées.
+Lister les équipes configurées ; l'équipe par défaut porte une étoile (`★`).
 
 ```bash
 oh teams list
 ```
+
+### oh teams default
+
+Affiche l'équipe par défaut, ou en choisit une : l'équipe qui s'applique quand ni `--team`, ni l'équipe choisie dans la TUI, ni l'équipe du projet n'en désignent une.
+
+```bash
+oh teams default           # affiche l'équipe par défaut
+oh teams default beta      # beta devient l'équipe par défaut
+```
+
+L'équipe est marquée `default = true` dans `hub.toml` (une seule l'a). Sans marque, la première équipe activée est utilisée. Une équipe archivée ou un espace solo ne peut pas être l'équipe par défaut ; archiver l'équipe par défaut retire la marque et le dit.
 
 ### oh teams add
 
@@ -349,7 +378,7 @@ oh teams detach [project-name]
 
 ### oh teams archive / restore
 
-Archiver une équipe (désactivée, configuration et team-state local conservés) ou la réactiver (et synchroniser son team-state) :
+Archiver une équipe (désactivée, configuration et team-state local conservés ; elle cesse d'être l'équipe par défaut) ou la réactiver (et synchroniser son team-state) :
 
 ```bash
 oh teams archive [team-id]

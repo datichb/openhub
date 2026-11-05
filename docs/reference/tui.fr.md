@@ -45,7 +45,7 @@ La barre de mode affiche le badge des sessions **`● N ◐ M`** (N sessions qui
 | `/` | Filtrer la liste de la vue ; si la vue ne filtre pas : palette |
 | `?` / `F1` | Aide : touches globales, convention, touches de la vue active, légende, commandes |
 | `Échap` | Ferme d'abord les toasts ; sinon revient (vue précédente) ; à la racine d'une vue Projet ou Équipe : retour à la vue Hub |
-| `Ctrl+T` | Vue suivante du cycle **Hub → Projet → Équipe → Hub**, en sautant ce qui n'est pas configuré : depuis le Hub, le projet quitté (le seul, ou un choix parmi plusieurs), sinon l'équipe ; depuis le Projet, l'équipe (choix si plusieurs), sinon le Hub ; depuis l'Équipe, le Hub |
+| `Ctrl+T` | Vue suivante du cycle **Hub → Projet → Équipe → Hub**, en sautant ce qui n'est pas configuré : depuis le Hub, le projet quitté (le seul, ou un choix parmi plusieurs), sinon l'équipe ; depuis le Projet, l'équipe (choix si plusieurs, l'équipe par défaut en premier ; ni espace solo ni équipe archivée), sinon le Hub ; depuis l'Équipe, le Hub |
 | `Ctrl+Q` / `Ctrl+C` | Quitter (si des sessions travaillent : finir l'étape puis veille, arrière-plan ou arrêter) |
 | `Entrée` | Action de la liste, du bouton ou du champ sélectionné ; palette seulement si rien ne l'utilise |
 

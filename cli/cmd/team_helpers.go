@@ -31,22 +31,12 @@ func teamEnabledForProject(a *app.App, project *domain.Project) bool {
 	return resolvedTeamConfig(a, project).Enabled
 }
 
-// resolvedTeamConfig returns the effective TeamConfig for a project.
-// Pass nil as project to get hub-level only.
+// resolvedTeamConfig returns the effective team configuration for a project,
+// or, for a nil project, the one of the team ResolveTeam gives (the team chosen
+// in the TUI, the team of the active project, the default team). The commands
+// that read --team use resolvedTeamConfigCtx.
 func resolvedTeamConfig(a *app.App, project *domain.Project) config.ResolvedTeamConfig {
-	if project != nil {
-		return config.ResolveTeamForProject(a.Config, project)
-	}
-	// Hub-level only: use ActiveTeam() directly
-	hub := a.Config.ActiveTeam()
-	return config.ResolvedTeamConfig{
-		Enabled:   hub.Enabled,
-		TeamID:    hub.ID,
-		StateRepo: hub.StateRepo,
-		StatePath: hub.StatePath,
-		GitLabURL: hub.GitLabURL,
-		MemberID:  hub.MemberID,
-	}
+	return resolvedTeamConfigCtx(context.Background(), a, project)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1025,26 +1015,51 @@ func buildTeamModeIntroStep(state *initWizardTeamState) views.WizardStep {
 	}
 }
 
+// attachableTeams are the teams a project can be attached to: the enabled ones
+// that are not a solo space, the default team first.
+func attachableTeams(cfg *config.Config) []config.TeamConfig {
+	var out []config.TeamConfig
+	def := cfg.DefaultTeam()
+	if def != nil {
+		out = append(out, *def)
+	}
+	for _, t := range cfg.Teams {
+		if t.Enabled && !t.Solo && (def == nil || t.ID != def.ID) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// teamChoiceLabel is how a team shows in a list where a team is chosen.
+func teamChoiceLabel(cfg *config.Config, t config.TeamConfig) string {
+	label := i18n.Tf("v54r.team.choice", t.DisplayName(), t.MemberID)
+	if def := cfg.DefaultTeam(); def != nil && def.ID == t.ID {
+		label += " " + i18n.T("v54r.team.default_mark")
+	}
+	return label
+}
+
 // buildProjectTeamStep returns a WizardStep that collects team configuration
 // for a project during project creation or reconfiguration.
 //
-// The step sets out to:
-//   - &activeTeamID → attach the project to the hub's active team
-//   - nil           → no team for this project
+// The member chooses among all the teams (the default one first and chosen
+// unless the member picks another), a solo space or no team. The step sets
+// out to:
+//   - &teamID → attach the project to the team chosen
+//   - nil     → no team for this project
 func buildProjectTeamStep(a *app.App, out **string, solo *bool) views.WizardStep {
-	hubTeam := a.Config.ActiveTeam()
-	hasTeam := hubTeam.Enabled && hubTeam.ID != ""
+	teams := attachableTeams(a.Config)
+	hasTeam := len(teams) > 0
 
-	// Choices: hub team (default when there is one), solo space,
-	// no team.
+	// Choices: one per team, solo space, no team.
 	const (
-		choiceTeam = "team"
 		choiceSolo = "solo"
 		choiceNone = "none"
 	)
 	var choices []string
-	if hasTeam {
-		choices = append(choices, choiceTeam)
+	for _, t := range teams {
+		choices = append(choices, t.ID)
 	}
 	choices = append(choices, choiceSolo, choiceNone)
 	choice := choices[0]
@@ -1058,28 +1073,33 @@ func buildProjectTeamStep(a *app.App, out **string, solo *bool) views.WizardStep
 			break
 		}
 	}
+	labelOf := func(c string) string {
+		switch c {
+		case choiceSolo:
+			return soloLabel
+		case choiceNone:
+			return i18n.T("form.project.team_no_team")
+		}
+		if t := a.Config.FindTeam(c); t != nil {
+			return teamChoiceLabel(a.Config, *t)
+		}
+		return c
+	}
 
 	return views.WizardStep{
 		Label: i18n.T("form.project.team_label"),
 		Form: func(_ *tview.Application, onDone func()) *tview.Form {
 			form := tview.NewForm()
 			if hasTeam {
-				hubSummary := i18n.Tf("form.project.team_hub_summary", hubTeam.StateRepo, hubTeam.MemberID)
-				form.AddTextView(i18n.T("form.project.team_hub_label"), hubSummary, 0, 1, false, false)
+				summary := i18n.Tf("v54r.team.wizard_summary", len(teams), teams[0].ID, teams[0].MemberID)
+				form.AddTextView(i18n.T("form.project.team_hub_label"), summary, 0, 1, false, false)
 			} else {
 				form.AddTextView(i18n.T("form.project.team_hub_label"), i18n.T("form.project.team_none_configured"), 0, 1, false, false)
 			}
 			var labels []string
 			initial := 0
 			for i, c := range choices {
-				switch c {
-				case choiceTeam:
-					labels = append(labels, i18n.Tf("form.project.team_use_hub", hubTeam.MemberID))
-				case choiceSolo:
-					labels = append(labels, soloLabel)
-				default:
-					labels = append(labels, i18n.T("form.project.team_no_team"))
-				}
+				labels = append(labels, labelOf(c))
 				if c == choice {
 					initial = i
 				}
@@ -1093,11 +1113,12 @@ func buildProjectTeamStep(a *app.App, out **string, solo *bool) views.WizardStep
 		},
 		OnDone: func() error {
 			*out = nil
+			isTeam := choice != choiceSolo && choice != choiceNone
 			if solo != nil {
 				*solo = choice == choiceSolo
 			}
-			if choice == choiceTeam {
-				id := hubTeam.ID
+			if isTeam {
+				id := choice
 				*out = &id
 			}
 			return nil
@@ -1105,10 +1126,11 @@ func buildProjectTeamStep(a *app.App, out **string, solo *bool) views.WizardStep
 		InfoFields: func() []views.InfoField {
 			value := i18n.T("form.project.team_value_none")
 			switch choice {
-			case choiceTeam:
-				value = hubTeam.ID
+			case choiceNone:
 			case choiceSolo:
 				value = soloLabel
+			default:
+				value = choice
 			}
 			return []views.InfoField{{Label: i18n.T("form.project.team_label"), Value: value}}
 		},

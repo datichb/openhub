@@ -33,32 +33,23 @@ type teamBoardRepo interface {
 // buildTeamBoardViewConfig builds the full TeamBoardViewConfig for the shell TUI,
 // wiring the refresh, sync and action callbacks to the live team-state repo.
 func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
-	// resolveRepo is a helper that returns the active team repo (or nil).
-	// Resolution order (ADR-032):
-	//   1. Project-level team config (TeamID or legacy TeamConfig)
-	//   2. Hub-level ActiveTeam() — matches CLI sync-tracker behavior
-	// This ensures tickets synced by the CLI are visible in the TUI.
+	// resolveRepo returns the repo of the team the board is on (ResolveTeam: the
+	// team chosen in the TUI, else the team of the active project, else the
+	// default team), or nil. The member of the user is the one of that same
+	// team (boardMember): a board never mixes the repo of one team with the
+	// member of another.
 	resolveRepo := func() teamBoardRepo {
-		// Try project-level first
-		project, _ := resolveActiveProject(a)
-		tc := resolvedTeamConfig(a, project)
-		if tc.Enabled && tc.StateRepo != "" {
-			repo := teamstate.NewRepo(tc.StateRepo, tc.StatePath)
-			if repo.IsCloned() {
-				return repo
-			}
-		}
-		// Fallback: hub-level ActiveTeam() — same path as CLI sync-tracker
-		hubTC := a.Config.ActiveTeam()
-		if !hubTC.Enabled || hubTC.StateRepo == "" {
+		t, err := ResolveTeam(context.Background(), a)
+		if err != nil || !t.Enabled || t.StateRepo == "" {
 			return nil
 		}
-		repo := teamstate.NewRepo(hubTC.StateRepo, hubTC.StatePath)
+		repo := teamstate.NewRepo(t.StateRepo, t.StatePath)
 		if !repo.IsCloned() {
 			return nil
 		}
 		return repo
 	}
+	boardMember := func() string { return currentTeamMember(a) }
 
 	// The names of the projects are read again with each read of the tickets
 	// (readNames): a project added or renamed shows at the next refresh.
@@ -115,7 +106,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 
 	return views.TeamBoardViewConfig{
 		Tickets:            initialTickets,
-		MemberID:           func() string { return a.Config.ActiveTeam().MemberID },
+		MemberID:           boardMember,
 		RefreshRate:        5 * time.Second,
 		LabelStatusMapping: layout.Load().LabelStatusMapping,
 		BoardConfig:        layout.Load().Board,
@@ -205,7 +196,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 					return errors.New(i18n.T("tui.team_board.team_not_configured"))
 				}
 				projectID := boardProjectID(a, cardProject)
-				memberID := a.Config.ActiveTeam().MemberID
+				memberID := boardMember()
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 
@@ -287,7 +278,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 				// A claim in progress handed to oneself is one more ticket in progress.
-				if me := a.Config.ActiveTeam().MemberID; toMember == me {
+				if me := boardMember(); toMember == me {
 					if c, gerr := repo.GetClaim(ctx, projectID, ticketID); gerr == nil {
 						if err := checkTransferToSelfRoom(ctx, repo, a.Config.Tracker, me, c); err != nil {
 							return err
@@ -307,7 +298,7 @@ func buildTeamBoardViewConfig(a *app.App) views.TeamBoardViewConfig {
 				// A card of the member moved to a column of work in progress is one
 				// more ticket in progress.
 				if c, gerr := repo.GetClaim(ctx, projectID, ticketID); gerr == nil {
-					if err := checkStatusMoveRoom(ctx, repo, a.Config.Tracker, a.Config.ActiveTeam().MemberID, c, newStatus); err != nil {
+					if err := checkStatusMoveRoom(ctx, repo, a.Config.Tracker, boardMember(), c, newStatus); err != nil {
 						return err
 					}
 				}

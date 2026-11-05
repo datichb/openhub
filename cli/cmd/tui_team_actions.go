@@ -305,27 +305,20 @@ func actionTeamConfigure() {
 		return
 	}
 
-	hubTeam := a.Config.ActiveTeam()
-
-	// ── Choose: attach to team or detach ─────────────────────────────────
+	// ── Choose among all the teams, or none ──────────────────────────────
 	var modeOptions []views.SelectOption
-	if hubTeam.Enabled && hubTeam.ID != "" {
-		modeOptions = []views.SelectOption{
-			{
-				Label: i18n.Tf("tui.team.configure.attach_team", hubTeam.ID, hubTeam.MemberID),
-				Value: hubTeam.ID,
-			},
-			{Label: i18n.T("tui.team.configure.no_team"), Value: ""},
-		}
-	} else {
-		modeOptions = []views.SelectOption{
-			{Label: i18n.T("tui.team.configure.no_team"), Value: ""},
-		}
+	for _, t := range attachableTeams(a.Config) {
+		modeOptions = append(modeOptions, views.SelectOption{Label: teamChoiceLabel(a.Config, t), Value: t.ID})
 	}
+	modeOptions = append(modeOptions, views.SelectOption{Label: i18n.T("tui.team.configure.no_team"), Value: ""})
 
+	// The team the project is in now, else the default team
 	defaultVal := ""
-	if hubTeam.Enabled && hubTeam.ID != "" {
-		defaultVal = hubTeam.ID
+	if t := a.Config.DefaultTeam(); t != nil {
+		defaultVal = t.ID
+	}
+	if p, err := a.Projects.Get(context.Background(), project.ID); err == nil && p.TeamID != nil {
+		defaultVal = *p.TeamID
 	}
 
 	tuiShell.ShowSelectModal(i18n.T("tui.team.configure.modal_title"), modeOptions, defaultVal, func(teamID string) {
@@ -378,8 +371,6 @@ func applyProjectTeamID(a *app.App, projectID, teamID string) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func runTakeoverEnrich(a *app.App, project, ticketID string) error {
-	repo := teamstate.NewRepo(a.Config.ActiveTeam().StateRepo, a.Config.ActiveTeam().StatePath)
-
 	// Enriched by the brief-enrich workflow (headless session of the project).
 	var proj *domain.Project
 	if a.Projects != nil {
@@ -388,6 +379,16 @@ func runTakeoverEnrich(a *app.App, project, ticketID string) error {
 	if proj == nil {
 		return errors.New(i18n.T("cmd.run.no_project"))
 	}
+	// The briefs of the project are in the team-state of its team.
+	team, err := teamOfProject(context.Background(), a, proj)
+	if err != nil {
+		return err
+	}
+	if !team.Enabled {
+		return team.notEnabledError()
+	}
+	repo := teamstate.NewRepo(team.StateRepo, team.StatePath)
+
 	enriched, err := runBriefEnrich(tuiShell.Context(), a, proj, ticketID, io.Discard)
 	if err != nil {
 		return fmt.Errorf("enrichment: %w", err)

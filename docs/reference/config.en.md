@@ -432,6 +432,7 @@ member_id = "alice.dupont"
 | `gitlab_url` | string | No | Real GitLab of the team repository when `state_repo` goes through an SSH alias (`git@my-alias:…`): the alias is a name of `~/.ssh/config`, not a server. The token of the team is then valid for that GitLab. Specific to the machine, empty = the host of `state_repo`. Set in `oh init`, `oh team rejoin --gitlab-url`, `oh teams add --gitlab-url`, `oh team config` (local) and the `team-detail` view |
 | `member_id` | string | Yes | Your identity in `members.toml` |
 | `solo` | bool | No | Solo space (see below) |
+| `default` | bool | No | Default team: the one that applies when neither `--team`, the team chosen in the TUI nor the team of the project says which one. Only one team has it (`oh teams default <id>`); two marked teams is a configuration error. Without a mark, the first enabled team is used. An archived team or a solo space is never the default team |
 
 ### Solo space (`solo = true`)
 
@@ -446,7 +447,7 @@ state_path = "~/.oh/teams/solo"
 member_id = "alice"
 ```
 
-A solo space only holds workflows: team features stay off and it is never the active team. `oh team promote --remote <url>` clears `solo` and sets `state_repo`.
+A solo space only holds workflows: team features stay off and it is never the default team. `oh team promote --remote <url>` clears `solo` and sets `state_repo`.
 
 ### Project level: `team_id`
 
@@ -462,6 +463,8 @@ project.TeamID empty         →  project without a team, team features off
 project.TeamID == "acme"     →  lookup teams[] by id, use that team's config
 project.TeamID unknown       →  graceful degradation (team disabled)
 ```
+
+For a command that acts on "a team" with no specific project (`oh team status`, `oh team board`…), the team is chosen by `--team`, then the team chosen in the TUI, then the team of the project (`-p` or current folder), then the default team (`default = true`), then the first enabled team: see [Which team?](cli-team.en.md#which-team---team).
 
 ### Migration from `[team]` (legacy)
 

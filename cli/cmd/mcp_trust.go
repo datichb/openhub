@@ -112,7 +112,7 @@ func mcpTeamOf(cmd *cobra.Command, a *app.App) (config.ResolvedTeamConfig, error
 	if p, err := resolveActiveProject(a); err == nil && p != nil {
 		return resolvedTeamConfig(a, p), nil
 	}
-	return resolvedTeamConfig(a, nil), nil
+	return resolvedTeamConfigCtx(cmd.Context(), a, nil), nil
 }
 
 // ─── oh mcp trust ────────────────────────────────────────────────────────────

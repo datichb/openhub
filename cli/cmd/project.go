@@ -14,4 +14,5 @@ func init() {
 	projectCmd.AddCommand(projectListCmd())
 	projectCmd.AddCommand(projectAddCmd())
 	projectCmd.AddCommand(projectRemoveCmd())
+	projectCmd.AddCommand(projectSetTeamCmd())
 }

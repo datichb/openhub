@@ -45,7 +45,7 @@ The mode bar shows the sessions badge **`● N ◐ M`** (N sessions working, M d
 | `/` | Filter the list of the view; when the view does not filter: palette |
 | `?` / `F1` | Help: global keys, convention, keys of the active view, legend, commands |
 | `Esc` | Closes the toasts first; else goes back (previous view); at the root of a Project or Team view: back to the Hub view |
-| `Ctrl+T` | Next view of the cycle **Hub → Project → Team → Hub**, skipping what is not configured: from the Hub, the project you left (the only one, or a choice among several), else the team; from the Project, the team (choice when there are several), else the Hub; from the Team, the Hub |
+| `Ctrl+T` | Next view of the cycle **Hub → Project → Team → Hub**, skipping what is not configured: from the Hub, the project you left (the only one, or a choice among several), else the team; from the Project, the team (choice when there are several, the default team first; no solo space, no archived team), else the Hub; from the Team, the Hub |
 | `Ctrl+Q` / `Ctrl+C` | Quit (when sessions work: finish the step then sleep, background, or stop) |
 | `Enter` | Action of the selected list, button or field; palette only when nothing uses it |
 

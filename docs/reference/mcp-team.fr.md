@@ -8,7 +8,7 @@ Le serveur MCP `team` expose les données de collaboration d'équipe aux agents 
 
 ## Activation
 
-Le serveur MCP team fait partie du paquet de session quand les fonctionnalités d'équipe sont **activées pour le projet** de la session (équipe du projet, sinon équipe active ; jamais pour un espace solo). oh le déclare dans le paquet avec, dans son environnement, l'équipe et le projet de la session :
+Le serveur MCP team fait partie du paquet de session quand les fonctionnalités d'équipe sont **activées pour le projet** de la session (équipe du projet, sinon équipe par défaut ; jamais pour un espace solo). oh le déclare dans le paquet avec, dans son environnement, l'équipe et le projet de la session :
 
 ```json
 "team": {
@@ -18,7 +18,7 @@ Le serveur MCP team fait partie du paquet de session quand les fonctionnalités 
 }
 ```
 
-Au démarrage, le serveur lit l'équipe `OH_TEAM_ID` dans `hub.toml` (`[[teams]]`) ; sans cette variable (serveur lancé hors d'une session), il prend l'équipe active. Aucun token n'est requis : le serveur lit le clone local du team-state.
+Au démarrage, le serveur lit l'équipe `OH_TEAM_ID` dans `hub.toml` (`[[teams]]`) ; sans cette variable (serveur lancé hors d'une session), il prend l'équipe par défaut. Aucun token n'est requis : le serveur lit le clone local du team-state.
 
 > v5 : l'ancien fichier `.opencode/team.json` écrit par `oh deploy` n'est plus lu (`oh migrate deploy-cleanup` le supprime).
 

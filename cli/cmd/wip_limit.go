@@ -103,13 +103,16 @@ func checkStatusMoveRoom(ctx context.Context, repo wipStore, local config.Tracke
 // session would start (no claim yet, or the member's own claim still planned)
 // go past the limit of the active member. Nil without a team.
 func ticketRoom(a *app.App, project *domain.Project) func(ctx context.Context, projectID string, tickets []string) error {
-	if project == nil || !teamEnabledForProject(a, project) || a.Config.ActiveTeam().MemberID == "" {
+	if project == nil {
 		return nil
 	}
 	tc := resolvedTeamConfig(a, project)
+	if !tc.Enabled || tc.MemberID == "" {
+		return nil
+	}
 	statePath := tc.StatePath
 	repo := teamstate.NewRepo(tc.StateRepo, statePath)
-	member := a.Config.ActiveTeam().MemberID
+	member := tc.MemberID
 	local := a.Config.Tracker
 	return func(ctx context.Context, projectID string, tickets []string) error {
 		if !repo.IsCloned() {

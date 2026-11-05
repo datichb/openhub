@@ -33,7 +33,7 @@ func (g gitlabAccess) Client() *gitlabapi.Client {
 // declared for that server it fails with a *tracker.MissingTokenError that
 // names the server, the sources read and how to declare the key.
 func resolveGitLabAccess(ctx context.Context, a *app.App, project *domain.Project) (gitlabAccess, error) {
-	return resolveGitLabAccessWith(ctx, teamService(a), project)
+	return resolveGitLabAccessWith(ctx, teamServiceFor(ctx, a), project)
 }
 
 // resolveGitLabAccessWith is resolveGitLabAccess on a given team service (a

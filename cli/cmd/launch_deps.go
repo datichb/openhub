@@ -59,7 +59,8 @@ func launchDeps(a *app.App) launch.Deps {
 		},
 		RemoteSender: func() *remotesvc.Service { return newRemoteSendService(a) },
 		TeamRepo: func(ctx context.Context, project *domain.Project) (*teamstate.Repo, error) {
-			return ensureTeamRepoForProject(ctx, a, project)
+			// the team of the project (the team ResolveTeam gives when there is none)
+			return ensureTeamRepoFor(resolvedTeam{ResolvedTeamConfig: resolvedTeamConfigCtx(ctx, a, project)})
 		},
 		SpawnFanoutDriver: func(sessionID string) (string, error) { return spawnFanoutDriver(sessionID) },
 		IsolationWarning:  isolationWarningText,

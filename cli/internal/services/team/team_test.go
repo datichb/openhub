@@ -62,7 +62,7 @@ func TestResolveTeam(t *testing.T) {
 		{"project with a legacy override disabled falls back on the hub", hubConfig(), &domain.Project{TeamConfig: &domain.ProjectTeamConfig{Mode: domain.ProjectTeamModeDisabled}}, "core", true, "alice"},
 		{"no team at all", &config.Config{}, &domain.Project{}, "", false, ""},
 		{"only a solo space", &config.Config{Teams: []config.TeamConfig{{ID: "solo", Enabled: true, Solo: true, StateRepo: "r"}}}, nil, "", false, ""},
-		{"hub team disabled stays disabled", &config.Config{Teams: []config.TeamConfig{{ID: "off", StateRepo: "git@h:acme/off.git"}}}, &domain.Project{}, "off", false, ""},
+		{"an archived team is never the hub team", &config.Config{Teams: []config.TeamConfig{{ID: "off", StateRepo: "git@h:acme/off.git"}}}, &domain.Project{}, "", false, ""},
 		{"legacy [team] without ID takes the repository name", &config.Config{Team: config.TeamConfig{Enabled: true, StateRepo: "git@h:acme/legacy-state.git", MemberID: "bob"}}, nil, "legacy-state", true, "bob"},
 	}
 	for _, tt := range tests {
@@ -73,6 +73,29 @@ func TestResolveTeam(t *testing.T) {
 			assert.Equal(t, tt.wantMember, got.MemberID)
 		})
 	}
+}
+
+func TestResolveTeam_DefaultTeamAndChoice(t *testing.T) {
+	cfg := hubConfig()
+	cfg.Teams[2].Default = true // ops
+
+	svc := New(cfg, nil, nil)
+	assert.Equal(t, "ops", svc.ResolveTeam(nil).TeamID, "the team marked default wins over the first one")
+	assert.Equal(t, "alice-ops", svc.ResolveTeam(&domain.Project{ID: "p"}).MemberID, "a project without team follows the default team")
+
+	svc.Pick = config.TeamSelection{TUI: "core"}
+	assert.Equal(t, "core", svc.ResolveTeam(nil).TeamID, "the team chosen in the TUI wins at hub level")
+	assert.Equal(t, "ops", svc.ResolveTeam(&domain.Project{TeamID: strPtr("ops")}).TeamID)
+	assert.Equal(t, "ops", svc.ResolveTeam(&domain.Project{ID: "p"}).TeamID,
+		"a project has a team of its own: the team shown in the TUI is not its team")
+
+	svc.Pick = config.TeamSelection{Flag: "core", TUI: "ops"}
+	assert.Equal(t, "core", svc.ResolveTeam(nil).TeamID, "--team beats the TUI")
+	assert.Equal(t, "core", svc.ResolveTeam(&domain.Project{TeamID: strPtr("ops")}).TeamID, "--team beats the team of the project")
+	assert.Equal(t, "alice", svc.ResolveTeam(nil).MemberID, "repository and member come from the same team")
+
+	svc.Pick = config.TeamSelection{Flag: "ghost"}
+	assert.False(t, svc.ResolveTeam(nil).Enabled, "an unknown --team gives no team")
 }
 
 func TestGitLabTokenUsesTheConfigAndTheOptions(t *testing.T) {

@@ -82,7 +82,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	memberID := a.Config.ActiveTeam().MemberID
+	memberID := commandMember(ctx, a)
 	if memberID == "" {
 		return errors.New(i18n.Tf("cmd.claim.member_not_configured",
 			theme.Bold.Render("oh team init")))
@@ -335,7 +335,7 @@ func runRelease(cmd *cobra.Command, args []string) error {
 	cliout.Success(a.IO.Out, i18n.Tf("cmd.release.success", project, ticketID))
 
 	_ = repo.AppendEvent(ctx, teamstate.Event{
-		Actor:   a.Config.ActiveTeam().MemberID,
+		Actor:   commandMember(ctx, a),
 		Type:    teamstate.EventClaimReleased,
 		Project: project,
 		Ticket:  ticketID,
@@ -368,7 +368,7 @@ func runClaimTransfer(cmd *cobra.Command, args []string) error {
 	}
 
 	// Handing a claim in progress to oneself is one more ticket in progress.
-	if me := a.Config.ActiveTeam().MemberID; to == me {
+	if me := commandMember(ctx, a); to == me {
 		if err := checkTransferToSelfRoom(ctx, repo, a.Config.Tracker, me, existingClaim); err != nil {
 			return err
 		}

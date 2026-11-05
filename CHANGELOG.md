@@ -9,6 +9,26 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added
+
+- **Une seule règle pour « quelle équipe ? » (`ResolveTeam`).** `--team` > l'équipe choisie dans la TUI > l'équipe du projet (`-p`, sinon le dossier courant) > l'équipe par défaut > la première équipe activée. Elle rend le dépôt **et** le membre de la même équipe : la TUI (éditeur de colonnes, découverte du tracker, synchro, board, clé du fournisseur `K`, « configurer l'équipe ») et les commandes (`oh team status|activity|config|board|claim|release|wiki|notify|sync-tracker`, `oh policies`, `oh patterns`, `oh takeover-brief`, `oh history --team`…) la suivent, au lieu de viser la première équipe de `hub.toml`.
+- **`--team <id>`**, flag persistant de `oh team` (il remplace ceux de `oh team profile` et `oh team promote`). `oh team claim -p api --team beta` est refusé si `api` n'est pas un projet de `beta` : rien n'est écrit dans le team-state de la mauvaise équipe.
+- **Équipe par défaut explicite : `default = true` dans `[[teams]]`** et **`oh teams default [<id>]`** (affiche ou choisit). Une seule équipe la porte ; deux équipes marquées est une erreur de configuration. `oh teams list` marque l'équipe par défaut (`★`). La fonction `setDefaultTeam` est celle de l'action « Définir par défaut » de la vue Équipes.
+- **`oh project set-team <projet> <équipe>`** rattache un projet à n'importe quelle équipe (ou espace solo) ; **`oh project add --name … --team <id>`**. L'assistant d'ajout d'un projet et « configurer l'équipe » d'un projet proposent **toutes** les équipes (l'équipe par défaut d'abord), un espace solo ou aucune équipe (ils ne proposaient que la première).
+- Garde-fou d'architecture : une commande ne lit plus `Config.ActiveTeam()` directement (liste figée des assistants encore concernés).
+
+### Changed
+
+- **Rupture légère : l'équipe par défaut n'est plus jamais une équipe archivée.** Sans équipe activée, il n'y a plus d'équipe par défaut (avant, la première équipe, archivée ou non, était prise). Archiver l'équipe par défaut retire sa marque et le dit.
+- **Rupture légère : une commande d'équipe lancée dans le dossier d'un projet agit sur l'équipe de ce projet**, et non plus sur la première équipe de `hub.toml` ; `-p` fait de même. Sans projet, l'équipe par défaut s'applique, comme avant.
+- `Ctrl+T` (sélecteur d'équipe de la TUI) n'offre plus les espaces solo, comme l'accueil ; l'équipe par défaut est en tête.
+- Le démarrage d'une session sur un ticket, la limite de travail en cours avant le lancement, la prise d'un ticket depuis une fiche et `oh mr create` prennent le **membre de l'équipe du projet** (ils prenaient celui de la première équipe, avec le dépôt de l'équipe du projet) ; le battement et la fin de session le faisaient déjà.
+
+### Fixed
+
+- **Mauvaise équipe visée** : l'éditeur de colonnes écrivait dans l'équipe de `hub.toml` et non celle du mode Équipe ; la découverte du tracker et la synchro (sans projet) visaient l'équipe du hub depuis le détail, le board et le mode Équipe ; la clé du fournisseur `K` visait l'équipe du projet ou aucune, jamais l'équipe affichée ni l'équipe par défaut ; `oh team config` et `oh team config status` ne visaient pas la même équipe ; `oh team claim` pouvait écrire une réservation d'un projet d'une équipe dans le team-state d'une autre ; le brief enrichi, la MR publiée et les événements du wiki allaient à l'équipe active et non à celle du projet.
+- Le board de la TUI utilisait le dépôt du projet actif avec le membre de l'équipe active : il prend le dépôt et le membre de l'équipe affichée.
+
 ## [5.3.3] — 2026-11-04
 
 Version corrective issue d'un audit complet du mode équipe : elle corrige les défauts qui pouvaient **perdre ou abîmer des données d'équipe**. `oh team config status` ne supprime plus les collègues de `members.toml` ; une modification de `config.toml` ne remplace plus celle d'un collègue (conflit signalé) et un fichier illisible n'est plus effacé ; une équipe sans `state_path` ne lance plus git dans le dossier courant ; deux dépôts de même nom ne se remplacent plus ; la synchro du tracker n'écrase plus les statuts et labels posés dans le hub ; le token git n'écrase plus le token d'API GitLab. Ruptures légères (synchro, `oh team config`, chemin des nouveaux clones) décrites dans la [migration 5.3.2 → 5.3.3](docs/guides/migration-v5.fr.md#depuis-la-532-vers-la-533) ; pas de migration de la base.

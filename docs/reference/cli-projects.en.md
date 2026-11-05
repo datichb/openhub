@@ -46,6 +46,7 @@ oh project add [options]
 | `--name` | `-n` | string | Project name |
 | `--path` | `-d` | string | Project path (default: current directory) |
 | `--language` | `-l` | string | Main language |
+| `--team` | | string | Team to attach the project to (identifier; with `--name`). Without flags, the wizard offers every team (the default team first), a solo space or no team |
 | `--yes` | `-y` | bool | Beads zero impact: remove what `bd init` wrote without a confirmation and undo its commit when it was not pushed (otherwise: listed, the undo of the commit included, then a confirmation; without a terminal nothing changes) |
 
 **Example:**
@@ -55,6 +56,24 @@ oh project add -n api -d ./services/api -l go
 oh project register -n frontend --language typescript
 oh project add
 ```
+
+---
+
+### oh project set-team
+
+Attaches a project to a team: its work (claims, board, tracker) then goes to the team-state of that team. The team must exist and not be archived; a solo space is accepted (the project gets its workflow folders). If the project belonged to another team, its claims stay there: the command reminds you.
+
+```
+oh project set-team <project> <team>
+```
+
+**Example:**
+
+```bash
+oh project set-team api beta
+```
+
+To detach a project, see `oh teams detach`.
 
 ---
 

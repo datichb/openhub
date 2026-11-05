@@ -46,6 +46,7 @@ oh project add [options]
 | `--name` | `-n` | string | Nom du projet |
 | `--path` | `-d` | string | Chemin du projet (défaut : répertoire courant) |
 | `--language` | `-l` | string | Langage principal |
+| `--team` | | string | Équipe à laquelle rattacher le projet (identifiant ; avec `--name`). Sans flag, l'assistant propose toutes les équipes (l'équipe par défaut d'abord), un espace solo ou aucune équipe |
 | `--yes` | `-y` | bool | Beads zéro impact : retirer ce que `bd init` a écrit sans confirmation et annuler son commit s'il n'est pas poussé (sinon : liste, annulation du commit comprise, puis confirmation ; sans terminal, rien n'est changé) |
 
 **Exemple :**
@@ -55,6 +56,24 @@ oh project add -n api -d ./services/api -l go
 oh project register -n frontend --language typescript
 oh project add
 ```
+
+---
+
+### oh project set-team
+
+Rattache un projet à une équipe : son travail (réservations, board, tracker) va alors dans le team-state de cette équipe. L'équipe doit exister et ne pas être archivée ; un espace solo est accepté (le projet y reçoit ses dossiers de workflows). Si le projet appartenait à une autre équipe, ses réservations y restent : la commande le rappelle.
+
+```
+oh project set-team <projet> <équipe>
+```
+
+**Exemple :**
+
+```bash
+oh project set-team api beta
+```
+
+Pour détacher un projet, voir `oh teams detach`.
 
 ---
 

@@ -35,7 +35,7 @@ func runSyncTracker(cmd *cobra.Command, _ []string) error {
 	a := MustApp()
 	ctx := cmd.Context()
 
-	result, err := teamService(a).SyncTracker(ctx, teamsvc.SyncOptions{
+	result, err := teamServiceFor(ctx, a).SyncTracker(ctx, teamsvc.SyncOptions{
 		OnRun: func(trackerType string) func() { return startSyncSpinner(a, trackerType) },
 	})
 	if err != nil {

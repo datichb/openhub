@@ -139,7 +139,7 @@ func runPoliciesCheck(cmd *cobra.Command, args []string) error {
 	commitMsg, _ := cmd.Flags().GetString("commit")
 
 	// Build context from flags and current state
-	memberID := a.Config.ActiveTeam().MemberID
+	memberID := commandMember(ctx, a)
 	activeClaims := 0
 	if memberID != "" {
 		claims, _ := repo.ListClaims(ctx, "")

@@ -292,7 +292,7 @@ trouver la team du projet de la session (plus de `.opencode/team.json`).
 
 Quand le mode est `disabled`, le serveur MCP `team` n'est pas placé dans le paquet de session.
 
-Hors session (pas de `OH_TEAM_ID`), le serveur MCP team fall back sur la team active
+Hors session (pas de `OH_TEAM_ID`), le serveur MCP team retombe sur la team par défaut
 de `hub.toml`.
 
 ### Choisir le mode à la création du projet

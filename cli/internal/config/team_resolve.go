@@ -51,15 +51,7 @@ func ResolveTeamForProject(cfg *Config, project *domain.Project) ResolvedTeamCon
 			// Unknown team ID — graceful degradation
 			return ResolvedTeamConfig{Enabled: false}
 		}
-		return ResolvedTeamConfig{
-			Enabled:   team.Enabled && !team.Solo,
-			TeamID:    team.ID,
-			StateRepo: team.StateRepo,
-			StatePath: ResolveStatePath(team.StateRepo, team.StatePath),
-			GitLabURL: team.GitLabURL,
-			MemberID:  team.MemberID,
-			Solo:      team.Solo && team.Enabled,
-		}
+		return team.Resolved()
 	}
 
 	// Legacy compat: if project still uses old TeamConfig, fall through to old logic

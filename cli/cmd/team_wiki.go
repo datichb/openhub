@@ -218,7 +218,7 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 
 		// Emit event AFTER WikiAcceptProposal returns (both acquire withWriteLock)
 		event := teamstate.Event{
-			Actor:   a.Config.ActiveTeam().MemberID,
+			Actor:   commandMember(ctx, a),
 			Type:    teamstate.EventWikiAccepted,
 			Project: proposal.Project,
 			Data:    map[string]interface{}{"page": proposal.Page, "proposal_id": proposal.ID},
@@ -252,7 +252,7 @@ func runTeamWikiReview(cmd *cobra.Command, args []string) error {
 
 		// Emit event AFTER WikiRejectProposal returns (both acquire withWriteLock)
 		event := teamstate.Event{
-			Actor:   a.Config.ActiveTeam().MemberID,
+			Actor:   commandMember(ctx, a),
 			Type:    teamstate.EventWikiRejected,
 			Project: proposal.Project,
 			Data:    map[string]interface{}{"page": proposal.Page, "proposal_id": proposal.ID, "reason": reason},

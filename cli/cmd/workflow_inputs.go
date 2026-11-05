@@ -8,6 +8,7 @@ import (
 
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -74,15 +75,13 @@ func ticketBrief(ctx context.Context, a *app.App, projectID, ticketID string) (s
 	if err != nil {
 		return "", err
 	}
-	var team *config.TeamConfig
-	if p.TeamID != nil {
-		team = a.Config.FindTeam(*p.TeamID)
+	// The brief is in the team space of the project (solo spaces included);
+	// a project without one follows the team ResolveTeam gives.
+	team, err := ticketBriefTeam(ctx, a, p)
+	if err != nil {
+		return "", err
 	}
-	if team == nil {
-		active := a.Config.ActiveTeam()
-		team = &active
-	}
-	if team == nil || team.StatePath == "" {
+	if team.StatePath == "" {
 		return "", errors.New(i18n.T("cmd.workflow.input.no_team_space"))
 	}
 	content, err := teamstate.NewRepo(team.StateRepo, team.StatePath).ReadBrief(ctx, p.Name, ticketID)
@@ -90,4 +89,15 @@ func ticketBrief(ctx context.Context, a *app.App, projectID, ticketID string) (s
 		return "", errors.New(i18n.Tf("cmd.workflow.input.no_brief", p.Name, ticketID))
 	}
 	return content, err
+}
+
+// ticketBriefTeam is the team space the briefs of project p are in.
+func ticketBriefTeam(ctx context.Context, a *app.App, p *domain.Project) (config.ResolvedTeamConfig, error) {
+	if p.TeamID != nil {
+		if t := a.Config.FindTeam(*p.TeamID); t != nil {
+			return t.Resolved(), nil
+		}
+	}
+	t, err := ResolveTeam(ctx, a)
+	return t.ResolvedTeamConfig, err
 }

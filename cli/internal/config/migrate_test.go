@@ -177,14 +177,13 @@ func TestDefaultTeam(t *testing.T) {
 		t.Error("expected first enabled team")
 	}
 
-	// No enabled → returns first
+	// No enabled → none: an archived team is never the default one
 	c = &Config{
 		Teams: []TeamConfig{
 			{ID: "only", Enabled: false},
 		},
 	}
-	team = c.DefaultTeam()
-	if team == nil || team.ID != "only" {
-		t.Error("expected first team when none enabled")
+	if c.DefaultTeam() != nil {
+		t.Error("expected no default team when every team is archived")
 	}
 }

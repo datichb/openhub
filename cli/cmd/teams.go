@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/cliout"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
@@ -66,8 +67,17 @@ var teamsRestoreCmd = &cobra.Command{
 	RunE:  runTeamsRestore,
 }
 
+var teamsDefaultCmd = &cobra.Command{
+	Use:   "default [team-id]",
+	Short: i18n.T("v54r.teams.default.short"),
+	Long:  i18n.T("v54r.teams.default.long"),
+	Args:  cobra.MaximumNArgs(1),
+	RunE:  runTeamsDefault,
+}
+
 func init() {
 	rootCmd.AddCommand(teamsCmd)
+	teamsCmd.AddCommand(teamsDefaultCmd)
 	teamsCmd.AddCommand(teamsListCmd)
 	teamsCmd.AddCommand(teamsAddCmd)
 	teamsCmd.AddCommand(teamsRemoveCmd)
@@ -116,8 +126,12 @@ func runTeamsList(cmd *cobra.Command, _ []string) error {
 		if t.Solo {
 			repo = i18n.T("cmd.team.solo.list_repo")
 		}
+		id := t.ID
+		if def := a.Config.DefaultTeam(); def != nil && def.ID == t.ID {
+			id += " " + theme.SymDefault
+		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
-			t.ID, name, t.MemberID, repo, status)
+			id, name, t.MemberID, repo, status)
 	}
 	w.Flush()
 
@@ -341,7 +355,8 @@ func runTeamsArchive(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Set enabled = false
+	// Set enabled = false; an archived team is never the default team.
+	wasDefault := a.Config.DefaultTeam() != nil && a.Config.DefaultTeam().ID == teamID
 	if err := updateHubConfig(a, func(c *config.Config) error {
 		for i := range c.Teams {
 			if c.Teams[i].ID == teamID {
@@ -349,10 +364,21 @@ func runTeamsArchive(_ *cobra.Command, args []string) error {
 				break
 			}
 		}
+		c.ClearDefaultTeam(teamID)
 		return nil
 	}); err != nil {
 		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
 	}
+	defer func() {
+		if !wasDefault {
+			return
+		}
+		if next := a.Config.DefaultTeam(); next != nil {
+			fmt.Fprintln(a.IO.Out, i18n.Tf("v54r.teams.archive.default_moved", theme.Bold.Render(teamID), theme.Bold.Render(next.ID)))
+		} else {
+			fmt.Fprintln(a.IO.Out, i18n.Tf("v54r.teams.archive.default_none", theme.Bold.Render(teamID)))
+		}
+	}()
 
 	cliout.Success(a.IO.Out, i18n.Tf("cmd.teams.archive.success",
 		theme.Bold.Render(teamID),
@@ -392,5 +418,58 @@ func runTeamsRestore(_ *cobra.Command, args []string) error {
 	}
 
 	cliout.Success(a.IO.Out, i18n.Tf("cmd.teams.restore.success", theme.Bold.Render(teamID)))
+	return nil
+}
+
+// runTeamsDefault shows the default team, or makes the team given the default
+// one.
+func runTeamsDefault(_ *cobra.Command, args []string) error {
+	a := MustApp()
+	if len(args) == 0 {
+		def := a.Config.DefaultTeam()
+		if def == nil {
+			fmt.Fprintln(a.IO.Out, i18n.Tf("v54r.teams.default.none", theme.Bold.Render("oh teams list")))
+			return nil
+		}
+		fmt.Fprintln(a.IO.Out, i18n.Tf("v54r.teams.default.current", theme.Bold.Render(def.ID), defaultTeamWhy(def)))
+		return nil
+	}
+	id := args[0]
+	if err := setDefaultTeam(a, id); err != nil {
+		var unknown *config.UnknownTeamError
+		if errors.As(err, &unknown) {
+			return errors.New(i18n.Tf("cmd.teams.not_found", id, theme.Bold.Render("oh teams list")))
+		}
+		return err
+	}
+	cliout.Success(a.IO.Out, i18n.Tf("v54r.teams.default.success", theme.Bold.Render(id)))
+	return nil
+}
+
+// defaultTeamWhy says why t is the default team: chosen, or the first one.
+func defaultTeamWhy(t *config.TeamConfig) string {
+	if t.Default {
+		return i18n.T("v54r.teams.default.why_chosen")
+	}
+	return i18n.T("v54r.teams.default.why_first")
+}
+
+// setDefaultTeam makes the team id the default team of hub.toml (the only one
+// marked `default = true`): the team that applies when neither --team, the
+// team chosen in the TUI nor the project says which. An unknown, solo or
+// archived team is refused. It is the one function behind `oh teams default`
+// and the « Définir par défaut » action of the TUI.
+func setDefaultTeam(a *app.App, id string) error {
+	switch t := a.Config.FindTeam(id); {
+	case t == nil:
+		return &config.UnknownTeamError{ID: id}
+	case t.Solo:
+		return errors.New(i18n.Tf("v54r.teams.default.solo", id))
+	case !t.Enabled:
+		return errors.New(i18n.Tf("v54r.teams.default.archived", id, theme.Bold.Render("oh teams restore "+id)))
+	}
+	if err := updateHubConfig(a, func(c *config.Config) error { return c.SetDefaultTeam(id) }); err != nil {
+		return fmt.Errorf("%s: %w", i18n.T("cmd.teams.save_error"), err)
+	}
 	return nil
 }

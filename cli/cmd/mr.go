@@ -125,7 +125,7 @@ func resolveGitLabProject(ctx context.Context, a *app.App, project *domain.Proje
 		return project.TrackerConfig.TrackerProject
 	}
 	// 2. Tracker config of the team of the project (the hub team when it has none).
-	teamCfg := teamService(a).ResolveTeam(project)
+	teamCfg := teamServiceFor(ctx, a).ResolveTeam(project)
 	if teamCfg.StateRepo != "" {
 		repo := teamstate.NewRepo(teamCfg.StateRepo, teamCfg.StatePath)
 		if repo.IsCloned() {
@@ -140,7 +140,7 @@ func resolveGitLabProject(ctx context.Context, a *app.App, project *domain.Proje
 // assignReviewer resolves a team member to a GitLab user and assigns them as reviewer.
 func assignReviewer(ctx context.Context, a *app.App, project *domain.Project, gl *gitlabapi.Client, glProject string, mrIID int, memberID string) error {
 	// Find the member in the team state of the project to get their GitLab username.
-	teamCfg := teamService(a).ResolveTeam(project)
+	teamCfg := teamServiceFor(ctx, a).ResolveTeam(project)
 	repo := teamstate.NewRepo(teamCfg.StateRepo, teamCfg.StatePath)
 	if !repo.IsCloned() {
 		return errors.New(i18n.T("cmd.review.publish.no_team_state"))
@@ -187,8 +187,17 @@ func isMainBranch(name string) bool {
 // the claim to review, store the MR URL, append the review.ready event, and
 // dispatch a notification — all in a single git commit+push.
 func publishReviewToTeamState(ctx context.Context, a *app.App, projectID, ticket, branch, mrURL string) {
-	statePath := a.Config.ActiveTeam().StatePath
-	repo := teamstate.NewRepo(a.Config.ActiveTeam().StateRepo, statePath)
+	// The review is published in the team-state of the team of the project (the
+	// one the MR was checked against), by the member of that team.
+	var project *domain.Project
+	if a.Projects != nil {
+		project, _ = a.Projects.Get(ctx, projectID)
+	}
+	team, err := teamOfProject(ctx, a, project)
+	if err != nil || !team.Enabled {
+		return
+	}
+	repo := teamstate.NewRepo(team.StateRepo, team.StatePath)
 	if !repo.IsCloned() {
 		return
 	}
@@ -200,7 +209,7 @@ func publishReviewToTeamState(ctx context.Context, a *app.App, projectID, ticket
 	event, err := repo.PublishReviewBatch(ctx, teamstate.PublishReviewParams{
 		Project:  projectID,
 		TicketID: ticket,
-		Actor:    a.Config.ActiveTeam().MemberID,
+		Actor:    team.MemberID,
 		Branch:   branch,
 		MRURL:    mrURL,
 		// Label intentionally empty: agent-reviewed is now set by

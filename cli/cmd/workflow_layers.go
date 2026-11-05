@@ -36,7 +36,7 @@ func resolveWorkflowTeamLayers(ctx context.Context, a *app.App, projectRef strin
 		projectID = p.ID
 		tc = resolvedTeamConfig(a, p)
 	} else {
-		tc = resolvedTeamConfig(a, nil)
+		tc = resolvedTeamConfigCtx(ctx, a, nil)
 	}
 	if !tc.Enabled && !tc.Solo {
 		return nil, nil
