@@ -48,6 +48,11 @@ type accessWatch struct {
 	// fingerprint tells the credentials oh holds for a remote (""= none: SSH,
 	// public repository, credential helper). A change of it is a new chance.
 	fingerprint func(ctx context.Context, remote string) string
+	// unknownHost tells the SSH server of a remote that known_hosts lacks (nil:
+	// teamstate.UnknownSSHHostForJob), and hostsSaid the servers already
+	// logged (daemon_ssh_host.go).
+	unknownHost func(ctx context.Context, remote string) *teamstate.SSHHost
+	hostsSaid   map[string]bool
 }
 
 func newAccessWatch() *accessWatch {

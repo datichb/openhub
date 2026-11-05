@@ -79,6 +79,7 @@ func doctorRegistry() []doctor.Check {
 		{ID: "config", Name: i18n.T("cmd.doctor.check.config"), Run: single(checkConfig), Fix: configFix},
 		{ID: "setup", Name: i18n.T("cmd.doctor.check.setup"), Run: setupDoctorChecks},
 		{ID: doctorIDTeamAccess, Name: i18n.T("v54a.doctor.team_access.check"), Run: teamAccessDoctorChecks},
+		{ID: doctorIDSSHHost, Name: i18n.T("v54z.doctor.ssh_host.check"), Run: sshHostDoctorChecks},
 		{ID: doctorIDTeamConfig, Name: i18n.T("v54c.doctor.team_config.check"), Run: teamConfigDoctorChecks},
 		{ID: doctorIDHubTeams, Name: i18n.T("v54c.doctor.hub_teams.check"), Run: hubTeamsDoctorChecks},
 		{ID: doctorIDTrackerTokens, Name: i18n.T("cmd.doctor.check.tracker_tokens"), Run: trackerTokensChecks},

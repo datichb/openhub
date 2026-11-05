@@ -50,6 +50,9 @@ func teamPreRunE(cmd *cobra.Command, _ []string) error {
 	if cmd.Name() == "init" || cmd.Name() == "rejoin" || cmd.Name() == "promote" || cmd.Name() == "profile" {
 		// profile and promote act on a team that must exist (promote: a solo
 		// space); init and rejoin create the team they act on.
+		if err := refuseUnusedTeamFlag(cmd); err != nil {
+			return err
+		}
 		if id := teamAskOf(cmd.Context()).Team; id != "" && cmd.Name() != "init" && cmd.Name() != "rejoin" {
 			if _, _, err := MustApp().Config.PickTeam(config.TeamSelection{Flag: id}); err != nil {
 				return errors.New(i18n.Tf("cmd.teams.not_found", id, theme.Bold.Render("oh teams list")))

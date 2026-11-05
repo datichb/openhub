@@ -18,7 +18,7 @@ Le serveur MCP team fait partie du paquet de session quand les fonctionnalités 
 }
 ```
 
-Au démarrage, le serveur lit l'équipe `OH_TEAM_ID` dans `hub.toml` (`[[teams]]`) ; sans cette variable (serveur lancé hors d'une session), il prend l'équipe par défaut. Aucun token n'est requis : le serveur lit le clone local du team-state.
+Au démarrage, le serveur lit l'équipe `OH_TEAM_ID` dans `hub.toml` (`[[teams]]`) ; sans cette variable (serveur lancé hors d'une session), il prend l'équipe par défaut, selon la même règle que les commandes (`default = true`, sinon la première équipe activée ; jamais une équipe archivée ni un espace solo). Lancée en session, `oh` y met l'équipe du projet de la session. Aucun token n'est requis : le serveur lit le clone local du team-state.
 
 > v5 : l'ancien fichier `.opencode/team.json` écrit par `oh deploy` n'est plus lu (`oh migrate deploy-cleanup` le supprime).
 

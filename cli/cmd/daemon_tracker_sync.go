@@ -43,6 +43,10 @@ type trackerSyncer struct {
 	service func(cfg *config.Config) trackerSyncService
 	now     func() time.Time
 
+	// access knows the SSH servers that known_hosts lacks: the task does not
+	// connect to one (nil: no check).
+	access *accessWatch
+
 	mu     sync.Mutex
 	last   map[string]time.Time // team → last attempt
 	failed map[string]string    // team → message of the failure already said
@@ -58,6 +62,7 @@ func newTrackerSyncer(a *app.App) *trackerSyncer {
 		},
 		service: func(cfg *config.Config) trackerSyncService { return teamsvc.New(cfg, a.Secrets, a.Projects) },
 		now:     time.Now,
+		access:  daemonAccess,
 		last:    map[string]time.Time{},
 		failed:  map[string]string{},
 	}
@@ -101,6 +106,9 @@ func (s *trackerSyncer) syncTeam(ctx context.Context, svc trackerSyncService, t 
 		return
 	}
 	s.last[t.ID] = now
+	if s.access != nil && s.access.UnknownHost(ctx, t.StateRepo, nil) {
+		return // the SSH server is not in known_hosts: looked at again next interval (the alert is the one of the claims heartbeat)
+	}
 
 	res, err := svc.SyncTracker(ctx, teamsvc.SyncOptions{Project: project, Auto: true})
 	var held *tracker.LeaseHeldError

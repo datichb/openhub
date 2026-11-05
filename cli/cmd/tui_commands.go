@@ -1,12 +1,9 @@
 package cmd
 
 import (
-	"context"
-
 	"github.com/spf13/cobra"
 
 	"github.com/datichb/openhub/cli/internal/app"
-	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
@@ -304,16 +301,11 @@ func navigationCommands() []shell.Command {
 	}
 }
 
-// projectCommands are the commands of a project, only registered when at
-// least one project exists (ADR-032).
+// projectCommands are the commands of a project. They are always registered:
+// the palette is built once, at launch, and a project added in the TUI must
+// bring its commands without a restart. They show in the project mode only
+// (Modes), which the shell enters only with an active project.
 func projectCommands(a *app.App) []shell.Command {
-	if a.Projects == nil {
-		return nil
-	}
-	projects, _ := a.Projects.List(context.Background(), domain.ProjectStatusActive)
-	if len(projects) == 0 {
-		return nil
-	}
 	return []shell.Command{
 		{
 			ID:          "board",

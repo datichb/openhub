@@ -14,6 +14,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/tui/v2/shell"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 	"github.com/datichb/openhub/cli/internal/workflow"
 )
 
@@ -63,9 +64,11 @@ func TestWorkflowCommandsFromYAMLAliases(t *testing.T) {
 	assert.Equal(t, []tuiLaunchRequest{{WorkflowID: "feature", AliasTarget: "implement-spec"}, {WorkflowID: "spec"}}, opened)
 }
 
-// Every omnibar term (command ID or alias) has a single meaning: `q`
-// (quit / quick), `hub` (settings / hub mode), `team config` (team detail /
-// configure) and `tokens` (secrets / metrics) had two.
+// In each navigation mode, every omnibar term (command ID or alias) has a
+// single meaning: `q` (quit / quick), `hub` (settings / hub mode), `team
+// config` (team detail / configure) and `tokens` (secrets / metrics) had two.
+// A term may mean one thing in the project mode and another in the team mode
+// (`wiki`): the palette shows only the commands of the current mode.
 func TestOmnibarAliasesAreUnique(t *testing.T) {
 	a := &app.App{Config: &config.Config{Teams: []config.TeamConfig{{ID: "t", Enabled: true, StateRepo: "git@x:t.git", MemberID: "me"}}}}
 	cmds := buildCommands(a)
@@ -74,17 +77,42 @@ func TestOmnibarAliasesAreUnique(t *testing.T) {
 		t.Fatalf("shipped workflows: %v", err)
 	}
 	cmds = append(cmds, workflowCommands(shippedSummaries(t, files), func(tuiLaunchRequest) {})...)
-	owner := map[string]string{}
-	for _, c := range cmds {
-		terms := map[string]bool{strings.ToLower(c.ID): true}
-		for _, al := range c.Aliases {
-			terms[strings.ToLower(al)] = true
-		}
-		for term := range terms {
-			if prev, ok := owner[term]; ok && prev != c.ID {
-				t.Errorf("omnibar term %q used by %s and %s", term, prev, c.ID)
+	for _, mode := range []views.Mode{views.ModeHub, views.ModeProject, views.ModeTeam} {
+		owner := map[string]string{}
+		for _, c := range cmds {
+			if !c.IsVisibleInMode(mode) {
+				continue
 			}
-			owner[term] = c.ID
+			terms := map[string]bool{strings.ToLower(c.ID): true}
+			for _, al := range c.Aliases {
+				terms[strings.ToLower(al)] = true
+			}
+			for term := range terms {
+				if prev, ok := owner[term]; ok && prev != c.ID {
+					t.Errorf("omnibar term %q used by %s and %s in the %s mode", term, prev, c.ID, mode)
+				}
+				owner[term] = c.ID
+			}
 		}
+	}
+}
+
+// A project added after the launch brings its commands without a restart: the
+// project commands are registered whatever the projects at launch, and the
+// registry shows them in the project mode only.
+func TestProjectCommandsAreAlwaysRegistered(t *testing.T) {
+	inEnglish(t)
+	reg := shell.NewCommandRegistry(buildCommands(registryApps()["empty"]))
+	ids := func(mode views.Mode) map[string]bool {
+		out := map[string]bool{}
+		for _, c := range reg.Search("", mode) {
+			out[c.ID] = true
+		}
+		return out
+	}
+	for _, id := range []string{"board", "board.init", "project-wiki", "project-config"} {
+		assert.True(t, ids(views.ModeProject)[id], "%s in the project mode", id)
+		assert.False(t, ids(views.ModeHub)[id], "%s in the hub mode", id)
+		assert.False(t, ids(views.ModeTeam)[id], "%s in the team mode", id)
 	}
 }

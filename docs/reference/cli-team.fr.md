@@ -16,6 +16,8 @@ Toutes les commandes `oh team …` (et `oh claim`, `oh release`, `oh policies`, 
 4. l'équipe par défaut (`default = true` dans `[[teams]]`, `oh teams default <id>`) ;
 5. à défaut, la première équipe activée de `hub.toml`.
 
+**Exception : `oh team init` et `oh team rejoin`.** `oh team init` crée toujours une nouvelle équipe sur un nouveau dépôt et `oh team rejoin` rejoint l'équipe du dépôt donné par `--repo` : `--team` y est **refusé** (au lieu d'être ignoré en silence), sauf avec `oh team init --reconfigure`, où il désigne l'équipe à reconfigurer.
+
 Un espace solo n'est jamais choisi sans `--team`, ni une équipe archivée. Le dépôt team-state et **votre identité de membre** viennent toujours de la même équipe. `oh team claim -p api --team beta` est refusé si le projet `api` appartient à une autre équipe que `beta` : rien n'est écrit dans le team-state de la mauvaise équipe.
 
 ```bash

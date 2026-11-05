@@ -25,7 +25,8 @@ func buildTeamModeView(a *app.App, sessionsSection views.SessionsSectionConfig, 
 				tuiShell.NavigateTo(viewID)
 			}
 		},
-		Start: startSection,
+		OpenTeamDetail: openTeamDetail,
+		Start:          startSection,
 		OnExitTeamMode: func() {
 			if tuiShell != nil {
 				tuiShell.SetMode(views.ModeHub)
@@ -43,10 +44,27 @@ func buildTeamModeView(a *app.App, sessionsSection views.SessionsSectionConfig, 
 	})
 }
 
+// teamDetailView is the team detail view the shell was given (set when the
+// views are built): openTeamDetail asks it for a section.
+var teamDetailView *views.TeamDetailView
+
+// openTeamDetail opens the team detail on a section (views.TeamSection*): the
+// section is asked before the view is mounted, so that the first render puts
+// the cursor on it.
+func openTeamDetail(section string) {
+	if tuiShell == nil {
+		return
+	}
+	if teamDetailView != nil {
+		teamDetailView.OpenSection(section)
+	}
+	tuiShell.NavigateTo("team.detail")
+}
+
 // buildTeamDetailView is the configuration of the team: tracker, MCP, profile
 // of the member, provider keys.
 func buildTeamDetailView(a *app.App) views.View {
-	return views.NewTeamDetailView(views.TeamDetailViewConfig{
+	teamDetailView = views.NewTeamDetailView(views.TeamDetailViewConfig{
 		GetMCPConfig: func() config.MCPConfig {
 			return a.Config.MCP
 		},
@@ -113,6 +131,7 @@ func buildTeamDetailView(a *app.App) views.View {
 			return nil
 		},
 	})
+	return teamDetailView
 }
 
 // buildTeamMCPView is the MCP services of the team.

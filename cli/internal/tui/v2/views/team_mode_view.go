@@ -18,6 +18,10 @@ import (
 type TeamModeConfig struct {
 	// OnNavigate is called when the user wants to navigate to a sub-view.
 	OnNavigate func(viewID string)
+	// OpenTeamDetail opens the team detail on a section (TeamSection*):
+	// « Membres et ma fiche » on the card, « Config Équipe » on the shared
+	// configuration. Nil: both just open the detail (OnNavigate).
+	OpenTeamDetail func(section string)
 	// Start is the « Démarrer » section.
 	Start StartSectionConfig
 	// OnExitTeamMode is called when the user toggles back to hub mode.
@@ -383,6 +387,16 @@ func (v *TeamModeView) buildItems() []teamModeItem {
 		}
 	}
 
+	openDetail := func(section string) func() {
+		return func() {
+			if v.cfg.OpenTeamDetail != nil {
+				v.cfg.OpenTeamDetail(section)
+			} else {
+				navigate("team.detail")()
+			}
+		}
+	}
+
 	items := []teamModeItem{}
 
 	// ── Démarrer ──
@@ -427,8 +441,8 @@ func (v *TeamModeView) buildItems() []teamModeItem {
 	// ── Équipe section: the pages of the team itself ──
 	items = append(items,
 		teamModeItem{Icon: "─", Label: i18n.T("v54u.tm.section.team"), SectionID: "team"},
-		teamModeItem{Icon: "👤", Label: i18n.T("v54u.tm.item.members"), Desc: i18n.T("v54u.tm.item.members_desc"), Action: navigate("team.detail")},
-		teamModeItem{Icon: "🔧", Label: i18n.T("tui.tm.item.config_team"), Desc: i18n.T("tui.tm.item.config_team_desc"), Action: navigate("team.detail")},
+		teamModeItem{Icon: "👤", Label: i18n.T("v54u.tm.item.members"), Desc: i18n.T("v54u.tm.item.members_desc"), Action: openDetail(TeamSectionMember)},
+		teamModeItem{Icon: "🔧", Label: i18n.T("tui.tm.item.config_team"), Desc: i18n.T("tui.tm.item.config_team_desc"), Action: openDetail(TeamSectionTracker)},
 		teamModeItem{Icon: "🔌", Label: i18n.T("v54u.tm.item.mcp"), Desc: i18n.T("v54u.tm.item.mcp_desc"), Action: navigate("team.mcp")},
 		teamModeItem{Icon: "🧠", Label: i18n.T("v54u.tm.item.models"), Desc: i18n.T("v54u.tm.item.models_desc"), Action: navigate("team.models")},
 		teamModeItem{Icon: "📜", Label: i18n.T("tui.tm.item.policies"), Desc: i18n.T("tui.tm.item.policies_desc"), Action: navigate("team.policies")},

@@ -38,7 +38,7 @@ The mode bar shows the sessions badge **`● N ◐ M`** (N sessions working, M d
 - **Project**: the header gives the path and the branch, the tool line and the execution environments with their state, `execution: ⌂ local ✔  ▣ container · colima ✔  ☁ remote ✗` (read when the landing opens, not on the event loop).
   The **Team** section is always there: the `👥 Team: Core › change…` line (or `Team: none`, `Team: solo space mine`) opens the choice of the team of the project; it is followed by the status, the board and the activity of the team when the project is in a team.
 - **Team**: besides *Team sessions*, the section **Sessions of the other members** lists, from the claims of the team-state, who works on which ticket (member, ticket, session, since when; `●` the claim is alive, `○` its lease is past). It is **read only**: `Enter` opens a window with the details and a single button *Close*; a session runs on the machine of its member, oh does not act on it.
-  The right column starts with the **Team** section: *Members and my card*, *Team config*, *Team MCP*, *Team models*, *Policies*, *Patterns*, *Team wiki*. The **Navigation** section offers *Switch team…*, *New team*, *Projects*, *Metrics* and *Hub view*. With no active team the view lists what can be done (new team, choose a team, Hub view) instead of a bare text.
+  The right column starts with the **Team** section: *Members and my card*, *Team config*, *Team MCP*, *Team models*, *Policies*, *Patterns*, *Team wiki*. *Members and my card* opens the team detail on the **member card** section, *Team config* on the first section of the shared configuration (the tracker). The **Navigation** section offers *Switch team…*, *New team*, *Projects*, *Metrics* and *Hub view*. With no active team the view lists what can be done (new team, choose a team, Hub view) instead of a bare text.
 
 ## Global keys
 
@@ -178,6 +178,8 @@ The Command column gives the id; the label or an alias can be typed too. Each te
 The aliases come from the YAML of the workflows (`aliases:`, see the [workflows reference](workflows.en.md)): they are valid for `oh run` too. The former hard-coded terms (`dev`, `start`, `fast`, `rev`…) are no longer recognised.
 
 ### Projects and configuration
+
+The commands of a project (`board`, `board.init`, `project-wiki`, `project-config`) are always registered and show in the Project view only: a first project added in the TUI brings them at once, without a restart.
 
 | Command | Aliases | View | Description |
 |---------|---------|------|-------------|

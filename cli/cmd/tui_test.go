@@ -9,6 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/app"
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/tui/v2/views"
 )
 
 func TestCanLaunchTUI_NonInteractive(t *testing.T) {
@@ -35,11 +36,19 @@ func TestBuildCommands(t *testing.T) {
 	assert.True(t, ids["quit"], "should have quit command")
 	assert.True(t, ids["home"], "should have home command")
 
-	// Project-scoped commands (board, deploy, sync, project-config) are conditional
-	// on having at least one active project (ADR-032). With nil Projects store,
-	// they should NOT be registered.
-	assert.False(t, ids["board"], "board should not be registered without projects")
-	assert.False(t, ids["deploy"], "deploy should not be registered without projects")
+	// The project commands (board, project-config…) are always registered, as
+	// the team ones: a project added in the TUI brings them without a restart.
+	// They show in the project mode only. There is no deploy command.
+	for _, id := range []string{"board", "board.init", "project-wiki", "project-config"} {
+		assert.True(t, ids[id], "%s is registered without project", id)
+	}
+	for _, cmd := range commands {
+		switch cmd.ID {
+		case "board", "board.init", "project-wiki", "project-config":
+			assert.Equal(t, modeProject, cmd.Modes, cmd.ID)
+		}
+	}
+	assert.False(t, ids["deploy"], "deploy should not be registered")
 
 	// The team commands are always registered (a team created in the TUI brings
 	// them without a restart); they show in the team mode only.
@@ -82,4 +91,16 @@ func TestBuildViews(t *testing.T) {
 	for _, id := range []string{"board", "team.board", "metrics", "team.mode", "project.mode"} {
 		assert.Contains(t, ids, id, "the shell registers the %s view", id)
 	}
+}
+
+// The team detail the shell registers is the one the team landing asks for a
+// section; outside of the TUI nothing happens.
+func TestOpenTeamDetailUsesTheRegisteredView(t *testing.T) {
+	prev, prevShell := teamDetailView, tuiShell
+	t.Cleanup(func() { teamDetailView, tuiShell = prev, prevShell })
+	tuiShell = nil
+	teamDetailView = nil
+	v := buildTeamDetailView(&app.App{Config: &config.Config{}})
+	assert.Same(t, v, teamDetailView)
+	assert.NotPanics(t, func() { openTeamDetail(views.TeamSectionMember) })
 }
