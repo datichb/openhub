@@ -76,6 +76,9 @@ type SSHHost struct {
 	// Unchecked: the user turned the host check off for this server
 	// (UserKnownHostsFile none): there is nothing to confirm.
 	Unchecked bool
+	// Resolved: `ssh -G` answered, so Host, Port, Name and Files are what ssh
+	// uses (not only what the URL says).
+	Resolved bool
 }
 
 // Display is the server as the user knows it: host, or host:port.
@@ -101,6 +104,20 @@ type HostKey struct {
 func UnknownSSHHost(ctx context.Context, remote string) *SSHHost {
 	h, ok := ResolveSSHHost(ctx, remote)
 	if !ok || h.Unchecked || h.Known() {
+		return nil
+	}
+	return h
+}
+
+// UnknownSSHHostForJob is UnknownSSHHost for what runs without anybody to ask
+// (the daemon, `oh doctor`): the server is reported only when it is certain
+// that ssh would take it for a first contact. It stays nil when ssh could not
+// be asked how it resolves the server (`ssh -G` failed: the names and files
+// are guesses) and when a certificate authority of known_hosts could vouch for
+// it (ssh then accepts a signed host key with no entry of its own).
+func UnknownSSHHostForJob(ctx context.Context, remote string) *SSHHost {
+	h := UnknownSSHHost(ctx, remote)
+	if h == nil || !h.Resolved || h.VouchedByCA() {
 		return nil
 	}
 	return h
@@ -133,6 +150,7 @@ func ResolveSSHHost(ctx context.Context, remote string) (h *SSHHost, ok bool) {
 	cctx, cancel := context.WithTimeout(ctx, sshHostTimeout)
 	defer cancel()
 	if out, err := sshToolRunner(cctx, "ssh", append(args, "--", host)...); err == nil {
+		h.Resolved = true
 		cfg := parseSSHConfig(out)
 		if v := cfg["hostname"]; len(v) > 0 {
 			h.Host = v[0]
@@ -190,6 +208,18 @@ func ResolveSSHHost(ctx context.Context, remote string) (h *SSHHost, ok bool) {
 func (h *SSHHost) Known() bool {
 	for _, f := range h.Files {
 		if hostsFileKnows(f, h.Name) {
+			return true
+		}
+	}
+	return false
+}
+
+// VouchedByCA reports whether a `@cert-authority` line of a known_hosts file
+// covers the server: ssh trusts a host key signed by that authority without
+// any entry for the server itself.
+func (h *SSHHost) VouchedByCA() bool {
+	for _, f := range h.Files {
+		if hostsFileHasCA(f, h.Name) {
 			return true
 		}
 	}
@@ -438,6 +468,26 @@ func hostsFileKnows(path, name string) bool {
 			continue
 		}
 		if patternsMatch(fields[0], name) {
+			return true
+		}
+	}
+	return false
+}
+
+// hostsFileHasCA reports whether a known_hosts file has a @cert-authority line
+// whose patterns match name.
+func hostsFileHasCA(path, name string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	name = strings.ToLower(name)
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 3 || fields[0] != "@cert-authority" {
+			continue
+		}
+		if patternsMatch(fields[1], name) {
 			return true
 		}
 	}

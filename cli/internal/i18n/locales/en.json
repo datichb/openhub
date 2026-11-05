@@ -6557,5 +6557,11 @@
   "v54a2.host.field": "SSH server",
   "v54a2.host.trusted": "%s trusted (added to known_hosts)",
   "v54z.team.flag_init": "--team is only used with %s (set up the named team again): \"oh team init\" always creates a new team on a new repository. To join an existing team: %s.",
-  "v54z.team.flag_rejoin": "--team does not apply to \"oh team rejoin\": the team is the one of the repository given by %s."
+  "v54z.team.flag_rejoin": "--team does not apply to \"oh team rejoin\": the team is the one of the repository given by %s.",
+  "v54z.doctor.ssh_host.check": "Known SSH server",
+  "v54z.doctor.ssh_host.name": "Known SSH server (%s)",
+  "v54z.doctor.ssh_host.ok": "%s is in known_hosts",
+  "v54z.doctor.ssh_host.ca": "%s is covered by a certificate authority of known_hosts",
+  "v54z.doctor.ssh_host.unchecked": "%s: the check of the servers is turned off in ~/.ssh/config (UserKnownHostsFile none)",
+  "v54z.doctor.ssh_host.unknown": "The SSH server %[1]s is not in known_hosts: the daemon does not connect to it (claims not renewed, automatic sync stopped). Check its fingerprint with the administrator of the server, then run: %[2]s"
 }

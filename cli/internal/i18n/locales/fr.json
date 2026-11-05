@@ -6557,5 +6557,11 @@
   "v54a2.host.field": "Serveur SSH",
   "v54a2.host.trusted": "%s approuvé (ajouté à known_hosts)",
   "v54z.team.flag_init": "--team ne sert qu'avec %s (reconfigurer l'équipe indiquée) : « oh team init » crée toujours une nouvelle équipe sur un nouveau dépôt. Pour rejoindre une équipe existante : %s.",
-  "v54z.team.flag_rejoin": "--team ne s'applique pas à « oh team rejoin » : l'équipe est celle du dépôt donné par %s."
+  "v54z.team.flag_rejoin": "--team ne s'applique pas à « oh team rejoin » : l'équipe est celle du dépôt donné par %s.",
+  "v54z.doctor.ssh_host.check": "Serveur SSH connu",
+  "v54z.doctor.ssh_host.name": "Serveur SSH connu (%s)",
+  "v54z.doctor.ssh_host.ok": "%s est dans known_hosts",
+  "v54z.doctor.ssh_host.ca": "%s est couvert par une autorité de certification de known_hosts",
+  "v54z.doctor.ssh_host.unchecked": "%s : la vérification des serveurs est désactivée dans ~/.ssh/config (UserKnownHostsFile none)",
+  "v54z.doctor.ssh_host.unknown": "Le serveur SSH %[1]s n'est pas dans known_hosts : le démon ne s'y connecte pas (claims non renouvelés, synchro automatique à l'arrêt). Vérifiez son empreinte auprès de l'administrateur du serveur, puis lancez : %[2]s"
 }
