@@ -6430,5 +6430,12 @@
   "v54a.access.alert.title": "Team-state access refused",
   "v54a.access.alert.message_https": "The git token of %[1]s was refused (%[2]s): it has probably expired or been revoked. The claims of your sessions are no longer renewed and the queued operations wait.\nNo more attempts are made until the token changes. Renew it: oh team rejoin --repo %[3]s (step « Access »), or the Access step of « Rejoin a team ».",
   "v54a.access.alert.message_ssh": "The SSH access to %[1]s was refused (%[2]s). The claims of your sessions are no longer renewed and the queued operations wait.\nLoad your key in the agent (ssh-add -l, ssh-add) and check that the server accepts it; the daemon tries again in half an hour. Check with: oh doctor.",
+  "v54a.doctor.team_access.check": "Team-state access",
+  "v54a.doctor.team_access.name": "Team-state access (%s)",
+  "v54a.doctor.team_access.offline": "skipped offline (--offline)",
+  "v54a.doctor.team_access.ok": "%s answers",
+  "v54a.doctor.team_access.not_cloned": "%s answers (not cloned yet: oh team rejoin --repo %s)",
+  "v54a.doctor.team_access.refused": "%s refuses the access (%s). Renew it: oh team rejoin --repo %s (step « Access »)",
+  "v54a.doctor.team_access.unreachable": "%s does not answer (%s)",
   "v54a.claims.start.access": "The access to the team-state of %s is refused: the claim of %s was not taken (oh doctor)."
 }

@@ -6430,5 +6430,12 @@
   "v54a.access.alert.title": "Accès au team-state refusé",
   "v54a.access.alert.message_https": "Le token git de %[1]s a été refusé (%[2]s) : il a probablement expiré ou été révoqué. Les claims de vos sessions ne sont plus renouvelés et les opérations en file attendent.\nAucun nouvel essai n'est fait tant que le token ne change pas. Renouvelez-le : oh team rejoin --repo %[3]s (étape « Accès »), ou l'étape Accès de « Rejoindre une équipe ».",
   "v54a.access.alert.message_ssh": "L'accès SSH à %[1]s a été refusé (%[2]s). Les claims de vos sessions ne sont plus renouvelés et les opérations en file attendent.\nChargez votre clé dans l'agent (ssh-add -l, ssh-add) et vérifiez que le serveur l'accepte ; le démon réessaie dans une demi-heure. Contrôle : oh doctor.",
+  "v54a.doctor.team_access.check": "Accès au team-state",
+  "v54a.doctor.team_access.name": "Accès au team-state (%s)",
+  "v54a.doctor.team_access.offline": "sauté hors ligne (--offline)",
+  "v54a.doctor.team_access.ok": "%s répond",
+  "v54a.doctor.team_access.not_cloned": "%s répond (pas encore cloné : oh team rejoin --repo %s)",
+  "v54a.doctor.team_access.refused": "%s refuse l'accès (%s). Renouvelez-le : oh team rejoin --repo %s (étape « Accès »)",
+  "v54a.doctor.team_access.unreachable": "%s ne répond pas (%s)",
   "v54a.claims.start.access": "L'accès au team-state de %s est refusé : le claim de %s n'a pas été pris (oh doctor)."
 }
