@@ -6555,5 +6555,7 @@
   "v54a2.host.refuse": "Refuse",
   "v54a2.host.trust": "Trust this server",
   "v54a2.host.field": "SSH server",
-  "v54a2.host.trusted": "%s trusted (added to known_hosts)"
+  "v54a2.host.trusted": "%s trusted (added to known_hosts)",
+  "v54z.team.flag_init": "--team is only used with %s (set up the named team again): \"oh team init\" always creates a new team on a new repository. To join an existing team: %s.",
+  "v54z.team.flag_rejoin": "--team does not apply to \"oh team rejoin\": the team is the one of the repository given by %s."
 }

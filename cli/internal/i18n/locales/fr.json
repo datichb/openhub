@@ -6555,5 +6555,7 @@
   "v54a2.host.refuse": "Refuser",
   "v54a2.host.trust": "Faire confiance à ce serveur",
   "v54a2.host.field": "Serveur SSH",
-  "v54a2.host.trusted": "%s approuvé (ajouté à known_hosts)"
+  "v54a2.host.trusted": "%s approuvé (ajouté à known_hosts)",
+  "v54z.team.flag_init": "--team ne sert qu'avec %s (reconfigurer l'équipe indiquée) : « oh team init » crée toujours une nouvelle équipe sur un nouveau dépôt. Pour rejoindre une équipe existante : %s.",
+  "v54z.team.flag_rejoin": "--team ne s'applique pas à « oh team rejoin » : l'équipe est celle du dépôt donné par %s."
 }
