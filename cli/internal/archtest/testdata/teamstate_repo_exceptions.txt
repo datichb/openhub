@@ -11,14 +11,11 @@
 # The commands that build the repository keep the concrete type: they clone,
 # pull and hand it to helpers that take interfaces.
 
-# runTeamInit: the shared instance of the team commands (teamRepo, set once in
-# PersistentPreRun), the repository the init wizard clones, and the two
-# constructors ensureTeamRepo / ensureTeamRepoForProject (the second one wires
-# launch.Deps.TeamRepo, which is concrete).
-cmd/team.go 4
-
-# actionTeamInit: the repository the TUI init wizard clones.
-cmd/tui_team_actions.go 1
+# The shared instance of the team commands (teamRepo, set once in
+# PersistentPreRun), and the two constructors ensureTeamRepo /
+# ensureTeamRepoForProject (the second one wires launch.Deps.TeamRepo, which is
+# concrete).
+cmd/team.go 3
 
 # wiring of launch.Deps.TeamRepo (services/launch, concrete *teamstate.Repo).
 cmd/launch_deps.go 1

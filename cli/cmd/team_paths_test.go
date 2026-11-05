@@ -178,15 +178,16 @@ func TestTeamWithoutStatePath_NeverUsesTheWorkingDirectory(t *testing.T) {
 
 func TestTeamsAdd_TheIDIsFreeAndTheFolderIsTheOneOfTheTeam(t *testing.T) {
 	first := filepath.Join(t.TempDir(), "acme", "team-state.git")
-	second := filepath.Join(t.TempDir(), "beta", "team-state.git")
 	a := pathsApp(t, config.TeamConfig{ID: "team-state", Enabled: true, StateRepo: first, StatePath: filepath.Join(t.TempDir(), "c1"), MemberID: "alice"})
+	second := teamStateBareAt(t, filepath.Join(t.TempDir(), "beta", "team-state.git"))
 
 	cmd := &cobra.Command{}
-	for _, f := range []string{"repo", "member-id", "id", "name", "gitlab-url"} {
-		cmd.Flags().String(f, "", "")
-	}
+	addTeamRejoinFlags(cmd)
+	cmd.Flags().String("id", "", "")
+	cmd.Flags().String("name", "", "")
+	cmd.SetContext(t.Context())
 	require.NoError(t, cmd.Flags().Set("repo", second))
-	require.NoError(t, cmd.Flags().Set("member-id", "bob"))
+	require.NoError(t, cmd.Flags().Set("member-id", "testuser"))
 	require.NoError(t, runTeamsAdd(cmd, nil))
 
 	require.Len(t, a.Config.Teams, 2, "the team of the other repository is kept")
@@ -194,5 +195,7 @@ func TestTeamsAdd_TheIDIsFreeAndTheFolderIsTheOneOfTheTeam(t *testing.T) {
 	require.NotNil(t, added)
 	assert.NotEqual(t, "team-state", added.ID)
 	assert.Equal(t, config.TeamStatePath(second), added.StatePath)
+	assert.Equal(t, "testuser", added.MemberID)
+	assert.True(t, teamstate.NewRepo(second, added.StatePath).IsCloned(), "the team-state is cloned: oh teams add is oh team rejoin")
 	assert.Equal(t, "team-state", a.Config.FindTeamByRepo(first).ID)
 }

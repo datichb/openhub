@@ -127,6 +127,9 @@ func makeRejoinWizard(ctx context.Context, a *app.App) *rejoinWizard {
 		Stale:    func() string { return w.staleCause },
 		Errors:   w.access.ErrorActions,
 		Defaults: identityDefaults(a),
+		Verify: func(ctx context.Context, m teamstate.Member) error {
+			return precheckIdentity(ctx, w.a, w.stateRepo, w.gitlabURL, m)
+		},
 		PickerID: rejoinMemberStepID, CardID: "rejoin_new_member", HandleID: "rejoin_handle",
 	}
 	return w

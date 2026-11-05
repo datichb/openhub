@@ -497,6 +497,16 @@ func teamActionCommands() []shell.Command {
 			Modes:       modeTeam,
 		},
 		{
+			ID:          "team.reconfigure",
+			Label:       i18n.T("v54a.team.reconfigure"),
+			Aliases:     []string{"reconfigure team", "team reconfigure", "reconfigurer equipe"},
+			Description: i18n.T("v54a.team.reconfigure.desc"),
+			Category:    i18n.T("tui.category.team"),
+			Priority:    52,
+			Action:      actionTeamReconfigure,
+			Modes:       modeTeam,
+		},
+		{
 			ID:          "history.team",
 			Label:       i18n.T("tui.cmd.history_team"),
 			Aliases:     []string{"team history", "team sessions", "historique equipe"},

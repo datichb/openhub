@@ -22,7 +22,7 @@ home | "Home" | [accueil welcome] | "Back to home" | "Navigation" | prio=100 | v
 project.mode | "Project View" | [projet project focus] | "Switch to the Project view" | "Navigation" | prio=100 | view= | action=closure | direct=false | enabled=false | modes=hub,team
 hub.mode | "Hub View" | [hub complet retour] | "Return to full TUI (Hub view)" | "Navigation" | prio=95 | view= | action=closure | direct=false | enabled=false | modes=team,project
 quit | "Quit" | [exit q] | "Quit the TUI" | "Navigation" | prio=10 | view= | action=closure | direct=false | enabled=false | modes=
-team.init | "Initialize team" | [team init initialiser] | "Initialize team mode (hub)" | "Team" | prio=40 | view= | action=cmd.actionTeamInit | direct=false | enabled=false | modes=
+team.init | "Create a team" | [team init initialiser] | "A new team-state repository (even if you already have a team)" | "Team" | prio=40 | view= | action=cmd.actionTeamInit | direct=false | enabled=false | modes=
 team.rejoin | "Rejoin a team" | [team rejoin rejoindre rejoin] | "Rejoin an existing team after reinstallation" | "Team" | prio=41 | view= | action=cmd.actionTeamRejoin | direct=false | enabled=false | modes=
 worktrees | "Worktrees" | [wt git worktree] | "Git worktree management" | "Git" | prio=100 | view=worktrees | action=- | direct=false | enabled=false | modes=
 init | "Configure hub" | [init setup reconfigure configurer] | "Run the hub setup wizard (provider, credentials)" | "Hub" | prio=30 | view= | action=closure | direct=false | enabled=false | modes=

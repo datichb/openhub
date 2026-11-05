@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/rivo/tview"
@@ -50,7 +51,16 @@ type memberJoin struct {
 	// handle): the form of their card starts with it. Nil: nothing.
 	Defaults func() (id, name, handle string)
 
+	// Verify checks, before the card is published, that the GitLab token of the
+	// person is the one of the handle on the card. An *identityMismatchError
+	// stops the step (the person decides: change the identity, or publish
+	// anyway); any other error is only a note, nothing blocks. Nil: no check.
+	Verify func(ctx context.Context, m teamstate.Member) error
+
 	PickerID, CardID, HandleID string
+	// publishAnyway: the person chose to publish a card whose handle the token
+	// does not confirm.
+	publishAnyway bool
 	// HandleOnly is the handle typed for a card that has none.
 	HandleOnly string
 	// created: the card was made by the person just now, with the handle they
@@ -201,10 +211,14 @@ func (j *memberJoin) CardStep() views.WizardStep {
 				return errors.New(i18n.T("cmd.team_helpers.team_state_repository_not_available"))
 			}
 			m := j.Fields.member()
+			if err := j.verifyBeforePublishing(m); err != nil {
+				return err
+			}
 			res, err := repo.JoinMember(j.ctx(), m, teamstate.JoinModeFor(j.own(), m.ID, false))
 			if err != nil {
 				return joinRefusalError(err, "v532m.join.id_taken_list")
 			}
+			j.publishAnyway = false
 			*j.Members = replaceMember(*j.Members, res.Member)
 			*j.MemberID = res.Member.ID
 			*j.Adding = false
@@ -224,12 +238,40 @@ func (j *memberJoin) CardStep() views.WizardStep {
 	}
 }
 
+// verifyBeforePublishing verifies the identity of the card before it leaves
+// the machine: a handle that the token of the person does not confirm is told
+// before the colleagues see the card. A token that cannot tell does not stop
+// anything.
+func (j *memberJoin) verifyBeforePublishing(m teamstate.Member) error {
+	if j.Verify == nil || m.GitLabUsername == "" || j.publishAnyway {
+		return nil
+	}
+	err := j.Verify(j.ctx(), m)
+	var mismatch *identityMismatchError
+	switch {
+	case err == nil:
+	case errors.As(err, &mismatch):
+		return err
+	default:
+		slog.Warn("identity not verified before publishing the card", "member", m.ID, "error", err)
+	}
+	return nil
+}
+
 // cardErrorActions: a refused card goes back to the form, or to the list to
-// pick the card that exists (« C'est moi »).
+// pick the card that exists (« C'est moi »); a handle the token does not
+// confirm can be published all the same.
 func (j *memberJoin) cardErrorActions(err error) []views.ErrorAction {
 	var actions []views.ErrorAction
 	if j.Errors != nil {
 		actions = j.Errors(err)
+	}
+	var mismatch *identityMismatchError
+	if errors.As(err, &mismatch) {
+		return append([]views.ErrorAction{
+			{Label: i18n.T("v54a.join.publish_anyway"), Before: func() { j.publishAnyway = true }, Retry: true},
+			{Label: i18n.T("v532m.join.action_change"), GoToStep: j.CardID},
+		}, actions...)
 	}
 	if !isJoinRefusal(err) {
 		return actions

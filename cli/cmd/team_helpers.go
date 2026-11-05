@@ -133,6 +133,7 @@ func (s *initWizardTeamState) access(a **app.App) *teamAccess {
 			Repo:        &s.Repo,
 			GitLabURL:   &s.GitLabURL,
 			Active:      func() bool { return !s.Skipped && (s.Mode == "init" || s.Mode == "rejoin") },
+			Write:       func() bool { return s.Mode == "init" }, // « Créer » writes first: the right to write is probed
 			Abandon:     s.abandon,
 			RequiredKey: "cmd.init.wizard_team_repo_required",
 		}
@@ -162,6 +163,9 @@ func (s *initWizardTeamState) join(a **app.App) *memberJoin {
 			OnSkip:   s.abandon,
 			Errors:   s.access(a).ErrorActions,
 			Defaults: func() (string, string, string) { return identityDefaults(*a)() },
+			Verify: func(ctx context.Context, m teamstate.Member) error {
+				return precheckIdentity(ctx, *a, s.Repo, s.GitLabURL, m)
+			},
 			PickerID: "rejoin_member", CardID: "rejoin_new_member", HandleID: "rejoin_handle",
 		}
 	}
