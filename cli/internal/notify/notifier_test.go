@@ -32,6 +32,8 @@ func TestFormatEvent(t *testing.T) {
 		{"session complete with duration", ev(teamstate.EventSessionComplete, map[string]any{"duration_s": float64(4500)}), "✔ benjamin a terminé une session sur T-SRU/SRU-142 (75 min)"},
 		{"session complete with summary", ev(teamstate.EventSessionComplete, map[string]any{"duration_s": float64(120), "summary": "fix login bug"}), "✔ benjamin a terminé une session sur T-SRU/SRU-142 (2 min) — fix login bug"},
 		{"session complete zero duration", ev(teamstate.EventSessionComplete, map[string]any{"duration_s": float64(0)}), "✔ benjamin a terminé une session sur T-SRU/SRU-142"},
+		{"audit finding", ev(teamstate.EventAuditFinding, map[string]any{"session_id": "ses_au", "report": "rp-2", "audit_type": "security"}), "⚠ benjamin constat d'audit · T-SRU/SRU-142"},
+		{"audit finding with its count", ev(teamstate.EventAuditFinding, map[string]any{"finding_count": float64(4)}), "⚠ benjamin constat d'audit · T-SRU/SRU-142 (4)"},
 		{"claim taken", ev(teamstate.EventClaimTaken, nil), "● benjamin a pris T-SRU/SRU-142"},
 		{"claim conflict", ev(teamstate.EventClaimConflict, map[string]any{"current_owner": "benjamin"}), "✗ benjamin conflit de prise sur T-SRU/SRU-142 (déjà pris par benjamin)"},
 		{"review ready", ev(teamstate.EventReviewReady, map[string]any{"mr_url": "https://gitlab.com/mr/234"}), "◐ benjamin revue prête · T-SRU/SRU-142 — https://gitlab.com/mr/234"},

@@ -26,6 +26,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/services/report"
 	sessionsvc "github.com/datichb/openhub/cli/internal/services/session"
 	"github.com/datichb/openhub/cli/internal/services/wiki"
+	workflowsvc "github.com/datichb/openhub/cli/internal/services/workflow"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/storage/keychain"
 	"github.com/datichb/openhub/cli/internal/teamstate"
@@ -111,32 +112,48 @@ func sessionEndHook(a *app.App, async bool) func(context.Context, domain.Session
 		if !repo.IsCloned() {
 			return
 		}
-		duration := 0.0
-		if s.EndedAt != nil {
-			duration = s.EndedAt.Sub(s.StartedAt).Seconds()
-		}
-		event := teamstate.NewSessionCompleteEvent(resolved.MemberID, s.ProjectID, map[string]interface{}{
-			"session_id": s.ID,
-			"duration_s": duration,
-			"tokens_in":  s.TokensIn,
-			"tokens_out": s.TokensOut,
-			"provider":   s.Provider,
-			"model":      s.Model,
-			"status":     string(s.Status),
-		})
-		if s.Title != nil && *s.Title != "" {
-			event.Data["summary"] = *s.Title
-		}
+		events := sessionTeamEvents(resolved.MemberID, s)
 		if async {
-			repo.AppendEventAsync(event)
+			for _, event := range events {
+				repo.AppendEventAsync(event)
+			}
 			return
 		}
 		wctx, cancel := context.WithTimeout(teamstate.WithLockWait(context.Background(), teamstate.BackgroundLockWait), teamstate.BackgroundLockWait+30*time.Second)
 		defer cancel()
-		if err := repo.AppendEvent(wctx, event); err != nil {
-			slog.Warn("team session.complete event failed", "session", s.ID, "error", err)
+		for _, event := range events {
+			if err := repo.AppendEvent(wctx, event); err != nil {
+				slog.Warn("team session event failed", "event", event.Type, "session", s.ID, "error", err)
+			}
 		}
 	}
+}
+
+// sessionTeamEvents are the team events of a session that ended: its
+// session.complete, and its audit.finding when it is an audit that deposited
+// its report.
+func sessionTeamEvents(memberID string, s domain.Session) []teamstate.Event {
+	duration := 0.0
+	if s.EndedAt != nil {
+		duration = s.EndedAt.Sub(s.StartedAt).Seconds()
+	}
+	complete := teamstate.NewSessionCompleteEvent(memberID, s.ProjectID, map[string]interface{}{
+		"session_id": s.ID,
+		"duration_s": duration,
+		"tokens_in":  s.TokensIn,
+		"tokens_out": s.TokensOut,
+		"provider":   s.Provider,
+		"model":      s.Model,
+		"status":     string(s.Status),
+	})
+	if s.Title != nil && *s.Title != "" {
+		complete.Data["summary"] = *s.Title
+	}
+	events := []teamstate.Event{complete}
+	if data, ok := workflowsvc.AuditFindings(s); ok {
+		events = append(events, teamstate.NewAuditFindingEvent(memberID, s.ProjectID, data))
+	}
+	return events
 }
 
 // sessionRuntimes are the non-local execution environments, configured by the

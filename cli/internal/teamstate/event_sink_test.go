@@ -65,6 +65,22 @@ func TestEventsReachTheSinkAfterTheCommit(t *testing.T) {
 	assert.Equal(t, []string{"claim.taken/alice", "config_changed/alice"}, c.types(), "the config_changed of a publication too")
 }
 
+// The audit.finding event of an audit session is announced like the others.
+func TestAuditFindingEventReachesTheSink(t *testing.T) {
+	if testing.Short() {
+		t.Skip("runs git")
+	}
+	c := installSink(t)
+	a, _ := twoClones(t)
+
+	e := NewAuditFindingEvent("alice", "api", map[string]interface{}{"session_id": "ses_au", "report": "rp-2"})
+	assert.Equal(t, EventAuditFinding, e.Type)
+	assert.False(t, e.Timestamp.IsZero())
+	require.NoError(t, a.AppendEvent(context.Background(), e))
+	require.True(t, WaitEventSinks(5*time.Second))
+	assert.Equal(t, []string{"audit.finding/alice"}, c.types())
+}
+
 // A build that fails, or a transaction whose push is refused and rebuilt, announces nothing twice.
 func TestEventsOfARebuiltOrFailedTransactionAreNotRepeated(t *testing.T) {
 	if testing.Short() {
