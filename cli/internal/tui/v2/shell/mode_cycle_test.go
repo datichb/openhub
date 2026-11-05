@@ -20,6 +20,7 @@ type cycleWorld struct {
 	teams    []views.SelectOption
 	projects []views.SelectOption
 	resolved atomic.Int32
+	noTeam   atomic.Int32 // times the shell asked the host to create or join a team
 }
 
 func newCycleShell(t *testing.T, w *cycleWorld) *simShell {
@@ -28,6 +29,7 @@ func newCycleShell(t *testing.T, w *cycleWorld) *simShell {
 		ProjectName: "test", HomeViewID: "home",
 		Views:            []views.View{&keyView{id: "home"}, &keyView{id: "project.mode"}, &keyView{id: "team.mode"}, &keyView{id: "projects.list"}},
 		TeamsProvider:    func() []views.SelectOption { return w.teams },
+		OnNoTeam:         func() { w.noTeam.Add(1) },
 		ProjectsProvider: func() []views.SelectOption { return w.projects },
 		ProjectResolver: func(id string) *views.ActiveProject {
 			w.resolved.Add(1)
@@ -93,8 +95,22 @@ func TestCtrlTSkipsWhatIsNotConfigured(t *testing.T) {
 		s.key(tcell.KeyCtrlT, 0, tcell.ModNone)
 		s.awaitMode(views.ModeHub)
 	})
-	t.Run("nothing configured: a toast, the hub stays", func(t *testing.T) {
-		s := newCycleShell(t, &cycleWorld{})
+	t.Run("nothing configured: the host offers to create or join a team, the hub stays", func(t *testing.T) {
+		w := &cycleWorld{}
+		s := newCycleShell(t, w)
+		s.key(tcell.KeyCtrlT, 0, tcell.ModNone)
+		require.Eventually(t, func() bool { return w.noTeam.Load() == 1 }, 3*time.Second, 10*time.Millisecond)
+		assert.Equal(t, 0, s.toastCount(), "no toast without action: the host opens the window")
+		assert.Equal(t, views.ModeHub, s.mode())
+	})
+	t.Run("nothing configured and no host: a toast, the hub stays", func(t *testing.T) {
+		s := runSimShell(t, 120, 40, Config{
+			ProjectName: "test", HomeViewID: "home",
+			Views:            []views.View{&keyView{id: "home"}},
+			TeamsProvider:    func() []views.SelectOption { return nil },
+			ProjectsProvider: func() []views.SelectOption { return nil },
+		})
+		s.loop(func() { s.NavigateHome("home", views.ModeHub) })
 		s.key(tcell.KeyCtrlT, 0, tcell.ModNone)
 		require.Eventually(t, func() bool { return s.toastCount() > 0 }, 3*time.Second, 10*time.Millisecond)
 		assert.Equal(t, views.ModeHub, s.mode())

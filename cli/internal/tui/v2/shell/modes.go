@@ -115,7 +115,8 @@ func (s *Shell) ActiveTeam() *views.ActiveTeam {
 // or one to choose); from the project, the team (selector when several teams
 // are configured); from the team, back to the hub. With no project the hub
 // goes straight to the team, with no team the project goes back to the hub,
-// with neither a toast says so.
+// with neither the host offers to create or to join a team (Config.OnNoTeam;
+// a toast says so without it).
 func (s *Shell) cycleMode() {
 	switch s.activeMode {
 	case views.ModeTeam:
@@ -130,6 +131,10 @@ func (s *Shell) cycleMode() {
 		s.enterProjectMode(func() {
 			if s.teamsConfigured() {
 				s.enterTeamMode()
+				return
+			}
+			if s.cfg.OnNoTeam != nil {
+				s.cfg.OnNoTeam()
 				return
 			}
 			s.ShowToast(i18n.T("tui.no_mode_configured"), ToastWarning)
@@ -206,6 +211,10 @@ func (s *Shell) enterTeamMode() {
 	teams := s.cfg.TeamsProvider()
 	switch len(teams) {
 	case 0:
+		if s.cfg.OnNoTeam != nil {
+			s.cfg.OnNoTeam()
+			return
+		}
 		s.ShowToast(i18n.T("tui.no_team_configured"), ToastWarning)
 	case 1:
 		s.activeTeam = &views.ActiveTeam{ID: teams[0].Value, Name: teams[0].Label}

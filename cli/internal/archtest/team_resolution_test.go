@@ -15,13 +15,11 @@ import (
 // another team. The files below still read it, for a reason each; a new use is
 // refused (a lower count is fine).
 var activeTeamAllowed = map[string]int{
-	// The palette « Reconfigurer » and oh init start from the hub team they find.
-	"cmd/tui_team_actions.go": 1,
-	"cmd/init_wizard.go":      1,
-	"cmd/team_identity.go":    1, // identity of the member in the default team: the same person in every team
-	"cmd/history.go":          1, // member of the sessions of the history: the default team
-	"cmd/root.go":             1, // migration of the former per-project override towards the default team
-	"cmd/tui_commands.go":     1, // commands of the palette: the home/palette lot rewrites them
+	// oh init starts from the hub team it finds.
+	"cmd/init_wizard.go":   1,
+	"cmd/team_identity.go": 1, // identity of the member in the default team: the same person in every team
+	"cmd/history.go":       1, // member of the sessions of the history: the default team
+	"cmd/root.go":          1, // migration of the former per-project override towards the default team
 }
 
 func TestCommandsDoNotReadTheActiveTeamDirectly(t *testing.T) {
