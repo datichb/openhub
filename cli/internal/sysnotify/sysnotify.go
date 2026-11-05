@@ -72,7 +72,8 @@ func (n *Notifier) Command(note Note) []string {
 		return []string{"osascript", "-e", script}
 	case "linux":
 		if p, err := n.LookPath("notify-send"); err == nil {
-			return []string{p, "--app-name=oh", note.Title, note.Message}
+			// notify-send reads the markup of its texts (&, <, >).
+			return []string{p, "--app-name=oh", markupSafe(note.Title), markupSafe(note.Message)}
 		}
 	}
 	return nil
@@ -92,3 +93,7 @@ func (n *Notifier) Notify(ctx context.Context, note Note) error {
 func asString(s string) string {
 	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`, "\n", " ").Replace(s) + `"`
 }
+
+var markup = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;")
+
+func markupSafe(s string) string { return markup.Replace(s) }

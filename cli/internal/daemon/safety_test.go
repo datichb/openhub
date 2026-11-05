@@ -72,8 +72,8 @@ func TestPanicInSupervisionDoesNotKillTheDaemon(t *testing.T) {
 func TestPanicInNotificationDoesNotKillTheDaemon(t *testing.T) {
 	logs := captureLogs(t)
 	sent := make(chan struct{}, 2)
-	d := &Daemon{opts: Options{NotifyWindow: time.Millisecond}}
-	d.notes = newNotifier(d, func(context.Context, string, string) error {
+	d := &Daemon{opts: Options{NotifyWindow: time.Millisecond, NotifyPolicy: stepsToo}}
+	d.notes = newNotifier(d, func(context.Context, Notification) error {
 		sent <- struct{}{}
 		panic("notification command exploded")
 	})

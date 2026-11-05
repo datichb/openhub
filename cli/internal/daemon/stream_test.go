@@ -14,18 +14,24 @@ import (
 	"github.com/datichb/openhub/cli/internal/daemon/api"
 	dclient "github.com/datichb/openhub/cli/internal/daemon/client"
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/notifypolicy"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite"
 	"github.com/datichb/openhub/cli/internal/storage/sqlite/sqlitetest"
 )
 
 type notes struct {
-	mu  sync.Mutex
-	got [][2]string
+	mu     sync.Mutex
+	got    [][2]string
+	groups []string
+	sounds []bool
 }
 
-func (n *notes) add(_ context.Context, title, msg string) error {
+func (n *notes) add(_ context.Context, nt Notification) error {
 	n.mu.Lock()
-	n.got = append(n.got, [2]string{title, msg})
+	n.got = append(n.got, [2]string{nt.Title, nt.Message})
+	n.groups = append(n.groups, nt.Group)
+	n.sounds = append(n.sounds, nt.Sound)
 	n.mu.Unlock()
 	return nil
 }
@@ -53,7 +59,7 @@ func TestStreamFeedSubagentsAndNotifications(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- Run(dctx, Options{Paths: p, Version: "t", Servers: servers, Sessions: sessions, Decisions: decisions, Tick: time.Hour, IdleAfter: time.Hour,
-			Notify: sent.add, NotifyWindow: 100 * time.Millisecond,
+			Notify: sent.add, NotifyWindow: 100 * time.Millisecond, NotifyPolicy: stepsToo,
 			ProjectName: func(context.Context, string) string { return "openhub" },
 			Adapter:     func(string) adapters.ToolAdapter { return fake }})
 	}()
@@ -145,16 +151,25 @@ func TestStreamFeedSubagentsAndNotifications(t *testing.T) {
 	assert.Equal(t, "lead", next(late, isFeed(domain.FeedAgent)).Feed.Agent)
 }
 
+// stepsToo is a policy that also notifies the end of a step (a toast by default).
+func stepsToo() notifypolicy.Settings {
+	return notifypolicy.Settings{Events: map[string]string{"step_done": "system"}}
+}
+
 func TestNotifierGroups(t *testing.T) {
 	var sent notes
-	d := &Daemon{opts: Options{}}
+	d := &Daemon{opts: Options{NotifyPolicy: stepsToo}}
 	n := newNotifier(d, sent.add)
 	n.window = 50 * time.Millisecond
 	n.mu.Lock()
-	n.enqueueLocked(note{kind: "permission", sessionID: "a"})
-	n.enqueueLocked(note{kind: "question", sessionID: "b"})
-	n.enqueueLocked(note{kind: "done", sessionID: "c"})
+	n.enqueueLocked(note{kind: notifypolicy.KindPermission, class: classDecision, sessionID: "a"})
+	n.enqueueLocked(note{kind: notifypolicy.KindQuestion, class: classDecision, sessionID: "b"})
+	n.enqueueLocked(note{kind: notifypolicy.KindStepDone, class: classDone, sessionID: "c"})
 	n.mu.Unlock()
-	require.Eventually(t, func() bool { return len(sent.list()) == 1 }, time.Second, 10*time.Millisecond)
+	// One notification per family: the end of a step does not hide the decisions.
+	require.Eventually(t, func() bool { return len(sent.list()) == 2 }, time.Second, 10*time.Millisecond)
 	assert.Equal(t, "oh", sent.list()[0][0])
+	assert.Equal(t, i18n.Tf("tui.notify.many_decisions", 2, 2), sent.list()[0][1])
+	assert.Equal(t, i18n.T("tui.notify.title.done"), sent.list()[1][0])
+	assert.Equal(t, []string{"oh-decision", "oh-done"}, sent.groups)
 }

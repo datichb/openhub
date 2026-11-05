@@ -4329,7 +4329,6 @@
   "tui.notify.title.done": "oh · ✔ étape terminée",
   "tui.notify.many_decisions": "%d décisions en attente (%d sessions)",
   "tui.notify.many_done": "%d sessions ont terminé leur étape",
-  "tui.notify.mixed": "%d décisions en attente · %d étapes terminées",
   "tui.sessions.title": "Sessions",
   "tui.sessions.desc": "Sessions v5 : à traiter, en cours, en veille, terminées",
   "tui.sessions.hints": "Entrée décider/suivre · y valider · n refuser · a attacher · m consigne · s arrêter · f filtre · ? aide",
@@ -6710,5 +6709,10 @@
   "v54n.config.unknown_event": "« %s » ne correspond à aucun événement (%s, une famille « claim.* » ou « * »)",
   "v54n.notify.test_message": "Test de notification OpenHub : le webhook répond.",
   "v54n.notify.test_no_destination": "Aucune destination ne reçoit les messages de test : vérifiez webhook_url et type (oh team config status).",
-  "v54n.notify.gave_up": "✗ webhook · %s · message abandonné après plusieurs essais : %s (%v)"
+  "v54n.notify.gave_up": "✗ webhook · %s · message abandonné après plusieurs essais : %s (%v)",
+  "v54n.notify.title.session_complete": "oh · ✔ session terminée",
+  "v54n.notify.title.credential": "oh · ✗ une alerte attend",
+  "v54n.notify.many_complete": "%d sessions ont terminé",
+  "v54n.notify.many_budget": "%d sessions ont épuisé leur budget",
+  "v54n.notify.many_errors": "%d sessions en erreur"
 }
