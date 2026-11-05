@@ -117,3 +117,11 @@ The following enhancements were added to the original design (see ADR-028 for th
 - **Pull after CommitAndPush**: best-effort pull immediately after each successful push to pick up concurrent teammate commits
 - **Async pull on team views**: all team TUI views (board, status, activity, takeover, patterns, policies) pull git on mount and on `r` key; toast shown only if > 1 second
 - **Events emitted**: `claim.taken`, `claim.released`, `claim.transferred` events are now emitted on each corresponding operation
+
+## Amendment 5.4.0: attaching a project to a team, default team, create ≠ reconfigure
+
+Three points of the 2026-07-24 amendment ("Per-project team configuration") changed shape in 5.4.0. The decision (one team-state repository per team, shared by its projects) does not change.
+
+- **The `team configure` TUI action is now "Attach the project to a team"** (`team.configure`, Project view). It offers every team of `hub.toml`, the solo spaces and "no team"; the Team field of the project configuration is a list instead of free text. On the command line: `oh project set-team <project> <team>`.
+- **The default team is explicit**: `default = true` in `[[teams]]` (or `oh teams default <id>`), otherwise the first enabled team; an archived team is never the default team. It joins `--team`, the team chosen in the TUI and the team of the project in the single resolution rule (`ResolveTeam`).
+- **Creating a team is not reconfiguring it**: `oh team init` always creates a new team on a new repository; `oh team init --reconfigure` (or "Reconfigure the team") works on the team that is already set up; joining an existing repository goes through `oh team rejoin --repo` (`oh teams add` is its alias).

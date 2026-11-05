@@ -117,3 +117,11 @@ Les améliorations suivantes ont été ajoutées à la conception initiale (voir
 - **Pull après CommitAndPush** : pull best-effort immédiatement après chaque push réussi pour récupérer les commits concurrents des coéquipiers
 - **Pull asynchrone sur les vues team** : toutes les vues TUI d'équipe (board, status, activity, takeover, patterns, policies) effectuent un pull git au montage et à la touche `r` ; toast affiché uniquement si > 1 seconde
 - **Événements émis** : les événements `claim.taken`, `claim.released`, `claim.transferred` sont désormais émis lors de chaque opération correspondante
+
+## Amendement 5.4.0 : rattacher un projet à une équipe, équipe par défaut, créer ≠ reconfigurer
+
+Trois points de l'amendement du 2026-07-24 (« Configuration team par projet ») ont changé de forme en 5.4.0. La décision (un dépôt team-state par équipe, partagé par ses projets) ne change pas.
+
+- **L'action TUI `team configure` s'appelle « Rattacher le projet à une équipe »** (`team.configure`, vue Projet). Elle propose toutes les équipes de `hub.toml`, les espaces solo et « aucune équipe » ; le champ Équipe de la configuration du projet est une liste et non plus un texte libre. En ligne de commande : `oh project set-team <projet> <équipe>`.
+- **L'équipe par défaut est explicite** : `default = true` dans `[[teams]]` (ou `oh teams default <id>`), à défaut la première équipe activée ; une équipe archivée n'est jamais l'équipe par défaut. Elle s'ajoute à `--team`, à l'équipe choisie dans la TUI et à l'équipe du projet dans la règle de résolution unique (`ResolveTeam`).
+- **Créer une équipe n'est pas la reconfigurer** : `oh team init` crée toujours une nouvelle équipe sur un nouveau dépôt ; `oh team init --reconfigure` (ou « Reconfigurer l'équipe ») reprend l'équipe déjà configurée ; rejoindre un dépôt existant passe par `oh team rejoin --repo` (`oh teams add` en est l'alias).
