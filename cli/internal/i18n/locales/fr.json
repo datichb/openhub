@@ -1104,11 +1104,6 @@
   "cmd.mcp.status.source_hub": "hub",
   "cmd.mcp.status.source_project": "projet",
   "cmd.mcp.flags.project": "Nom ou ID du projet",
-  "cmd.mcp.invalid_service": "service inconnu %q — services valides : figma, gitlab, gslides, team",
-  "cmd.mcp.setup.option_figma": "Figma — design tokens & composants",
-  "cmd.mcp.setup.option_gitlab": "GitLab — merge requests & pipelines",
-  "cmd.mcp.setup.option_gslides": "Google Slides — présentations",
-  "cmd.mcp.setup.option_jira": "Jira — tickets",
   "cmd.mcp.setup.unknown_service": "Service %q inconnu pour oh mcp setup (services : %s)",
   "cmd.mcp.setup.write_label": "Mode écriture %s",
   "cmd.mcp.setup.write_checkbox": "Activer les outils d'écriture de %s (créer, commenter, assigner) ?",
@@ -6964,5 +6959,12 @@
   "v54l.claims.start.create_queued": "Hors ligne : %[1]s/%[2]s sera réservé à votre nom au retour du réseau, s'il est encore libre.",
   "v54l.claims.start.offline": "Hors ligne : %[1]s/%[2]s n'a pas pu être réservé (une réservation existe peut-être déjà) ; relancez « oh team claim » une fois en ligne.",
   "v541b.home.solo_one": "%d espace solo ›",
-  "v541b.home.solo_many": "%d espaces solo ›"
+  "v541b.home.solo_many": "%d espaces solo ›",
+  "v55m.mcp.unknown_service": "service inconnu %q — services valides : %s",
+  "v55m.mcp.setup.option_figma": "Figma — design tokens & composants",
+  "v55m.mcp.setup.option_github": "GitHub — issues, pull requests & Actions",
+  "v55m.mcp.setup.option_gitlab": "GitLab — merge requests & pipelines",
+  "v55m.mcp.setup.option_gslides": "Google Slides — présentations",
+  "v55m.mcp.setup.option_jira": "Jira — tickets",
+  "v55m.mcp.setup.option_linear": "Linear — tickets"
 }

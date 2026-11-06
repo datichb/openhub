@@ -1,6 +1,7 @@
 // Package mcpresolve provides MCP (Model Context Protocol) service configuration
 // resolution. It merges team-state recommendations with local hub.toml overrides
-// and optional per-project overrides for any MCP service (gitlab, jira, figma, gslides).
+// and optional per-project overrides for any MCP service (gitlab, jira, figma,
+// gslides, github, linear: see Services).
 //
 // This package is independent of the tracker package — it handles generic MCP
 // service resolution only.
@@ -47,12 +48,6 @@ type EffectiveConfig struct {
 	// overriding the team recommendation.
 	LocalOverridesEnabled bool
 }
-
-// ServiceHasURL reports whether the server of an MCP service takes a URL. The
-// Figma server always calls api.figma.com and the Google Slides server
-// slides.googleapis.com: a URL recorded for them (hub.toml, project, team) is
-// ignored, never offered and never reported.
-func ServiceHasURL(service string) bool { return service != "figma" && service != "gslides" }
 
 // Resolve merges a team-state MCP recommendation with a local hub.toml
 // MCP server config for a single service (e.g. "gitlab", "figma").
@@ -124,6 +119,9 @@ func Resolve(shared *teamstate.SharedMCPConfig, local config.MCPServerConfig) Ef
 //
 // Resolution per field:
 //   - Enabled:      team_enforced → project (if non-nil) → hub_explicit → team_recommended → false
+//     (the team recommendation has three states, see TeamState: "enabled" and
+//     "disabled" are used only when nobody above has an explicit choice,
+//     "inherited" says nothing)
 //   - URL:          team_enforced → project.URL → hub.URL → team_recommended.URL → ""
 //   - TokenKey:     project.TokenKey → hub.Token (always personal, never team)
 //   - WriteEnabled: project.WriteEnabled → hub.WriteEnabled (always personal, never team)

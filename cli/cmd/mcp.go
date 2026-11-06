@@ -21,6 +21,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/mcp/mcpregistry"
 	mcpwiki "github.com/datichb/openhub/cli/internal/mcp/wiki"
 	mcpworkflow "github.com/datichb/openhub/cli/internal/mcp/workflow"
+	"github.com/datichb/openhub/cli/internal/mcpresolve"
 	teamsvc "github.com/datichb/openhub/cli/internal/services/team"
 	"github.com/datichb/openhub/cli/internal/sessionspec"
 	"github.com/datichb/openhub/cli/internal/tracker"
@@ -116,7 +117,7 @@ func mcpEnableCmd() *cobra.Command {
 func runMCPEnable(cmd *cobra.Command, args []string) error {
 	serviceName := args[0]
 	if !isValidMCPService(serviceName) {
-		return fmt.Errorf("%s", i18n.Tf("cmd.mcp.invalid_service", serviceName))
+		return unknownMCPServiceError(serviceName, validMCPServiceNames())
 	}
 
 	projectID, _ := cmd.Flags().GetString("project")
@@ -206,7 +207,7 @@ func mcpDisableCmd() *cobra.Command {
 func runMCPDisable(cmd *cobra.Command, args []string) error {
 	serviceName := args[0]
 	if !isValidMCPService(serviceName) {
-		return fmt.Errorf("%s", i18n.Tf("cmd.mcp.invalid_service", serviceName))
+		return unknownMCPServiceError(serviceName, validMCPServiceNames())
 	}
 
 	projectID, _ := cmd.Flags().GetString("project")
@@ -266,7 +267,7 @@ func mcpResetCmd() *cobra.Command {
 func runMCPReset(cmd *cobra.Command, args []string) error {
 	serviceName := args[0]
 	if !isValidMCPService(serviceName) {
-		return fmt.Errorf("%s", i18n.Tf("cmd.mcp.invalid_service", serviceName))
+		return unknownMCPServiceError(serviceName, validMCPServiceNames())
 	}
 
 	projectID, _ := cmd.Flags().GetString("project")
@@ -308,8 +309,25 @@ func mcpSetupCmd() *cobra.Command {
 }
 
 // mcpSetupServices are the services oh mcp setup configures (token in the
-// keychain, hub or project settings).
-var mcpSetupServices = []string{"figma", "gitlab", "gslides", "jira"}
+// keychain, hub or project settings): every service oh knows
+// (mcpresolve.Services), the same list as oh mcp status and the screens.
+var mcpSetupServices = mcpServiceNames()
+
+// mcpServiceNames lists the names of the known services, in the order the
+// screens show them.
+func mcpServiceNames() []string {
+	var names []string
+	for _, s := range mcpresolve.Services() {
+		names = append(names, s.Name)
+	}
+	return names
+}
+
+// unknownMCPServiceError is the error of a service name no command knows: it
+// names the valid ones.
+func unknownMCPServiceError(name string, valid []string) error {
+	return errors.New(i18n.Tf("v55m.mcp.unknown_service", name, strings.Join(valid, ", ")))
+}
 
 // mcpSetupService returns the service named on the command line ("" =
 // ask; the argument used to be ignored).
@@ -355,7 +373,7 @@ func runMCPSetup(cmd *cobra.Command, args []string) error {
 	if serviceName == "" {
 		opts := make([]huh.Option[string], 0, len(mcpSetupServices))
 		for _, name := range mcpSetupServices {
-			opts = append(opts, huh.NewOption(i18n.T("cmd.mcp.setup.option_"+name), name))
+			opts = append(opts, huh.NewOption(i18n.T("v55m.mcp.setup.option_"+name), name))
 		}
 		form := theme.NewForm(huh.NewGroup(huh.NewSelect[string]().
 			Title(i18n.T("cmd.service.select")).Options(opts...).Value(&serviceName)))
@@ -666,14 +684,13 @@ func mcpServeCmd() *cobra.Command {
 }
 
 // mcpServiceEnvVar maps MCP service names to their expected token environment variable.
-var mcpServiceEnvVar = map[string]string{
-	"figma":   "FIGMA_TOKEN",
-	"gitlab":  "GITLAB_TOKEN",
-	"gslides": "GOOGLE_ACCESS_TOKEN",
-	"jira":    "JIRA_TOKEN",
-	"github":  "GITHUB_TOKEN",
-	"linear":  "LINEAR_API_KEY",
-}
+var mcpServiceEnvVar = func() map[string]string {
+	m := map[string]string{}
+	for _, s := range mcpresolve.Services() {
+		m[s.Name] = s.TokenEnv
+	}
+	return m
+}()
 
 // injectTokenFromKeychain reads a token from the keychain and sets the corresponding
 // environment variable for the MCP service, but only if the env var is not already set.

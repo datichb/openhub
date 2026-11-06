@@ -56,6 +56,19 @@ func TestMCPSetupWizard(t *testing.T) {
 			wantHub:     config.MCPServerConfig{Enabled: true, Token: config.MCPTokenKey("jira")},
 		},
 		{
+			name: "hub scope, Linear: token in the keychain, never in hub.toml", service: "linear", answers: answers("tok", true), abortAt: -1,
+			wantRan:     []int{0, 1, 2},
+			wantSecrets: map[string]string{config.MCPTokenKey("linear"): "tok"},
+			wantHub:     config.MCPServerConfig{Enabled: true, Token: config.MCPTokenKey("linear"), WriteEnabled: true},
+			wantOut:     []string{i18n.Tf("cmd.service.enabled", "linear")},
+		},
+		{
+			name: "project scope, GitHub", service: "github", project: true, answers: answers("gt", false), abortAt: -1,
+			wantRan:     []int{0, 1, 2},
+			wantSecrets: map[string]string{config.MCPProjectTokenKey("github", "p1"): "gt"},
+			wantService: &domain.ProjectMCPService{Name: "github", Enabled: boolPtr(true), TokenKey: config.MCPProjectTokenKey("github", "p1"), WriteEnabled: boolPtr(false)},
+		},
+		{
 			name: "project scope, a service without write tools", service: "figma", project: true, answers: answers("ft", false), abortAt: -1,
 			wantRan:     []int{0, 2},
 			wantSecrets: map[string]string{config.MCPProjectTokenKey("figma", "p1"): "ft"},

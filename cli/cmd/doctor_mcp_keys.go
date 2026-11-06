@@ -9,6 +9,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/config"
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/i18n"
+	"github.com/datichb/openhub/cli/internal/mcpresolve"
 )
 
 // mcpTokensReport checks the token of every enabled hub MCP service: the
@@ -22,11 +23,11 @@ func mcpTokensReport(cfg *config.Config, secrets domain.SecretStore) (string, bo
 		envVar  string
 		keyName string
 	}
-	keys := []keyCheck{
-		{"figma", cfg.MCP.Figma.Enabled, "FIGMA_TOKEN", cfg.MCP.Figma.Token},
-		{"gitlab", cfg.MCP.Gitlab.Enabled, "GITLAB_TOKEN", cfg.MCP.Gitlab.Token},
-		{"jira", cfg.MCP.Jira.Enabled, "JIRA_TOKEN", cfg.MCP.Jira.Token},
-		{"gslides", cfg.MCP.Gslides.Enabled, "GOOGLE_ACCESS_TOKEN", cfg.MCP.Gslides.Token},
+	var keys []keyCheck
+	for _, svc := range mcpresolve.Services() {
+		if hub := cfg.MCPServer(svc.Name); hub != nil {
+			keys = append(keys, keyCheck{svc.Name, hub.Enabled, svc.TokenEnv, hub.Token})
+		}
 	}
 
 	var configured int
