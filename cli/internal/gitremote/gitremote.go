@@ -92,6 +92,35 @@ func Origin(path string) (string, bool) {
 	return "", false
 }
 
+// ConfigGet reads the value of key in section of the .git/config of the clone
+// at path (no git process): section is the header as git writes it without the
+// brackets (`core`, `remote "origin"`), the section and the key are compared
+// without regard to case, and the last value wins, as in git. ok is false when
+// the file cannot be read or holds no such key. The files the configuration
+// includes are not followed.
+func ConfigGet(path, section, key string) (value string, ok bool) {
+	data, err := os.ReadFile(filepath.Join(path, ".git", "config"))
+	if err != nil {
+		return "", false
+	}
+	want := strings.Join(strings.Fields(section), " ")
+	in := false
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(line, "["):
+			header, _, _ := strings.Cut(strings.TrimPrefix(line, "["), "]")
+			in = strings.EqualFold(strings.Join(strings.Fields(header), " "), want)
+		case in && line != "":
+			k, v, found := strings.Cut(line, "=")
+			if found && strings.EqualFold(strings.TrimSpace(k), key) {
+				value, ok = ConfigValue(v), true
+			}
+		}
+	}
+	return value, ok
+}
+
 // IsCloneOf reports whether path holds a clone whose origin is the repository
 // remote.
 func IsCloneOf(path, remote string) bool {
