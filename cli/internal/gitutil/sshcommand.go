@@ -178,9 +178,11 @@ func isSSHProgram(p string) bool {
 	return strings.TrimSuffix(strings.ToLower(p), ".exe") == "ssh"
 }
 
-// sshFlags are the options without a value that are carried over.
+// sshFlags are the options without a value that are carried over. Not -A:
+// forwarding the agent of the user to the server of a repository is not for oh
+// to enable.
 var sshFlags = map[string]bool{
-	"-4": true, "-6": true, "-a": true, "-A": true, "-C": true, "-q": true,
+	"-4": true, "-6": true, "-a": true, "-C": true, "-q": true,
 	"-T": true, "-x": true, "-v": true, "-vv": true, "-vvv": true,
 }
 
