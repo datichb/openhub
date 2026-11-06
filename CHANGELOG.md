@@ -14,16 +14,25 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **`HashKnownHosts yes` est respecté.** Quand ssh hache `known_hosts` (réglage par défaut de Debian et d'Ubuntu), oh écrit le serveur approuvé au format haché d'OpenSSH (`|1|sel|empreinte`, sel aléatoire propre à chaque clé), et la commande à lancer à la main devient `ssh-keyscan -H`. La recherche d'un serveur lit les deux formes (en clair, hachée, `[hôte]:port`), et oh n'ajoute plus une clé que `known_hosts` contient déjà.
 - **Le contrôle du serveur SSH suit votre commande SSH** : `GIT_SSH_COMMAND`, puis le `core.sshCommand` de votre configuration git **globale**, puis `GIT_SSH`. `ssh -G` reçoit les mêmes options que le ssh de git (`-i`, `-F`, `-p`, `-l`, `-o UserKnownHostsFile=…`, `StrictHostKeyChecking`…), et c'est le `known_hosts` choisi par cette commande qui est lu et écrit. La commande n'est jamais exécutée : seules les options reconnues sont reprises. Au moindre doute (un autre programme que ssh, une syntaxe shell, une option inconnue dont `ProxyCommand` et `ProxyJump`, un chemin relatif), toute la commande est écartée et oh lance ssh sans options ; le journal (une fois) et `oh doctor` le signalent.
 - **`oh doctor` signale qu'un `core.sshCommand` défini dans le clone de l'équipe est ignoré** (« mettez-le dans la configuration globale de git ou dans `GIT_SSH_COMMAND` »). Ce n'est pas une erreur. Le démon l'écrit une fois dans son journal.
+- **`oh mcp setup` configure aussi Linear et GitHub** : le jeton va dans le trousseau d'oh et n'est jamais affiché. Les services MCP connus sont maintenant décrits à un seul endroit, que `oh mcp setup`, `oh mcp status`, `oh doctor`, le lancement des sessions et la TUI utilisent tous.
+- **`oh mcp status [service]`** couvre maintenant jira, github et linear, et accepte un nom de service. Un nom inconnu donne une erreur qui liste les services valides, avec un code de sortie non nul. La colonne SOURCE peut valoir « équipe ».
+- **MCP d'équipe à trois états** (activé, désactivé, hérité) pour gitlab, jira, figma, gslides, github et linear. Dans la vue « Services MCP » de la TUI, `Espace` passe d'un état à l'autre, y compris pour revenir à « hérité ». ([MIGRATION.md](MIGRATION.md))
+- **Un service MCP activé sans jeton** (ni `token_key`, ni variable d'environnement) est signalé par `oh mcp status`, par `oh doctor` (aussi pour chaque projet) et par un avertissement au lancement d'une session.
 
 ### Changed
 
 - **Les opérations git d'oh (pull, push, clone, démon) passent à ssh les options de votre commande SSH**, au lieu de les ignorer. oh garde son `BatchMode=yes` en premier ; ce que vous avez choisi pour la vérification du serveur l'emporte sur l'`accept-new` d'oh. Le `core.sshCommand` d'un dépôt n'est jamais suivi, car un dépôt peut être modifié par autre chose que vous. ([MIGRATION.md](MIGRATION.md))
-
+- **`oh mcp status` affiche l'état que reçoivent vraiment les sessions** (équipe, projet, hub), et non plus seulement celui de `hub.toml`.
+- **Les serveurs MCP sont donnés aux sessions dans un ordre fixe** : gitlab, jira, figma, gslides, github, linear.
+- **Les vues et l'aide ne proposent plus d'URL pour GitHub et Linear** : leur adresse d'API est fixe.
 - **Homebrew : oh est publié en cask.** GoReleaser publie `Casks/openhub.rb` (`homebrew_casks`) à la place de la formule `Formula/openhub.rb` (`brews`, déprécié). Les commandes ne changent pas : `brew install datichb/tap/openhub`, `brew upgrade openhub`. Le cask déclare `git` et `opencode` comme dépendances, retire la quarantaine macOS du binaire (non notarisé) et s'installe aussi sous Linux (Homebrew 4.5 ou plus). Un cask n'a pas de dépendance « recommandée » : `beads` et `terminal-notifier` sont proposés dans les notes affichées à l'installation. La publication demande GoReleaser 2.19 ou plus. ([MIGRATION.md](MIGRATION.md))
 
 ### Fixed
 
 - **Avec `HostKeyAlias`, le serveur est nommé sans le port dans `known_hosts`**, comme le fait ssh. Avec un port autre que 22, oh cherchait et écrivait `[alias]:port`, une entrée que ssh ne lit pas.
+- **`GITHUB_URL` et `LINEAR_URL` ne sont plus posées dans les sessions** (ni `FIGMA_URL`, ni `GSLIDES_URL`) : aucun serveur ne les lisait. Un test vérifie que chaque variable posée par une session est lue par le serveur concerné.
+- **Un service MCP activé sans jeton n'est plus écarté sans message.**
+- **Un réglage MCP de l'équipe peut revenir à « hérité »** : la clé est supprimée du fichier. Une fois posé, ce réglage ne pouvait plus être retiré.
 
 ## [5.4.1] — 2026-11-05
 
