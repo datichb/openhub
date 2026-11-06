@@ -194,3 +194,17 @@ func TestEnabledPrecedence(t *testing.T) {
 	assert.True(t, ResolveFull(orphan, hubOn, nil, "acme").Enabled)
 	assert.False(t, ResolveFull(orphan, hubOn, nil, "acme").EnabledEnforced)
 }
+
+// oh team config set|unset mcp.<service>.enabled goes through the same
+// three states: set writes the boolean, unset goes back to inherited.
+func TestTeamConfigSettingsUseTheThreeStates(t *testing.T) {
+	cfg := &teamstate.TeamConfig{}
+	require.NoError(t, cfg.Set("mcp.linear.enabled", "false"))
+	assert.Equal(t, TeamDisabled, TeamStateOf(cfg.MCP["linear"]))
+	require.NoError(t, cfg.Set("mcp.linear.enabled", "true"))
+	assert.Equal(t, TeamEnabled, TeamStateOf(cfg.MCP["linear"]))
+
+	require.NoError(t, cfg.Unset("mcp.linear.enabled"))
+	assert.Equal(t, TeamInherited, TeamStateOf(cfg.MCP["linear"]))
+	assert.NotContains(t, writeTeam(t, cfg), "enabled", "the key is gone from the file")
+}
