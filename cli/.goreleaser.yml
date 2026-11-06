@@ -58,29 +58,36 @@ changelog:
       - "^test:"
       - "^ci:"
 
-brews:
+homebrew_casks:
   - name: openhub
     repository:
       owner: datichb
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
-    # A pre-release tag (v5.0.0-rc.N) does not update the Homebrew formula.
+    directory: Casks
+    # A pre-release tag (v5.0.0-rc.N) does not update the Homebrew cask.
     skip_upload: auto
     homepage: "https://github.com/datichb/openhub"
     description: "OpenHub CLI — orchestrateur pour opencode"
-    license: "MIT"
-    # opencode runs every session: without it oh cannot start one. beads
-    # (bd) and terminal-notifier (clickable notifications, macOS only) are optional.
+    binaries:
+      - oh
+    # opencode runs every session: without it oh cannot start one. A cask
+    # has no "recommended" dependency and no per-OS dependency: beads (bd) and
+    # terminal-notifier (clickable notifications, macOS only) are advertised
+    # in the caveats instead.
     dependencies:
-      - name: git
-      - name: opencode
-      - name: beads
-        type: recommended
-      - name: terminal-notifier
-        type: recommended
-        os: mac
-    install: |
-      bin.install "oh"
-    test: |
-      system "#{bin}/oh", "version"
+      - formula: git
+      - formula: opencode
+    caveats: |
+      Outils facultatifs :
+        brew install beads              # bd : tableau de tickets
+        brew install terminal-notifier  # macOS : notifications cliquables
+    # oh is not notarized: without this, Gatekeeper blocks the downloaded
+    # binary on macOS ("oh is damaged and cannot be opened"). The cask also
+    # installs on Linux (Homebrew 4.5+), where there is no quarantine.
+    hooks:
+      post:
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/oh"]
+          end

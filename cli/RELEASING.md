@@ -5,9 +5,9 @@ Process de release du binaire `oh` (OpenHub CLI).
 ## Prérequis
 
 - Go 1.26+
-- [GoReleaser](https://goreleaser.com/) v2.10+
-- Un `GITHUB_TOKEN` avec les droits `repo` (pour push la formula Homebrew)
-- Le repo `datichb/homebrew-tap` doit exister (public, avec un dossier `Formula/`)
+- [GoReleaser](https://goreleaser.com/) v2.19+ (`homebrew_casks` avec `hooks.post.install_steps`)
+- Un `GITHUB_TOKEN` avec les droits `repo` (pour push le cask Homebrew)
+- Le repo `datichb/homebrew-tap` doit exister (public ; GoReleaser écrit dans `Casks/`)
 
 ## Process de release
 
@@ -42,7 +42,7 @@ GoReleaser va :
 1. Compiler 4 binaires (darwin/amd64, darwin/arm64, linux/amd64, linux/arm64)
 2. Créer les archives `.tar.gz` + checksums
 3. Publier une release GitHub avec les assets
-4. Pusher la formula dans `datichb/homebrew-tap/Formula/openhub.rb`
+4. Pusher le cask dans `datichb/homebrew-tap/Casks/openhub.rb`
 
 ### 4. Vérifier
 
@@ -68,7 +68,7 @@ curl -sSfL https://raw.githubusercontent.com/datichb/openhub/main/install.sh | s
 | `openhub_linux_amd64.tar.gz` | Linux x86_64 |
 | `openhub_linux_arm64.tar.gz` | Linux ARM64 |
 | `checksums.txt` | SHA256 de chaque archive |
-| `Formula/oh.rb` | Homebrew formula (poussée dans le tap) |
+| `Casks/openhub.rb` | Homebrew cask (poussé dans le tap) |
 
 ## Configuration GoReleaser
 
@@ -76,7 +76,7 @@ Le fichier `.goreleaser.yml` est à la racine de `cli/`. Points clés :
 - `CGO_ENABLED=0` — binaire statique, pas de dépendance glibc
 - ldflags injectent Version, Commit, BuildDate
 - Format unique `tar.gz` (simple, universel)
-- La formula Homebrew est auto-générée
+- Le cask Homebrew est auto-généré (`homebrew_casks`)
 
 ## Hotfix release
 
