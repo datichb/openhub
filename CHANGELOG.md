@@ -9,9 +9,21 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Added
+
+- **`HashKnownHosts yes` est respecté.** Quand ssh hache `known_hosts` (réglage par défaut de Debian et d'Ubuntu), oh écrit le serveur approuvé au format haché d'OpenSSH (`|1|sel|empreinte`, sel aléatoire propre à chaque clé), et la commande à lancer à la main devient `ssh-keyscan -H`. La recherche d'un serveur lit les deux formes (en clair, hachée, `[hôte]:port`), et oh n'ajoute plus une clé que `known_hosts` contient déjà.
+- **Le contrôle du serveur SSH suit votre commande SSH** : `GIT_SSH_COMMAND`, puis le `core.sshCommand` de votre configuration git **globale**, puis `GIT_SSH`. `ssh -G` reçoit les mêmes options que le ssh de git (`-i`, `-F`, `-p`, `-l`, `-o UserKnownHostsFile=…`, `StrictHostKeyChecking`…), et c'est le `known_hosts` choisi par cette commande qui est lu et écrit. La commande n'est jamais exécutée : seules les options reconnues sont reprises. Au moindre doute (un autre programme que ssh, une syntaxe shell, une option inconnue dont `ProxyCommand` et `ProxyJump`, un chemin relatif), toute la commande est écartée et oh lance ssh sans options ; le journal (une fois) et `oh doctor` le signalent.
+- **`oh doctor` signale qu'un `core.sshCommand` défini dans le clone de l'équipe est ignoré** (« mettez-le dans la configuration globale de git ou dans `GIT_SSH_COMMAND` »). Ce n'est pas une erreur. Le démon l'écrit une fois dans son journal.
+
 ### Changed
 
+- **Les opérations git d'oh (pull, push, clone, démon) passent à ssh les options de votre commande SSH**, au lieu de les ignorer. oh garde son `BatchMode=yes` en premier ; ce que vous avez choisi pour la vérification du serveur l'emporte sur l'`accept-new` d'oh. Le `core.sshCommand` d'un dépôt n'est jamais suivi, car un dépôt peut être modifié par autre chose que vous. ([MIGRATION.md](MIGRATION.md))
+
 - **Homebrew : oh est publié en cask.** GoReleaser publie `Casks/openhub.rb` (`homebrew_casks`) à la place de la formule `Formula/openhub.rb` (`brews`, déprécié). Les commandes ne changent pas : `brew install datichb/tap/openhub`, `brew upgrade openhub`. Le cask déclare `git` et `opencode` comme dépendances, retire la quarantaine macOS du binaire (non notarisé) et s'installe aussi sous Linux (Homebrew 4.5 ou plus). Un cask n'a pas de dépendance « recommandée » : `beads` et `terminal-notifier` sont proposés dans les notes affichées à l'installation. La publication demande GoReleaser 2.19 ou plus. ([MIGRATION.md](MIGRATION.md))
+
+### Fixed
+
+- **Avec `HostKeyAlias`, le serveur est nommé sans le port dans `known_hosts`**, comme le fait ssh. Avec un port autre que 22, oh cherchait et écrivait `[alias]:port`, une entrée que ssh ne lit pas.
 
 ## [5.4.1] — 2026-11-05
 
