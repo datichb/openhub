@@ -131,7 +131,7 @@ func TestClaimsBeatReadsTheSSHCommandOfTheClone(t *testing.T) {
 	require.NoError(t, os.WriteFile(custom, []byte("git.example.test ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMe2oLQFSPbU1ZXsHBUxEcjB6QExxb9fTzDW8/Z/Plf7\n"), 0o600))
 	cfg, err := os.OpenFile(filepath.Join(repo.Path(), ".git", "config"), os.O_APPEND|os.O_WRONLY, 0)
 	require.NoError(t, err)
-	_, err = cfg.WriteString("\n[core]\n\tsshCommand = ssh -o UserKnownHostsFile=" + custom + "\n")
+	_, err = cfg.WriteString("\n[core]\n\tsshCommand = ssh -o UserKnownHostsFile=" + filepath.ToSlash(custom) + "\n")
 	require.NoError(t, err)
 	require.NoError(t, cfg.Close())
 
@@ -159,7 +159,7 @@ func TestClaimsBeatReadsTheSSHCommandOfTheClone(t *testing.T) {
 
 	require.NoError(t, b.beat(ctx))
 	require.NotEmpty(t, asked)
-	assert.Equal(t, []string{"-G", "-o", "UserKnownHostsFile=" + custom, "-l", "git", "--", "git.example.test"}, asked[0],
+	assert.Equal(t, []string{"-G", "-o", "UserKnownHostsFile=" + filepath.ToSlash(custom), "-l", "git", "--", "git.example.test"}, asked[0],
 		"ssh -G is asked with the options of the core.sshCommand of the clone")
 	assert.Empty(t, b.access.hostsSaid, "the server is in the known_hosts of the command: the job goes on")
 }

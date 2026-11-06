@@ -33,14 +33,15 @@ func sshGArgs(t *testing.T, tools *fakeSSHTools) []string {
 func TestSSHHostAsksSSHWithTheOptionsOfGit(t *testing.T) {
 	home, tools := sshSandbox(t)
 	custom := filepath.Join(home, "custom", "known_hosts")
-	t.Setenv("GIT_SSH_COMMAND", "ssh -i /keys/work -F /conf/ssh_config -o UserKnownHostsFile="+custom+" -p 2200 -4")
+	// forward slashes: a backslash is an escape in the command line of git
+	t.Setenv("GIT_SSH_COMMAND", "ssh -i /keys/work -F /conf/ssh_config -o UserKnownHostsFile="+filepath.ToSlash(custom)+" -p 2200 -4")
 	tools.gErr = nil
 	tools.gOut = "hostname real.example.test\nport 2222\nuserknownhostsfile " + custom + "\nglobalknownhostsfile none\n"
 
 	h := UnknownSSHHost(t.Context(), "ssh://deploy@alias:2222/team/state.git")
 	require.NotNil(t, h)
 	assert.Equal(t, []string{
-		"-G", "-i", "/keys/work", "-F", "/conf/ssh_config", "-o", "UserKnownHostsFile=" + custom, "-p", "2200", "-4",
+		"-G", "-i", "/keys/work", "-F", "/conf/ssh_config", "-o", "UserKnownHostsFile=" + filepath.ToSlash(custom), "-p", "2200", "-4",
 		"-p", "2222", "-l", "deploy", "--", "alias",
 	}, sshGArgs(t, tools), "the options of git, then the port and the user of the URL, which win")
 	assert.Equal(t, gitutil.SSHSourceCommandEnv, h.Custom.Source)
