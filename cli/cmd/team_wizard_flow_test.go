@@ -222,29 +222,68 @@ func runWizardOnKeys(t *testing.T, cfg views.InlineWizardConfig, drive func(k *w
 	return res
 }
 
-// waitFor is wizardKeys.waitFor with a longer wait: git runs behind it.
+// screenOnLoop is the screen as text, read on the event loop between two draws.
+func (k *wizardKeys) screenOnLoop() (string, bool) {
+	read := make(chan string, 1)
+	k.tvApp.QueueUpdate(func() { read <- screenContents(k.sc) })
+	select {
+	case txt := <-read:
+		return txt, true
+	case <-time.After(200 * time.Millisecond):
+		return "", false
+	}
+}
+
+// settleGrace is how long a text that was already on the screen before the
+// keys went in is trusted to be the one of the next step, when the keys
+// change nothing visible.
+const settleGrace = 400 * time.Millisecond
+
+// waitForText is wizardKeys.waitFor with a longer wait: git runs behind it.
+// It returns once the keys sent so far have had their effect: the text is on
+// the screen, the screen is not the one the keys were sent on (the text can
+// also be in the recap of the step that is still processing its answer, whose
+// keys are absorbed until it is done, and the active step is drawn together
+// with its header "Step n/m — …") and the screen does not move any more.
 func waitForText(k *wizardKeys, text string) {
 	k.t.Helper()
 	if k.failed {
 		return
 	}
 	deadline := time.Now().Add(20 * time.Second)
+	var unchanged time.Time // since when the text has been on the screen of the keys
 	for time.Now().Before(deadline) {
-		read := make(chan string, 1)
-		k.tvApp.QueueUpdate(func() { read <- screenContents(k.sc) })
-		select {
-		case txt := <-read:
-			if strings.Contains(txt, text) {
-				// a page that has just been drawn takes its keys a moment later
-				time.Sleep(150 * time.Millisecond)
+		txt, ok := k.screenOnLoop()
+		if ok && strings.Contains(txt, text) {
+			if !k.sent || txt != k.prev {
+				if k.settled(txt) {
+					return
+				}
+			} else if unchanged.IsZero() {
+				unchanged = time.Now()
+			} else if time.Since(unchanged) > settleGrace && k.settled(txt) {
 				return
 			}
-		case <-time.After(200 * time.Millisecond):
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(5 * time.Millisecond)
 	}
 	k.failed = true
 	k.t.Errorf("the screen does not show %q:\n%s", text, screenContents(k.sc))
+}
+
+// settled tells whether the screen stays as it is for a few turns of the event
+// loop (a page that has just been drawn takes its keys at once, but a step
+// that has just been validated draws the next one in a later turn).
+func (k *wizardKeys) settled(txt string) bool {
+	for range 3 {
+		time.Sleep(5 * time.Millisecond)
+		again, ok := k.screenOnLoop()
+		if !ok || again != txt {
+			return false
+		}
+	}
+	k.prev, k.sent = txt, false
+	return true
 }
 
 // seeTeamStateOver returns the HTTPS server of the claim repositories, with a
