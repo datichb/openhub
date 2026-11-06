@@ -108,7 +108,9 @@ jobs:
   # four shards of the tests of ./cmd, which run one after the other in their
   # package and lasted 800 s on their own, and "rest", every other package (the
   # ones of Windows: .github/windows-test-packages.txt). ./cmd is not tested on
-  # Windows. Linux writes a coverage profile.
+  # Windows. Only Linux runs under -race (decision of the user: the race
+  # detector doubles the time of the tests, and a data race is the same on the
+  # three systems) and writes a coverage profile.
   go-cli-test:
     name: Go CLI tests (${{ matrix.os }}, ${{ matrix.shard }})
     runs-on: ${{ matrix.os }}
@@ -192,9 +194,9 @@ jobs:
         run: |
           mapfile -t args < <(../.github/scripts/test-shards.sh args "$SHARD")
           [ "${#args[@]}" -gt 0 ] || exit 1
-          flags=(-race -count=1 -timeout "$GO_TEST_TIMEOUT")
+          flags=(-count=1 -timeout "$GO_TEST_TIMEOUT")
           if [ "$RUNNER_OS" = "Linux" ]; then
-            flags+=(-coverprofile="coverage-$SHARD.out" -covermode=atomic)
+            flags+=(-race -coverprofile="coverage-$SHARD.out" -covermode=atomic)
           fi
           echo "Shard $SHARD: ${#args[@]} argument(s) for go test, flags: ${flags[*]}"
           go test "${args[@]}" "${flags[@]}"
