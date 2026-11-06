@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -27,10 +28,25 @@ const Config = "[maintenance]\n\tauto = false\n[receive]\n\tautogc = false\n[gc]
 // the identity or the defaults of the machine it runs on.
 func Defaults() string { return Base + Config }
 
+// Unprompted removes from the process the askpass programs of the machine
+// (the credential dialog of an IDE terminal: VS Code sets GIT_ASKPASS) and
+// stops git from prompting: a git of a test that is refused fails at once
+// instead of waiting for a click. Main and testenv.Isolate call it.
+func Unprompted() {
+	for _, kv := range os.Environ() {
+		k, _, _ := strings.Cut(kv, "=")
+		if k == "GIT_ASKPASS" || k == "SSH_ASKPASS" || k == "SSH_ASKPASS_REQUIRE" || strings.HasPrefix(k, "VSCODE_GIT_") {
+			_ = os.Unsetenv(k)
+		}
+	}
+	_ = os.Setenv("GIT_TERMINAL_PROMPT", "0")
+}
+
 // Main runs the tests of a package with Defaults() as the global git
 // configuration (GIT_CONFIG_GLOBAL, whatever it was); it is the body of
 // TestMain.
 func Main(m *testing.M) int {
+	Unprompted()
 	dir, err := os.MkdirTemp("", "oh-gittest-")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "gittest:", err)

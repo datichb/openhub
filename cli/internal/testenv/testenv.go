@@ -112,6 +112,7 @@ func Isolate() (finish func(code int) int) {
 	for k, v := range env {
 		_ = os.Setenv(k, v)
 	}
+	gittest.Unprompted()
 
 	return func(code int) int {
 		defer os.RemoveAll(dir)

@@ -43,6 +43,21 @@ func TestGitConfig(t *testing.T) {
 	assert.Equal(t, gittest.Defaults(), string(data))
 }
 
+// No askpass of the machine reaches the tests, and git does not prompt: a
+// refused git of a test fails instead of waiting for a dialog.
+func TestUnprompted(t *testing.T) {
+	t.Setenv("GIT_ASKPASS", "/ide/askpass.sh")
+	t.Setenv("SSH_ASKPASS", "/ide/askpass.sh")
+	t.Setenv("VSCODE_GIT_IPC_HANDLE", "/ide/ipc.sock")
+	t.Setenv("GIT_TERMINAL_PROMPT", "1")
+	gittest.Unprompted()
+	for _, k := range []string{"GIT_ASKPASS", "SSH_ASKPASS", "VSCODE_GIT_IPC_HANDLE"} {
+		_, set := os.LookupEnv(k)
+		assert.False(t, set, k)
+	}
+	assert.Equal(t, "0", os.Getenv("GIT_TERMINAL_PROMPT"))
+}
+
 func TestRemoved(t *testing.T) {
 	for _, k := range []string{"OH_HOME", "OH_TEST_ROOT", "OH_TEST_PROJECT", "OH_PASSPHRASE", "OH_SESSION_ID", "OH_GATEWAY_URL"} {
 		assert.True(t, removed(k), k)
