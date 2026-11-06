@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/hmac"
-	"crypto/sha1" //nolint:gosec // known_hosts names are hashed with HMAC-SHA1 by OpenSSH
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
@@ -79,6 +78,10 @@ type SSHHost struct {
 	// Resolved: `ssh -G` answered, so Host, Port, Name and Files are what ssh
 	// uses (not only what the URL says).
 	Resolved bool
+	// Hashed: HashKnownHosts is on for this server (the default of Debian and
+	// Ubuntu), so ssh writes the name of a server hashed (|1|salt|hash) and a
+	// server added by oh is written the same way.
+	Hashed bool
 }
 
 // Display is the server as the user knows it: host, or host:port.
@@ -160,6 +163,9 @@ func ResolveSSHHost(ctx context.Context, remote string) (h *SSHHost, ok bool) {
 		}
 		if v := cfg["hostkeyalias"]; len(v) > 0 && v[0] != "none" {
 			alias = v[0]
+		}
+		if v := cfg["hashknownhosts"]; len(v) > 0 && strings.EqualFold(v[0], "yes") {
+			h.Hashed = true
 		}
 		if v := cfg["userknownhostsfile"]; len(v) > 0 {
 			userFiles = v
@@ -254,7 +260,10 @@ func (h *SSHHost) Scan(ctx context.Context) ([]HostKey, error) {
 }
 
 // Trust adds the keys to the known_hosts file of the user (the one ssh
-// writes), under the name ssh looks the server up with.
+// writes), under the name ssh looks the server up with: written in clear, or
+// hashed (|1|salt|hash, a salt of its own for each key) when HashKnownHosts is
+// on, as ssh does. A key the file already has for the server, hashed or not,
+// is not added again.
 func (h *SSHHost) Trust(keys []HostKey) error {
 	if h.WriteTo == "" || len(keys) == 0 {
 		return errors.New("no known_hosts file to write")
@@ -267,8 +276,24 @@ func (h *SSHHost) Trust(keys []HostKey) error {
 	if len(existing) > 0 && !bytes.HasSuffix(existing, []byte("\n")) {
 		sb.WriteString("\n")
 	}
+	added := 0
 	for _, k := range keys {
-		fmt.Fprintf(&sb, "%s %s %s\n", h.Name, k.Type, k.blob)
+		if hostsDataHasKey(existing, h.Name, k) {
+			continue
+		}
+		name := h.Name
+		if h.Hashed {
+			hashed, err := newHashedHostName(h.Name)
+			if err != nil {
+				return err
+			}
+			name = hashed
+		}
+		fmt.Fprintf(&sb, "%s %s %s\n", name, k.Type, k.blob)
+		added++
+	}
+	if added == 0 {
+		return nil
 	}
 	f, err := os.OpenFile(h.WriteTo, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
@@ -289,8 +314,12 @@ func (h *SSHHost) ManualCommands() (sshCmd, keyscanCmd string) {
 	if h.Port != "" {
 		portFlag = "-p " + h.Port + " "
 	}
+	hashFlag := ""
+	if h.Hashed {
+		hashFlag = "-H " // the name written hashed, as ssh does with HashKnownHosts
+	}
 	sshCmd = "ssh " + portFlag + "-T " + h.User + "@" + h.Host
-	keyscanCmd = "ssh-keyscan " + portFlag + h.Host + " >> " + displayPath(h.WriteTo)
+	keyscanCmd = "ssh-keyscan " + hashFlag + portFlag + h.Host + " >> " + displayPath(h.WriteTo)
 	return sshCmd, keyscanCmd
 }
 
@@ -528,9 +557,7 @@ func hashedMatch(pattern, name string) bool {
 	if err1 != nil || err2 != nil {
 		return false
 	}
-	mac := hmac.New(sha1.New, salt)
-	mac.Write([]byte(name))
-	return hmac.Equal(mac.Sum(nil), want)
+	return hmac.Equal(hostMAC(salt, name), want)
 }
 
 // wildcardMatch: pattern with * and ? against s.
