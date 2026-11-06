@@ -9,6 +9,10 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 
 ## [Unreleased]
 
+### Changed
+
+- **Homebrew : oh est publié en cask.** GoReleaser publie `Casks/openhub.rb` (`homebrew_casks`) à la place de la formule `Formula/openhub.rb` (`brews`, déprécié). Les commandes ne changent pas : `brew install datichb/tap/openhub`, `brew upgrade openhub`. Le cask déclare `git` et `opencode` comme dépendances, retire la quarantaine macOS du binaire (non notarisé) et s'installe aussi sous Linux (Homebrew 4.5 ou plus). Un cask n'a pas de dépendance « recommandée » : `beads` et `terminal-notifier` sont proposés dans les notes affichées à l'installation. La publication demande GoReleaser 2.19 ou plus. ([MIGRATION.md](MIGRATION.md))
+
 ## [5.4.1] — 2026-11-05
 
 Version de correctifs, faite avant le gel du branchement de la TUI prévu pour la fin de la 5.5. **Un correctif de sécurité** : `GH_TOKEN` et les autres noms des jetons gérés par oh ne passent plus aux agents, même listés dans `execution.env_allow`. Si vous utilisez `gh` dans une session, voir la [migration 5.4 → 5.4.1](docs/guides/migration-v5.fr.md#depuis-la-54-vers-la-541). Autres changements : les notifications (`audit.finding` enfin émis, avertissements lisibles, au plus 5 toasts, rotation de l'historique sous verrou), une ligne « espaces solo » sur l'accueil du hub, et un garde-fou d'architecture plus large. Pas de migration de la base.
