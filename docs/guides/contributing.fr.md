@@ -48,6 +48,8 @@ make test           # Tous les tests avec -race detector (délai : TEST_TIMEOUT=
 make test-unit      # Tests unitaires uniquement (-short, plus rapide)
 make test-tui       # Tests TUI uniquement (./internal/tui/...)
 make test-cover     # Genere coverage.out + coverage.html
+make test-shards    # La suite comme la CI la découpe, tous les shards en même temps (sans -race)
+make test-shard SHARD=cmd-2   # Un shard de la CI (cmd-1 … cmd-4, rest-1 … rest-3)
 ```
 
 Mesurer les durées de la suite : `make test-durations` lance `go test ./... -short -count=1 -json`
@@ -64,9 +66,12 @@ go run scripts/testdurations/main.go -compare avant.json apres.json   # depuis c
 
 Le CI exige un seuil de couverture minimum de **60%** avec le race detector actif.
 
-La CI GitHub (`.github/workflows/ci.yml`) lance, sous Linux, macOS et Windows, `go vet`, le lint,
-`govulncheck` et une seule exécution `go test -race` de la suite (délai de 40 minutes) qui écrit aussi
-le profil de couverture, dont le total est comparé au seuil sous Linux et macOS ; un job à
+La CI GitHub (`.github/workflows/ci.yml`) lance, sous Linux, macOS et Windows, dans des jobs séparés : les
+vérifications statiques (`go vet`, le lint, `govulncheck`, le build) et les tests, répartis en **shards**
+(voir plus bas). Seul Linux lance les tests avec `-race` (une course est la même sous les trois systèmes et
+le détecteur double la durée des tests) et écrit un profil de couverture par shard (`-covermode=atomic`) ; le
+job *Go CLI coverage* fusionne les profils (`.github/scripts/merge-coverage.sh`) et compare le total au seuil.
+Le job *Go CLI (système)* dit seulement si les vérifications, les tests et la couverture sont verts; un job à
 part lance les tests de contrat (tag `integration`) contre un vrai `opencode serve` de version
 épinglée, sans appeler de modèle, sur les seuls paquets qui en ont (la liste est calculée à partir des
 fichiers de test `//go:build integration`, un nouveau paquet la rejoint donc tout seul ; aujourd'hui
@@ -82,6 +87,20 @@ verts. Chaque paquet de `go list ./...` doit être dans un seul des deux fichier
 dans les deux, ou n'existe plus. Un nouveau paquet se classe dans le commit qui le crée : dans le premier
 fichier si ses tests passent sous Windows, sinon dans le second avec sa cause.
 Le seuil de couverture n'est pas calculé sous Windows, pour rester celui du module entier.
+
+**Shards de tests.** Les 900 tests de `./cmd` partagent l'état de leur paquet et tournent l'un après
+l'autre : seuls, ils durent une dizaine de minutes, plus que tous les autres paquets ensemble sur quatre
+cœurs. La CI (et `make test-shards`) répartit donc les tests de `./cmd` en quatre shards, `cmd-1` à `cmd-4`
+(`.github/test-shards-cmd.txt`, un test par ligne avec son shard et sa durée), et les autres paquets en
+trois, `rest-1` à `rest-3` (`.github/test-shards-rest.txt`) ; `.github/scripts/test-shards.sh args <shard>`
+affiche les arguments de `go test` d'un shard. Les fichiers sont équilibrés sur une mesure, pas à la main.
+Un nouveau test de `./cmd`, ou un nouveau paquet, n'est dans aucun shard tant que vous n'avez pas lancé
+`make test-shards-sync` (depuis `cli/`) et commité les fichiers : la CI échoue d'ici là
+(`test-shards.sh check`, qui échoue aussi pour un test dans deux shards, un test qui n'existe plus, ou un
+shard que `ci.yml` ne lance pas). Pour rééquilibrer après un gros changement : `go test ./... -race -p 1 -json
+> run.json` puis `TEST_SHARDS_CMD=4 TEST_SHARDS_REST=3 .github/scripts/test-shards.sh balance run.json`.
+Sous Windows, un shard `rest` ne teste que ses paquets de `.github/windows-test-packages.txt` ; `./cmd` n'y
+est pas testé.
 
 La suite complète dépasse le délai par défaut de `go test` (10 minutes), surtout quand d'autres
 suites tournent en parallèle : en dehors de `make test`, passez le délai vous-même
@@ -175,6 +194,25 @@ duplique l'un d'eux : s'il manque quelque chose, on complète l'outil commun.
   ```go
   golden.Assert(t, "rendu", out) // testdata/rendu.golden
   ```
+
+**Garder les tests rapides.** Sur un portable avec des agents de sécurité, démarrer un processus coûte 15 à
+20 ms et la première exécution d'un nouvel exécutable une demi-seconde : un test, c'est surtout le nombre de
+processus qu'il lance :
+
+- construire une fixture une fois, pas une fois par test : `gittest.Repo` et `gittest.BareClone` copient un
+  modèle construit une fois par binaire de test ; dans `./cmd`, les `templates` de `fixtures_test.go` vivent
+  aussi longtemps que le binaire (les tests tournent l'un après l'autre : un modèle supprimé par son dernier
+  utilisateur serait reconstruit par le test suivant), et `setupClaimTestAppSeeded` garde un team-state dont les
+  claims sont déjà créés (chacun coûte cinq commandes git) ;
+- ne jamais interroger la machine : les tests de `./cmd` utilisent un exécuteur de conteneurs qui ne trouve
+  aucun moteur (`no_engine_test.go`), car `colima status` et `podman version` répondent en secondes, ou pas du
+  tout ;
+- un faux `bd` ou éditeur écrit en script coûte sa première exécution ; un délai qu'une machine chargée peut
+  dépasser (`patientBd`, `patientShell`) est un test instable, pas une sécurité ;
+- attendre ce dont le test a besoin (`require.Eventually`, l'étape que l'assistant affiche), pas un temps
+  fixe : `waitForText` attend que l'écran change après les touches, puis qu'il ne bouge plus ;
+- un test qui utilise `t.Setenv`, `os.Chdir` ou l'état du paquet (`application`, `teamRepo`) ne peut pas être
+  `t.Parallel()` ; un autre, qui ne partage rien, le peut (à prouver avec `-race -count=3`).
 
 Les tests qui lancent le vrai `bd` (démarrage de Dolt, plusieurs secondes) appellent
 `bdtest.RequireRealBd(t)` : ils sont ignorés par `go test -short` et par `make test-unit`, mais
