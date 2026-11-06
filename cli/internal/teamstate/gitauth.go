@@ -163,8 +163,14 @@ func gitCommand(ctx context.Context, remote, dir string, creds *GitCredentials, 
 		cmd.Env = append(cmd.Env, "LC_ALL=C")
 	}
 	cmd.Env = append(cmd.Env, env...)
+	// No askpass of the environment either (the credential dialog of an IDE
+	// terminal): git would wait for it instead of failing. Only oh's own,
+	// with the token it holds.
+	cmd.Env = append(cmd.Env, "SSH_ASKPASS=")
 	if askEnv != "" {
 		cmd.Env = append(cmd.Env, askEnv)
+	} else {
+		cmd.Env = append(cmd.Env, "GIT_ASKPASS=")
 	}
 	return cmd, cleanup
 }
