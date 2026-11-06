@@ -33,6 +33,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **`GITHUB_URL` et `LINEAR_URL` ne sont plus posées dans les sessions** (ni `FIGMA_URL`, ni `GSLIDES_URL`) : aucun serveur ne les lisait. Un test vérifie que chaque variable posée par une session est lue par le serveur concerné.
 - **Un service MCP activé sans jeton n'est plus écarté sans message.**
 - **Un réglage MCP de l'équipe peut revenir à « hérité »** : la clé est supprimée du fichier. Une fois posé, ce réglage ne pouvait plus être retiré.
+- **Lancé depuis un terminal VS Code (ou un autre éditeur qui fournit un `GIT_ASKPASS`), oh n'ouvre plus la boîte de dialogue d'identifiants de l'éditeur pendant ses opérations git sur le team-state.** Sans jeton d'oh à donner, une sonde refusée (assistants, `oh team join`, démon) attendait une réponse à cette boîte au lieu d'échouer tout de suite. Les credential helpers de git (trousseau macOS, etc.) ne sont pas concernés.
 
 ## [5.4.1] — 2026-11-05
 
