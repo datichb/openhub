@@ -72,7 +72,7 @@ oh mcp reset figma --project mon-projet
 
 ### oh mcp setup
 
-Configure un service MCP (assistant interactif : token, options). Services : `figma`, `gitlab`, `gslides`, `jira` ; sans argument, le service est choisi dans une liste. Le mode écriture est propose pour les services qui ont des outils d'écriture (`gitlab`, `jira`). Avec `--project`, le token est stocke dans le trousseau sous une clé propre au projet.
+Configure un service MCP (assistant interactif : token, options). Services : `figma`, `github`, `gitlab`, `gslides`, `jira`, `linear` ; sans argument, le service est choisi dans une liste. Le mode écriture est proposé pour les services qui ont des outils d'écriture (`github`, `gitlab`, `jira`, `linear`). Le jeton va dans le trousseau d'oh (jamais dans `hub.toml`, jamais affiché : le champ est masqué) ; `hub.toml` n'en garde que le **nom** (`token_key`). Avec `--project`, le token est stocke dans le trousseau sous une clé propre au projet.
 
 Noms des clés du trousseau : `openhub.mcp.<service>.token` (hub) et `openhub.mcp.<service>.token.<id-projet>` (projet). Les anciens noms (`<service>-token`, `<service>-token-<id-projet>`) restent lus en repli : un jeton trouvé seulement sous l'ancien nom est copié sous le nouveau, et l'ancienne clé est conservée (jamais supprimée automatiquement). Au démarrage, oh copie aussi les clés des projets vers le nouveau nom et met à jour la clé enregistrée dans le projet ; cette migration peut être rejouée. `oh doctor` signale une clé configurée dont la valeur est vide ou introuvable, avec la commande pour la refaire (`oh mcp setup <service>`).
 
@@ -88,6 +88,7 @@ oh mcp setup [service] [options]
 
 ```bash
 oh mcp setup
+oh mcp setup linear
 oh mcp setup jira --project mon-projet
 ```
 
@@ -95,10 +96,12 @@ oh mcp setup jira --project mon-projet
 
 ### oh mcp status
 
-Affiche le statut de tous les services MCP. Avec `--project`, affiche la config effective (overrides du projet compris). Une URL imposée par l'équipe que vous n'avez pas approuvée est signalée par un avertissement (voir [`oh mcp trust`](#oh-mcp-trust)).
+Affiche le statut des services MCP : `figma`, `github`, `gitlab`, `gslides`, `jira`, `linear` et `team`, avec pour chacun l'état effectif (celui que reçoivent les sessions : équipe, projet, puis hub), la **source** de cet état (`hub`, `projet` ou `équipe`) et d'où vient le jeton (`env:VARIABLE`, `keychain`, « token manquant » quand la clé est configurée mais sans valeur, ou `—`). Avec `--project`, affiche la config effective (overrides du projet compris). Avec un nom de service, n'affiche que celui-ci ; un nom inconnu est refusé avec la liste des services valides (code de sortie non nul).
+
+Deux sortes d'avertissements suivent le tableau : une URL imposée par l'équipe que vous n'avez pas approuvée (voir [`oh mcp trust`](#oh-mcp-trust)), et un service **activé sans jeton** (ni `token_key`, ni variable d'environnement du service) : les sessions l'écartent, et la ligne dit la variable attendue et la commande qui le configure (`oh mcp setup <service>`). Ce n'est pas une erreur : les autres services restent donnés aux sessions. Le même avertissement est écrit au lancement d'une session et par `oh doctor`.
 
 ```
-oh mcp status [options]
+oh mcp status [service] [options]
 ```
 
 | Flag | Court | Type | Description |
@@ -109,6 +112,7 @@ oh mcp status [options]
 
 ```bash
 oh mcp status
+oh mcp status linear
 oh mcp status --project mon-projet
 ```
 
@@ -164,7 +168,7 @@ oh mcp serve <name> [--token-key <cle>]
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--token-key` | string | Clé du trousseau d'ou lire le token du service (pose `FIGMA_TOKEN`, `GITLAB_TOKEN` ou `GOOGLE_ACCESS_TOKEN` s'ils ne sont pas déjà définis) |
+| `--token-key` | string | Clé du trousseau d'ou lire le token du service (pose la variable du service — `FIGMA_TOKEN`, `GITHUB_TOKEN`, `GITLAB_TOKEN`, `GOOGLE_ACCESS_TOKEN`, `JIRA_TOKEN` ou `LINEAR_API_KEY` — si elle n'est pas déjà définie) |
 
 Les outils sont exposes sans le nom du serveur (`get_project`) : l'outil (opencode) le prefixe, la session voit `gitlab_get_project` (nom cite par les agents, les skills et les règles de permission). Un appel sous l'ancien nom prefixe (`gitlab_get_project` côté serveur) reste accepte.
 

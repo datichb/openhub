@@ -4,7 +4,7 @@
 
 ## Activation
 
-Le serveur MCP GitHub est placé automatiquement dans le paquet de session au lancement lorsque `[mcp.github]` a `enabled = true` **et** `token_key` dans `hub.toml` (voir [`[mcp.github]`](config.fr.md#serveurs-mcp-github-et-linear)).
+Le serveur MCP GitHub est placé automatiquement dans le paquet de session au lancement lorsque `[mcp.github]` a `enabled = true` **et** `token_key` dans `hub.toml` (voir [`[mcp.github]`](config.fr.md#serveurs-mcp-github-et-linear)). `oh mcp setup github` écrit les deux. Un service activé sans `token_key` (ni `GITHUB_TOKEN`) n'est pas placé dans le paquet : oh l'écrit au lancement de la session, dans `oh mcp status github` et dans `oh doctor`.
 
 ```json
 // Déclaré dans le paquet de session au lancement
@@ -20,13 +20,17 @@ Le serveur MCP GitHub est placé automatiquement dans le paquet de session au la
 
 ## Authentification
 
-Un personal access token (PAT) ou un token GitHub App, rangé dans le trousseau de `oh` (`oh secrets set --global openhub.mcp.github.token`) et désigné par `token_key` dans `[mcp.github]`. Le serveur le lit dans la variable `GITHUB_TOKEN` (ou `GH_TOKEN`), que `oh mcp serve github --token-key …` remplit depuis le trousseau ; `GITHUB_TOKEN` exportée dans votre shell n'atteint pas les sessions (l'environnement des agents est filtré).
+Un personal access token (PAT) ou un token GitHub App, rangé dans le trousseau de `oh` (`oh mcp setup github`, ou `oh secrets set --global openhub.mcp.github.token`) et désigné par `token_key` dans `[mcp.github]`. Le serveur le lit dans la variable `GITHUB_TOKEN` (ou `GH_TOKEN`), que `oh mcp serve github --token-key …` remplit depuis le trousseau ; `GITHUB_TOKEN` et `GH_TOKEN` exportées dans votre shell n'atteignent pas les sessions (l'environnement des agents est filtré : `GH_TOKEN` n'est jamais transmis à l'agent) ; seul le serveur MCP, lancé par oh, reçoit le jeton du trousseau. `GH_TOKEN` n'est que l'autre nom que le serveur sait lire.
 
 Scopes requis :
 - `repo` — accès en lecture aux dépôts, issues, pull requests
 - `workflow` — accès en lecture aux workflows et runs GitHub Actions
 
 Le mode écriture nécessite le scope supplémentaire : `repo` (écriture)
+
+## Adresse de l'API
+
+Le serveur appelle toujours `https://api.github.com` : aucune variable d'URL n'existe pour lui (oh ne pose plus `GITHUB_URL`, que le serveur ne lisait pas), `url` et `trusted_url` de `[mcp.github]` sont sans effet, et GitHub Enterprise Server n'est pas pris en charge. Le serveur MCP officiel de GitHub lit `GITHUB_HOST` pour cela, mais oh n'utilise pas ce serveur.
 
 ## Identifiants
 
@@ -322,11 +326,7 @@ Récupérer les détails d'un run de workflow spécifique.
 
 ## Mode écriture
 
-Le mode écriture est désactivé par défaut. Pour l'activer :
-
-```bash
-export GITHUB_WRITE_ENABLED=true
-```
+Le mode écriture est désactivé par défaut. Pour l'activer, répondez oui à la question du mode écriture de `oh mcp setup github` (ou écrivez `write_enabled = true` dans `[mcp.github]`) : oh pose alors `GITHUB_WRITE_ENABLED=true` pour le serveur de la session. Une variable exportée dans votre shell n'atteint pas les sessions.
 
 ### `github_create_issue`
 

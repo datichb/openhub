@@ -4,7 +4,7 @@
 
 ## Activation
 
-The Linear MCP server is put in the session bundle automatically at launch when `[mcp.linear]` has `enabled = true` **and** `token_key` in `hub.toml` (see the [guide](../guides/linear-integration.en.md)).
+The Linear MCP server is put in the session bundle automatically at launch when `[mcp.linear]` has `enabled = true` **and** `token_key` in `hub.toml` (see the [guide](../guides/linear-integration.en.md)). `oh mcp setup linear` writes both. A service enabled without a `token_key` (and without `LINEAR_API_KEY`) is not put in the bundle: oh says so when the session starts, in `oh mcp status linear` and in `oh doctor`.
 
 ```json
 // Declared in the session bundle at launch
@@ -20,7 +20,7 @@ The Linear MCP server is put in the session bundle automatically at launch when 
 
 ## Authentication
 
-A Linear personal API key, kept in the keychain of `oh` (`oh secrets set --global openhub.mcp.linear.token`) and designated by `token_key` in `[mcp.linear]`. The server reads it from the `LINEAR_API_KEY` variable, which `oh mcp serve linear --token-key …` fills from the keychain; exported in your shell, it does not reach the sessions (the environment of the agents is filtered).
+A Linear personal API key, kept in the keychain of `oh` (`oh mcp setup linear`, or `oh secrets set --global openhub.mcp.linear.token`) and designated by `token_key` in `[mcp.linear]`. The server reads it from the `LINEAR_API_KEY` variable, which `oh mcp serve linear --token-key …` fills from the keychain; exported in your shell, it does not reach the sessions (the environment of the agents is filtered).
 
 To generate a key: Linear Settings → API → Personal API keys → Create key
 
@@ -29,7 +29,7 @@ The Linear MCP server communicates with the Linear GraphQL API at:
 https://api.linear.app/graphql
 ```
 
-All operations are executed as GraphQL queries and mutations over this endpoint.
+All operations are executed as GraphQL queries and mutations over this endpoint. The address is fixed: the server reads no URL variable (oh no longer sets `LINEAR_URL`, which the server never read) and `url` and `trusted_url` of `[mcp.linear]` have no effect.
 
 ## Available Tools
 
@@ -147,11 +147,7 @@ Get a single Linear issue by its identifier.
 
 ## Write Mode
 
-Write mode is disabled by default. Enable it by setting:
-
-```bash
-export LINEAR_WRITE_ENABLED=true
-```
+Write mode is disabled by default. To enable it, answer yes to the write-mode question of `oh mcp setup linear` (or write `write_enabled = true` in `[mcp.linear]`): oh then sets `LINEAR_WRITE_ENABLED=true` for the server of the session. A variable exported in your shell does not reach the sessions.
 
 ### `linear_create_issue`
 

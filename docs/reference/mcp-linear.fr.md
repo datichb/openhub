@@ -4,7 +4,7 @@
 
 ## Activation
 
-Le serveur MCP Linear est placé automatiquement dans le paquet de session au lancement lorsque `[mcp.linear]` a `enabled = true` **et** `token_key` dans `hub.toml` (voir le [guide](../guides/linear-integration.fr.md)).
+Le serveur MCP Linear est placé automatiquement dans le paquet de session au lancement lorsque `[mcp.linear]` a `enabled = true` **et** `token_key` dans `hub.toml` (voir le [guide](../guides/linear-integration.fr.md)). `oh mcp setup linear` écrit les deux. Un service activé sans `token_key` (ni `LINEAR_API_KEY`) n'est pas placé dans le paquet : oh l'écrit au lancement de la session, dans `oh mcp status linear` et dans `oh doctor`.
 
 ```json
 // Déclaré dans le paquet de session au lancement
@@ -20,7 +20,7 @@ Le serveur MCP Linear est placé automatiquement dans le paquet de session au la
 
 ## Authentification
 
-Une clé API personnelle Linear, rangée dans le trousseau de `oh` (`oh secrets set --global openhub.mcp.linear.token`) et désignée par `token_key` dans `[mcp.linear]`. Le serveur la lit dans la variable `LINEAR_API_KEY`, que `oh mcp serve linear --token-key …` remplit depuis le trousseau ; exportée dans votre shell, elle n'atteint pas les sessions (l'environnement des agents est filtré).
+Une clé API personnelle Linear, rangée dans le trousseau de `oh` (`oh mcp setup linear`, ou `oh secrets set --global openhub.mcp.linear.token`) et désignée par `token_key` dans `[mcp.linear]`. Le serveur la lit dans la variable `LINEAR_API_KEY`, que `oh mcp serve linear --token-key …` remplit depuis le trousseau ; exportée dans votre shell, elle n'atteint pas les sessions (l'environnement des agents est filtré).
 
 Pour générer une clé : Paramètres Linear → API → Clés API personnelles → Créer une clé
 
@@ -29,7 +29,7 @@ Le serveur MCP Linear communique avec l'API GraphQL de Linear à l'adresse :
 https://api.linear.app/graphql
 ```
 
-Toutes les opérations sont exécutées en tant que requêtes et mutations GraphQL sur cet endpoint.
+Toutes les opérations sont exécutées en tant que requêtes et mutations GraphQL sur cet endpoint. Cette adresse est fixe : le serveur ne lit aucune variable d'URL (oh ne pose plus `LINEAR_URL`, que le serveur ne lisait pas) et `url` et `trusted_url` de `[mcp.linear]` sont sans effet.
 
 ## Outils disponibles
 
@@ -147,11 +147,7 @@ Récupérer une issue Linear par son identifiant.
 
 ## Mode écriture
 
-Le mode écriture est désactivé par défaut. Pour l'activer :
-
-```bash
-export LINEAR_WRITE_ENABLED=true
-```
+Le mode écriture est désactivé par défaut. Pour l'activer, répondez oui à la question du mode écriture de `oh mcp setup linear` (ou écrivez `write_enabled = true` dans `[mcp.linear]`) : oh pose alors `LINEAR_WRITE_ENABLED=true` pour le serveur de la session. Une variable exportée dans votre shell n'atteint pas les sessions.
 
 ### `linear_create_issue`
 

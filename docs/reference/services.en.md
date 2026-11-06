@@ -87,16 +87,16 @@ oh mcp setup --project my-project
 ```
 
 **The wizard:**
-1. Service selection (Figma, GitLab, Google Slides)
+1. Service selection (Figma, GitHub, GitLab, Google Slides, Jira, Linear)
 2. Token input (masked)
-3. For GitLab: optional write mode activation
+3. For the services that have write tools (GitHub, GitLab, Jira, Linear): optional write mode activation
 4. Secure storage in keychain
 
 ---
 
-### `oh mcp status [--project <name>]`
+### `oh mcp status [service] [--project <name>]`
 
-Display the status of all MCP services.
+Display the status of the MCP services (Figma, GitHub, GitLab, Google Slides, Jira, Linear, Team); with a service name, that service only. An unknown name is refused with the list of the valid services. A service enabled without a token is flagged by a warning line under the table.
 
 ```bash
 # Hub status
@@ -112,7 +112,7 @@ oh mcp status --project my-project
 |---------|-------------|
 | SERVICE | Service name (Figma, GitLab, etc.) |
 | STATUS  | enabled / disabled |
-| SOURCE  | hub / project (where the effective config comes from) |
+| SOURCE  | hub / project / team (where the effective config comes from) |
 | TOKEN   | env:VAR / keychain / missing / — |
 
 ---
