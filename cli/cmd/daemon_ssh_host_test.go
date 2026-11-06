@@ -117,3 +117,22 @@ func TestTrackerSyncTaskSkipsATeamWhoseSSHServerIsUnknown(t *testing.T) {
 	s.run(t.Context())
 	assert.Equal(t, []string{"core"}, svc.calls, "synchronized once the server is known")
 }
+
+// The jobs of the daemon test the server with the ssh command of the user
+// (GIT_SSH_COMMAND, core.sshCommand of the global configuration), as the git
+// processes of oh run it; never with the core.sshCommand of the clone.
+func TestUnknownHostAsksSSHWithTheSSHCommandOfTheUser(t *testing.T) {
+	isolateGitSSH(t)
+	t.Setenv("GIT_SSH_COMMAND", "ssh -i /keys/work")
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	var asked []string
+	t.Cleanup(teamstate.SetSSHToolRunner(func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		asked = args
+		return []byte("hostname git.example.test\nport 22\n"), nil
+	}))
+	w := newAccessWatch()
+	assert.True(t, w.UnknownHost(daemon.WithAlerts(t.Context(), &alertLog{}), "git@git.example.test:o/r.git", nil))
+	assert.Equal(t, []string{"-G", "-i", "/keys/work", "-l", "git", "--", "git.example.test"}, asked)
+}

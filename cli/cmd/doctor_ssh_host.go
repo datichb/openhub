@@ -14,7 +14,11 @@ import (
 // automatic sync) and a hub.toml edited by hand reach the server without that:
 // the daemon does not connect to a server that known_hosts lacks. Nothing here
 // talks to the server (known_hosts is read, `ssh -G` resolves the alias and the
-// files), so the check also runs with --offline.
+// files, with the options of the ssh command of git), so the check also runs
+// with --offline. The detail also says what became of the ssh command the user
+// told git to use (GIT_SSH_COMMAND, core.sshCommand of the global configuration,
+// GIT_SSH), and when the clone of the team sets a core.sshCommand of its own,
+// which oh does not follow.
 
 // doctorIDSSHHost is the identifier of the check.
 const doctorIDSSHHost = "ssh_host"
@@ -42,6 +46,14 @@ func sshHostDoctorChecks(ctx context.Context) []doctor.Result {
 			sshCmd, _ := h.ManualCommands()
 			r.Warn = true
 			r.Detail = i18n.Tf("v54z.doctor.ssh_host.unknown", h.Display(), sshCmd)
+		}
+		if note, warn := h.CustomSSHNote(); note != "" {
+			r.Detail += "\n" + note
+			r.Warn = r.Warn || warn
+		}
+		if note := teamstate.RepoSSHCommandNote(t.StatePath); note != "" {
+			r.Detail += "\n" + note
+			r.Warn = true
 		}
 		out = append(out, r)
 	}

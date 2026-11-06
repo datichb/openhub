@@ -75,3 +75,43 @@ func TestIsCloneOf(t *testing.T) {
 		t.Error("another group is another repository")
 	}
 }
+
+// ConfigGet reads one key of .git/config the way git does for a value that
+// has a single one: the last wins; sections and keys ignore the case; the
+// other sections, the comments and a key without value do not count.
+func TestConfigGet(t *testing.T) {
+	dir := t.TempDir()
+	write := func(content string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, ".git", "config"), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("[remote \"origin\"]\n\tsshCommand = not-this-one\n" +
+		"[CORE]\n\t# sshCommand = commented\n\tbare = false\n\tSSHCOMMAND = ssh -i \"/a b/key\" # why\n" +
+		"[core]\n\tsshcommand\n" +
+		"[branch \"main\"]\n\tsshCommand = nor-this\n")
+	if got, ok := ConfigGet(dir, "core", "sshCommand"); !ok || got != `ssh -i /a b/key` {
+		t.Errorf("ConfigGet(core, sshCommand) = %q, %v", got, ok)
+	}
+	if got, ok := ConfigGet(dir, `remote  "origin"`, "sshcommand"); !ok || got != "not-this-one" {
+		t.Errorf("ConfigGet(remote origin, sshcommand) = %q, %v", got, ok)
+	}
+	if _, ok := ConfigGet(dir, "core", "fsmonitor"); ok {
+		t.Error("an absent key is not found")
+	}
+	write("[core]\n\tsshCommand = first\n\tsshCommand = last\n")
+	if got, _ := ConfigGet(dir, "core", "sshCommand"); got != "last" {
+		t.Errorf("the last value wins, got %q", got)
+	}
+	write("")
+	if _, ok := ConfigGet(dir, "core", "sshCommand"); ok {
+		t.Error("an empty file holds nothing")
+	}
+	if _, ok := ConfigGet(t.TempDir(), "core", "sshCommand"); ok {
+		t.Error("a folder without .git/config holds nothing")
+	}
+}

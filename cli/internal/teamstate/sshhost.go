@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/hmac"
-	"crypto/sha1" //nolint:gosec // known_hosts names are hashed with HMAC-SHA1 by OpenSSH
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
@@ -19,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
 
@@ -79,6 +79,15 @@ type SSHHost struct {
 	// Resolved: `ssh -G` answered, so Host, Port, Name and Files are what ssh
 	// uses (not only what the URL says).
 	Resolved bool
+	// Custom is the ssh command of git of the user (GIT_SSH_COMMAND,
+	// core.sshCommand of the global configuration, GIT_SSH) read for this
+	// server: the options of it that `ssh -G` was asked with, or why it is not
+	// followed (sshcustom.go).
+	Custom gitutil.SSHCommand
+	// Hashed: HashKnownHosts is on for this server (the default of Debian and
+	// Ubuntu), so ssh writes the name of a server hashed (|1|salt|hash) and a
+	// server added by oh is written the same way.
+	Hashed bool
 }
 
 // Display is the server as the user knows it: host, or host:port.
@@ -125,8 +134,11 @@ func UnknownSSHHostForJob(ctx context.Context, remote string) *SSHHost {
 
 // ResolveSSHHost reads the SSH server out of remote (`ssh://[user@]host[:port]/…`
 // or `[user@]host:path`) and applies ~/.ssh/config to it (`ssh -G`: HostName,
-// Port, HostKeyAlias, UserKnownHostsFile, ProxyJump). ok is false for a remote
-// that is not SSH.
+// Port, HostKeyAlias, UserKnownHostsFile, ProxyJump) and the ssh command of git
+// (GIT_SSH_COMMAND, core.sshCommand of the global configuration: `ssh -G` is
+// asked with the same options as git's ssh would get, so the known_hosts that
+// is read is the one the connection checks). ok is false for a remote that is
+// not SSH.
 func ResolveSSHHost(ctx context.Context, remote string) (h *SSHHost, ok bool) {
 	user, host, port, ok := parseSSHRemote(remote)
 	if !ok {
@@ -140,7 +152,9 @@ func ResolveSSHHost(ctx context.Context, remote string) (h *SSHHost, ok bool) {
 		globalFiles = []string{"/etc/ssh/ssh_known_hosts", "/etc/ssh/ssh_known_hosts2"}
 	}
 
-	args := []string{"-G"}
+	h.Custom = gitutil.CustomSSH(ctx)
+	noteIgnoredSSH(h.Custom)
+	args := append([]string{"-G"}, h.Custom.Args...)
 	if port != "" {
 		args = append(args, "-p", port)
 	}
@@ -161,6 +175,9 @@ func ResolveSSHHost(ctx context.Context, remote string) (h *SSHHost, ok bool) {
 		if v := cfg["hostkeyalias"]; len(v) > 0 && v[0] != "none" {
 			alias = v[0]
 		}
+		if v := cfg["hashknownhosts"]; len(v) > 0 && strings.EqualFold(v[0], "yes") {
+			h.Hashed = true
+		}
 		if v := cfg["userknownhostsfile"]; len(v) > 0 {
 			userFiles = v
 		}
@@ -174,7 +191,13 @@ func ResolveSSHHost(ctx context.Context, remote string) (h *SSHHost, ok bool) {
 		}
 	}
 
-	h.Name = knownHostsName(firstOr(alias, h.Host), h.Port)
+	if alias != "" {
+		// ssh looks the server up under the alias as it is: the port is not
+		// part of it (get_hostfile_hostname_ipaddr, sshconnect.c).
+		h.Name = strings.ToLower(alias)
+	} else {
+		h.Name = knownHostsName(h.Host, h.Port)
+	}
 	disabled := true
 	for _, f := range userFiles {
 		if isNoFile(f) {
@@ -254,7 +277,10 @@ func (h *SSHHost) Scan(ctx context.Context) ([]HostKey, error) {
 }
 
 // Trust adds the keys to the known_hosts file of the user (the one ssh
-// writes), under the name ssh looks the server up with.
+// writes), under the name ssh looks the server up with: written in clear, or
+// hashed (|1|salt|hash, a salt of its own for each key) when HashKnownHosts is
+// on, as ssh does. A key the file already has for the server, hashed or not,
+// is not added again.
 func (h *SSHHost) Trust(keys []HostKey) error {
 	if h.WriteTo == "" || len(keys) == 0 {
 		return errors.New("no known_hosts file to write")
@@ -267,8 +293,24 @@ func (h *SSHHost) Trust(keys []HostKey) error {
 	if len(existing) > 0 && !bytes.HasSuffix(existing, []byte("\n")) {
 		sb.WriteString("\n")
 	}
+	added := 0
 	for _, k := range keys {
-		fmt.Fprintf(&sb, "%s %s %s\n", h.Name, k.Type, k.blob)
+		if hostsDataHasKey(existing, h.Name, k) {
+			continue
+		}
+		name := h.Name
+		if h.Hashed {
+			hashed, err := newHashedHostName(h.Name)
+			if err != nil {
+				return err
+			}
+			name = hashed
+		}
+		fmt.Fprintf(&sb, "%s %s %s\n", name, k.Type, k.blob)
+		added++
+	}
+	if added == 0 {
+		return nil
 	}
 	f, err := os.OpenFile(h.WriteTo, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
@@ -289,8 +331,18 @@ func (h *SSHHost) ManualCommands() (sshCmd, keyscanCmd string) {
 	if h.Port != "" {
 		portFlag = "-p " + h.Port + " "
 	}
-	sshCmd = "ssh " + portFlag + "-T " + h.User + "@" + h.Host
-	keyscanCmd = "ssh-keyscan " + portFlag + h.Host + " >> " + displayPath(h.WriteTo)
+	hashFlag := ""
+	if h.Hashed {
+		hashFlag = "-H " // the name written hashed, as ssh does with HashKnownHosts
+	}
+	// the options of the ssh command of git, so that ssh checks and writes the
+	// known_hosts file oh reads
+	custom := ""
+	if line := h.Custom.ShellLine(); line != "" {
+		custom = line + " "
+	}
+	sshCmd = "ssh " + custom + portFlag + "-T " + h.User + "@" + h.Host
+	keyscanCmd = "ssh-keyscan " + hashFlag + portFlag + h.Host + " >> " + displayPath(h.WriteTo)
 	return sshCmd, keyscanCmd
 }
 
@@ -528,9 +580,7 @@ func hashedMatch(pattern, name string) bool {
 	if err1 != nil || err2 != nil {
 		return false
 	}
-	mac := hmac.New(sha1.New, salt)
-	mac.Write([]byte(name))
-	return hmac.Equal(mac.Sum(nil), want)
+	return hmac.Equal(hostMAC(salt, name), want)
 }
 
 // wildcardMatch: pattern with * and ? against s.
