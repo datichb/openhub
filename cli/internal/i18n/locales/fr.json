@@ -6967,5 +6967,8 @@
   "v55m.mcp.setup.option_gslides": "Google Slides — présentations",
   "v55m.mcp.setup.option_jira": "Jira — tickets",
   "v55m.mcp.setup.option_linear": "Linear — tickets",
-  "v55m.mcp.status.source_team": "équipe"
+  "v55m.mcp.status.source_team": "équipe",
+  "v55m.mcp.diag.no_token": "Le service MCP %[1]s est activé mais n'a ni clé de jeton (token_key) ni variable %[2]s : il est écarté des sessions. Configurez-le avec : oh mcp setup %[3]s",
+  "v55m.mcp.diag.scope": "projet %[1]s : %[2]s",
+  "v55m.mcp.diag.name": "MCP %s : activé sans jeton"
 }

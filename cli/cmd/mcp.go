@@ -632,6 +632,7 @@ func runMCPStatus(cmd *cobra.Command, args []string) error {
 
 	w.Flush()
 	printEnforcedURLNotices(cmd.OutOrStdout(), enforcedURLNotices(a.Config, shared))
+	printMCPDiagnostics(cmd.OutOrStdout(), mcpDiagnostics(states))
 	fmt.Fprintln(cmd.OutOrStdout())
 	fmt.Fprintf(cmd.OutOrStdout(), "  %s\n",
 		i18n.Tf("cmd.service.setup_hint", theme.Bold.Render("oh mcp setup")))

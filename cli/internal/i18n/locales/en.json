@@ -6967,5 +6967,8 @@
   "v55m.mcp.setup.option_gslides": "Google Slides — presentations",
   "v55m.mcp.setup.option_jira": "Jira — issues",
   "v55m.mcp.setup.option_linear": "Linear — issues",
-  "v55m.mcp.status.source_team": "team"
+  "v55m.mcp.status.source_team": "team",
+  "v55m.mcp.diag.no_token": "The %[1]s MCP service is enabled but has neither a token key (token_key) nor a %[2]s variable: it is left out of the sessions. Configure it with: oh mcp setup %[3]s",
+  "v55m.mcp.diag.scope": "project %[1]s: %[2]s",
+  "v55m.mcp.diag.name": "MCP %s: enabled without a token"
 }

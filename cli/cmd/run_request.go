@@ -350,7 +350,13 @@ func sessionMCP(ctx context.Context, a *app.App, project *domain.Project, teamCf
 	}
 	var out []sessionspec.MCPServerDef
 	for _, s := range buildMCPServersForProject(ctx, a, project.MCPConfig, teamCfg) {
-		if !s.Enabled || !bricks.MCPServerUsable(s) {
+		if !s.Enabled {
+			continue
+		}
+		if !bricks.MCPServerUsable(s) {
+			if d := mcpresolve.DiagnoseToken(s.Name, s.Enabled, s.TokenKey, os.Getenv); d != nil {
+				slog.Warn(mcpDiagnosticText(*d))
+			}
 			continue
 		}
 		cmd := []string{exe, "mcp", "serve", s.Name}
