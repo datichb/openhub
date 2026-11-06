@@ -80,7 +80,7 @@ var memoryRe = regexp.MustCompile(`^[1-9]\d{0,9}[mg]$`)
 // Layout: bundle → /opt/oh/bundle (read-only), group data → /opt/oh/data,
 // project → /work/<name>, other locations (worktrees) → /work/<name>; the
 // git common directory of a worktree is also mounted at its machine path so
-// that absolute `gitdir:` links resolve; /opt/oh/home is a per-project volume.
+// that absolute `gitdir:` links resolve; /opt/oh/home is a volume of the group.
 func buildSpec(e Engine, in specInput, g ohruntime.Group, image, groupKey string) (Spec, error) {
 	if in.Memory != "" && !memoryRe.MatchString(in.Memory) {
 		return Spec{}, fmt.Errorf("container memory limit %q is not a size (512m, 4g): see execution.container_memory", in.Memory)

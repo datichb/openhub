@@ -267,7 +267,7 @@ func (r *Runtime) buildLayer(ctx context.Context, e Engine, g ohruntime.Group, i
 	if err := os.WriteFile(filepath.Join(dir, "oh-bd"), bd, 0o755); err != nil {
 		return err
 	}
-	// /opt/oh/home (per-project volume) is world-writable so that the
+	// /opt/oh/home (volume of the group) is world-writable so that the
 	// machine uid used at run time can write to it.
 	dockerfile := fmt.Sprintf("FROM %s\nUSER root\nCOPY oh-tool /usr/local/bin/%s\nCOPY oh-bd /usr/local/bin/bd\n"+
 		"RUN mkdir -p %s %s %s %s && chmod 1777 %s %s\n",

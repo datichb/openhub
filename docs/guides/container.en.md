@@ -51,7 +51,7 @@ The estimated time comes from the latest builds of the project. Before the first
 
 ### Git identity
 
-The container `HOME` is a volume of the project's own: your `~/.gitconfig` is not there. So that the agent can commit, oh passes your git identity, read from the project, to the shell of the session (and of the subagents): `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL`. No other git configuration is copied.
+The container `HOME` is a volume of the server group, emptied at each start of the container: your `~/.gitconfig` is not there. So that the agent can commit, oh passes your git identity, read from the project, to the shell of the session (and of the subagents): `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL`. No other git configuration is copied.
 
 ## Settings
 
@@ -79,7 +79,7 @@ container_memory = "8g"      # memory limit of a container (512m to 1024g); empt
    - the project and the worktrees under `/work/<name>`, read-write;
    - the session bundle under `/opt/oh/bundle`, read-only;
    - the server group data under `/opt/oh/data`;
-   - a `HOME` of the project's own: your opencode config is never visible.
+   - a `HOME` of the server group, emptied at each start: your opencode config is never visible, and nothing an agent leaves there reaches another session.
 3. **Network**: the server port is published on `127.0.0.1` only. The opencode client runs on the machine and attaches to the server in the container.
 4. **Secrets**: no secret enters the container. The container gets an `ohs_…` token, which the oh credential proxy swaps for the real key. `bd` goes through the Beads gateway, with the workflow `beads.allow` list (read-only by default). The oh MCP servers (gitlab, team, workflow…) run on the machine.
 5. **oh verifications** (`verify:` of the checkpoints): in a container of the same image, started for them with the location of the session mounted, then removed, never on the machine instead ([details](../reference/checkpoints.en.md#container-sessions)).

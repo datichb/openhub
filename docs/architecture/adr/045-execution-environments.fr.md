@@ -48,7 +48,7 @@ Deux images sont gardées par projet et par étage. La durée de construction es
 - paquet sur `/opt/oh/bundle`, en lecture seule ;
 - données du groupe sur `/opt/oh/data` ;
 - projet et worktrees sur `/work/<nom>` ;
-- `HOME` sur un volume propre au projet : la config de l'utilisateur n'est jamais visible.
+- `HOME` sur un volume propre au groupe de serveurs, vidé à chaque démarrage du conteneur (audit S-33) : la config de l'utilisateur n'est jamais visible.
 
 Le dossier git commun d'un worktree est aussi monté à son chemin machine, et git est configuré avec `safe.directory=*` et `gc.worktreePruneExpire=never`. Un montage hors des dossiers partagés avec la VM est refusé (sinon Colima monterait un dossier vide en silence).
 

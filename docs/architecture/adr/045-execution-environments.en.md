@@ -48,7 +48,7 @@ Two images are kept per project and per stage. The build duration is estimated b
 - bundle on `/opt/oh/bundle`, read-only;
 - group data on `/opt/oh/data`;
 - project and worktrees on `/work/<name>`;
-- `HOME` on a project-specific volume: the user's config is never visible.
+- `HOME` on a volume of the server group, emptied at each start of the container (audit S-33): the user's config is never visible.
 
 A worktree's common git directory is also mounted at its machine path, and git is configured with `safe.directory=*` and `gc.worktreePruneExpire=never`. A mount outside the directories shared with the VM is refused (otherwise Colima would silently mount an empty directory).
 
