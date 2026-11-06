@@ -6966,5 +6966,6 @@
   "v55m.mcp.setup.option_gitlab": "GitLab — merge requests & pipelines",
   "v55m.mcp.setup.option_gslides": "Google Slides — presentations",
   "v55m.mcp.setup.option_jira": "Jira — issues",
-  "v55m.mcp.setup.option_linear": "Linear — issues"
+  "v55m.mcp.setup.option_linear": "Linear — issues",
+  "v55m.mcp.status.source_team": "team"
 }

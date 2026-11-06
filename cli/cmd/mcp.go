@@ -536,17 +536,51 @@ func runMCPSetupForService(cmd *cobra.Command, serviceName string, project *doma
 
 func mcpStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "status",
-		Short: i18n.T("cmd.mcp.status.short"),
-		Long:  i18n.T("cmd.mcp.status.long"),
-		RunE:  runMCPStatus,
+		Use:               "status [service]",
+		Short:             i18n.T("cmd.mcp.status.short"),
+		Long:              i18n.T("cmd.mcp.status.long"),
+		Args:              cobra.MaximumNArgs(1),
+		ValidArgsFunction: completeMCPStatusServices,
+		RunE:              runMCPStatus,
 	}
 	cmd.Flags().StringP("project", "p", "", i18n.T("cmd.mcp.flags.project"))
 	_ = cmd.RegisterFlagCompletionFunc("project", completeProjectIDs)
 	return cmd
 }
 
+// mcpStatusServices are the rows oh mcp status can show: the known services
+// and the team server.
+func mcpStatusServices() []string {
+	return append(mcpServiceNames(), "team")
+}
+
+func completeMCPStatusServices(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
+	if len(args) > 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	return mcpStatusServices(), cobra.ShellCompDirectiveNoFileComp
+}
+
+// mcpStatusService returns the service named on the command line ("" = all of
+// them). A name no row has is an error that lists the valid ones.
+func mcpStatusService(args []string) (string, error) {
+	if len(args) == 0 {
+		return "", nil
+	}
+	name := strings.ToLower(strings.TrimSpace(args[0]))
+	if !slices.Contains(mcpStatusServices(), name) {
+		valid := append(mcpresolve.Names(), "team")
+		return "", unknownMCPServiceError(args[0], valid)
+	}
+	return name, nil
+}
+
 func runMCPStatus(cmd *cobra.Command, args []string) error {
+	only, err := mcpStatusService(args)
+	if err != nil {
+		return err
+	}
+
 	a := MustApp()
 	ctx := cmd.Context()
 
@@ -567,78 +601,68 @@ func runMCPStatus(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(cmd.OutOrStdout())
 	fmt.Fprintln(cmd.OutOrStdout())
 
-	type serviceInfo struct {
-		name    string
-		label   string
-		enabled bool
-		token   string
-		envVar  string
+	tc := resolvedTeamConfigCtx(ctx, a, project)
+	var override *domain.ProjectMCPConfig
+	if project != nil {
+		override = project.MCPConfig
 	}
-
-	services := []serviceInfo{
-		{"figma", "Figma", a.Config.MCP.Figma.Enabled, a.Config.MCP.Figma.Token, "FIGMA_TOKEN"},
-		{"gitlab", "GitLab", a.Config.MCP.Gitlab.Enabled, a.Config.MCP.Gitlab.Token, "GITLAB_TOKEN"},
-		{"gslides", "Google Slides", a.Config.MCP.Gslides.Enabled, a.Config.MCP.Gslides.Token, "GOOGLE_ACCESS_TOKEN"},
-		{"team", "Team", teamEnabledFor(ctx, a, project), "", ""},
-	}
-
-	// Build project override lookup
-	projectOverrides := make(map[string]*domain.ProjectMCPService)
-	if project != nil && project.MCPConfig != nil {
-		for i := range project.MCPConfig.Services {
-			s := &project.MCPConfig.Services[i]
-			projectOverrides[s.Name] = s
-		}
+	shared := sharedMCPForTeam(ctx, tc)
+	states := resolveMCPStatesWith(a.Config, override, tc, shared)
+	if only != "" {
+		states = slices.DeleteFunc(states, func(st mcpState) bool { return st.Service.Name != only })
 	}
 
 	w := cliout.Table(cmd.OutOrStdout())
 	fmt.Fprintln(w, i18n.T("cmd.mcp.status.header"))
 
-	for _, svc := range services {
-		effectiveEnabled := svc.enabled
-		source := i18n.T("cmd.mcp.status.source_hub")
-
-		if ps, ok := projectOverrides[svc.name]; ok {
-			source = i18n.T("cmd.mcp.status.source_project")
-			if ps.Enabled != nil {
-				effectiveEnabled = *ps.Enabled
-			}
-		}
-
-		// Status display
+	for _, st := range states {
 		status := theme.ErrorStyle.Render(i18n.T("cmd.service.status_disabled"))
-		if effectiveEnabled {
+		if st.Eff.Enabled {
 			status = theme.SuccessStyle.Render(i18n.T("cmd.service.status_enabled"))
 		}
-
-		// Token display
-		tokenStatus := "—"
-		switch {
-		case svc.envVar != "" && os.Getenv(svc.envVar) != "":
-			tokenStatus = fmt.Sprintf("env:%s", svc.envVar)
-		case svc.token != "" && a.Secrets != nil:
-			tokenKey := svc.token
-			if ps, ok := projectOverrides[svc.name]; ok && ps.TokenKey != "" {
-				tokenKey = ps.TokenKey
-			}
-			if t, _ := config.ReadMCPToken(ctx, a.Secrets, svc.name, tokenKey); t != "" {
-				tokenStatus = "keychain"
-			} else {
-				tokenStatus = theme.WarningStyle.Render(i18n.T("cmd.service.token_missing"))
-			}
-		case svc.name == "team":
-			tokenStatus = "—"
+		fmt.Fprintf(w, "  %-15s\t%s\t%s\t%s\n", st.Service.Label, status, mcpSourceText(st.Source), mcpTokenText(ctx, a, st))
+	}
+	if only == "" || only == "team" {
+		status := theme.ErrorStyle.Render(i18n.T("cmd.service.status_disabled"))
+		if teamEnabledFor(ctx, a, project) {
+			status = theme.SuccessStyle.Render(i18n.T("cmd.service.status_enabled"))
 		}
-
-		fmt.Fprintf(w, "  %-15s\t%s\t%s\t%s\n", svc.label, status, source, tokenStatus)
+		fmt.Fprintf(w, "  %-15s\t%s\t%s\t%s\n", "Team", status, mcpSourceText(mcpSourceHub), "—")
 	}
 
 	w.Flush()
-	printEnforcedURLNotices(cmd.OutOrStdout(), enforcedURLNotices(a.Config, sharedMCPForTeam(ctx, resolvedTeamConfig(a, project))))
+	printEnforcedURLNotices(cmd.OutOrStdout(), enforcedURLNotices(a.Config, shared))
 	fmt.Fprintln(cmd.OutOrStdout())
 	fmt.Fprintf(cmd.OutOrStdout(), "  %s\n",
 		i18n.Tf("cmd.service.setup_hint", theme.Bold.Render("oh mcp setup")))
 	return nil
+}
+
+// mcpSourceText names the level that decided whether a service is enabled.
+func mcpSourceText(src mcpSource) string {
+	switch src {
+	case mcpSourceProject:
+		return i18n.T("cmd.mcp.status.source_project")
+	case mcpSourceTeam:
+		return i18n.T("v55m.mcp.status.source_team")
+	}
+	return i18n.T("cmd.mcp.status.source_hub")
+}
+
+// mcpTokenText says where the token of a service comes from, never what it
+// is: the environment variable, the keychain, a key whose value is missing,
+// or nothing.
+func mcpTokenText(ctx context.Context, a *app.App, st mcpState) string {
+	switch {
+	case st.Service.TokenEnv != "" && os.Getenv(st.Service.TokenEnv) != "":
+		return "env:" + st.Service.TokenEnv
+	case st.Eff.TokenKey != "" && a.Secrets != nil:
+		if t, _ := config.ReadMCPToken(ctx, a.Secrets, st.Service.Name, st.Eff.TokenKey); t != "" {
+			return "keychain"
+		}
+		return theme.WarningStyle.Render(i18n.T("cmd.service.token_missing"))
+	}
+	return "—"
 }
 
 // --- oh mcp serve ---
