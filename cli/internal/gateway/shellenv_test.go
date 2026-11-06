@@ -16,6 +16,7 @@ import (
 // The user's start-up files put another bd first; oh's start-up files
 // load them, then put the fake bd back first (zsh and bash).
 func TestShellStartupKeepsTheFakeBdFirst(t *testing.T) {
+	patientShell(t)
 	root := t.TempDir()
 	shims, other, home := filepath.Join(root, "shims"), filepath.Join(root, "other"), filepath.Join(root, "home")
 	for _, d := range []string{shims, other, home} {

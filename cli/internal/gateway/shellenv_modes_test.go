@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,8 +20,20 @@ type shellFixture struct {
 	root, shims, other, home string
 }
 
+// patientShell lets the probes of the shell wait for a loaded machine: a probe
+// that times out answers nothing, and an interactive one that answers nothing
+// is not held against the session (the check would pass where the test expects
+// it to fail). None of these tests is parallel.
+func patientShell(t *testing.T) {
+	t.Helper()
+	prev := shellProbeTimeout
+	shellProbeTimeout = 2 * time.Minute
+	t.Cleanup(func() { shellProbeTimeout = prev })
+}
+
 func newShellFixture(t *testing.T) shellFixture {
 	t.Helper()
+	patientShell(t)
 	root := t.TempDir()
 	f := shellFixture{root: root, shims: filepath.Join(root, "shims"), other: filepath.Join(root, "other"), home: filepath.Join(root, "home")}
 	for _, d := range []string{f.shims, f.other, f.home} {
