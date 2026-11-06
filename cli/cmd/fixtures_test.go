@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+
+	"github.com/datichb/openhub/cli/internal/testenv"
 )
 
 // copyTree copies the tree src into the existing directory dst, modes kept
@@ -41,38 +43,34 @@ func copyTree(t *testing.T, src, dst string) {
 }
 
 // templates are directories built once by the first test that asks for one
-// (by key), copied by the tests, and removed when the last of them ends:
-// copying a repository is faster than the git commands that build it.
+// (by key) and copied by the tests: copying a repository is faster than the
+// git commands that build it. They live as long as the test binary, in the
+// folder of testenv (removed with it): the tests of ./cmd run one after the
+// other, so a template removed when its last user ends would be built again
+// by the next test, which is what it is there to avoid.
 type templates struct {
-	mu    sync.Mutex
-	dirs  map[string]string
-	users map[string]int
+	mu   sync.Mutex
+	dirs map[string]string
 }
 
 // get returns the directory of the template key, built by build in a new
-// directory if no test holds it.
+// directory the first time. A test must only read it.
 func (tp *templates) get(t *testing.T, key string, build func(dir string)) string {
 	t.Helper()
 	tp.mu.Lock()
 	defer tp.mu.Unlock()
+	if dir, ok := tp.dirs[key]; ok {
+		return dir
+	}
+	// "" when the binary is not isolated: the temporary folder of the system.
+	dir, err := os.MkdirTemp(testenv.Dir(), "oh-template-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	build(dir)
 	if tp.dirs == nil {
-		tp.dirs, tp.users = map[string]string{}, map[string]int{}
+		tp.dirs = map[string]string{}
 	}
-	if tp.users[key] == 0 {
-		dir, err := os.MkdirTemp("", "oh-template-")
-		if err != nil {
-			t.Fatal(err)
-		}
-		build(dir)
-		tp.dirs[key] = dir
-	}
-	tp.users[key]++
-	t.Cleanup(func() {
-		tp.mu.Lock()
-		defer tp.mu.Unlock()
-		if tp.users[key]--; tp.users[key] == 0 {
-			_ = os.RemoveAll(tp.dirs[key])
-		}
-	})
-	return tp.dirs[key]
+	tp.dirs[key] = dir
+	return dir
 }

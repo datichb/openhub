@@ -84,6 +84,15 @@ var claimTemplates templates
 // the members.toml the team needs, pushed: copies of a pair built once.
 func claimRepos(t *testing.T) (bare, clone string) {
 	t.Helper()
+	return claimReposSeeded(t, "", nil)
+}
+
+// claimReposSeeded is claimRepos on a pair where seed has run (claims created,
+// for instance: each one is five git commands). The pair is built once per
+// key, by the first test that asks, and copied; seed must give the same result
+// whoever runs it.
+func claimReposSeeded(t *testing.T, key string, seed func(t *testing.T, repo *teamstate.Repo)) (bare, clone string) {
+	t.Helper()
 	root := claimTemplates.get(t, "claims", func(root string) {
 		bare, clone := gittest.BareClone(t)
 		// members.toml is required for the team to be functional
@@ -93,6 +102,17 @@ func claimRepos(t *testing.T) (bare, clone string) {
 		require.NoError(t, os.Rename(clone, filepath.Join(root, "clone")))
 		repointOrigin(t, filepath.Join(root, "clone"), bare, filepath.Join(root, "bare"))
 	})
+	if seed != nil {
+		base := root
+		root = claimTemplates.get(t, "claims/"+key, func(dir string) {
+			require.NoError(t, os.Mkdir(filepath.Join(dir, "bare"), 0o755))
+			require.NoError(t, os.Mkdir(filepath.Join(dir, "clone"), 0o755))
+			copyTree(t, filepath.Join(base, "bare"), filepath.Join(dir, "bare"))
+			copyTree(t, filepath.Join(base, "clone"), filepath.Join(dir, "clone"))
+			repointOrigin(t, filepath.Join(dir, "clone"), filepath.Join(base, "bare"), filepath.Join(dir, "bare"))
+			seed(t, teamstate.NewRepo(filepath.Join(dir, "bare"), filepath.Join(dir, "clone")))
+		})
+	}
 	bare, clone = t.TempDir(), filepath.Join(t.TempDir(), "clone")
 	require.NoError(t, os.Mkdir(clone, 0o755))
 	copyTree(t, filepath.Join(root, "bare"), bare)
@@ -114,11 +134,18 @@ func repointOrigin(t *testing.T, clone, from, to string) {
 
 func setupClaimTestApp(t *testing.T) (*app.App, *teamstate.Repo, *bytes.Buffer) {
 	t.Helper()
+	return setupClaimTestAppSeeded(t, "", nil)
+}
+
+// setupClaimTestAppSeeded is setupClaimTestApp on the repositories of
+// claimReposSeeded.
+func setupClaimTestAppSeeded(t *testing.T, key string, seed func(t *testing.T, repo *teamstate.Repo)) (*app.App, *teamstate.Repo, *bytes.Buffer) {
+	t.Helper()
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	bare, clone := claimRepos(t)
+	bare, clone := claimReposSeeded(t, key, seed)
 
 	repo := teamstate.NewRepo(bare, clone)
 
