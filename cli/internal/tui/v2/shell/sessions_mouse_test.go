@@ -356,8 +356,10 @@ func (p *panicSim) sweep(cols, rows, xStep, yStep int) {
 }
 
 type step struct {
-	key tcell.Key
-	r   rune
+	key  tcell.Key
+	r    rune
+	wait string // what the screen shows once the step is done: the next one waits for it
+	gone string // what the screen no longer shows once the step is done
 }
 
 func k(key tcell.Key) step { return step{key: key} }
@@ -369,6 +371,10 @@ func r(c rune) step        { return step{key: tcell.KeyRune, r: c} }
 func TestSessionsViewMouseSweep(t *testing.T) {
 	const cols, rows = 120, 36
 	tab := k(tcell.KeyTab)
+	// The trace is loaded off the loop: a Tab sent while the tab is loading
+	// can be lost, so the following key waits for the trace to be drawn.
+	traceTab := step{key: tcell.KeyTab, wait: "step 0"}
+	reportsTab := step{key: tcell.KeyTab, gone: "Loading the reports"}
 	enter := k(tcell.KeyEnter)
 	scenarios := []struct {
 		name    string
@@ -383,8 +389,8 @@ func TestSessionsViewMouseSweep(t *testing.T) {
 		{name: "list, first decision", fine: true, want: "To handle"},
 		{name: "detail of a checkpoint", extra: true, focus: "ses_inbox", want: "plan"},
 		{name: "trace tab", fine: true, focus: "ses_inbox", steps: []step{tab}, want: "step 0"},
-		{name: "trace search", extra: true, focus: "ses_inbox", steps: []step{tab, r('/')}, want: "Search"},
-		{name: "reports tab", fine: true, focus: "ses_inbox", steps: []step{tab, tab}, want: "line of the report"},
+		{name: "trace search", extra: true, focus: "ses_inbox", steps: []step{traceTab, r('/')}, want: "Search"},
+		{name: "reports tab", fine: true, focus: "ses_inbox", steps: []step{traceTab, tab}, want: "line of the report"},
 		{name: "checkpoint card", fine: true, focus: "d:d-cp1", steps: []step{enter}, want: "Plan validation"},
 		{name: "permission decision", extra: true, focus: "d:d-p1", steps: []step{enter}, want: "permission d-p1"},
 		{name: "budget decision", extra: true, focus: "d:d-b1", steps: []step{enter}, want: "budget d-b1"},
@@ -402,8 +408,8 @@ func TestSessionsViewMouseSweep(t *testing.T) {
 		{name: "remote to fetch", extra: true, focus: "ses_remote_ready", want: "pipeline #12"},
 		{name: "remote running", extra: true, focus: "ses_remote_run", want: "ses_remote_run"},
 		{name: "fan-out parent", extra: true, focus: "ses_parent", want: "2/3 children"},
-		{name: "fan-out tab", fine: true, focus: "ses_parent", steps: []step{tab, tab, tab}, want: "oh-2"},
-		{name: "fan-out child, reports", extra: true, focus: "ses_child1", steps: []step{tab, tab}, want: "line of the report"},
+		{name: "fan-out tab", fine: true, focus: "ses_parent", steps: []step{traceTab, reportsTab, tab}, want: "oh-2"},
+		{name: "fan-out child, reports", extra: true, focus: "ses_child1", steps: []step{traceTab, tab}, want: "line of the report"},
 		{name: "fan-out orphan child", extra: true, focus: "ses_orphan", want: "ses_orphan"},
 		{name: "send modal", fine: true, focus: "ses_run", steps: []step{r('m')}, want: "nstruction"},
 		{name: "stop modal", focus: "ses_run", steps: []step{r('s')}, want: "Stop"},
@@ -448,6 +454,16 @@ func TestSessionsViewMouseSweep(t *testing.T) {
 			}, 3*time.Second, 10*time.Millisecond)
 			for _, st := range sc.steps {
 				p.press(st.key, st.r)
+				if st.wait != "" {
+					require.Eventually(t, func() bool {
+						return strings.Contains(p.text(), st.wait)
+					}, 5*time.Second, 10*time.Millisecond, "the screen shows %q:\n%s", st.wait, p.text())
+				}
+				if st.gone != "" {
+					require.Eventually(t, func() bool {
+						return !strings.Contains(p.text(), st.gone)
+					}, 5*time.Second, 10*time.Millisecond, "the screen still shows %q:\n%s", st.gone, p.text())
+				}
 			}
 			if sc.want != "" {
 				require.Eventually(t, func() bool {
