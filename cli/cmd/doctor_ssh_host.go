@@ -16,7 +16,9 @@ import (
 // talks to the server (known_hosts is read, `ssh -G` resolves the alias and the
 // files, with the options of the ssh command of git), so the check also runs
 // with --offline. The detail also says what became of the ssh command the user
-// told git to use (GIT_SSH_COMMAND, core.sshCommand, GIT_SSH).
+// told git to use (GIT_SSH_COMMAND, core.sshCommand of the global configuration,
+// GIT_SSH), and when the clone of the team sets a core.sshCommand of its own,
+// which oh does not follow.
 
 // doctorIDSSHHost is the identifier of the check.
 const doctorIDSSHHost = "ssh_host"
@@ -28,7 +30,7 @@ func sshHostDoctorChecks(ctx context.Context) []doctor.Result {
 	}
 	var out []doctor.Result
 	for _, t := range sharedTeams(a.Config) {
-		h, ok := teamstate.ResolveSSHHost(ctx, t.StateRepo, teamstate.InRepo(t.StatePath))
+		h, ok := teamstate.ResolveSSHHost(ctx, t.StateRepo)
 		if !ok || !h.Resolved {
 			continue // not an SSH remote, or ssh cannot say how it resolves the server
 		}
@@ -48,6 +50,10 @@ func sshHostDoctorChecks(ctx context.Context) []doctor.Result {
 		if note, warn := h.CustomSSHNote(); note != "" {
 			r.Detail += "\n" + note
 			r.Warn = r.Warn || warn
+		}
+		if note := teamstate.RepoSSHCommandNote(t.StatePath); note != "" {
+			r.Detail += "\n" + note
+			r.Warn = true
 		}
 		out = append(out, r)
 	}

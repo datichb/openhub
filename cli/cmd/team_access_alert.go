@@ -51,7 +51,7 @@ type accessWatch struct {
 	// unknownHost tells the SSH server of a remote that known_hosts lacks (nil:
 	// teamstate.UnknownSSHHostForJob), and hostsSaid the servers already
 	// logged (daemon_ssh_host.go).
-	unknownHost func(ctx context.Context, remote string, opts ...teamstate.SSHHostOption) *teamstate.SSHHost
+	unknownHost func(ctx context.Context, remote string) *teamstate.SSHHost
 	hostsSaid   map[string]bool
 }
 

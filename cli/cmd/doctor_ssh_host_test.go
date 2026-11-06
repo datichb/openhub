@@ -93,9 +93,9 @@ func TestDoctorSSHHostWithoutATeamSaysNothing(t *testing.T) {
 	assert.Empty(t, sshHostDoctorChecks(t.Context()))
 }
 
-// The doctor says what became of the ssh command the user told git to use:
-// the options it carries over (the clone of the team is where core.sshCommand
-// is read), or why it does not follow it.
+// The doctor says what became of the ssh command the user told git to use: the
+// options it carries over, or why it does not follow it. A core.sshCommand set
+// in the clone of the team is said too, as not followed (and is no failure).
 func TestDoctorSSHHostSaysWhatBecameOfTheSSHCommandOfGit(t *testing.T) {
 	i18ntest.Set(t, "en")
 	knownHosts := sshHostSandbox(t)
@@ -124,13 +124,14 @@ func TestDoctorSSHHostSaysWhatBecameOfTheSSHCommandOfGit(t *testing.T) {
 	assert.False(t, r.Warn, "a command that is followed is not a warning")
 	assert.Equal(t, "git.example.test is in known_hosts\nSSH options of git (GIT_SSH_COMMAND) carried over: -i /keys/work -o StrictHostKeyChecking=yes", r.Detail)
 
-	t.Setenv("GIT_SSH_COMMAND", "ssh -i /keys/work; touch /tmp/oh-must-not-exist")
+	marker := filepath.Join(t.TempDir(), "marker")
+	t.Setenv("GIT_SSH_COMMAND", "ssh -i /keys/work; touch "+marker)
 	r = check()
 	assert.True(t, r.OK)
 	assert.True(t, r.Warn, "a command that is not followed is a warning, even when the server is known")
 	assert.Contains(t, r.Detail, "The SSH command of git (GIT_SSH_COMMAND) is not followed")
 	assert.Contains(t, r.Detail, `the shell syntax ";" is not interpreted`)
-	assert.NoFileExists(t, "/tmp/oh-must-not-exist")
+	assert.NoFileExists(t, marker)
 
 	t.Setenv("GIT_SSH_COMMAND", "")
 	t.Setenv("GIT_SSH", "/opt/tools/ssh-wrapper")
@@ -138,15 +139,29 @@ func TestDoctorSSHHostSaysWhatBecameOfTheSSHCommandOfGit(t *testing.T) {
 	assert.True(t, r.Warn)
 	assert.Contains(t, r.Detail, "GIT_SSH (/opt/tools/ssh-wrapper) is not used")
 
-	// core.sshCommand of the clone of the team
+	// core.sshCommand of the global configuration
 	t.Setenv("GIT_SSH", "")
-	require.NoError(t, os.WriteFile(filepath.Join(clone, ".git", "config"), []byte("[core]\n\tsshCommand = ssh -F /tmp/evil_config\n"), 0o600))
-	r = check()
-	assert.True(t, r.Warn, "-F from the configuration of a repository is not carried over")
-	assert.Contains(t, r.Detail, "(core.sshCommand) is not followed")
-	assert.Contains(t, r.Detail, "-F")
-	require.NoError(t, os.WriteFile(filepath.Join(clone, ".git", "config"), []byte("[core]\n\tsshCommand = ssh -i /keys/clone\n"), 0o600))
+	require.NoError(t, os.WriteFile(os.Getenv("GIT_CONFIG_GLOBAL"), []byte("[core]\n\tsshCommand = ssh -i /keys/global\n"), 0o600))
 	r = check()
 	assert.False(t, r.Warn)
-	assert.Contains(t, r.Detail, "SSH options of git (core.sshCommand) carried over: -i /keys/clone")
+	assert.Contains(t, r.Detail, "SSH options of git (core.sshCommand) carried over: -i /keys/global")
+
+	// core.sshCommand of the clone of the team: not followed, said, not a failure
+	require.NoError(t, os.WriteFile(os.Getenv("GIT_CONFIG_GLOBAL"), nil, 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(clone, ".git", "config"), []byte("[core]\n\tsshCommand = ssh -o StrictHostKeyChecking=no -i /keys/clone\n"), 0o600))
+	r = check()
+	assert.True(t, r.OK, "not an error")
+	assert.True(t, r.Warn)
+	assert.Contains(t, r.Detail, "git.example.test is in known_hosts")
+	assert.Contains(t, r.Detail, "core.sshCommand is set in the repository (")
+	assert.Contains(t, r.Detail, "not followed by oh; put it in the global git configuration or in GIT_SSH_COMMAND")
+	assert.NotContains(t, r.Detail, "carried over", "its options reach nothing")
+	assert.NotContains(t, r.Detail, "StrictHostKeyChecking", "the command is not shown")
+
+	// both: the user's command is followed, the repository's one is said
+	t.Setenv("GIT_SSH_COMMAND", "ssh -i /keys/work")
+	r = check()
+	assert.True(t, r.Warn)
+	assert.Contains(t, r.Detail, "SSH options of git (GIT_SSH_COMMAND) carried over: -i /keys/work")
+	assert.Contains(t, r.Detail, "core.sshCommand is set in the repository (")
 }

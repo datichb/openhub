@@ -11,8 +11,6 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
-
-	"github.com/datichb/openhub/cli/internal/gitremote"
 )
 
 // The ssh command of git. For an SSH remote git runs `ssh`, or what it is told
@@ -22,18 +20,23 @@ import (
 // answer, and to hand the same options to the ssh that its own git processes
 // run.
 //
+// Only what belongs to the user is read: the environment, and the global
+// configuration of git (core.sshCommand there, includes followed). The
+// core.sshCommand of a repository is not: a repository, the clone of a team
+// included, can be written by something else than the user (an agent), and the
+// options of an ssh command decide which server keys are accepted. The system
+// configuration of git is not read either. The file that -F names is the user's
+// own, like ~/.ssh/config (it can hold `Match exec` or ProxyCommand lines as
+// well): it only comes from sources the user wrote.
+//
 // The command itself is never run, and neither is any piece of it: a command
 // line is split the way a shell does, and only a short list of ssh options
-// (see sshFlags, sshValueOptions and sshOptionKinds) is carried over, rebuilt
-// as arguments of `ssh`. Anything else makes oh drop the whole command and say
-// so (SSHIgnore): shell syntax (variable, substitution, pipe, glob…), another
+// (see sshFlags and sshOptionKinds) is carried over, rebuilt as arguments of
+// `ssh`. Anything else makes oh drop the whole command and say so
+// (SSHIgnore): shell syntax (variable, substitution, pipe, glob…), another
 // program than ssh, an option that runs something (ProxyCommand, LocalCommand,
 // KnownHostsCommand, Include…) or that oh does not understand. Half a command
-// would be worse than none. Two options read a file that could run a program
-// through the ssh configuration it holds (`Match exec`, ProxyCommand): -F is
-// only carried over from the user's environment and global git configuration,
-// never from the configuration of a repository, which an agent could have
-// written.
+// would be worse than none.
 
 // Where an ssh command comes from (SSHCommand.Source).
 const (
@@ -52,9 +55,6 @@ const (
 	IgnoreQuote = "quote"
 	// IgnoreOption: an option oh does not carry over (Arg is it).
 	IgnoreOption = "option"
-	// IgnoreUntrusted: an option that only the environment and the global
-	// configuration of git may give (Arg is it).
-	IgnoreUntrusted = "untrusted"
 	// IgnoreRelative: a file named relatively, which ssh would look for from
 	// another folder than the one oh asks from (Arg is it).
 	IgnoreRelative = "relative"
@@ -76,8 +76,6 @@ func (i *SSHIgnore) String() string {
 		return "a quote or a backslash is left open"
 	case IgnoreOption:
 		return fmt.Sprintf("the option %q is not carried over", i.Arg)
-	case IgnoreUntrusted:
-		return fmt.Sprintf("the option %q is only carried over from the environment or the global git configuration", i.Arg)
 	case IgnoreRelative:
 		return fmt.Sprintf("the file %q is relative", i.Arg)
 	}
@@ -120,21 +118,14 @@ func shellWord(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-// CustomSSH reads the ssh command git would run in the repository at repoDir
-// ("": no repository, only the environment and the global configuration are
-// read), in the order git does. A repository whose configuration is read is
-// untrusted for -F (see above).
-func CustomSSH(ctx context.Context, repoDir string) SSHCommand {
+// CustomSSH reads the ssh command git would run for the user, in the order git
+// does: GIT_SSH_COMMAND, core.sshCommand of the global configuration, GIT_SSH.
+func CustomSSH(ctx context.Context) SSHCommand {
 	if v := strings.TrimSpace(os.Getenv("GIT_SSH_COMMAND")); v != "" {
-		return fromCommandLine(SSHSourceCommandEnv, v, true)
-	}
-	if repoDir != "" {
-		if v, ok := gitremote.ConfigGet(repoDir, "core", "sshCommand"); ok && strings.TrimSpace(v) != "" {
-			return fromCommandLine(SSHSourceConfig, v, false)
-		}
+		return fromCommandLine(SSHSourceCommandEnv, v)
 	}
 	if v := globalSSHCommand(ctx); v != "" {
-		return fromCommandLine(SSHSourceConfig, v, true)
+		return fromCommandLine(SSHSourceConfig, v)
 	}
 	// GIT_SSH is a program, not a command line: it takes no options to carry
 	// over. Only worth a word when it is not ssh.
@@ -156,17 +147,9 @@ func globalSSHCommand(ctx context.Context) string {
 	return strings.TrimSpace(string(out))
 }
 
-// ParseSSHCommand reads a command line the way CustomSSH does, for a source
-// that is trusted (the environment, the global configuration) or not (the
-// configuration of a repository).
-func ParseSSHCommand(source, line string, trusted bool) SSHCommand {
-	return fromCommandLine(source, line, trusted)
-}
-
-func fromCommandLine(source, line string, trusted bool) SSHCommand {
+func fromCommandLine(source, line string) SSHCommand {
 	c := SSHCommand{Source: source}
-	args, ign := parseSSHCommandLine(line, trusted)
-	c.Args, c.Ignored = args, ign
+	c.Args, c.Ignored = parseSSHCommandLine(line)
 	return c
 }
 
@@ -232,7 +215,7 @@ var sshOptionKinds = map[string]sshOptionKind{
 
 // parseSSHCommandLine splits line like a shell and carries over the ssh
 // options it knows. It runs nothing.
-func parseSSHCommandLine(line string, trusted bool) ([]string, *SSHIgnore) {
+func parseSSHCommandLine(line string) ([]string, *SSHIgnore) {
 	words, ign := splitShell(line)
 	if ign != nil {
 		return nil, ign
@@ -264,9 +247,6 @@ func parseSSHCommandLine(line string, trusted bool) ([]string, *SSHIgnore) {
 		}
 		switch flag {
 		case "-F":
-			if !trusted {
-				return nil, &SSHIgnore{Code: IgnoreUntrusted, Arg: flag}
-			}
 			if !absoluteFile(value) {
 				return nil, &SSHIgnore{Code: IgnoreRelative, Arg: value}
 			}

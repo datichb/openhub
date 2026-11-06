@@ -28,12 +28,12 @@ import (
 // The check is the one of the assistants, offline (teamstate.UnknownSSHHostForJob:
 // known_hosts and `ssh -G`). It is certain enough to stop a job: git runs with
 // a GIT_SSH_COMMAND that oh builds, ssh plus the options of the ssh command the
-// user told git to use (GIT_SSH_COMMAND, core.sshCommand of the clone or of the
-// global configuration: key, configuration file, known_hosts), and `ssh -G` is
-// asked with the same options, so ssh is the one it describes; a server that a
-// @cert-authority line covers, or that ssh could not be asked about, is not
-// reported. A command oh does not follow is said in the log (once) and by
-// `oh doctor`.
+// user told git to use (GIT_SSH_COMMAND, or core.sshCommand of the global
+// configuration: key, configuration file, known_hosts; never the one of a
+// repository), and `ssh -G` is asked with the same options, so ssh is the one it
+// describes; a server that a @cert-authority line covers, or that ssh could not
+// be asked about, is not reported. A command oh does not follow is said in the
+// log (once) and by `oh doctor`.
 
 // alertTeamHost is the kind of the alert (daemon.Alert.Kind).
 const alertTeamHost = "team_host"
@@ -42,15 +42,15 @@ const alertTeamHost = "team_host"
 // known_hosts: the job must not connect to it. Said once in the log; raised as
 // an alert under the most recent of sessions when there is one (the open
 // sessions that work on this team-state; none: the next job that has some
-// raises it). opts say the clone git runs in (teamstate.InRepo).
-func (w *accessWatch) UnknownHost(ctx context.Context, remote string, sessions []domain.Session, opts ...teamstate.SSHHostOption) bool {
+// raises it).
+func (w *accessWatch) UnknownHost(ctx context.Context, remote string, sessions []domain.Session) bool {
 	w.mu.Lock()
 	lookup := w.unknownHost
 	w.mu.Unlock()
 	if lookup == nil {
 		lookup = teamstate.UnknownSSHHostForJob
 	}
-	h := lookup(ctx, remote, opts...)
+	h := lookup(ctx, remote)
 	if h == nil {
 		return false
 	}

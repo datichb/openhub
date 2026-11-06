@@ -2,11 +2,13 @@ package teamstate
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -61,30 +63,22 @@ func TestSSHHostAsksSSHWithTheOptionsOfGit(t *testing.T) {
 	assert.Nil(t, UnknownSSHHost(t.Context(), "ssh://deploy@alias:2222/team/state.git"))
 }
 
-// core.sshCommand of the global configuration, then of the clone;
-// GIT_SSH_COMMAND before both: the order of git.
+// core.sshCommand of the global configuration, GIT_SSH_COMMAND before it: the
+// order of git, less the configuration of a repository, which is not followed.
 func TestSSHHostReadsCoreSSHCommandLikeGit(t *testing.T) {
 	_, tools := sshSandbox(t)
 	global := os.Getenv("GIT_CONFIG_GLOBAL")
 	require.NoError(t, os.WriteFile(global, []byte("[core]\n\tsshCommand = ssh -i /keys/global\n"), 0o600))
-	clone := t.TempDir()
-	require.NoError(t, os.MkdirAll(filepath.Join(clone, ".git"), 0o700))
-	require.NoError(t, os.WriteFile(filepath.Join(clone, ".git", "config"), []byte("[core]\n\tsshCommand = ssh -i /keys/clone\n"), 0o600))
 	tools.gErr = nil
 	tools.gOut = "hostname git.example.test\nport 22\n"
 	const remote = "git@git.example.test:team/state.git"
 	last := func() []string { return tools.calls[len(tools.calls)-1].args }
 
-	// no clone given (the assistants, before the clone exists): the global one
 	require.NotNil(t, UnknownSSHHost(t.Context(), remote))
 	assert.Equal(t, []string{"-G", "-i", "/keys/global", "-l", "git", "--", "git.example.test"}, last())
 
-	// the configuration of the clone comes first
-	require.NotNil(t, UnknownSSHHost(t.Context(), remote, InRepo(clone)))
-	assert.Equal(t, []string{"-G", "-i", "/keys/clone", "-l", "git", "--", "git.example.test"}, last())
-
 	t.Setenv("GIT_SSH_COMMAND", "ssh -i /keys/env")
-	require.NotNil(t, UnknownSSHHost(t.Context(), remote, InRepo(clone)))
+	require.NotNil(t, UnknownSSHHost(t.Context(), remote))
 	assert.Equal(t, []string{"-G", "-i", "/keys/env", "-l", "git", "--", "git.example.test"}, last())
 }
 
@@ -268,14 +262,12 @@ func TestGitCommandHandsTheOptionsOfGitToSSH(t *testing.T) {
 	cleanup()
 	assert.Equal(t, "ssh -o BatchMode=yes "+oh, lastEnv(cmd.Env, "GIT_SSH_COMMAND"))
 
-	// the core.sshCommand of the clone is read for the commands run in it
+	// core.sshCommand of the global configuration
 	t.Setenv("GIT_SSH_COMMAND", "")
-	clone := t.TempDir()
-	require.NoError(t, os.MkdirAll(filepath.Join(clone, ".git"), 0o700))
-	require.NoError(t, os.WriteFile(filepath.Join(clone, ".git", "config"), []byte("[core]\n\tsshCommand = ssh -i /keys/clone\n"), 0o600))
-	cmd, cleanup = gitCommand(t.Context(), sshRemote, clone, nil, oh, nil, "pull")
+	require.NoError(t, os.WriteFile(os.Getenv("GIT_CONFIG_GLOBAL"), []byte("[core]\n\tsshCommand = ssh -i /keys/global\n"), 0o600))
+	cmd, cleanup = gitCommand(t.Context(), sshRemote, t.TempDir(), nil, oh, nil, "pull")
 	cleanup()
-	assert.Equal(t, "ssh -o BatchMode=yes -i /keys/clone "+oh, lastEnv(cmd.Env, "GIT_SSH_COMMAND"))
+	assert.Equal(t, "ssh -o BatchMode=yes -i /keys/global "+oh, lastEnv(cmd.Env, "GIT_SSH_COMMAND"))
 }
 
 // git itself, through its shell, gives ssh the options once each, with the
@@ -314,4 +306,177 @@ func TestGitRunsSSHWithTheOptionsOfTheUserAndOfOh(t *testing.T) {
 	}
 	assert.Less(t, strings.Index(joined, " BatchMode=yes "), strings.Index(joined, " UserKnownHostsFile=/custom/kh "), "BatchMode of oh first")
 	assert.Less(t, strings.Index(joined, " -p 2200 "), strings.Index(joined, " -p 2222 "), "the port of the URL, which git adds last, wins")
+}
+
+// ── the core.sshCommand of a repository is not followed ─────────────────────
+
+// repoWithSSHCommand makes a real clone whose own configuration (not the global
+// one) sets a core.sshCommand that would switch the check of the servers off.
+func repoWithSSHCommand(t *testing.T) string {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	clone := t.TempDir()
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"config", "core.sshCommand", "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i /keys/repo"},
+	} {
+		cmd := exec.CommandContext(t.Context(), "git", args...)
+		cmd.Dir = clone
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, "git %v: %s", args, out)
+	}
+	return clone
+}
+
+// The options of a core.sshCommand set in the repository reach neither `ssh -G`
+// nor the GIT_SSH_COMMAND of a git process of oh: the check of the server and
+// the connection both run the ssh command of the user, never the one the
+// repository (which something else than the user may have written) asks for.
+func TestTheSSHCommandOfARepositoryIsNotFollowed(t *testing.T) {
+	skipWithoutSh(t)
+	_, tools := sshSandbox(t)
+	tools.gErr = nil
+	tools.gOut = "hostname git.example.test\nport 22\n"
+	clone := repoWithSSHCommand(t)
+	const sshRemote = "git@git.example.test:team/state.git"
+	const oh = "-o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
+
+	// the check of the server: plain ssh, and the server is unknown (the
+	// repository does not switch the check off)
+	h := UnknownSSHHost(t.Context(), sshRemote)
+	require.NotNil(t, h, "UserKnownHostsFile=/dev/null of the repository must not make the server unchecked")
+	assert.Equal(t, []string{"-G", "-l", "git", "--", "git.example.test"}, sshGArgs(t, tools))
+	assert.Equal(t, gitutil.SSHCommand{}, h.Custom)
+	assert.False(t, h.Unchecked)
+
+	// the git processes of oh, run in that clone
+	for _, args := range [][]string{{"pull", "--rebase"}, {"push"}, {"fetch"}, {"ls-remote", "origin"}} {
+		cmd, cleanup := gitCommand(t.Context(), sshRemote, clone, nil, oh, nil, args...)
+		cleanup()
+		got := lastEnv(cmd.Env, "GIT_SSH_COMMAND")
+		assert.Equal(t, "ssh -o BatchMode=yes "+oh, got, args[0])
+		assert.NotContains(t, got, "StrictHostKeyChecking=no")
+		assert.NotContains(t, got, "/dev/null")
+		assert.NotContains(t, got, "/keys/repo")
+	}
+
+	// what the user set wins, and the repository still does not count
+	t.Setenv("GIT_SSH_COMMAND", "ssh -i /keys/user")
+	tools.calls = nil
+	require.NotNil(t, UnknownSSHHost(t.Context(), sshRemote))
+	assert.Equal(t, []string{"-G", "-i", "/keys/user", "-l", "git", "--", "git.example.test"}, sshGArgs(t, tools))
+	cmd, cleanup := gitCommand(t.Context(), sshRemote, clone, nil, oh, nil, "pull")
+	cleanup()
+	assert.Equal(t, "ssh -o BatchMode=yes -i /keys/user "+oh, lastEnv(cmd.Env, "GIT_SSH_COMMAND"))
+}
+
+// The same, with git itself: it would obey the core.sshCommand of this clone
+// (a fake ssh on the PATH records what it is started with and never connects),
+// and does not, because the GIT_SSH_COMMAND of oh comes first.
+func TestGitInACloneDoesNotRunTheSSHCommandOfItsRepository(t *testing.T) {
+	skipWithoutSh(t)
+	isolateGitSSH(t)
+	clone := repoWithSSHCommand(t)
+	bin := t.TempDir()
+	record := filepath.Join(t.TempDir(), "args")
+	script := "#!/bin/sh\nfor a in \"$@\"; do printf '%s\\n' \"$a\"; done > '" + record + "'\nexit 1\n"
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "ssh"), []byte(script), 0o700))
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	const remote = "ssh://git@git.example.test/team/state.git"
+	cmd, cleanup := gitCommand(t.Context(), remote, clone, nil, "-o StrictHostKeyChecking=accept-new", nil, "ls-remote", remote)
+	defer cleanup()
+	out, err := cmd.CombinedOutput()
+	require.Error(t, err, "the fake ssh refuses: %s", out)
+
+	data, err := os.ReadFile(record)
+	require.NoError(t, err, "ssh was started: %s", out)
+	joined := " " + strings.ReplaceAll(strings.TrimSuffix(string(data), "\n"), "\n", " ") + " "
+	assert.Contains(t, joined, " -o BatchMode=yes ")
+	assert.Contains(t, joined, " -o StrictHostKeyChecking=accept-new ")
+	assert.NotContains(t, joined, "StrictHostKeyChecking=no")
+	assert.NotContains(t, joined, "/dev/null")
+	assert.NotContains(t, joined, "/keys/repo")
+}
+
+func TestRepoSSHCommandNote(t *testing.T) {
+	i18ntest.Set(t, "en")
+	isolateGitSSH(t)
+	clone := repoWithSSHCommand(t)
+	note := RepoSSHCommandNote(clone)
+	assert.Contains(t, note, "core.sshCommand is set in the repository (")
+	assert.Contains(t, note, "not followed by oh; put it in the global git configuration or in GIT_SSH_COMMAND")
+	assert.NotContains(t, note, "StrictHostKeyChecking", "the command itself is not shown: it could hold a secret")
+
+	assert.Empty(t, RepoSSHCommandNote(t.TempDir()), "a folder without .git/config")
+	assert.Empty(t, RepoSSHCommandNote(""), "no clone")
+	plain := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(plain, ".git"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(plain, ".git", "config"), []byte("[core]\n\tbare = false\n\tsshCommand =\n"), 0o600))
+	assert.Empty(t, RepoSSHCommandNote(plain), "a clone with no (or an empty) core.sshCommand")
+}
+
+// recordLog is a slog handler that keeps the records it is given.
+type recordLog struct {
+	mu      sync.Mutex
+	records []slog.Record
+}
+
+func (*recordLog) Enabled(context.Context, slog.Level) bool { return true }
+func (l *recordLog) Handle(_ context.Context, r slog.Record) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.records = append(l.records, r)
+	return nil
+}
+func (l *recordLog) WithAttrs([]slog.Attr) slog.Handler { return l }
+func (l *recordLog) WithGroup(string) slog.Handler      { return l }
+
+// of returns the records of message msg about the clone dir.
+func (l *recordLog) of(msg, dir string) []slog.Record {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	var out []slog.Record
+	for _, r := range l.records {
+		if r.Message != msg {
+			continue
+		}
+		r.Attrs(func(a slog.Attr) bool {
+			if a.Key == "repo" && a.Value.String() == dir {
+				out = append(out, r)
+			}
+			return true
+		})
+	}
+	return out
+}
+
+// The git processes of oh say once, in the log (Info), that the repository
+// they run in sets a core.sshCommand they do not follow.
+func TestGitCommandSaysOnceThatTheSSHCommandOfTheRepositoryIsNotFollowed(t *testing.T) {
+	skipWithoutSh(t)
+	isolateGitSSH(t)
+	clone := repoWithSSHCommand(t)
+	other := t.TempDir()
+	logs := &recordLog{}
+	prev := slog.Default()
+	slog.SetDefault(slog.New(logs))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	const remote = "git@git.example.test:team/state.git"
+	for range 3 {
+		_, cleanup := gitCommand(t.Context(), remote, clone, nil, "", nil, "pull")
+		cleanup()
+		_, cleanup = gitCommand(t.Context(), remote, other, nil, "", nil, "pull")
+		cleanup()
+	}
+	_, cleanup := gitCommand(t.Context(), remote, clone, nil, "", nil, "status") // does not connect
+	cleanup()
+
+	got := logs.of("teamstate.ssh.repo_command_ignored", clone)
+	require.Len(t, got, 1, "once per clone")
+	assert.Equal(t, slog.LevelInfo, got[0].Level)
+	assert.Empty(t, logs.of("teamstate.ssh.repo_command_ignored", other), "a clone without core.sshCommand says nothing")
 }

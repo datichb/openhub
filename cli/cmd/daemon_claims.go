@@ -231,7 +231,7 @@ func (b *claimsBeater) beat(ctx context.Context) error {
 		if b.access.Blocked(ctx, t.repo, now) {
 			continue // the access was refused: nothing to try until the token changes
 		}
-		if b.access.UnknownHost(ctx, t.repo.Remote(), t.sessionsOf(open), teamstate.InRepo(t.repo.Path())) {
+		if b.access.UnknownHost(ctx, t.repo.Remote(), t.sessionsOf(open)) {
 			continue // the SSH server is not in known_hosts: no connection until it is
 		}
 		var claimCfg teamstate.ClaimConfig
@@ -286,7 +286,7 @@ func (b *claimsBeater) flush(ctx context.Context) {
 		if b.access.Blocked(ctx, t.repo, b.now()) {
 			continue
 		}
-		if b.access.UnknownHost(ctx, t.repo.Remote(), t.sessionsOf(open), teamstate.InRepo(t.repo.Path())) {
+		if b.access.UnknownHost(ctx, t.repo.Remote(), t.sessionsOf(open)) {
 			continue
 		}
 		applied, dropped, err := t.repo.FlushClaimQueue(bctx)

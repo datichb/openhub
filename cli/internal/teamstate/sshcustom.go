@@ -3,8 +3,10 @@ package teamstate
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"sync"
 
+	"github.com/datichb/openhub/cli/internal/gitremote"
 	"github.com/datichb/openhub/cli/internal/gitutil"
 	"github.com/datichb/openhub/cli/internal/i18n"
 )
@@ -18,26 +20,11 @@ import (
 // connection. gitutil.CustomSSH reads the command; only the options it vets
 // are carried over (gitutil/sshcommand.go), and the command itself is never
 // run, only `ssh`.
-
-// SSHHostOption refines how the SSH server of a remote is resolved.
-type SSHHostOption func(*sshHostSettings)
-
-type sshHostSettings struct{ repoDir string }
-
-// InRepo names the clone git runs in for the remote: its .git/config may hold
-// a core.sshCommand. Without it only the environment and the global
-// configuration of git are read (the assistants run before the clone exists).
-func InRepo(dir string) SSHHostOption {
-	return func(s *sshHostSettings) { s.repoDir = dir }
-}
-
-func newSSHHostSettings(opts []SSHHostOption) sshHostSettings {
-	var s sshHostSettings
-	for _, o := range opts {
-		o(&s)
-	}
-	return s
-}
+//
+// Only the sources of the user are read: GIT_SSH_COMMAND and the global
+// configuration of git. The core.sshCommand of a repository, the clone of a
+// team included, is not followed (its .git/config is not the user's alone, and
+// its options decide which server keys are accepted): it is said, not obeyed.
 
 // ignoredSSHSeen holds the ignored commands already logged: a daemon looks at
 // the same command every minute.
@@ -88,10 +75,45 @@ func ignoreReason(i *gitutil.SSHIgnore) string {
 		return i18n.T("v55s.ssh.reason.quote")
 	case gitutil.IgnoreOption:
 		return i18n.Tf("v55s.ssh.reason.option", i.Arg)
-	case gitutil.IgnoreUntrusted:
-		return i18n.Tf("v55s.ssh.reason.untrusted", i.Arg)
 	case gitutil.IgnoreRelative:
 		return i18n.Tf("v55s.ssh.reason.relative", i.Arg)
 	}
 	return i.String()
+}
+
+// repoSSHCommandSet reports whether the .git/config of the clone at dir sets a
+// core.sshCommand (read without a git process).
+func repoSSHCommandSet(dir string) bool {
+	if dir == "" {
+		return false
+	}
+	v, ok := gitremote.ConfigGet(dir, "core", "sshCommand")
+	return ok && strings.TrimSpace(v) != ""
+}
+
+// RepoSSHCommandNote says that the clone at dir sets a core.sshCommand of its
+// own, which oh does not follow, and where to put it instead (empty when the
+// clone sets none). It is not an error: git outside oh obeys it, and the git
+// processes of oh run the ssh command of the user, whatever the repository says.
+func RepoSSHCommandNote(dir string) string {
+	if !repoSSHCommandSet(dir) {
+		return ""
+	}
+	return i18n.Tf("v55s.ssh.repo_command", displayPath(dir))
+}
+
+// repoSSHCommandSeen holds the clones already logged.
+var repoSSHCommandSeen sync.Map
+
+// noteRepoSSHCommand logs, once per process and per clone, a core.sshCommand
+// that the .git/config of dir sets and oh does not follow.
+func noteRepoSSHCommand(ctx context.Context, dir string) {
+	if !repoSSHCommandSet(dir) {
+		return
+	}
+	if _, seen := repoSSHCommandSeen.LoadOrStore(dir, true); seen {
+		return
+	}
+	slog.Default().Log(ctx, slog.LevelInfo, "teamstate.ssh.repo_command_ignored", "repo", dir,
+		"hint", "core.sshCommand set in the repository is not followed: put it in the global git configuration or in GIT_SSH_COMMAND")
 }

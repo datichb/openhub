@@ -171,13 +171,13 @@ func gitCommand(ctx context.Context, remote, dir string, creds *GitCredentials, 
 
 // sshCommand is the start of the GIT_SSH_COMMAND of a git process of oh: ssh,
 // non-interactive, then the ssh options of the command the user told git to
-// use (GIT_SSH_COMMAND, core.sshCommand of dir or of the global configuration;
-// only for the commands that connect to an SSH remote), then the options of oh. ssh keeps the
-// first value of an option: BatchMode stays oh's, and what the user chose for
-// the check of the server (StrictHostKeyChecking, UserKnownHostsFile…) wins
-// over the accept-new of oh. The command of the user is never run: its
-// options, vetted (gitutil.CustomSSH), are handed to ssh. The test of the
-// server (sshhost.go) asks `ssh -G` with the same options.
+// use (GIT_SSH_COMMAND, or core.sshCommand of the global configuration; only
+// for the commands that connect to an SSH remote), then the options of oh. ssh
+// keeps the first value of an option: BatchMode stays oh's, and what the user
+// chose for the check of the server (StrictHostKeyChecking,
+// UserKnownHostsFile…) wins over the accept-new of oh. The command of the user
+// is never run: its options, vetted (gitutil.CustomSSH), are handed to ssh. The
+// test of the server (sshhost.go) asks `ssh -G` with the same options.
 func sshCommand(ctx context.Context, remote string, network bool, dir string) string {
 	line := "ssh -o BatchMode=yes "
 	if !network {
@@ -186,8 +186,11 @@ func sshCommand(ctx context.Context, remote string, network bool, dir string) st
 	if _, _, _, ssh := parseSSHRemote(remote); remote != "" && !ssh {
 		return line // HTTPS or a local path: no ssh to give options to
 	}
-	custom := gitutil.CustomSSH(ctx, dir)
+	custom := gitutil.CustomSSH(ctx)
 	noteIgnoredSSH(custom)
+	// The core.sshCommand of the clone is not followed (git would obey it, but
+	// the GIT_SSH_COMMAND set below replaces it): said once in the log.
+	noteRepoSSHCommand(ctx, dir)
 	if opts := custom.ShellLine(); opts != "" {
 		line += opts + " "
 	}

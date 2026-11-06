@@ -79,9 +79,10 @@ type SSHHost struct {
 	// Resolved: `ssh -G` answered, so Host, Port, Name and Files are what ssh
 	// uses (not only what the URL says).
 	Resolved bool
-	// Custom is the ssh command of git (GIT_SSH_COMMAND, core.sshCommand,
-	// GIT_SSH) read for this server: the options of it that `ssh -G` was asked
-	// with, or why it is not followed (sshcustom.go).
+	// Custom is the ssh command of git of the user (GIT_SSH_COMMAND,
+	// core.sshCommand of the global configuration, GIT_SSH) read for this
+	// server: the options of it that `ssh -G` was asked with, or why it is not
+	// followed (sshcustom.go).
 	Custom gitutil.SSHCommand
 	// Hashed: HashKnownHosts is on for this server (the default of Debian and
 	// Ubuntu), so ssh writes the name of a server hashed (|1|salt|hash) and a
@@ -109,8 +110,8 @@ type HostKey struct {
 // know it yet (absent from known_hosts), nil when remote is not SSH, the
 // server is known or the user turned the check off. It reads files and
 // runs `ssh -G`; it does not talk to the server.
-func UnknownSSHHost(ctx context.Context, remote string, opts ...SSHHostOption) *SSHHost {
-	h, ok := ResolveSSHHost(ctx, remote, opts...)
+func UnknownSSHHost(ctx context.Context, remote string) *SSHHost {
+	h, ok := ResolveSSHHost(ctx, remote)
 	if !ok || h.Unchecked || h.Known() {
 		return nil
 	}
@@ -123,8 +124,8 @@ func UnknownSSHHost(ctx context.Context, remote string, opts ...SSHHostOption) *
 // be asked how it resolves the server (`ssh -G` failed: the names and files
 // are guesses) and when a certificate authority of known_hosts could vouch for
 // it (ssh then accepts a signed host key with no entry of its own).
-func UnknownSSHHostForJob(ctx context.Context, remote string, opts ...SSHHostOption) *SSHHost {
-	h := UnknownSSHHost(ctx, remote, opts...)
+func UnknownSSHHostForJob(ctx context.Context, remote string) *SSHHost {
+	h := UnknownSSHHost(ctx, remote)
 	if h == nil || !h.Resolved || h.VouchedByCA() {
 		return nil
 	}
@@ -134,10 +135,11 @@ func UnknownSSHHostForJob(ctx context.Context, remote string, opts ...SSHHostOpt
 // ResolveSSHHost reads the SSH server out of remote (`ssh://[user@]host[:port]/…`
 // or `[user@]host:path`) and applies ~/.ssh/config to it (`ssh -G`: HostName,
 // Port, HostKeyAlias, UserKnownHostsFile, ProxyJump) and the ssh command of git
-// (GIT_SSH_COMMAND, core.sshCommand: `ssh -G` is asked with the same options as
-// git's ssh would get, so the known_hosts that is read is the one the
-// connection checks). ok is false for a remote that is not SSH.
-func ResolveSSHHost(ctx context.Context, remote string, opts ...SSHHostOption) (h *SSHHost, ok bool) {
+// (GIT_SSH_COMMAND, core.sshCommand of the global configuration: `ssh -G` is
+// asked with the same options as git's ssh would get, so the known_hosts that
+// is read is the one the connection checks). ok is false for a remote that is
+// not SSH.
+func ResolveSSHHost(ctx context.Context, remote string) (h *SSHHost, ok bool) {
 	user, host, port, ok := parseSSHRemote(remote)
 	if !ok {
 		return nil, false
@@ -150,7 +152,7 @@ func ResolveSSHHost(ctx context.Context, remote string, opts ...SSHHostOption) (
 		globalFiles = []string{"/etc/ssh/ssh_known_hosts", "/etc/ssh/ssh_known_hosts2"}
 	}
 
-	h.Custom = gitutil.CustomSSH(ctx, newSSHHostSettings(opts).repoDir)
+	h.Custom = gitutil.CustomSSH(ctx)
 	noteIgnoredSSH(h.Custom)
 	args := append([]string{"-G"}, h.Custom.Args...)
 	if port != "" {
