@@ -348,6 +348,32 @@ func TestSSHHostKeyAlias(t *testing.T) {
 	}
 }
 
+// ssh does not add the port to a HostKeyAlias: the entry is under the alias.
+func TestSSHHostKeyAliasHasNoPort(t *testing.T) {
+	_, tools := sshSandbox(t)
+	tools.gErr = nil
+	tools.gOut = "hostname 10.0.0.5\nport 2222\nhostkeyalias Gitlab-Internal\nuserknownhostsfile ~/.ssh/known_hosts\n"
+	h := UnknownSSHHost(context.Background(), "ssh://git@internal:2222/x.git")
+	if h == nil || h.Name != "gitlab-internal" || h.Host != "10.0.0.5" || h.Port != "2222" {
+		t.Fatalf("host = %+v, want the alias alone as the name", h)
+	}
+	tools.scan = "[10.0.0.5]:2222 ssh-ed25519 " + testKeyED25519 + "\n"
+	keys, err := h.Scan(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Trust(keys); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(h.WriteTo)
+	if !strings.HasPrefix(string(data), "gitlab-internal ssh-ed25519 ") {
+		t.Errorf("known_hosts = %q, want the entry under the alias without the port", data)
+	}
+	if UnknownSSHHost(context.Background(), "ssh://git@internal:2222/x.git") != nil {
+		t.Error("the entry under the alias makes the server known")
+	}
+}
+
 func TestSSHHostWithTheCheckTurnedOff(t *testing.T) {
 	_, tools := sshSandbox(t)
 	tools.gErr = nil

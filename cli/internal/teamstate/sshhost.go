@@ -180,7 +180,13 @@ func ResolveSSHHost(ctx context.Context, remote string) (h *SSHHost, ok bool) {
 		}
 	}
 
-	h.Name = knownHostsName(firstOr(alias, h.Host), h.Port)
+	if alias != "" {
+		// ssh looks the server up under the alias as it is: the port is not
+		// part of it (get_hostfile_hostname_ipaddr, sshconnect.c).
+		h.Name = strings.ToLower(alias)
+	} else {
+		h.Name = knownHostsName(h.Host, h.Port)
+	}
 	disabled := true
 	for _, f := range userFiles {
 		if isNoFile(f) {
