@@ -53,17 +53,18 @@ test-container:
 
 # The tests the way the CI splits them (../.github/scripts/test-shards.sh): the
 # tests of ./cmd in four shards, cmd-1 to cmd-4, and the other packages in
-# "rest". The tests of ./cmd run one after the other, so the shards are what
-# makes them fast: `make test-shards` runs them all at the same time (about a
-# third of the time of `go test ./cmd` on a laptop, whose cores are mostly idle
-# while the tests wait for git), `make test-shard SHARD=cmd-2` one of them.
+# three, rest-1 to rest-3. The tests of ./cmd run one after the other, so the
+# shards are what makes them fast: `make test-shards` runs them all at the same
+# time (about half the time of `go test ./...` on a laptop, whose cores are mostly
+# idle while the tests wait for git), `make test-shard SHARD=cmd-2` one of them.
 # TEST_SHARD_FLAGS: other go test arguments; the CI adds
 # "-race -coverprofile=coverage.out -covermode=atomic" on Linux and nothing on
 # macOS and Windows, as here by default (-race doubles the time of the tests).
-SHARD ?= rest
+SHARD ?= rest-1
 TEST_SHARD_FLAGS ?=
 test-shard:
 	@args=$$(../.github/scripts/test-shards.sh args $(SHARD)) || exit 1; \
+	[ -n "$$args" ] || { echo "nothing to test in $(SHARD)"; exit 0; }; \
 	args=$$(echo "$$args" | tr '\n' ' '); \
 	echo "go test $$args $(TEST_SHARD_FLAGS)"; \
 	go test $$args $(TEST_SHARD_FLAGS) -count=1 -timeout $(TEST_TIMEOUT)
@@ -83,12 +84,13 @@ test-shards:
 	done; \
 	echo "total $$(( $$(date +%s) - start )) s"; exit $$failed
 
-# Every test of ./cmd is in exactly one shard (what the CI checks).
+# Every test of ./cmd and every other package is in exactly one shard (what the
+# CI checks).
 test-shards-check:
 	../.github/scripts/test-shards.sh check
 
-# Puts the new tests of ./cmd in a shard (and drops the ones that are gone):
-# commit ../.github/test-shards-cmd.txt.
+# Puts the new tests of ./cmd and the new packages in a shard (and drops the
+# ones that are gone): commit ../.github/test-shards-*.txt.
 test-shards-sync:
 	../.github/scripts/test-shards.sh sync
 

@@ -3,45 +3,60 @@
 # .github/workflows/ci.yml) and of `make test-shard`.
 #
 # ./cmd is the longest package by far (about 900 tests that run one after the
-# other: they share the state of the package). Its tests are split in shards,
-# each one a `go test ./cmd -run <names>` of its own, and all the other
-# packages make a last shard, "rest". The cmd shards are listed in
-# .github/test-shards-cmd.txt: one test per line, with its shard (1 to N) and
-# its duration in seconds, as measured by `balance`.
+# other: they share the state of the package). Its tests are split in shards
+# cmd-1 … cmd-N, each one a `go test ./cmd -run <names>`; the other packages
+# are split in shards rest-1 … rest-M, each one a `go test <packages>`. The
+# shards are listed in two files, one line per test or package with its shard
+# and its duration in seconds, as measured by `balance`:
 #
-#   test-shards.sh ids             prints the shards, one per line (cmd-1 … cmd-N, rest)
+#   .github/test-shards-cmd.txt    the tests of ./cmd
+#   .github/test-shards-rest.txt   the packages of `go list ./...` but ./cmd
+#
+#   test-shards.sh ids             prints the shards, one per line
 #   test-shards.sh args <shard>    prints the arguments of `go test` for the shard,
 #                                  one per line: ./cmd -run ^(Test…|Test…)$ for a
-#                                  cmd shard, the packages for "rest" (every package
-#                                  but ./cmd; on Windows, the ones of
-#                                  windows-test-packages.txt)
+#                                  cmd shard, the packages for a rest shard (on
+#                                  Windows only the ones of windows-test-packages.txt;
+#                                  nothing at all when there is none in the shard)
 #   test-shards.sh check           prints an ::error:: and exits 1 when a test of
-#                                  ./cmd is in no shard or in several, when the
-#                                  file lists a test that does not exist (any more),
-#                                  or when ci.yml does not run a shard
-#   test-shards.sh sync            puts the new tests of ./cmd in the lightest
-#                                  shard and drops the ones that are gone, the
-#                                  others stay where they are: what to run when
-#                                  `check` says a test is in no shard
-#   test-shards.sh balance <json>  distributes the tests again on the shards from
-#                                  the durations of a `go test ./cmd -json` run
-#                                  (TEST_SHARDS_CMD: number of cmd shards, default
-#                                  the current one)
+#                                  ./cmd or a package is in no shard or in several,
+#                                  when a file lists one that does not exist (any
+#                                  more), or when ci.yml does not run a shard
+#   test-shards.sh sync            puts the new tests and packages in the lightest
+#                                  shard and drops the ones that are gone, the others
+#                                  stay where they are: what to run when `check`
+#                                  says something is in no shard
+#   test-shards.sh balance <json>...  distributes everything again on the shards from
+#                                  the durations of `go test -json` runs (the tests of
+#                                  ./cmd and the packages: one run of ./... or several)
+#                                  (TEST_SHARDS_CMD, TEST_SHARDS_REST: the number of
+#                                  shards of each file, by default the current ones)
 #
 # Run it from cli/ (go list, go test -list).
 set -euo pipefail
 export LC_ALL=C
 
 github_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-shards_file="${TEST_SHARDS_FILE:-$github_dir/test-shards-cmd.txt}"
+cmd_file="${TEST_SHARDS_FILE:-$github_dir/test-shards-cmd.txt}"
+rest_file="${TEST_SHARDS_REST_FILE:-$github_dir/test-shards-rest.txt}"
 workflow_file="${TEST_SHARDS_WORKFLOW:-$github_dir/workflows/ci.yml}"
-# What `sync` assumes of a test it has never seen, in seconds.
+# What `sync` assumes of a test or package it has never seen, in seconds.
 default_seconds="${TEST_SHARDS_DEFAULT_SECONDS:-1}"
 
-# The tests of the file, "name shard seconds" per line: comments and blanks
-# removed, CRLF tolerated.
+# The kind being handled, cmd or rest, and its file: set by use.
+kind="" file="" env_count=""
+use() {
+  kind="$1"
+  case "$kind" in
+    cmd) file="$cmd_file" env_count="${TEST_SHARDS_CMD:-}" ;;
+    rest) file="$rest_file" env_count="${TEST_SHARDS_REST:-}" ;;
+  esac
+}
+
+# The lines of the file, "name shard seconds": comments and blanks removed,
+# CRLF tolerated.
 entries() {
-  tr -d '\r' <"$shards_file" | sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | { grep -v '^$' || true; }
+  tr -d '\r' <"$file" | sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | { grep -v '^$' || true; }
 }
 
 # The tests of ./cmd, as Go lists them (benchmarks apart), sorted.
@@ -51,22 +66,35 @@ go_tests() {
     echo "::error title=Tests of ./cmd not listed::go test -list ./cmd failed: $out" >&2
     return 1
   }
-  printf '%s\n' "$out" | { grep -E '^(Test|Example|Fuzz)[A-Za-z0-9_]*$' || true; } | LC_ALL=C sort -u
+  printf '%s\n' "$out" | { grep -E '^(Test|Example|Fuzz)[A-Za-z0-9_]*$' || true; } | sort -u
 }
 
-# The number of cmd shards: the "# shards: N" line of the file (TEST_SHARDS_CMD
-# overrides it, for `balance`).
+# Every package but ./cmd, as `go list ./...` prints it relative to the module.
+go_packages() {
+  local module
+  module="$(go list -m)"
+  go list ./... | sed -e "s#^$module\$#.#" -e "s#^$module/#./#" | { grep -vx './cmd' || true; } | sort -u
+}
+
+# What can be in a shard of the kind.
+units() {
+  if [ "$kind" = cmd ]; then go_tests; else go_packages; fi
+}
+
+# The number of shards of the kind: the "# shards: N" line of its file (the
+# environment overrides it, for `balance`).
 shard_count() {
-  if [ -n "${TEST_SHARDS_CMD:-}" ]; then
-    echo "$TEST_SHARDS_CMD"
+  if [ -n "$env_count" ]; then
+    echo "$env_count"
     return
   fi
-  { grep -E '^# shards: [0-9]+' "$shards_file" || true; } | head -n 1 | sed -e 's/^# shards: \([0-9]*\).*/\1/' | { grep . || echo 0; }
+  [ -f "$file" ] || { echo 0; return; }
+  { grep -E '^# shards: [0-9]+' "$file" || true; } | head -n 1 | sed -e 's/^# shards: \([0-9]*\).*/\1/' | { grep . || echo 0; }
 }
 
-# The tests of cmd shard $1, sorted.
-shard_tests() {
-  entries | awk -v s="$1" '$2 == s { print $1 }' | LC_ALL=C sort -u
+# The units of shard $1, sorted.
+shard_units() {
+  entries | awk -v s="$1" '$2 == s { print $1 }' | sort -u
 }
 
 # The -run pattern of the tests on stdin.
@@ -76,41 +104,31 @@ run_pattern() {
   printf '^(%s)$' "$names"
 }
 
-# The packages of the rest: every package but ./cmd.
-rest_packages() {
-  local module all
-  module="$(go list -m)"
-  all="$(go list ./... | sed -e "s#^$module\$#.#" -e "s#^$module/#./#" | LC_ALL=C sort -u)"
-  if [ "${RUNNER_OS:-}" = "Windows" ]; then
-    all="$("$github_dir/scripts/windows-packages.sh" list)"
-  fi
-  printf '%s\n' "$all" | { grep -vx './cmd' || true; }
-}
-
-# Writes the file from lines "name shard seconds" on stdin.
+# Writes the file of the kind from lines "name shard seconds" on stdin.
 write_file() {
-  local n="$1"
+  local n="$1" what
+  if [ "$kind" = cmd ]; then what="tests of ./cmd"; else what="packages (but ./cmd)"; fi
   {
-    echo "# Shards of the tests of ./cmd in the CI (job \"Go CLI tests\")."
+    echo "# Shards of the $what in the CI (job \"Go CLI tests\")."
     echo "#"
     echo "# Written by .github/scripts/test-shards.sh (balance, sync): do not edit by hand."
-    echo "# A new test of ./cmd is in no shard until \`test-shards.sh sync\` (run from cli/)"
+    echo "# A new test or package is in no shard until \`test-shards.sh sync\` (run from cli/)"
     echo "# puts it in the lightest one: the check of the CI fails until then."
     echo "# The shards were balanced on the durations of one run; \`balance <json>\` does it"
-    echo "# again from a \`go test ./cmd -json\` run."
+    echo "# again from a \`go test ./... -json\` run."
     echo "#"
     echo "# shards: $n"
-    echo "# Format: test shard (1 to $n) seconds"
-    LC_ALL=C sort -k2,2n -k3,3nr -k1,1
-  } >"$shards_file"
+    echo "# Format: name shard (1 to $n) seconds"
+    sort -k2,2n -k3,3nr -k1,1
+  } >"$file"
 }
 
 # Distributes "name seconds" lines (stdin) over $1 shards, heaviest first onto
-# the lightest shard (ties: the lowest shard). A test costs at least a tenth
+# the lightest shard (ties: the lowest shard). A unit costs at least a tenth
 # of a second (the many tests that last a few milliseconds are rounded to 0 by
 # Go and would all fall in one shard). Prints "name shard seconds".
 distribute() {
-  LC_ALL=C sort -k2,2nr -k1,1 | awk -v n="$1" '
+  sort -k2,2nr -k1,1 | awk -v n="$1" '
     BEGIN { for (i = 1; i <= n; i++) load[i] = 0 }
     {
       best = 1
@@ -122,134 +140,202 @@ distribute() {
 }
 
 summary() {
-  entries | awk '{ load[$2] += $3; count[$2]++ } END { for (s in load) printf "  cmd-%s: %d tests, %.0f s measured\n", s, count[s], load[s] }' | LC_ALL=C sort
+  entries | awk -v k="$kind" '{ load[$2] += $3; count[$2]++ } END { for (s in load) printf "  %s-%s: %d, %.0f s measured\n", k, s, count[s], load[s] }' | sort
+}
+
+# The arguments of `go test` for a shard id; prints nothing on a rest shard
+# that has no package to test here.
+shard_args() {
+  local id="$1" number tests packages
+  case "$id" in
+    cmd-[0-9]*) use cmd ;;
+    rest-[0-9]*) use rest ;;
+    *)
+      echo "usage: $0 args cmd-<n>|rest-<n>" >&2
+      exit 2
+      ;;
+  esac
+  number="${id#*-}"
+  if [ "$number" -lt 1 ] || [ "$number" -gt "$(shard_count)" ]; then
+    echo "::error::no shard $id ($kind-1 to $kind-$(shard_count))" >&2
+    exit 1
+  fi
+  if [ "$kind" = cmd ]; then
+    tests="$(shard_units "$number")"
+    if [ -z "$tests" ]; then
+      echo "::error::the shard $id has no test: $file" >&2
+      exit 1
+    fi
+    echo ./cmd
+    echo -run
+    printf '%s\n' "$tests" | run_pattern
+    echo
+    return
+  fi
+  packages="$(shard_units "$number")"
+  if [ "${RUNNER_OS:-}" = "Windows" ]; then
+    # Only the packages whose tests pass there.
+    packages="$(comm -12 <(printf '%s\n' "$packages") <("$github_dir/scripts/windows-packages.sh" list | sort -u))"
+  elif [ -z "$packages" ]; then
+    echo "::error::the shard $id has no package: $file" >&2
+    exit 1
+  fi
+  [ -z "$packages" ] || printf '%s\n' "$packages"
+}
+
+# Checks the file of the kind; prints the errors and returns how many.
+check_kind() {
+  local all n listed failures=0 t bad i expected got counted="" label
+  if [ "$kind" = cmd ]; then label="test of ./cmd"; else label="package"; fi
+  all="$(units)"
+  [ -n "$all" ] || { echo "::error::no $label found by go" >&2; return 1; }
+  n="$(shard_count)"
+  if [ ! -f "$file" ] || [ "$n" -lt 1 ]; then
+    echo "::error title=No shards::$file is missing or has no '# shards: N' line. Run .github/scripts/test-shards.sh balance."
+    return 1
+  fi
+  listed="$(entries | awk '{ print $1 }' | sort)"
+  for t in $(comm -23 <(printf '%s\n' "$all") <(printf '%s\n' "$listed" | uniq)); do
+    echo "::error title=In no shard::$t ($label) is in no shard of ${file#"$github_dir"/}. Run .github/scripts/test-shards.sh sync from cli/ and commit the file."
+    failures=$((failures + 1))
+  done
+  for t in $(printf '%s\n' "$listed" | uniq -d); do
+    echo "::error title=In several shards::$t ($label) is listed more than once in ${file#"$github_dir"/}: keep one line."
+    failures=$((failures + 1))
+  done
+  for t in $(comm -13 <(printf '%s\n' "$all") <(printf '%s\n' "$listed" | uniq)); do
+    echo "::error title=Unknown in a shard::$t is in ${file#"$github_dir"/} but is not a $label any more. Run .github/scripts/test-shards.sh sync from cli/."
+    failures=$((failures + 1))
+  done
+  for bad in $(entries | awk -v n="$n" '$2 !~ /^[0-9]+$/ || $2 < 1 || $2 > n { print $1 }'); do
+    echo "::error title=Shard that does not exist::$bad is not in a shard from 1 to $n in ${file#"$github_dir"/}."
+    failures=$((failures + 1))
+  done
+  for ((i = 1; i <= n; i++)); do
+    expected="$(shard_units "$i")"
+    if [ -z "$expected" ]; then
+      echo "::error title=Empty shard::$kind-$i has nothing in ${file#"$github_dir"/}."
+      failures=$((failures + 1))
+      continue
+    fi
+    # For ./cmd, what Go runs for each shard is what the file says, and a test
+    # runs once: the pattern is the one of `args`, listed by Go itself.
+    if [ "$kind" = cmd ]; then
+      got="$(go test -list "$(printf '%s\n' "$expected" | run_pattern)" ./cmd | { grep -E '^(Test|Example|Fuzz)[A-Za-z0-9_]*$' || true; } | sort -u)"
+      if [ "$got" != "$expected" ]; then
+        echo "::error title=Shard pattern::the -run pattern of cmd-$i does not select the tests of the file: $(comm -3 <(printf '%s\n' "$expected") <(printf '%s\n' "$got") | tr -d '\t' | head -5 | paste -sd' ' -)"
+        failures=$((failures + 1))
+      fi
+      counted="$counted"$'\n'"$got"
+    fi
+  done
+  for t in $(printf '%s\n' "$counted" | { grep -v '^$' || true; } | sort | uniq -d); do
+    echo "::error title=Run by several shards::$t is selected by more than one shard."
+    failures=$((failures + 1))
+  done
+  # The workflow runs every shard.
+  if [ -f "$workflow_file" ]; then
+    for ((i = 1; i <= n; i++)); do
+      if ! { grep 'shard' "$workflow_file" || true; } | grep -Eq "(^|[^A-Za-z0-9_-])$kind-$i($|[^A-Za-z0-9_-])"; then
+        echo "::error title=Shard not run::the shard $kind-$i is not in the matrix of $(basename "$workflow_file"): add it, or what is in the shard never runs."
+        failures=$((failures + 1))
+      fi
+    done
+  fi
+  [ "$failures" -gt 0 ] || echo "Test shards: every $label is in exactly one of the $n $kind shards ($(printf '%s\n' "$all" | grep -c .))"
+  return "$failures"
+}
+
+# Adds the new units to the lightest shard of the kind and drops the gone ones.
+sync_kind() {
+  local all n kept new out t lightest
+  all="$(units)"
+  [ -n "$all" ] || { echo "::error::no $kind unit found by go" >&2; return 1; }
+  n="$(shard_count)"
+  [ "$n" -ge 1 ] || { echo "::error::no shard in $file: use balance" >&2; return 1; }
+  kept="$(entries | awk -v n="$n" '!seen[$1]++ && $2 >= 1 && $2 <= n' | sort -k1,1)"
+  new="$(comm -23 <(printf '%s\n' "$all") <(printf '%s\n' "$kept" | awk 'NF { print $1 }' | sort))"
+  out="$(join -j1 <(printf '%s\n' "$all") <(printf '%s\n' "$kept"))"
+  for t in $new; do
+    lightest="$(printf '%s\n' "$out" | awk -v n="$n" 'BEGIN { for (i = 1; i <= n; i++) load[i] = 0 } NF { load[$2] += $3 } END { best = 1; for (i = 2; i <= n; i++) if (load[i] < load[best]) best = i; print best }')"
+    out="$out"$'\n'"$t $lightest $default_seconds"
+    echo "added $t to $kind-$lightest"
+  done
+  for t in $(comm -13 <(printf '%s\n' "$all") <(printf '%s\n' "$kept" | awk 'NF { print $1 }' | sort)); do
+    echo "dropped $t"
+  done
+  printf '%s\n' "$out" | { grep -v '^$' || true; } | write_file "$n"
+  echo "$file written"
+  summary
+}
+
+# Distributes the units of the kind again from the measure in $1.
+balance_kind() {
+  local json="$1" all n measured
+  all="$(units)"
+  n="$(shard_count)"
+  [ "$n" -ge 1 ] || { echo "::error::set TEST_SHARDS_$(echo "$kind" | tr a-z A-Z) to the number of $kind shards" >&2; return 1; }
+  if [ "$kind" = cmd ]; then
+    # Elapsed of the top-level tests of ./cmd that ran (a skipped one costs
+    # nothing, but is a test).
+    measured="$(grep -E '"Action":"(pass|fail|skip)"' "$json" | grep -E '"Package":"[^"]*/cmd","Test":"[^/"]*","Elapsed"' |
+      sed -e 's/.*"Test":"\([^"]*\)","Elapsed":\([0-9.eE+-]*\).*/\1 \2/' | sort -k1,1 -u)"
+  else
+    # Elapsed of the packages (module path removed).
+    measured="$(grep -E '"Action":"(pass|fail|skip)"' "$json" | grep -E '"Package":"[^"]*","Elapsed"' | grep -v '"Test"' |
+      sed -e 's/.*"Package":"\([^"]*\)","Elapsed":\([0-9.eE+-]*\).*/\1 \2/' | awk -v m="$(go list -m)" '{ p = $1; if (p == m) p = "."; else sub("^" m "/", "./", p); print p, $2 }' | sort -k1,1 -u)"
+  fi
+  {
+    join -j1 <(printf '%s\n' "$all") <(printf '%s\n' "$measured")
+    for t in $(comm -23 <(printf '%s\n' "$all") <(printf '%s\n' "$measured" | awk '{ print $1 }' | sort)); do
+      echo "$t $default_seconds"
+    done
+  } | distribute "$n" | write_file "$n"
+  echo "$file written"
+  summary
 }
 
 case "${1:-}" in
   ids)
-    n="$(shard_count)"
-    for ((i = 1; i <= n; i++)); do echo "cmd-$i"; done
-    echo rest
+    for k in cmd rest; do
+      use "$k"
+      n="$(shard_count)"
+      for ((i = 1; i <= n; i++)); do echo "$k-$i"; done
+    done
     ;;
   args)
-    shard="${2:-}"
-    case "$shard" in
-      cmd-[0-9]*)
-        number="${shard#cmd-}"
-        if [ "$number" -lt 1 ] || [ "$number" -gt "$(shard_count)" ]; then
-          echo "::error::no shard $shard (cmd-1 to cmd-$(shard_count))" >&2
-          exit 1
-        fi
-        tests="$(shard_tests "$number")"
-        if [ -z "$tests" ]; then
-          echo "::error::the shard $shard has no test: $shards_file" >&2
-          exit 1
-        fi
-        echo ./cmd
-        echo -run
-        printf '%s\n' "$tests" | run_pattern
-        echo
-        ;;
-      rest)
-        packages="$(rest_packages)"
-        [ -n "$packages" ] || { echo "::error::no package in the shard rest" >&2; exit 1; }
-        printf '%s\n' "$packages"
-        ;;
-      *)
-        echo "usage: $0 args cmd-<n>|rest" >&2
-        exit 2
-        ;;
-    esac
+    shard_args "${2:-}"
     ;;
   check)
-    all="$(go_tests)"
-    [ -n "$all" ] || { echo "::error::go test -list ./cmd found no test" >&2; exit 1; }
-    n="$(shard_count)"
-    listed="$(entries | awk '{ print $1 }' | LC_ALL=C sort)"
     failures=0
-    for t in $(LC_ALL=C comm -23 <(printf '%s\n' "$all") <(printf '%s\n' "$listed" | uniq)); do
-      echo "::error title=Test in no shard::$t (./cmd) is in no shard of .github/test-shards-cmd.txt. Run .github/scripts/test-shards.sh sync from cli/ and commit the file."
-      failures=$((failures + 1))
+    for k in cmd rest; do
+      use "$k"
+      check_kind || failures=$((failures + $?))
     done
-    for t in $(printf '%s\n' "$listed" | uniq -d); do
-      echo "::error title=Test in several shards::$t (./cmd) is listed more than once in .github/test-shards-cmd.txt: keep one line."
-      failures=$((failures + 1))
-    done
-    for t in $(LC_ALL=C comm -13 <(printf '%s\n' "$all") <(printf '%s\n' "$listed" | uniq)); do
-      echo "::error title=Unknown test in a shard::$t is in .github/test-shards-cmd.txt but is not a test of ./cmd any more. Run .github/scripts/test-shards.sh sync from cli/."
-      failures=$((failures + 1))
-    done
-    for bad in $(entries | awk -v n="$n" '$2 !~ /^[0-9]+$/ || $2 < 1 || $2 > n { print $1 }'); do
-      echo "::error title=Test in a shard that does not exist::$bad is not in a shard from 1 to $n in .github/test-shards-cmd.txt."
-      failures=$((failures + 1))
-    done
-    # What Go runs for each shard is what the file says, and a test runs once:
-    # the patterns are the ones of `args`, listed by Go itself.
-    counted=""
-    for ((i = 1; i <= n; i++)); do
-      expected="$(shard_tests "$i")"
-      [ -n "$expected" ] || { echo "::error title=Empty shard::cmd-$i has no test in .github/test-shards-cmd.txt."; failures=$((failures + 1)); continue; }
-      got="$(go test -list "$(printf '%s\n' "$expected" | run_pattern)" ./cmd | { grep -E '^(Test|Example|Fuzz)[A-Za-z0-9_]*$' || true; } | LC_ALL=C sort -u)"
-      if [ "$got" != "$expected" ]; then
-        echo "::error title=Shard pattern::the -run pattern of cmd-$i does not select the tests of the file: $(LC_ALL=C comm -3 <(printf '%s\n' "$expected") <(printf '%s\n' "$got") | tr -d '\t' | head -5 | paste -sd' ' -)"
-        failures=$((failures + 1))
-      fi
-      counted="$counted"$'\n'"$got"
-    done
-    for t in $(printf '%s\n' "$counted" | { grep -v '^$' || true; } | LC_ALL=C sort | uniq -d); do
-      echo "::error title=Test run by several shards::$t is selected by more than one shard."
-      failures=$((failures + 1))
-    done
-    # The workflow runs every shard.
-    if [ -f "$workflow_file" ]; then
-      for id in $(bash "$0" ids); do
-        if ! { grep 'shard' "$workflow_file" || true; } | grep -Eq "(^|[^A-Za-z0-9_-])$id($|[^A-Za-z0-9_-])"; then
-          echo "::error title=Shard not run::the shard $id is not in the matrix of $(basename "$workflow_file"): add it, or the tests of the shard never run."
-          failures=$((failures + 1))
-        fi
-      done
-    fi
     if [ "$failures" -gt 0 ]; then
-      echo "$failures problem(s) in the test shards (.github/test-shards-cmd.txt)" >&2
+      echo "$failures problem(s) in the test shards (.github/test-shards-*.txt)" >&2
       exit 1
     fi
-    echo "Test shards: every test of ./cmd is in exactly one of the $n shards ($(printf '%s\n' "$all" | grep -c .) tests)"
-    summary
     ;;
   sync)
-    all="$(go_tests)"
-    [ -n "$all" ] || { echo "::error::go test -list ./cmd found no test" >&2; exit 1; }
-    n="$(shard_count)"
-    [ "$n" -ge 1 ] || { echo "::error::no shard in $shards_file: use balance" >&2; exit 1; }
-    kept="$(entries | awk -v n="$n" '!seen[$1]++ && $2 >= 1 && $2 <= n' | LC_ALL=C sort -k1,1)"
-    new="$(LC_ALL=C comm -23 <(printf '%s\n' "$all") <(printf '%s\n' "$kept" | awk 'NF { print $1 }' | LC_ALL=C sort))"
-    out="$(LC_ALL=C join -j1 <(printf '%s\n' "$all") <(printf '%s\n' "$kept"))"
-    for t in $new; do
-      lightest="$(printf '%s\n' "$out" | awk -v n="$n" 'BEGIN { for (i = 1; i <= n; i++) load[i] = 0 } NF { load[$2] += $3 } END { best = 1; for (i = 2; i <= n; i++) if (load[i] < load[best]) best = i; print best }')"
-      out="$out"$'\n'"$t $lightest $default_seconds"
-      echo "added $t to cmd-$lightest"
+    for k in cmd rest; do
+      use "$k"
+      sync_kind
     done
-    printf '%s\n' "$out" | { grep -v '^$' || true; } | write_file "$n"
-    echo "$shards_file written"
-    summary
     ;;
   balance)
-    json="${2:-}"
-    [ -f "$json" ] || { echo "usage: $0 balance <go test ./cmd -json output>" >&2; exit 2; }
-    all="$(go_tests)"
-    n="$(shard_count)"
-    [ "$n" -ge 1 ] || { echo "::error::set TEST_SHARDS_CMD to the number of cmd shards" >&2; exit 1; }
-    # Elapsed of the top-level tests that ran (a skipped one costs nothing, but is a test).
-    measured="$(grep -E '"Action":"(pass|fail|skip)"' "$json" | grep -E '"Test":"[^/"]*","Elapsed"' |
-      sed -e 's/.*"Test":"\([^"]*\)","Elapsed":\([0-9.eE+-]*\).*/\1 \2/' | LC_ALL=C sort -k1,1 -u)"
-    {
-      LC_ALL=C join -j1 <(printf '%s\n' "$all") <(printf '%s\n' "$measured")
-      for t in $(LC_ALL=C comm -23 <(printf '%s\n' "$all") <(printf '%s\n' "$measured" | awk '{ print $1 }' | LC_ALL=C sort)); do
-        echo "$t $default_seconds"
-      done
-    } | distribute "$n" | write_file "$n"
-    echo "$shards_file written"
-    summary
+    [ "$#" -ge 2 ] || { echo "usage: $0 balance <go test -json output>..." >&2; exit 2; }
+    shift
+    for f in "$@"; do
+      [ -f "$f" ] || { echo "$f: no such file" >&2; exit 2; }
+    done
+    json="$(mktemp)"
+    trap 'rm -f "$json"' EXIT
+    cat "$@" >"$json"
+    for k in cmd rest; do
+      use "$k"
+      balance_kind "$json"
+    done
     ;;
   *)
     echo "usage: $0 ids|args <shard>|check|sync|balance <json>" >&2

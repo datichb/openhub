@@ -106,9 +106,9 @@ jobs:
 
   # The tests, one job per system and shard (.github/scripts/test-shards.sh):
   # four shards of the tests of ./cmd, which run one after the other in their
-  # package and lasted 800 s on their own, and "rest", every other package (the
-  # ones of Windows: .github/windows-test-packages.txt). ./cmd is not tested on
-  # Windows. Only Linux runs under -race (decision of the user: the race
+  # package and lasted 800 s on their own, and three shards of every other
+  # package (rest-1 to rest-3; on Windows, the ones of
+  # .github/windows-test-packages.txt). ./cmd is not tested on Windows. Only Linux runs under -race (decision of the user: the race
   # detector doubles the time of the tests, and a data race is the same on the
   # three systems) and writes a coverage profile.
   go-cli-test:
@@ -118,7 +118,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        shard: [cmd-1, cmd-2, cmd-3, cmd-4, rest]
+        shard: [cmd-1, cmd-2, cmd-3, cmd-4, rest-1, rest-2, rest-3]
         exclude:
           - os: windows-latest
             shard: cmd-1
@@ -192,8 +192,13 @@ jobs:
         env:
           SHARD: ${{ matrix.shard }}
         run: |
-          mapfile -t args < <(../.github/scripts/test-shards.sh args "$SHARD")
-          [ "${#args[@]}" -gt 0 ] || exit 1
+          # Not mapfile < <(…): it would hide a failure of the script.
+          shard_args="$(../.github/scripts/test-shards.sh args "$SHARD")"
+          if [ -z "$shard_args" ]; then
+            echo "Nothing to test in $SHARD on $RUNNER_OS (no package of the shard is in .github/windows-test-packages.txt)"
+            exit 0
+          fi
+          mapfile -t args <<<"$shard_args"
           flags=(-count=1 -timeout "$GO_TEST_TIMEOUT")
           if [ "$RUNNER_OS" = "Linux" ]; then
             flags+=(-race -coverprofile="coverage-$SHARD.out" -covermode=atomic)

@@ -1,13 +1,13 @@
 # Shards of the tests of ./cmd in the CI (job "Go CLI tests").
 #
 # Written by .github/scripts/test-shards.sh (balance, sync): do not edit by hand.
-# A new test of ./cmd is in no shard until `test-shards.sh sync` (run from cli/)
+# A new test or package is in no shard until `test-shards.sh sync` (run from cli/)
 # puts it in the lightest one: the check of the CI fails until then.
 # The shards were balanced on the durations of one run; `balance <json>` does it
-# again from a `go test ./cmd -json` run.
+# again from a `go test ./... -json` run.
 #
 # shards: 4
-# Format: test shard (1 to 4) seconds
+# Format: name shard (1 to 4) seconds
 TestEndTicketClaims 1 32.83
 TestTeamClaimIsRefusedAtTheInProgressLimit 1 6.47
 TestTeamConfigGetSetUnsetShow 1 6.14
