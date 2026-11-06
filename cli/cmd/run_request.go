@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/datichb/openhub/cli/internal/mcp/github"
@@ -26,6 +25,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/domain"
 	"github.com/datichb/openhub/cli/internal/hubcontent"
 	"github.com/datichb/openhub/cli/internal/launcher"
+	"github.com/datichb/openhub/cli/internal/mcpresolve"
 	"github.com/datichb/openhub/cli/internal/provider"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/services/launch"
@@ -279,18 +279,64 @@ var mcpWriteEnv = map[string]string{
 	"linear": linear.EnvWriteEnabled,
 }
 
+// mcpServerEnv declares, for each oh MCP server, the variables it reads from
+// its environment. It is the table sessionMCPEnv and sessionMCPServerEnv
+// answer to: a variable they set that is not in the list of the server is a
+// variable nobody reads (GITHUB_URL and LINEAR_URL were such: the GitHub and
+// Linear servers call a fixed address). A test checks that every variable
+// they set is declared here, and that the declared ones are in the source of
+// the servers.
+//
+// GitHub Enterprise: the official GitHub MCP server reads GITHUB_HOST for it;
+// the server oh embeds does not (its API address is fixed), so no variable is
+// set for it.
+var mcpServerEnv = func() map[string][]string {
+	env := map[string][]string{
+		"team": {team.EnvTeamID, team.EnvProjectID},
+	}
+	for _, svc := range mcpresolve.Services() {
+		vars := []string{svc.TokenEnv}
+		if svc.URLEnv != "" {
+			vars = append(vars, svc.URLEnv)
+		}
+		if w := mcpWriteEnv[svc.Name]; w != "" {
+			vars = append(vars, w)
+		}
+		env[svc.Name] = vars
+	}
+	env["gitlab"] = append(env["gitlab"], gitlab.EnvOhProject)
+	return env
+}()
+
 // sessionMCPEnv returns the environment of an oh MCP server: its write
-// switch (only for a server that has one), its URL and its own variables.
+// switch (only for a server that has one), its URL (only for a server that
+// reads one: mcpresolve.Service.URLEnv) and its own variables.
 func sessionMCPEnv(s bricks.MCPServerDef) map[string]string {
 	env := map[string]string{}
 	if v := mcpWriteEnv[s.Name]; v != "" && s.WriteEnabled {
 		env[v] = "true"
 	}
-	if s.URL != "" {
-		env[strings.ToUpper(s.Name)+"_URL"] = s.URL
+	if svc, ok := mcpresolve.Lookup(s.Name); ok && svc.URLEnv != "" && s.URL != "" {
+		env[svc.URLEnv] = s.URL
 	}
 	for k, v := range s.Environment {
 		env[k] = v
+	}
+	return env
+}
+
+// sessionMCPServerEnv is sessionMCPEnv plus what a session adds for two
+// servers: the team server reads the team and the project of the session from
+// its environment (formerly a file written by `oh deploy`), and a merge
+// request the GitLab server creates is announced to the team of the project
+// (review.ready), as oh mr create does.
+func sessionMCPServerEnv(s bricks.MCPServerDef, teamID, projectID string) map[string]string {
+	env := sessionMCPEnv(s)
+	switch s.Name {
+	case "team":
+		env[team.EnvTeamID], env[team.EnvProjectID] = teamID, projectID
+	case "gitlab":
+		env[gitlab.EnvOhProject] = projectID
 	}
 	return env
 }
@@ -311,17 +357,7 @@ func sessionMCP(ctx context.Context, a *app.App, project *domain.Project, teamCf
 		if s.TokenKey != "" {
 			cmd = append(cmd, "--token-key", s.TokenKey)
 		}
-		env := sessionMCPEnv(s)
-		if s.Name == "team" {
-			// The team server reads the team of the session project from its
-			// environment (formerly a file written by `oh deploy`).
-			env[team.EnvTeamID], env[team.EnvProjectID] = teamCfg.TeamID, project.ID
-		}
-		if s.Name == "gitlab" {
-			// A merge request created by the agent is announced to its team
-			// (review.ready), as oh mr create does.
-			env[gitlab.EnvOhProject] = project.ID
-		}
+		env := sessionMCPServerEnv(s, teamCfg.TeamID, project.ID)
 		def := sessionspec.MCPServerDef{Name: s.Name, Type: "local", Command: cmd}
 		if len(env) > 0 {
 			def.Environment = env
