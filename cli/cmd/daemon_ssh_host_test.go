@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -64,7 +66,7 @@ func TestClaimsBeatSkipsATeamWhoseSSHServerIsUnknown(t *testing.T) {
 	asked := 0
 	b := beaterOf(a, later)
 	b.access = &accessWatch{refused: map[string]accessRefusal{}, fingerprint: func(context.Context, string) string { return "" },
-		unknownHost: func(_ context.Context, remote string) *teamstate.SSHHost {
+		unknownHost: func(_ context.Context, remote string, _ ...teamstate.SSHHostOption) *teamstate.SSHHost {
 			asked++
 			assert.Equal(t, repo.Remote(), remote, "the host asked about is the one of the clone")
 			if unknown {
@@ -96,7 +98,7 @@ func TestTrackerSyncTaskSkipsATeamWhoseSSHServerIsUnknown(t *testing.T) {
 	s, now := newTestSyncer(svc, syncTeam("core"))
 	unknown := true
 	var asked []string
-	s.access = &accessWatch{refused: map[string]accessRefusal{}, unknownHost: func(_ context.Context, remote string) *teamstate.SSHHost {
+	s.access = &accessWatch{refused: map[string]accessRefusal{}, unknownHost: func(_ context.Context, remote string, _ ...teamstate.SSHHostOption) *teamstate.SSHHost {
 		asked = append(asked, remote)
 		if unknown {
 			return &teamstate.SSHHost{Host: "h", Name: "h", User: "git"}
@@ -116,4 +118,64 @@ func TestTrackerSyncTaskSkipsATeamWhoseSSHServerIsUnknown(t *testing.T) {
 	*now = now.Add(5 * time.Minute)
 	s.run(t.Context())
 	assert.Equal(t, []string{"core"}, svc.calls, "synchronized once the server is known")
+}
+
+// The jobs of the daemon test the server with the ssh command git runs in the
+// clone of the team: core.sshCommand of its .git/config is read, and the
+// known_hosts it names is the one that decides.
+func TestClaimsBeatReadsTheSSHCommandOfTheClone(t *testing.T) {
+	isolateGitSSH(t)
+	a, repo := setupBeat(t, openSession("ses_1", "pt-a"))
+	claimsCreate(t, repo, "pt-a", "testuser", "ses_1")
+	custom := filepath.Join(t.TempDir(), "custom_known_hosts")
+	require.NoError(t, os.WriteFile(custom, []byte("git.example.test ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMe2oLQFSPbU1ZXsHBUxEcjB6QExxb9fTzDW8/Z/Plf7\n"), 0o600))
+	cfg, err := os.OpenFile(filepath.Join(repo.Path(), ".git", "config"), os.O_APPEND|os.O_WRONLY, 0)
+	require.NoError(t, err)
+	_, err = cfg.WriteString("\n[core]\n\tsshCommand = ssh -o UserKnownHostsFile=" + custom + "\n")
+	require.NoError(t, err)
+	require.NoError(t, cfg.Close())
+
+	var asked [][]string
+	t.Cleanup(teamstate.SetSSHToolRunner(func(_ context.Context, name string, args ...string) ([]byte, error) {
+		if name != "ssh" {
+			return nil, errors.New("unexpected " + name)
+		}
+		asked = append(asked, args)
+		file := "~/.ssh/known_hosts"
+		for i, a := range args {
+			if a == "-o" && strings.HasPrefix(args[i+1], "UserKnownHostsFile=") {
+				file = strings.TrimPrefix(args[i+1], "UserKnownHostsFile=")
+			}
+		}
+		return []byte("hostname git.example.test\nport 22\nuserknownhostsfile " + file + "\nglobalknownhostsfile none\n"), nil
+	}))
+	// the remote of the test clone is a local path: the lookup is asked about an SSH one
+	b := beaterOf(a, time.Now().Add(13*time.Hour))
+	b.access = &accessWatch{refused: map[string]accessRefusal{}, fingerprint: func(context.Context, string) string { return "" },
+		unknownHost: func(ctx context.Context, _ string, opts ...teamstate.SSHHostOption) *teamstate.SSHHost {
+			return teamstate.UnknownSSHHostForJob(ctx, "git@git.example.test:o/r.git", opts...)
+		}}
+	ctx := daemon.WithAlerts(t.Context(), &alertLog{})
+
+	require.NoError(t, b.beat(ctx))
+	require.NotEmpty(t, asked)
+	assert.Equal(t, []string{"-G", "-o", "UserKnownHostsFile=" + custom, "-l", "git", "--", "git.example.test"}, asked[0],
+		"ssh -G is asked with the options of the core.sshCommand of the clone")
+	assert.Empty(t, b.access.hostsSaid, "the server is in the known_hosts of the command: the job goes on")
+}
+
+func TestUnknownHostWithoutACloneReadsTheEnvironmentOnly(t *testing.T) {
+	isolateGitSSH(t)
+	t.Setenv("GIT_SSH_COMMAND", "ssh -i /keys/work")
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	var asked []string
+	t.Cleanup(teamstate.SetSSHToolRunner(func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		asked = args
+		return []byte("hostname git.example.test\nport 22\n"), nil
+	}))
+	w := newAccessWatch()
+	assert.True(t, w.UnknownHost(daemon.WithAlerts(t.Context(), &alertLog{}), "git@git.example.test:o/r.git", nil))
+	assert.Equal(t, []string{"-G", "-i", "/keys/work", "-l", "git", "--", "git.example.test"}, asked)
 }

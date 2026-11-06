@@ -27,9 +27,13 @@ import (
 //
 // The check is the one of the assistants, offline (teamstate.UnknownSSHHostForJob:
 // known_hosts and `ssh -G`). It is certain enough to stop a job: git runs with
-// the GIT_SSH_COMMAND of oh, which replaces core.sshCommand and GIT_SSH, so ssh
-// is the one `ssh -G` describes; a server that a @cert-authority line covers, or
-// that ssh could not be asked about, is not reported.
+// a GIT_SSH_COMMAND that oh builds, ssh plus the options of the ssh command the
+// user told git to use (GIT_SSH_COMMAND, core.sshCommand of the clone or of the
+// global configuration: key, configuration file, known_hosts), and `ssh -G` is
+// asked with the same options, so ssh is the one it describes; a server that a
+// @cert-authority line covers, or that ssh could not be asked about, is not
+// reported. A command oh does not follow is said in the log (once) and by
+// `oh doctor`.
 
 // alertTeamHost is the kind of the alert (daemon.Alert.Kind).
 const alertTeamHost = "team_host"
@@ -38,15 +42,15 @@ const alertTeamHost = "team_host"
 // known_hosts: the job must not connect to it. Said once in the log; raised as
 // an alert under the most recent of sessions when there is one (the open
 // sessions that work on this team-state; none: the next job that has some
-// raises it).
-func (w *accessWatch) UnknownHost(ctx context.Context, remote string, sessions []domain.Session) bool {
+// raises it). opts say the clone git runs in (teamstate.InRepo).
+func (w *accessWatch) UnknownHost(ctx context.Context, remote string, sessions []domain.Session, opts ...teamstate.SSHHostOption) bool {
 	w.mu.Lock()
 	lookup := w.unknownHost
 	w.mu.Unlock()
 	if lookup == nil {
 		lookup = teamstate.UnknownSSHHostForJob
 	}
-	h := lookup(ctx, remote)
+	h := lookup(ctx, remote, opts...)
 	if h == nil {
 		return false
 	}

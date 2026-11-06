@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 	"sync/atomic"
+
+	"github.com/datichb/openhub/cli/internal/gitutil"
 )
 
 // GitCredentials are the user name and the token git is given for an HTTPS
@@ -153,7 +155,7 @@ func gitCommand(ctx context.Context, remote, dir string, creds *GitCredentials, 
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(),
 		"GIT_TERMINAL_PROMPT=0",
-		"GIT_SSH_COMMAND=ssh -o BatchMode=yes "+sshOpts,
+		"GIT_SSH_COMMAND="+sshCommand(ctx, remote, network, dir)+sshOpts,
 	)
 	if network {
 		// The refusals of a server are recognised by their words (IsAuthError):
@@ -165,6 +167,31 @@ func gitCommand(ctx context.Context, remote, dir string, creds *GitCredentials, 
 		cmd.Env = append(cmd.Env, askEnv)
 	}
 	return cmd, cleanup
+}
+
+// sshCommand is the start of the GIT_SSH_COMMAND of a git process of oh: ssh,
+// non-interactive, then the ssh options of the command the user told git to
+// use (GIT_SSH_COMMAND, core.sshCommand of dir or of the global configuration;
+// only for the commands that connect to an SSH remote), then the options of oh. ssh keeps the
+// first value of an option: BatchMode stays oh's, and what the user chose for
+// the check of the server (StrictHostKeyChecking, UserKnownHostsFile…) wins
+// over the accept-new of oh. The command of the user is never run: its
+// options, vetted (gitutil.CustomSSH), are handed to ssh. The test of the
+// server (sshhost.go) asks `ssh -G` with the same options.
+func sshCommand(ctx context.Context, remote string, network bool, dir string) string {
+	line := "ssh -o BatchMode=yes "
+	if !network {
+		return line
+	}
+	if _, _, _, ssh := parseSSHRemote(remote); remote != "" && !ssh {
+		return line // HTTPS or a local path: no ssh to give options to
+	}
+	custom := gitutil.CustomSSH(ctx, dir)
+	noteIgnoredSSH(custom)
+	if opts := custom.ShellLine(); opts != "" {
+		line += opts + " "
+	}
+	return line
 }
 
 // networkCommand reports whether args is a git command that talks to the

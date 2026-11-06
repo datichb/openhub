@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 )
 
 // The first contact with an SSH server: nothing here runs a real ssh or
@@ -68,12 +70,30 @@ func (f *fakeSSHTools) called(name string) []toolCall {
 	return out
 }
 
+// isolateGitSSH keeps the ssh command of the machine out of a test: no
+// GIT_SSH_COMMAND, no GIT_SSH, and the global configuration of the tests
+// (gittest.Defaults: an identity, no core.sshCommand) in a file of its own that
+// the test can complete (GIT_CONFIG_GLOBAL), with no system one.
+func isolateGitSSH(t *testing.T) (globalConfig string) {
+	t.Helper()
+	t.Setenv("GIT_SSH_COMMAND", "")
+	t.Setenv("GIT_SSH", "")
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	globalConfig = filepath.Join(t.TempDir(), "gitconfig")
+	if err := os.WriteFile(globalConfig, []byte(gittest.Defaults()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", globalConfig)
+	return globalConfig
+}
+
 // sshSandbox gives the test a HOME of its own and the fake tools.
 func sshSandbox(t *testing.T) (home string, tools *fakeSSHTools) {
 	t.Helper()
 	home = t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
+	isolateGitSSH(t)
 	tools = &fakeSSHTools{gErr: errors.New("no ssh")}
 	t.Cleanup(SetSSHToolRunner(tools.run))
 	return home, tools
@@ -500,6 +520,7 @@ func TestSSHHostWithFakeBinaries(t *testing.T) {
 	}
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	isolateGitSSH(t)
 	bin := t.TempDir()
 	write := func(name, body string) {
 		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+body), 0o700); err != nil {
@@ -532,6 +553,7 @@ func TestSSHHostWithoutSSHKeyscan(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
+	isolateGitSSH(t)
 	t.Setenv("PATH", t.TempDir()) // nothing on it
 	t.Cleanup(SetSSHToolRunner(nil))
 	h := UnknownSSHHost(context.Background(), "git@git.example.test:x.git")

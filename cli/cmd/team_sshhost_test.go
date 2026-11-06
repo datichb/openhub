@@ -55,6 +55,7 @@ type sshFixture struct {
 // fx.terminal().
 func fakeSSHServers(t *testing.T, known ...string) *sshFixture {
 	t.Helper()
+	isolateGitSSH(t)
 	fx := &sshFixture{t: t, knownHosts: filepath.Join(t.TempDir(), "known_hosts")}
 	var content strings.Builder
 	for _, h := range known {

@@ -106,7 +106,7 @@ func (s *trackerSyncer) syncTeam(ctx context.Context, svc trackerSyncService, t 
 		return
 	}
 	s.last[t.ID] = now
-	if s.access != nil && s.access.UnknownHost(ctx, t.StateRepo, nil) {
+	if s.access != nil && s.access.UnknownHost(ctx, t.StateRepo, nil, teamstate.InRepo(t.StatePath)) {
 		return // the SSH server is not in known_hosts: looked at again next interval (the alert is the one of the claims heartbeat)
 	}
 
