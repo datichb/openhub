@@ -47,6 +47,7 @@ func Unprompted() {
 // TestMain.
 func Main(m *testing.M) int {
 	Unprompted()
+	defer removeModels()
 	dir, err := os.MkdirTemp("", "oh-gittest-")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "gittest:", err)
