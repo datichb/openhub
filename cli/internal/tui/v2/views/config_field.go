@@ -72,6 +72,10 @@ type configField struct {
 	// Scope identifies the configuration level (hub/team-shared/team-local/project).
 	// Used by formatFieldValue to determine inheritance annotations on nil values.
 	Scope ConfigScope
+	// Display, when set, writes the value of the field in the list instead of
+	// the standard rendering of its kind (a tri-state whose « not set » state
+	// has a meaning of its own).
+	Display func(val string) string
 	// Source returns a resolution annotation (e.g. "[hub]", "[equipe: enforced]").
 	// nil means no annotation.
 	Source func() string
@@ -173,6 +177,9 @@ func configItems(fields []configField, columnWidth int) []widgets.SectionItem {
 // For CfgFieldTriBool at project/team-local scope, a parenthetical inheritance note
 // is appended: "non configuré (hérite du hub)".
 func formatFieldValue(f configField, val string) string {
+	if f.Display != nil {
+		return f.Display(val)
+	}
 	notConfigured := muted(i18n.T("tui.config.not_configured"))
 
 	switch f.Kind {

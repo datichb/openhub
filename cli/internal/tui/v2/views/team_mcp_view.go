@@ -15,6 +15,7 @@ import (
 	"github.com/datichb/openhub/cli/internal/i18n"
 	"github.com/datichb/openhub/cli/internal/mcpresolve"
 	"github.com/datichb/openhub/cli/internal/teamstate"
+	"github.com/datichb/openhub/cli/internal/tui/theme"
 	"github.com/datichb/openhub/cli/internal/tui/v2/keys"
 	"github.com/datichb/openhub/cli/internal/tui/v2/widgets"
 )
@@ -376,8 +377,8 @@ func (v *TeamMCPView) setTeamConfig(cfg *teamstate.TeamConfig, err error) {
 func (v *TeamMCPView) buildFields() {
 	v.fields = nil
 
-	for _, svc := range []string{"gitlab", "jira", "figma", "gslides"} {
-		svc := svc // capture
+	for _, known := range mcpresolve.Services() {
+		svc := known.Name
 		svcTitle := cases.Title(language.Und).String(svc)
 
 		// ── Section header: service name ──
@@ -386,21 +387,22 @@ func (v *TeamMCPView) buildFields() {
 		// ── Sub-section: Team (shared config.toml) ──
 		v.fields = append(v.fields, configField{Kind: CfgFieldSubHeader, Label: i18n.T("tui.config.section.team_shared")})
 		v.fields = append(v.fields, configField{
-			Key: "enabled", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_enabled.label"),
-			Description: i18n.T("tui.config.field.mcp_enabled.desc"), Scope: ScopeTeamShared, Section: svc,
-			Get: func() string { return mcpBoolPtrToStr(v.teamCfg.MCP[svc].Enabled) },
+			Key: "enabled", Kind: CfgFieldTriBool, Label: i18n.T("tui.config.field.mcp_enabled.label"),
+			Description: i18n.T("v55m.team_mcp.state.desc"), Scope: ScopeTeamShared, Section: svc,
+			Options: teamMCPStateOptions(),
+			Display: teamMCPStateText,
+			Get:     func() string { return mcpresolve.TeamStateOf(v.teamCfg.MCP[svc]).Value() },
 			Set: func(val string) {
-				s := v.teamCfg.MCP[svc]
-				b := val == "true"
-				s.Enabled = &b
-				v.teamCfg.MCP[svc] = s
+				mcpresolve.SetTeamState(v.teamCfg, svc, mcpresolve.ParseTeamState(val))
 				v.dirtyTeam = true
 			},
 		})
 		v.fields = append(v.fields, configField{
 			Key: "enabled_enforced", Kind: CfgFieldBool, Label: i18n.T("tui.config.field.mcp_enforced.label"),
 			Description: i18n.T("tui.config.field.mcp_enforced.desc"), Scope: ScopeTeamShared, Section: svc,
-			Get: func() string { return mcpBoolPtrToStr(v.teamCfg.MCP[svc].EnabledEnforced) },
+			// An enforcement binds the members to an opinion: without one there is nothing to enforce.
+			Visible: func() bool { return mcpresolve.TeamStateOf(v.teamCfg.MCP[svc]) != mcpresolve.TeamInherited },
+			Get:     func() string { return mcpBoolPtrToStr(v.teamCfg.MCP[svc].EnabledEnforced) },
 			Set: func(val string) {
 				s := v.teamCfg.MCP[svc]
 				b := val == "true"
@@ -587,8 +589,21 @@ func (v *TeamMCPView) toggleSelected() {
 		return
 	}
 	v.pushUndo()
-	toggleConfigField(f)
+	if f.Scope == ScopeTeamShared && f.Key == "enabled" {
+		v.cycleTeamState(f.Section)
+	} else {
+		toggleConfigField(f)
+	}
 	v.renderFields()
+}
+
+// cycleTeamState moves what the team says about a service to the next state
+// (inherited, enabled, disabled, inherited…): the cycle is the business one
+// (mcpresolve.TeamState), the view only applies it.
+func (v *TeamMCPView) cycleTeamState(svc string) {
+	next := mcpresolve.TeamStateOf(v.teamCfg.MCP[svc]).Next()
+	mcpresolve.SetTeamState(v.teamCfg, svc, next)
+	v.dirtyTeam = true
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -802,139 +817,111 @@ func (v *TeamMCPView) save() {
 // MCP Local (hub.toml) accessor helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (v *TeamMCPView) getMCPLocalEnabled(svc string) func() string {
-	return func() string {
-		switch svc {
-		case "gitlab":
-			return mcpBoolStr(v.localMCP.Gitlab.Enabled)
-		case "jira":
-			return mcpBoolStr(v.localMCP.Jira.Enabled)
-		case "figma":
-			return mcpBoolStr(v.localMCP.Figma.Enabled)
-		case "gslides":
-			return mcpBoolStr(v.localMCP.Gslides.Enabled)
-		}
-		return "false"
+// localServer is the personal settings of a service, nil for one that has none.
+func localServer(m *config.MCPConfig, svc string) *config.MCPServerConfig {
+	switch svc {
+	case "gitlab":
+		return &m.Gitlab
+	case "jira":
+		return &m.Jira
+	case "figma":
+		return &m.Figma
+	case "gslides":
+		return &m.Gslides
+	case "github":
+		return &m.Github
+	case "linear":
+		return &m.Linear
 	}
+	return nil
+}
+
+// localGet reads a setting of a service in hub.toml (zero when there is none).
+func (v *TeamMCPView) localGet(svc string, read func(config.MCPServerConfig) string) func() string {
+	return func() string {
+		if s := localServer(&v.localMCP, svc); s != nil {
+			return read(*s)
+		}
+		return ""
+	}
+}
+
+// localSet changes a setting of a service in hub.toml.
+func (v *TeamMCPView) localSet(svc string, write func(*config.MCPServerConfig, string)) func(string) {
+	return func(val string) {
+		if s := localServer(&v.localMCP, svc); s != nil {
+			write(s, val)
+		}
+		v.dirtyLocal = true
+	}
+}
+
+func (v *TeamMCPView) getMCPLocalEnabled(svc string) func() string {
+	return v.localGet(svc, func(s config.MCPServerConfig) string { return mcpBoolStr(s.Enabled) })
 }
 
 func (v *TeamMCPView) setMCPLocalEnabled(svc string) func(string) {
-	return func(val string) {
-		b := val == "true"
-		switch svc {
-		case "gitlab":
-			v.localMCP.Gitlab.Enabled = b
-		case "jira":
-			v.localMCP.Jira.Enabled = b
-		case "figma":
-			v.localMCP.Figma.Enabled = b
-		case "gslides":
-			v.localMCP.Gslides.Enabled = b
-		}
-		v.dirtyLocal = true
-	}
+	return v.localSet(svc, func(s *config.MCPServerConfig, val string) { s.Enabled = val == "true" })
 }
 
 func (v *TeamMCPView) getMCPLocalURL(svc string) func() string {
-	return func() string {
-		switch svc {
-		case "gitlab":
-			return v.localMCP.Gitlab.URL
-		case "jira":
-			return v.localMCP.Jira.URL
-		case "figma":
-			return v.localMCP.Figma.URL
-		case "gslides":
-			return v.localMCP.Gslides.URL
-		}
-		return ""
-	}
+	return v.localGet(svc, func(s config.MCPServerConfig) string { return s.URL })
 }
 
 func (v *TeamMCPView) setMCPLocalURL(svc string) func(string) {
-	return func(val string) {
-		switch svc {
-		case "gitlab":
-			v.localMCP.Gitlab.URL = val
-		case "jira":
-			v.localMCP.Jira.URL = val
-		case "figma":
-			v.localMCP.Figma.URL = val
-		case "gslides":
-			v.localMCP.Gslides.URL = val
-		}
-		v.dirtyLocal = true
-	}
+	return v.localSet(svc, func(s *config.MCPServerConfig, val string) { s.URL = val })
 }
 
 func (v *TeamMCPView) getMCPLocalToken(svc string) func() string {
-	return func() string {
-		switch svc {
-		case "gitlab":
-			return v.localMCP.Gitlab.Token
-		case "jira":
-			return v.localMCP.Jira.Token
-		case "figma":
-			return v.localMCP.Figma.Token
-		case "gslides":
-			return v.localMCP.Gslides.Token
-		}
-		return ""
-	}
+	return v.localGet(svc, func(s config.MCPServerConfig) string { return s.Token })
 }
 
 func (v *TeamMCPView) setMCPLocalToken(svc string) func(string) {
-	return func(val string) {
-		switch svc {
-		case "gitlab":
-			v.localMCP.Gitlab.Token = val
-		case "jira":
-			v.localMCP.Jira.Token = val
-		case "figma":
-			v.localMCP.Figma.Token = val
-		case "gslides":
-			v.localMCP.Gslides.Token = val
-		}
-		v.dirtyLocal = true
-	}
+	return v.localSet(svc, func(s *config.MCPServerConfig, val string) { s.Token = val })
 }
 
 func (v *TeamMCPView) getMCPLocalWrite(svc string) func() string {
-	return func() string {
-		switch svc {
-		case "gitlab":
-			return mcpBoolStr(v.localMCP.Gitlab.WriteEnabled)
-		case "jira":
-			return mcpBoolStr(v.localMCP.Jira.WriteEnabled)
-		case "figma":
-			return mcpBoolStr(v.localMCP.Figma.WriteEnabled)
-		case "gslides":
-			return mcpBoolStr(v.localMCP.Gslides.WriteEnabled)
-		}
-		return "false"
-	}
+	return v.localGet(svc, func(s config.MCPServerConfig) string { return mcpBoolStr(s.WriteEnabled) })
 }
 
 func (v *TeamMCPView) setMCPLocalWrite(svc string) func(string) {
-	return func(val string) {
-		b := val == "true"
-		switch svc {
-		case "gitlab":
-			v.localMCP.Gitlab.WriteEnabled = b
-		case "jira":
-			v.localMCP.Jira.WriteEnabled = b
-		case "figma":
-			v.localMCP.Figma.WriteEnabled = b
-		case "gslides":
-			v.localMCP.Gslides.WriteEnabled = b
-		}
-		v.dirtyLocal = true
-	}
+	return v.localSet(svc, func(s *config.MCPServerConfig, val string) { s.WriteEnabled = val == "true" })
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+// teamMCPStateOptions are the three states of what the team says about a
+// service, as the select modal offers them.
+func teamMCPStateOptions() []SelectOption {
+	var opts []SelectOption
+	for _, st := range []mcpresolve.TeamState{mcpresolve.TeamInherited, mcpresolve.TeamEnabled, mcpresolve.TeamDisabled} {
+		opts = append(opts, SelectOption{Label: teamMCPStatePlain(st), Value: st.Value()})
+	}
+	return opts
+}
+
+func teamMCPStatePlain(st mcpresolve.TeamState) string {
+	switch st {
+	case mcpresolve.TeamEnabled:
+		return theme.SymSuccess + " " + i18n.T("tui.config.enabled")
+	case mcpresolve.TeamDisabled:
+		return theme.SymInactive + " " + i18n.T("tui.config.disabled")
+	}
+	return "↩ " + i18n.T("v55m.team_mcp.state.inherited")
+}
+
+// teamMCPStateText is the value of a service as the list shows it.
+func teamMCPStateText(val string) string {
+	switch mcpresolve.ParseTeamState(val) {
+	case mcpresolve.TeamEnabled:
+		return enabledText()
+	case mcpresolve.TeamDisabled:
+		return disabledText()
+	}
+	return muted("↩ " + i18n.T("v55m.team_mcp.state.inherited"))
+}
 
 // mcpBoolPtrToStr converts a *bool to "true"/"false" (nil → "" = not configured).
 func mcpBoolPtrToStr(b *bool) string {
