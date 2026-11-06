@@ -4,7 +4,7 @@
 
 ## Activation
 
-The GitHub MCP server is put in the session bundle automatically at launch when `[mcp.github]` has `enabled = true` **and** `token_key` in `hub.toml` (see [`[mcp.github]`](config.en.md#github-and-linear-mcp-servers)).
+The GitHub MCP server is put in the session bundle automatically at launch when `[mcp.github]` has `enabled = true` **and** `token_key` in `hub.toml` (see [`[mcp.github]`](config.en.md#github-and-linear-mcp-servers)). `oh mcp setup github` writes both. A service enabled without a `token_key` (and without `GITHUB_TOKEN`) is not put in the bundle: oh says so when the session starts, in `oh mcp status github` and in `oh doctor`.
 
 ```json
 // Declared in the session bundle at launch
@@ -20,13 +20,17 @@ The GitHub MCP server is put in the session bundle automatically at launch when 
 
 ## Authentication
 
-A personal access token (PAT) or GitHub App token, kept in the keychain of `oh` (`oh secrets set --global openhub.mcp.github.token`) and designated by `token_key` in `[mcp.github]`. The server reads it from the `GITHUB_TOKEN` variable (or `GH_TOKEN`), which `oh mcp serve github --token-key …` fills from the keychain; `GITHUB_TOKEN` exported in your shell does not reach the sessions (the environment of the agents is filtered).
+A personal access token (PAT) or GitHub App token, kept in the keychain of `oh` (`oh mcp setup github`, or `oh secrets set --global openhub.mcp.github.token`) and designated by `token_key` in `[mcp.github]`. The server reads it from the `GITHUB_TOKEN` variable (or `GH_TOKEN`), which `oh mcp serve github --token-key …` fills from the keychain; `GITHUB_TOKEN` and `GH_TOKEN` exported in your shell do not reach the sessions (the environment of the agents is filtered: `GH_TOKEN` is never passed to the agent); only the MCP server, started by oh, gets the token from the keychain. `GH_TOKEN` is just the other name the server can read.
 
 Required token scopes:
 - `repo` — read access to repositories, issues, pull requests
 - `workflow` — read access to GitHub Actions workflows and runs
 
 Write mode requires additional scope: `repo` (write)
+
+## API address
+
+The server always calls `https://api.github.com`: it has no URL variable (oh no longer sets `GITHUB_URL`, which the server never read), `url` and `trusted_url` of `[mcp.github]` have no effect, and GitHub Enterprise Server is not supported. The official GitHub MCP server reads `GITHUB_HOST` for that, but oh does not use that server.
 
 ## Identifiers
 
@@ -322,11 +326,7 @@ Get details for a specific workflow run.
 
 ## Write Mode
 
-Write mode is disabled by default. Enable it by setting:
-
-```bash
-export GITHUB_WRITE_ENABLED=true
-```
+Write mode is disabled by default. To enable it, answer yes to the write-mode question of `oh mcp setup github` (or write `write_enabled = true` in `[mcp.github]`): oh then sets `GITHUB_WRITE_ENABLED=true` for the server of the session. A variable exported in your shell does not reach the sessions.
 
 ### `github_create_issue`
 

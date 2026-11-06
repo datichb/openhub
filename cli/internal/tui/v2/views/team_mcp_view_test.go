@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/teamstate"
 	"github.com/datichb/openhub/cli/internal/testutil/golden"
 )
 
@@ -318,4 +319,203 @@ func TestTeamMCPViewSavesOffTheLoopOneAtATime(t *testing.T) {
 		assert.True(t, v.dirtyLocal, "a failed save leaves the changes to save")
 		assert.Contains(t, sh.lastToast(), "disk full")
 	})
+}
+
+// selectTeamMCPField puts the cursor on a field of a section (key and
+// section as the view names them: "enabled", "gitlab").
+func selectTeamMCPField(t *testing.T, v *TeamMCPView, section, key string) *configField {
+	t.Helper()
+	for i := range v.fields {
+		f := &v.fields[i]
+		if f.Section == section && f.Key == key && f.Scope == ScopeTeamShared {
+			for idx, it := range v.list.GetItems() {
+				if ref, ok := it.Reference.(int); ok && ref == i {
+					v.list.SelectIndex(idx)
+					return f
+				}
+			}
+		}
+	}
+	t.Fatalf("no field %s of %s", key, section)
+	return nil
+}
+
+func pressSpace(v *TeamMCPView) {
+	v.HandleKey(tcell.NewEventKey(tcell.KeyRune, ' ', tcell.ModNone))
+}
+
+// Every known service has a section, GitHub and Linear included, and the
+// team can say three things about each: enabled, disabled, or nothing.
+func TestTeamMCPViewHasASectionForEveryService(t *testing.T) {
+	frLocale(t)
+	v, _, _, app := mountTeamMCP(t, TeamMCPViewConfig{})
+
+	headers := map[string]bool{}
+	states := map[string]string{}
+	onLoop(app, func() {
+		for _, f := range v.fields {
+			if f.Kind == CfgFieldSectionHeader {
+				headers[f.Label] = true
+			}
+			if f.Scope == ScopeTeamShared && f.Key == "enabled" {
+				states[f.Section] = f.Get()
+				assert.Equal(t, CfgFieldTriBool, f.Kind, f.Section)
+			}
+		}
+	})
+	for _, name := range []string{"Gitlab", "Jira", "Figma", "Gslides", "Github", "Linear"} {
+		assert.True(t, headers["MCP "+name], "section %s", name)
+	}
+	assert.Len(t, states, 6)
+	for svc, val := range states {
+		assert.Empty(t, val, "%s: the team says nothing yet", svc)
+	}
+
+	// GitHub and Linear servers call a fixed address: no URL to offer.
+	onLoop(app, func() {
+		for _, f := range v.fields {
+			if f.Key == "url" || f.Key == "url_enforced" {
+				assert.NotContains(t, []string{"github", "linear", "github.perso", "linear.perso"}, f.Section)
+			}
+		}
+	})
+}
+
+// A file written before the three states reads the same way: true is
+// enabled, false is disabled, no key is inherited. All three are shown.
+func TestTeamMCPViewShowsTheThreeStates(t *testing.T) {
+	frLocale(t)
+	v, _, content, app := mountTeamMCP(t, TeamMCPViewConfig{})
+	onLoop(app, func() {
+		v.teamCfg.MCP["gitlab"] = teamstate.SharedMCPConfig{Enabled: boolRef(true)}
+		v.teamCfg.MCP["jira"] = teamstate.SharedMCPConfig{Enabled: boolRef(false)}
+		v.buildFields()
+		v.renderFields()
+	})
+	get := func(svc string) string {
+		var val string
+		onLoop(app, func() { val = selectTeamMCPField(t, v, svc, "enabled").Get() })
+		return val
+	}
+	assert.Equal(t, "true", get("gitlab"))
+	assert.Equal(t, "false", get("jira"))
+	assert.Equal(t, "", get("figma"))
+
+	var texts []string
+	onLoop(app, func() {
+		for _, svc := range []string{"gitlab", "jira", "figma"} {
+			f := selectTeamMCPField(t, v, svc, "enabled")
+			texts = append(texts, f.Display(f.Get()))
+		}
+	})
+	assert.Contains(t, texts[0], "activé")
+	assert.Contains(t, texts[1], "désactivé")
+	assert.Contains(t, texts[2], "hérité")
+	_ = content
+}
+
+func boolRef(b bool) *bool { return &b }
+
+// The space bar goes through the states: inherited, enabled, disabled,
+// inherited. Back to inherited removes the key (and the empty table); the
+// enforcement only exists next to an opinion.
+func TestTeamMCPViewSpaceCyclesThroughTheStates(t *testing.T) {
+	frLocale(t)
+	v, _, _, app := mountTeamMCP(t, TeamMCPViewConfig{})
+
+	step := func() (value string, entry bool, enforcedShown bool) {
+		onLoop(app, func() {
+			selectTeamMCPField(t, v, "linear", "enabled")
+			pressSpace(v)
+			value = selectTeamMCPField(t, v, "linear", "enabled").Get()
+			_, entry = v.teamCfg.MCP["linear"]
+			for i, f := range v.fields {
+				if f.Section == "linear" && f.Key == "enabled_enforced" {
+					for _, it := range v.list.GetItems() {
+						if ref, ok := it.Reference.(int); ok && ref == i {
+							enforcedShown = true
+						}
+					}
+				}
+			}
+		})
+		return value, entry, enforcedShown
+	}
+
+	val, entry, enforced := step()
+	assert.Equal(t, "true", val)
+	assert.True(t, entry)
+	assert.True(t, enforced, "with an opinion the team may enforce it")
+
+	val, entry, enforced = step()
+	assert.Equal(t, "false", val)
+	assert.True(t, entry, "false is written, not dropped")
+	assert.True(t, enforced)
+
+	val, entry, enforced = step()
+	assert.Equal(t, "", val)
+	assert.False(t, entry, "inherited: no entry left")
+	assert.False(t, enforced, "nothing to enforce without an opinion")
+	onLoop(app, func() { assert.True(t, v.dirtyTeam) })
+}
+
+// Enter offers the three states; choosing one sets it.
+func TestTeamMCPViewEnterOffersTheThreeStates(t *testing.T) {
+	frLocale(t)
+	v, sh, _, app := mountTeamMCP(t, TeamMCPViewConfig{})
+	onLoop(app, func() {
+		v.teamCfg.MCP["github"] = teamstate.SharedMCPConfig{Enabled: boolRef(true), EnabledEnforced: boolRef(true)}
+		v.buildFields()
+		v.renderFields()
+		selectTeamMCPField(t, v, "github", "enabled")
+		v.HandleKey(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone))
+	})
+	sh.mu.Lock()
+	opts, choose := sh.selectOpts, sh.selectFn
+	sh.mu.Unlock()
+	require.Len(t, opts, 3)
+	assert.Equal(t, []string{"", "true", "false"}, []string{opts[0].Value, opts[1].Value, opts[2].Value})
+
+	onLoop(app, func() { choose("") })
+	onLoop(app, func() {
+		assert.Empty(t, v.teamCfg.MCP, "inherited: the entry and its enforcement are gone")
+	})
+}
+
+// Saving writes only the key that changed, on top of the latest file, and
+// returning to inherited removes the key from what is written.
+func TestTeamMCPViewSaveWritesTheStateAndRemovesTheKey(t *testing.T) {
+	frLocale(t)
+	type call struct{ base, edited *teamstate.TeamConfig }
+	calls := make(chan call, 4)
+	v, _, _, app := mountTeamMCP(t, TeamMCPViewConfig{
+		SaveTeamConfig: func() TeamConfigWriter {
+			return func(_ context.Context, base, edited *teamstate.TeamConfig) error {
+				calls <- call{base, edited}
+				return nil
+			}
+		},
+	})
+	onLoop(app, func() {
+		v.teamCfg.MCP["jira"] = teamstate.SharedMCPConfig{Enabled: boolRef(true)}
+		v.baseTeam = teamstate.CloneConfig(v.teamCfg) // as if read from the file
+		selectTeamMCPField(t, v, "jira", "enabled")
+		pressSpace(v) // enabled → disabled
+		selectTeamMCPField(t, v, "jira", "enabled")
+		pressSpace(v) // disabled → inherited
+		selectTeamMCPField(t, v, "linear", "enabled")
+		pressSpace(v) // inherited → enabled
+		v.save()
+	})
+	c := <-calls
+	waitFor(t, app, func() bool { return !v.saving })
+
+	patch := teamstate.DiffConfig(c.base, c.edited)
+	assert.Equal(t, []string{"mcp.jira", "mcp.linear"}, patch.Keys())
+
+	onDisk := teamstate.CloneConfig(c.base)
+	require.NoError(t, patch.Apply(onDisk))
+	assert.NotContains(t, onDisk.MCP, "jira", "the key is removed, not written as false")
+	require.NotNil(t, onDisk.MCP["linear"].Enabled)
+	assert.True(t, *onDisk.MCP["linear"].Enabled)
 }

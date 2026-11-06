@@ -1,26 +1,24 @@
 ╔ Services MCP ════════════════════════════════════════════════════════════════════╗┌ Détail ──────────────────────────────────────────────┐
 ║   ── MCP Gitlab ──                                                             ▲ ║│ Activé                                               │
 ║                                                                                  ║│                                                      │
-║                                                                                  ║│ Active ce service MCP                                │
-║                                                                                  ║│                                                      │
-║   ──     Équipe (partagé) ──                                                     ║│ Valeur : non configuré                               │
-║                                                                                  ║│ Clé : gitlab · enabled                               │
-║   Activé                       non configuré                                     ║│                                                      │
-║     Active ce service MCP                                                        ║│ Touches                                              │
-║   Imposé                       non configuré                                     ║│   Espace basculer                                    │
-║     L'équipe impose ce réglage (non modifiable par les membres)                  ║│   Entrée éditer                                      │
-║   URL de l'instance            non configuré                                     ║│   t      test                                        │
-║     URL de l'instance auto-hébergée                                              ║│   Ctrl+S enregistrer                                 │
-║   URL imposée                  non configuré                                     ║│   u      annuler                                     │
-║     L'équipe impose l'URL de l'instance                                          ║│   r      rafraîchir                                  │
+║                                                                                  ║│ Ce que dit l'équipe : activé, désactivé ou hérité    │
+║                                                                                  ║│ (rien n'est écrit)                                   │
+║   ──     Équipe (partagé) ──                                                     ║│                                                      │
+║                                                                                  ║│ Valeur : ↩ hérité — chaque membre décide             │
+║   Activé                       ↩ hérité — chaque membre décide                   ║│ Clé : gitlab · enabled                               │
+║     Ce que dit l'équipe : activé, désactivé ou hérité (rien n'est écrit)         ║│                                                      │
+║   URL de l'instance            non configuré                                     ║│ Valeurs possibles :                                  │
+║     URL de l'instance auto-hébergée                                              ║│   ◉ ↩ hérité — chaque membre décide                  │
+║   URL imposée                  non configuré                                     ║│     ✔ activé                                         │
+║     L'équipe impose l'URL de l'instance                                          ║│     ○ désactivé                                      │
 ║   Écriture recommandée         ○ désactivé                                       ║│                                                      │
-║     L'équipe recommande d'activer l'accès en écriture                            ║│                                                      │
-║                                                                                  ║│                                                      │
-║                                                                                  ║│                                                      │
-║   ──     Personnel ──                                                            ║│                                                      │
-║                                                                                  ║│                                                      │
-║   Activé                       ○ désactivé                                       ║│                                                      │
-║     Active ce service MCP                                                        ║│                                                      │
+║     L'équipe recommande d'activer l'accès en écriture                            ║│ Touches                                              │
+║                                                                                  ║│   Espace basculer                                    │
+║                                                                                  ║│   Entrée éditer                                      │
+║   ──     Personnel ──                                                            ║│   t      test                                        │
+║                                                                                  ║│   Ctrl+S enregistrer                                 │
+║   Activé                       ○ désactivé                                       ║│   u      annuler                                     │
+║     Active ce service MCP                                                        ║│   r      rafraîchir                                  │
 ║   URL de l'instance            non configuré                                     ║│                                                      │
 ║     URL de l'instance auto-hébergée                                              ║│                                                      │
 ║   Jeton d'accès                ✗ non configuré                                   ║│                                                      │
@@ -35,6 +33,8 @@
 ║                                                                                  ║│                                                      │
 ║   ──     Équipe (partagé) ──                                                     ║│                                                      │
 ║                                                                                  ║│                                                      │
-║   Activé                       non configuré                                     ║│                                                      │
-║     Active ce service MCP                                                      ▼ ║│                                                      │
+║   Activé                       ↩ hérité — chaque membre décide                   ║│                                                      │
+║     Ce que dit l'équipe : activé, désactivé ou hérité (rien n'est écrit)         ║│                                                      │
+║   URL de l'instance            non configuré                                     ║│                                                      │
+║     URL de l'instance auto-hébergée                                            ▼ ║│                                                      │
 ╚══════════════════════════════════════════════════════════════════════════════════╝└──────────────────────────────────────────────────────┘

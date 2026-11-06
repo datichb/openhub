@@ -30,7 +30,7 @@ Keep it in the keychain of `oh` (see below): it is the only route that works in 
 
 ## Setup
 
-> **`oh mcp setup linear` is not available yet.** `oh mcp setup` only configures `figma`, `gitlab`, `gslides` and `jira`, and refuses any other name; `oh config set` does not know the keys of `[mcp.linear]` either. The Linear server is configured by hand, in three steps.
+> **The shortest way: `oh mcp setup linear`.** The wizard asks for the key (masked field, never displayed), stores it in the keychain as `openhub.mcp.linear.token`, then writes `[mcp.linear]` to `hub.toml` (`enabled = true`, `token_key`, and `write_enabled` according to your answer). With `-p <project>` the key belongs to the project. The steps below do the same by hand, without a terminal (`oh config set` does not know the keys of `[mcp.linear]`).
 
 ### 1. Put the key in the keychain
 
@@ -49,7 +49,7 @@ token_key = "openhub.mcp.linear.token"   # name of the keychain key, NOT the API
 write_enabled = false                    # true: issue creation and updates
 ```
 
-- `token_key` is **required**: without it, the server is not placed in the session bundle, with no message.
+- `token_key` is **required**: without it (and without a `LINEAR_API_KEY` variable), the server is not placed in the session bundle. It is not silent: a warning is written when the session starts, `oh mcp status linear` and `oh doctor` report it, with the command `oh mcp setup linear`.
 - `url` and `trusted_url` have no effect for Linear: the server always calls `https://api.linear.app/graphql`.
 - `oh mcp enable linear` and `oh mcp disable linear` change `enabled` (with `-p <project>`, for one project only); the rest is written in the file.
 
@@ -189,5 +189,6 @@ Linear's GraphQL API returns detailed error messages. Common causes:
 
 - `oh mcp list` — is the `linear` server known?
 - `oh mcp enable linear` / `oh mcp disable linear` — turn the service on or off
-- `oh mcp setup linear` is not available yet: configure by hand (see Setup)
+- `oh mcp setup linear` — configure or reconfigure the service
+- `oh mcp status linear` — state, source of the state and origin of the token
 - Persistent issue → report on [GitHub Issues](https://github.com/anomalyco/opencode)

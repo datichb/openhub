@@ -72,7 +72,7 @@ oh mcp reset figma --project my-project
 
 ### oh mcp setup
 
-Configures an MCP service (interactive wizard: token, options). Services: `figma`, `gitlab`, `gslides`, `jira`; without argument, the service is chosen from a list. The write mode is offered for the services that have write tools (`gitlab`, `jira`). With `--project`, the token is stored in the keychain under a project-scoped key.
+Configures an MCP service (interactive wizard: token, options). Services: `figma`, `github`, `gitlab`, `gslides`, `jira`, `linear`; without argument, the service is chosen from a list. The write mode is offered for the services that have write tools (`github`, `gitlab`, `jira`, `linear`). The token goes to the keychain of oh (never to `hub.toml`, never displayed: the field is masked); `hub.toml` only keeps its **name** (`token_key`). With `--project`, the token is stored in the keychain under a project-scoped key.
 
 Keychain key names: `openhub.mcp.<service>.token` (hub) and `openhub.mcp.<service>.token.<project-id>` (project). The former names (`<service>-token`, `<service>-token-<project-id>`) are still read as a fallback: a token found only under the former name is copied under the new one, and the former key is kept (never deleted automatically). At startup, oh also copies the project keys to the new name and updates the key recorded in the project; this migration can be replayed. `oh doctor` reports a configured key whose value is empty or not found, with the command to redo it (`oh mcp setup <service>`).
 
@@ -88,6 +88,7 @@ oh mcp setup [service] [options]
 
 ```bash
 oh mcp setup
+oh mcp setup linear
 oh mcp setup jira --project my-project
 ```
 
@@ -95,10 +96,12 @@ oh mcp setup jira --project my-project
 
 ### oh mcp status
 
-Shows the status of every MCP service. With `--project`, shows the effective config (project overrides included). A URL imposed by the team that you have not approved is listed with a warning (see [`oh mcp trust`](#oh-mcp-trust)).
+Shows the status of the MCP services: `figma`, `github`, `gitlab`, `gslides`, `jira`, `linear` and `team`, each with its effective state (the one the sessions get: team, project, then hub), the **source** of that state (`hub`, `project` or `team`) and where the token comes from (`env:VARIABLE`, `keychain`, "token missing" when the key is configured but has no value, or `—`). With `--project`, shows the effective config (project overrides included). With a service name, shows that service only; an unknown name is refused with the list of the valid services (non-zero exit code).
+
+Two kinds of warnings follow the table: a URL imposed by the team that you have not approved (see [`oh mcp trust`](#oh-mcp-trust)), and a service **enabled without a token** (no `token_key` and no environment variable of the service): the sessions leave it out, and the line gives the variable expected and the command that configures it (`oh mcp setup <service>`). It is not an error: the other services are still given to the sessions. The same warning is written when a session starts and by `oh doctor`.
 
 ```
-oh mcp status [options]
+oh mcp status [service] [options]
 ```
 
 | Flag | Short | Type | Description |
@@ -109,6 +112,7 @@ oh mcp status [options]
 
 ```bash
 oh mcp status
+oh mcp status linear
 oh mcp status --project my-project
 ```
 
@@ -164,7 +168,7 @@ oh mcp serve <name> [--token-key <key>]
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--token-key` | string | Keychain key to read the service token from (sets `FIGMA_TOKEN`, `GITLAB_TOKEN` or `GOOGLE_ACCESS_TOKEN` when not already set) |
+| `--token-key` | string | Keychain key to read the service token from (sets the variable of the service — `FIGMA_TOKEN`, `GITHUB_TOKEN`, `GITLAB_TOKEN`, `GOOGLE_ACCESS_TOKEN`, `JIRA_TOKEN` or `LINEAR_API_KEY` — when not already set) |
 
 Tools are exposed without the server name (`get_project`): the tool (opencode) prefixes it, the session sees `gitlab_get_project` (the name used by agents, skills and permission rules). A call under the former prefixed name (`gitlab_get_project` on the server side) is still accepted.
 

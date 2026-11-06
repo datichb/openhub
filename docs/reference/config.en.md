@@ -174,12 +174,12 @@ Removed in v5 (ignored if still in the file): `[opencode] version`, `channel`, `
 | | `projects` | — | oh project → target name |
 | `[limits]` | `max_active_sessions`, `session_budget_usd`, `daily_budget_usd`, `memory_mb`, `models` | not set | Hub I6 restrictions (`oh budget set`) |
 | `[deploy]` | `instruction_files` | `[]` | Project files added to the instructions of the bundle agents |
-| `[mcp.github]` | `enabled` | `false` | Turns on the GitHub MCP server (repositories, issues, pull requests, Actions) in the session bundles. Written by hand in `hub.toml` ([details](#github-and-linear-mcp-servers)) |
-| | `token_key` | empty | Name of the keychain key that holds the GitHub token, never the token itself (`openhub.mcp.github.token`). **Write it**: without it, the server is not placed in the bundle |
+| `[mcp.github]` | `enabled` | `false` | Turns on the GitHub MCP server (repositories, issues, pull requests, Actions) in the session bundles. Written by `oh mcp setup github` or by hand in `hub.toml` ([details](#github-and-linear-mcp-servers)) |
+| | `token_key` | empty | Name of the keychain key that holds the GitHub token, never the token itself (`openhub.mcp.github.token`). **Write it** (`oh mcp setup github` does): without it, the server is not placed in the bundle, with a warning |
 | | `write_enabled` | `false` | Adds the write tool `create_issue` (opt-in, `GITHUB_WRITE_ENABLED` in the server); read only without it |
 | | `url`, `trusted_url` | empty | No effect for GitHub: the server always calls `https://api.github.com` |
-| `[mcp.linear]` | `enabled` | `false` | Turns on the Linear MCP server (issues, cycles, projects, Linear GraphQL API) in the session bundles. Written by hand in `hub.toml`: `oh mcp setup` and `oh config set` do not know Linear ([guide](../guides/linear-integration.en.md)) |
-| | `token_key` | empty | Name of the keychain key that holds the Linear personal API key, never the key itself (`openhub.mcp.linear.token`, stored by `oh secrets set --global openhub.mcp.linear.token`). **Write it**: without it, the server is not placed in the bundle. A `LINEAR_API_KEY` variable already set in the server process takes precedence over the keychain key |
+| `[mcp.linear]` | `enabled` | `false` | Turns on the Linear MCP server (issues, cycles, projects, Linear GraphQL API) in the session bundles. Written by `oh mcp setup linear` or by hand in `hub.toml` ([guide](../guides/linear-integration.en.md)) |
+| | `token_key` | empty | Name of the keychain key that holds the Linear personal API key, never the key itself (`openhub.mcp.linear.token`, stored by `oh secrets set --global openhub.mcp.linear.token`). **Write it** (`oh mcp setup linear` does): without it, the server is not placed in the bundle, with a warning. A `LINEAR_API_KEY` variable already set in the server process takes precedence over the keychain key |
 | | `write_enabled` | `false` | Adds the write tools `create_issue` and `update_issue` to the server (opt-in, `LINEAR_WRITE_ENABLED` in the server); read only without it |
 | | `url`, `trusted_url` | empty | No effect for Linear: the server always calls `https://api.linear.app/graphql` |
 | `[websearch]` | `enabled` | `false` | WebSearch / WebFetch permissions |
@@ -196,9 +196,11 @@ See [container](../guides/container.en.md), [remote runners](../guides/remote-ru
 
 ### GitHub and Linear MCP servers
 
-`[mcp.github]` and `[mcp.linear]` have the same keys as `[mcp.gitlab]`, but `oh mcp setup` and `oh config set` do not know them: write them by hand in `hub.toml` (`oh mcp enable|disable github` only changes `enabled`, with `-p <project>` for one project). The token goes in the keychain, `token_key` holds its **name**:
+`[mcp.github]` and `[mcp.linear]` have the same keys as `[mcp.gitlab]`. `oh mcp setup github` and `oh mcp setup linear` write them (and put the token in the keychain, never displaying it); `oh config set` does not know them, but you can also write them by hand in `hub.toml` (`oh mcp enable|disable github` only changes `enabled`, with `-p <project>` for one project). The token goes in the keychain, `token_key` holds its **name**:
 
 ```bash
+oh mcp setup github
+# or, without the wizard:
 oh secrets set --global openhub.mcp.github.token
 ```
 
@@ -212,11 +214,33 @@ write_enabled = false
 | Key | Value | Default | Effect |
 |---|---|---|---|
 | `enabled` | boolean | `false` | Puts `oh mcp serve github` in the session bundle (a project can override it: `oh mcp enable github -p <project>`) |
-| `token_key` | text | empty | Keychain key of the token (PAT or GitHub App; scopes `repo`, `workflow`). Empty: the server is not placed in the bundle, with no message, even with `enabled = true` |
+| `token_key` | text | empty | Keychain key of the token (PAT or GitHub App; scopes `repo`, `workflow`). Empty (and the variable of the service absent): the server is not placed in the bundle, even with `enabled = true`; oh reports it with a warning when the session starts, in `oh mcp status` and in `oh doctor` |
 | `write_enabled` | boolean | `false` | Adds `create_issue`; personal, never recommended by the team |
 | `url`, `trusted_url` | text | empty | No effect: the address of the GitHub API is fixed |
 
 A `GITHUB_TOKEN` (or `GH_TOKEN`) variable exported in your shell does not reach the sessions: the environment of the agents is filtered, and `GITHUB_TOKEN`, `GH_TOKEN` and `LINEAR_API_KEY` never pass, even with `env_allow`. Server pages: [GitHub](mcp-github.en.md), [Linear](mcp-linear.en.md); guide: [Linear](../guides/linear-integration.en.md).
+
+#### What the team says about an MCP service: three states
+
+In the `config.toml` of the team-state, `[mcp.<service>] enabled` (for `gitlab`, `jira`, `figma`, `gslides`, `github` and `linear`) has **three states**:
+
+| State | In the file | Meaning |
+|---|---|---|
+| enabled | `enabled = true` | the team uses the service |
+| disabled | `enabled = false` | the team does not use it |
+| inherited | the key is absent | the team says nothing: each member decides |
+
+The format has not changed: a file written before 5.5 reads the same (`true` = enabled, `false` = disabled, absent = inherited), and the previous versions read what 5.5 writes without error. Going back to "inherited" **removes the key** (and `enabled_enforced` with it, which means nothing without an opinion; the `[mcp.<service>]` entry disappears when nothing is left in it). In the "MCP services" view of the TUI, `Space` moves from one state to the next (inherited → enabled → disabled → inherited) and `Enter` opens the choice of the three; on the command line, `oh team config set mcp.linear.enabled true|false` sets the opinion and `oh team config unset mcp.linear.enabled` goes back to "inherited".
+
+Order of resolution of the effective state of a service (the first to answer wins):
+
+1. the team, when the opinion is **enforced** (`enabled_enforced = true`);
+2. the project (`oh mcp enable|disable <service> -p <project>`);
+3. the personal choice in `hub.toml` (`enabled = true`, or a `token_key` set: an explicit choice);
+4. the opinion of the team (enabled or disabled), when nothing above decides;
+5. disabled.
+
+An "inherited" opinion therefore never changes the choice of a member. The token is always personal: a service the team enables but for which you have no token is left out of the sessions, with a warning (`oh mcp status`, `oh doctor`, session launch).
 
 ### Strict reading of `hub.toml`
 

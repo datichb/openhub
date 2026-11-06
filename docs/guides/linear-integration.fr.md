@@ -30,7 +30,7 @@ Tu la ranges dans le trousseau de `oh` (voir ci-dessous) : c'est la seule voie q
 
 ## Setup
 
-> **`oh mcp setup linear` n'est pas encore disponible.** `oh mcp setup` ne configure que `figma`, `gitlab`, `gslides` et `jira`, et refuse tout autre nom ; `oh config set` ne connaît pas non plus les clés de `[mcp.linear]`. Le serveur Linear se configure à la main, en trois gestes.
+> **Le plus court : `oh mcp setup linear`.** L'assistant demande la clé (champ masqué, jamais affichée), la range dans le trousseau sous `openhub.mcp.linear.token`, puis écrit `[mcp.linear]` dans `hub.toml` (`enabled = true`, `token_key`, et `write_enabled` selon votre réponse). Avec `-p <projet>`, la clé est propre au projet. Les gestes ci-dessous font la même chose à la main, sans terminal (`oh config set` ne connaît pas les clés de `[mcp.linear]`).
 
 ### 1. Ranger la clé dans le trousseau
 
@@ -49,7 +49,7 @@ token_key = "openhub.mcp.linear.token"   # nom de la clé du trousseau, PAS la c
 write_enabled = false                    # true : création et mise à jour d'issues
 ```
 
-- `token_key` est **obligatoire** : sans lui, le serveur n'est pas placé dans le paquet de session, sans message.
+- `token_key` est **obligatoire** : sans lui (et sans variable `LINEAR_API_KEY`), le serveur n'est pas placé dans le paquet de session. Ce n'est pas silencieux : un avertissement est écrit au lancement de la session, `oh mcp status linear` et `oh doctor` le signalent, avec la commande `oh mcp setup linear`.
 - `url` et `trusted_url` sont sans effet pour Linear : le serveur appelle toujours `https://api.linear.app/graphql`.
 - `oh mcp enable linear` et `oh mcp disable linear` changent `enabled` (avec `-p <projet>`, pour un projet seulement) ; le reste s'écrit dans le fichier.
 
@@ -189,5 +189,6 @@ L'API GraphQL de Linear retourne des messages d'erreur détaillés. Causes fréq
 
 - `oh mcp list` — le serveur `linear` est-il connu ?
 - `oh mcp enable linear` / `oh mcp disable linear` — activer ou désactiver le service
-- `oh mcp setup linear` n'est pas encore disponible : configurer à la main (voir Setup)
+- `oh mcp setup linear` — configurer ou reconfigurer le service
+- `oh mcp status linear` — état, source de l'état et origine du jeton
 - Problème persistant → signaler sur [GitHub Issues](https://github.com/anomalyco/opencode)

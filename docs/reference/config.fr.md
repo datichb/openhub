@@ -174,12 +174,12 @@ Supprimés en v5 (ignorés s'ils restent dans le fichier) : `[opencode] version`
 | | `projects` | — | Projet oh → nom de cible |
 | `[limits]` | `max_active_sessions`, `session_budget_usd`, `daily_budget_usd`, `memory_mb`, `models` | non définies | Restrictions I6 du hub (`oh budget set`) |
 | `[deploy]` | `instruction_files` | `[]` | Fichiers du projet ajoutés aux instructions des agents du paquet |
-| `[mcp.github]` | `enabled` | `false` | Active le serveur MCP GitHub (dépôts, issues, pull requests, Actions) dans les paquets de session. Écrit à la main dans `hub.toml` ([détail](#serveurs-mcp-github-et-linear)) |
-| | `token_key` | vide | Nom de la clé du trousseau qui porte le token GitHub, jamais le token lui-même (`openhub.mcp.github.token`). **À écrire** : sans lui, le serveur n'est pas placé dans le paquet |
+| `[mcp.github]` | `enabled` | `false` | Active le serveur MCP GitHub (dépôts, issues, pull requests, Actions) dans les paquets de session. Écrit par `oh mcp setup github` ou à la main dans `hub.toml` ([détail](#serveurs-mcp-github-et-linear)) |
+| | `token_key` | vide | Nom de la clé du trousseau qui porte le token GitHub, jamais le token lui-même (`openhub.mcp.github.token`). **À écrire** (`oh mcp setup github` le fait) : sans lui, le serveur n'est pas placé dans le paquet, avec un avertissement |
 | | `write_enabled` | `false` | Ajoute l'outil d'écriture `create_issue` (opt-in, `GITHUB_WRITE_ENABLED` dans le serveur) ; lecture seule sans lui |
 | | `url`, `trusted_url` | vides | Sans effet pour GitHub : le serveur appelle toujours `https://api.github.com` |
-| `[mcp.linear]` | `enabled` | `false` | Active le serveur MCP Linear (issues, cycles, projets, API GraphQL de Linear) dans les paquets de session. Écrit à la main dans `hub.toml` : `oh mcp setup` et `oh config set` ne connaissent pas Linear ([guide](../guides/linear-integration.fr.md)) |
-| | `token_key` | vide | Nom de la clé du trousseau qui porte la clé API personnelle Linear, jamais la clé elle-même (`openhub.mcp.linear.token`, rangée par `oh secrets set --global openhub.mcp.linear.token`). **À écrire** : sans lui, le serveur n'est pas placé dans le paquet. Une variable `LINEAR_API_KEY` déjà définie dans le processus du serveur passe avant la clé du trousseau |
+| `[mcp.linear]` | `enabled` | `false` | Active le serveur MCP Linear (issues, cycles, projets, API GraphQL de Linear) dans les paquets de session. Écrit par `oh mcp setup linear` ou à la main dans `hub.toml` ([guide](../guides/linear-integration.fr.md)) |
+| | `token_key` | vide | Nom de la clé du trousseau qui porte la clé API personnelle Linear, jamais la clé elle-même (`openhub.mcp.linear.token`, rangée par `oh secrets set --global openhub.mcp.linear.token`). **À écrire** (`oh mcp setup linear` le fait) : sans lui, le serveur n'est pas placé dans le paquet, avec un avertissement. Une variable `LINEAR_API_KEY` déjà définie dans le processus du serveur passe avant la clé du trousseau |
 | | `write_enabled` | `false` | Ajoute les outils d'écriture `create_issue` et `update_issue` au serveur (opt-in, `LINEAR_WRITE_ENABLED` dans le serveur) ; sans lui, lecture seule |
 | | `url`, `trusted_url` | vides | Sans effet pour Linear : le serveur appelle toujours `https://api.linear.app/graphql` |
 | `[websearch]` | `enabled` | `false` | Permissions WebSearch / WebFetch |
@@ -196,9 +196,11 @@ Voir [conteneur](../guides/container.fr.md), [exécution distante](../guides/rem
 
 ### Serveurs MCP `github` et `linear`
 
-`[mcp.github]` et `[mcp.linear]` ont les mêmes clés que `[mcp.gitlab]`, mais `oh mcp setup` et `oh config set` ne les connaissent pas : on les écrit à la main dans `hub.toml` (`oh mcp enable|disable github` change seulement `enabled`, avec `-p <projet>` pour un projet). Le token se range dans le trousseau, `token_key` en porte le **nom** :
+`[mcp.github]` et `[mcp.linear]` ont les mêmes clés que `[mcp.gitlab]`. `oh mcp setup github` et `oh mcp setup linear` les écrivent (et rangent le jeton dans le trousseau, sans jamais l'afficher) ; `oh config set` ne les connaît pas, mais on peut aussi les écrire à la main dans `hub.toml` (`oh mcp enable|disable github` change seulement `enabled`, avec `-p <projet>` pour un projet). Le token se range dans le trousseau, `token_key` en porte le **nom** :
 
 ```bash
+oh mcp setup github
+# ou, sans assistant :
 oh secrets set --global openhub.mcp.github.token
 ```
 
@@ -212,11 +214,33 @@ write_enabled = false
 | Clé | Valeur | Défaut | Effet |
 |---|---|---|---|
 | `enabled` | booléen | `false` | Place `oh mcp serve github` dans le paquet de session (le projet peut le surcharger : `oh mcp enable github -p <projet>`) |
-| `token_key` | texte | vide | Clé du trousseau du token (PAT ou GitHub App ; scopes `repo`, `workflow`). Vide : le serveur n'est pas placé dans le paquet, sans message, même avec `enabled = true` |
+| `token_key` | texte | vide | Clé du trousseau du token (PAT ou GitHub App ; scopes `repo`, `workflow`). Vide (et variable du service absente) : le serveur n'est pas placé dans le paquet, même avec `enabled = true` ; oh le signale par un avertissement au lancement de la session, dans `oh mcp status` et dans `oh doctor` |
 | `write_enabled` | booléen | `false` | Ajoute `create_issue` ; personnel, jamais recommandé par l'équipe |
 | `url`, `trusted_url` | texte | vides | Sans effet : l'adresse de l'API GitHub est fixe |
 
 Une variable `GITHUB_TOKEN` (ou `GH_TOKEN`) exportée dans votre shell n'atteint pas les sessions : l'environnement des agents est filtré et `GITHUB_TOKEN`, `GH_TOKEN` et `LINEAR_API_KEY` ne passent jamais, même avec `env_allow`. Pages des serveurs : [GitHub](mcp-github.fr.md), [Linear](mcp-linear.fr.md) ; guide : [Linear](../guides/linear-integration.fr.md).
+
+#### Ce que l'équipe dit d'un service MCP : trois états
+
+Dans le `config.toml` du team-state, `[mcp.<service>] enabled` (pour `gitlab`, `jira`, `figma`, `gslides`, `github` et `linear`) a **trois états** :
+
+| État | Dans le fichier | Sens |
+|---|---|---|
+| activé | `enabled = true` | l'équipe utilise le service |
+| désactivé | `enabled = false` | l'équipe ne l'utilise pas |
+| hérité | la clé est absente | l'équipe ne dit rien : chaque membre décide |
+
+Le format n'a pas changé : un fichier écrit avant la 5.5 se lit pareil (`true` = activé, `false` = désactivé, absent = hérité), et les versions précédentes lisent sans erreur ce que la 5.5 écrit. Revenir à « hérité » **supprime la clé** (et `enabled_enforced` avec elle, qui ne signifie rien sans avis ; l'entrée `[mcp.<service>]` disparaît si elle ne contient plus rien). Dans la vue « Services MCP » de la TUI, `Espace` passe d'un état à l'autre (hérité → activé → désactivé → hérité) et `Entrée` ouvre le choix des trois ; en ligne de commande, `oh team config set mcp.linear.enabled true|false` pose l'avis et `oh team config unset mcp.linear.enabled` revient à « hérité ».
+
+Ordre de résolution de l'état effectif d'un service (le premier qui répond l'emporte) :
+
+1. l'équipe, si l'avis est **imposé** (`enabled_enforced = true`) ;
+2. le projet (`oh mcp enable|disable <service> -p <projet>`) ;
+3. le choix personnel de `hub.toml` (`enabled = true`, ou une `token_key` posée : un choix explicite) ;
+4. l'avis de l'équipe (activé ou désactivé), quand rien de ce qui précède ne tranche ;
+5. désactivé.
+
+Un avis « hérité » ne change donc jamais le choix d'un membre. Le jeton, lui, est toujours personnel : un service que l'équipe active mais pour lequel vous n'avez pas de jeton est écarté des sessions, avec un avertissement (`oh mcp status`, `oh doctor`, lancement de la session).
 
 ### Lecture stricte de `hub.toml`
 

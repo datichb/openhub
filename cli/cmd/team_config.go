@@ -673,14 +673,15 @@ func runTeamConfigStatus(cmd *cobra.Command, _ []string) error {
 	}
 
 	// ── MCP Services ────────────────────────────────────────────────────────────
-	mcpServices := []struct {
+	type mcpLocal struct {
 		name  string
 		local config.MCPServerConfig
-	}{
-		{"gitlab", a.Config.MCP.Gitlab},
-		{"jira", a.Config.MCP.Jira},
-		{"figma", a.Config.MCP.Figma},
-		{"gslides", a.Config.MCP.Gslides},
+	}
+	var mcpServices []mcpLocal
+	for _, svc := range mcpresolve.Services() {
+		if local := a.Config.MCPServer(svc.Name); local != nil {
+			mcpServices = append(mcpServices, mcpLocal{svc.Name, *local})
+		}
 	}
 
 	for _, svc := range mcpServices {

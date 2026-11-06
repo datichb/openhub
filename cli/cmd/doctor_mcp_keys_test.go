@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/config"
+	"github.com/datichb/openhub/cli/internal/i18n/i18ntest"
 )
 
 func enabledGitlab(token string) *config.Config {
@@ -83,4 +84,19 @@ func TestMCPSetupTokenIsReadBack(t *testing.T) {
 
 	t.Setenv("GITLAB_TOKEN", "")
 	assert.Error(t, injectTokenFromStore(&mockSecretStore{secrets: map[string]string{}}, "gitlab", key), "an empty key is reported")
+}
+
+// The API keys check covers GitHub and Linear too (it knew four services).
+func TestDoctorTokensReportCoversGithubAndLinear(t *testing.T) {
+	i18ntest.Set(t, "en")
+	t.Setenv("LINEAR_API_KEY", "")
+	t.Setenv("GITHUB_TOKEN", "")
+	cfg := &config.Config{}
+	cfg.MCP.Linear = config.MCPServerConfig{Enabled: true, Token: "openhub.mcp.linear.token"}
+	cfg.MCP.Github.Enabled = true
+
+	detail, ok := mcpTokensReport(cfg, &mockSecretStore{secrets: map[string]string{}})
+	assert.False(t, ok)
+	assert.Contains(t, detail, "oh mcp setup linear")
+	assert.Contains(t, detail, "oh mcp setup github")
 }
