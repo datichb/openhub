@@ -192,13 +192,15 @@ jobs:
         env:
           SHARD: ${{ matrix.shard }}
         run: |
-          # Not mapfile < <(…): it would hide a failure of the script.
+          # Not `mapfile` (absent from the bash 3.2 of macOS) nor `< <(…)` (it
+          # would hide a failure of the script): a read loop on a variable.
           shard_args="$(../.github/scripts/test-shards.sh args "$SHARD")"
           if [ -z "$shard_args" ]; then
             echo "Nothing to test in $SHARD on $RUNNER_OS (no package of the shard is in .github/windows-test-packages.txt)"
             exit 0
           fi
-          mapfile -t args <<<"$shard_args"
+          args=()
+          while IFS= read -r arg; do args+=("$arg"); done <<<"$shard_args"
           flags=(-count=1 -timeout "$GO_TEST_TIMEOUT")
           if [ "$RUNNER_OS" = "Linux" ]; then
             flags+=(-race -coverprofile="coverage-$SHARD.out" -covermode=atomic)
