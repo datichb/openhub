@@ -53,7 +53,7 @@ func TestInitSolo(t *testing.T) {
 	}))
 	assert.Equal(t, "workflow: publish quick v1", gittest.Run(t, path, "log", "-1", "--format=%s"))
 	cat := workflow.NewMemCatalog()
-	require.Empty(t, repo.LoadWorkflowLayers(cat, ""))
+	require.Empty(t, repo.LoadWorkflowLayers(t.Context(), cat, ""))
 	assert.Len(t, cat.Refs(), 1)
 
 	// A second solo space in the same folder is refused.

@@ -1,6 +1,7 @@
 package teamstate
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -34,7 +35,10 @@ type HistoryVersion struct {
 
 // ListHistory returns the previous versions of id in scope, oldest first.
 // It only reads files: it may be called inside a transaction.
-func (r *Repo) ListHistory(scope WorkflowScope, id string) ([]HistoryVersion, error) {
+func (r *Repo) ListHistory(ctx context.Context, scope WorkflowScope, id string) ([]HistoryVersion, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if err := ValidWorkflowID(id); err != nil {
 		return nil, err
 	}

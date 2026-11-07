@@ -16,7 +16,7 @@ import (
 
 // TeamState is the team-state of a context.
 type TeamState struct {
-	Repo *teamstate.Repo
+	Repo teamstate.WorkflowRepo
 	// TeamID identifies the team (display).
 	TeamID string
 	// Member is the current member (drafts, publications).
@@ -70,8 +70,8 @@ func (s *Service) addTeamLayers(ctx context.Context, c Context, cat *catalog) er
 	if err != nil || ts == nil {
 		return err
 	}
-	cat.diags = append(cat.diags, ts.Repo.LoadWorkflowLayers(cat.docs, ts.Project)...)
-	cat.env.Prompts = teamstate.PromptSource{Repo: ts.Repo, Fallback: cat.env.Prompts}
+	cat.diags = append(cat.diags, ts.Repo.LoadWorkflowLayers(ctx, cat.docs, ts.Project)...)
+	cat.env.Prompts = ts.Repo.PromptSource(cat.env.Prompts)
 	cat.team = ts
 	return s.useTeamBricks(cat, ts)
 }

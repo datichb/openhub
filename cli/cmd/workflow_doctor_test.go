@@ -20,7 +20,7 @@ func TestRetiredExtendsCheck(t *testing.T) {
 	i18ntest.Set(t, "en")
 	repo := teamstate.NewRepo(env.bare, env.clones["alice"])
 	hub := filepath.Join(repoRoot(t), "cli", "internal", "services", "workflow", "testdata", "workflows")
-	_, ok := retiredExtendsCheck("acme", repo, hub)
+	_, ok := retiredExtendsCheck(t.Context(), "acme", repo, hub)
 	assert.False(t, ok, "nothing published")
 
 	doc := writeTemp(t, "apiVersion: oh/v1\nkind: Workflow\nid: feature\nextends: hub:feature\ndescription: Feature de l'équipe\n")
@@ -28,7 +28,7 @@ func TestRetiredExtendsCheck(t *testing.T) {
 	require.NoError(t, err, out)
 	out, err = runWorkflowSub(t, workflowPublishCmd, "team:feature", "-m", "équipe", "--yes")
 	require.NoError(t, err, out)
-	_, ok = retiredExtendsCheck("acme", repo, hub)
+	_, ok = retiredExtendsCheck(t.Context(), "acme", repo, hub)
 	assert.False(t, ok, "hub:feature still a workflow")
 
 	// The hub retires feature: spec declares it as an alias.
@@ -39,7 +39,7 @@ func TestRetiredExtendsCheck(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(retired, f), data, 0o644))
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(retired, "spec.yaml"), []byte("apiVersion: oh/v1\nkind: Workflow\nid: spec\naliases: [feature]\n"), 0o644))
-	c, ok := retiredExtendsCheck("acme", repo, retired)
+	c, ok := retiredExtendsCheck(t.Context(), "acme", repo, retired)
 	require.True(t, ok)
 	assert.False(t, c.OK)
 	assert.Contains(t, c.Detail, "team:feature extends hub:feature, now an alias of spec")

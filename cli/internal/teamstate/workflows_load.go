@@ -1,6 +1,7 @@
 package teamstate
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -54,16 +55,19 @@ func integrityDiag(code, source string, args ...any) workflow.Diagnostic {
 // still match the recorded hashes are loaded; any other file is skipped
 // with a warning (hand-edited, unpublished, lock entry without file).
 // Parse errors are reported as by workflow.MemCatalog.LoadDir.
-func (r *Repo) LoadWorkflowLayers(cat *workflow.MemCatalog, project string) workflow.Diagnostics {
+func (r *Repo) LoadWorkflowLayers(ctx context.Context, cat *workflow.MemCatalog, project string) workflow.Diagnostics {
 	scopes := []WorkflowScope{TeamScope()}
 	if project != "" {
 		scopes = append(scopes, ProjectScope(project))
 	}
-	return r.LoadWorkflowScopes(cat, scopes...)
+	return r.LoadWorkflowScopes(ctx, cat, scopes...)
 }
 
 // LoadWorkflowScopes is LoadWorkflowLayers for explicit scopes.
-func (r *Repo) LoadWorkflowScopes(cat *workflow.MemCatalog, scopes ...WorkflowScope) workflow.Diagnostics {
+func (r *Repo) LoadWorkflowScopes(ctx context.Context, cat *workflow.MemCatalog, scopes ...WorkflowScope) workflow.Diagnostics {
+	if err := ctx.Err(); err != nil {
+		return workflow.Diagnostics{integrityDiag(DiagWorkflowReadFailed, r.Path(), err)}
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	lock, err := r.readWorkflowLock()
@@ -72,6 +76,9 @@ func (r *Repo) LoadWorkflowScopes(cat *workflow.MemCatalog, scopes ...WorkflowSc
 	}
 	var diags workflow.Diagnostics
 	for _, s := range scopes {
+		if err := ctx.Err(); err != nil {
+			return append(diags, integrityDiag(DiagWorkflowReadFailed, s.String(), err))
+		}
 		diags = append(diags, r.loadPublished(cat, s, lock)...)
 	}
 	return diags
@@ -211,4 +218,10 @@ func (r *Repo) SourceLayer(file string) (workflow.Layer, bool) {
 		return workflow.LayerTeam, true
 	}
 	return workflow.LayerProject, true
+}
+
+// PromptSource reads the prompt templates of the published workflows of the
+// clone, and those of fallback for the other layers.
+func (r *Repo) PromptSource(fallback workflow.PromptSource) workflow.PromptSource {
+	return PromptSource{Repo: r, Fallback: fallback}
 }

@@ -253,7 +253,7 @@ func TestPublishRevalidates(t *testing.T) {
 	require.ErrorAs(t, err, &inv)
 	repo := env.clones["alice"]
 	assert.NoFileExists(t, filepath.Join(repo.Path(), "workflows", "published", "ticket-hotfix.yaml"), "nothing written")
-	l, err := repo.ReadWorkflowLock()
+	l, err := repo.ReadWorkflowLock(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, l.Team)
 	assert.FileExists(t, filepath.Join(repo.Path(), "workflows", "drafts", "alice", "ticket-hotfix.yaml"), "the draft is kept")
@@ -317,7 +317,7 @@ func TestPublishOfflineQueue(t *testing.T) {
 	pub, err := alice.Publish(ctx, Context{}, "ticket-hotfix", "offline")
 	require.NoError(t, err)
 	assert.True(t, pub.Queued)
-	q, err := repo.Queue()
+	q, err := repo.Queue(t.Context())
 	require.NoError(t, err)
 	require.Len(t, q, 1)
 	assert.Equal(t, OpPublish, q[0].Kind)
@@ -334,7 +334,7 @@ func TestPublishOfflineQueue(t *testing.T) {
 	require.Empty(t, errs)
 	require.Len(t, pubs, 1)
 	assert.Equal(t, 1, pubs[0].Version)
-	q, _ = repo.Queue()
+	q, _ = repo.Queue(t.Context())
 	assert.Empty(t, q)
 	assert.True(t, alice.Has(ctx, Context{}, "team:ticket-hotfix"))
 }

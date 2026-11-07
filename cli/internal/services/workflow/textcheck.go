@@ -45,10 +45,10 @@ func (s *Service) CheckText(ctx context.Context, c Context, layer wf.Layer, yaml
 	if err != nil {
 		return nil, err
 	}
-	return s.checkDraftText(cat, layer, yaml, prompt)
+	return s.checkDraftText(ctx, cat, layer, yaml, prompt)
 }
 
-func (s *Service) checkDraftText(cat *catalog, layer wf.Layer, yaml, prompt []byte) (*TextCheck, error) {
+func (s *Service) checkDraftText(ctx context.Context, cat *catalog, layer wf.Layer, yaml, prompt []byte) (*TextCheck, error) {
 	if layer == wf.LayerHub {
 		return nil, ErrHubReadOnly
 	}
@@ -83,7 +83,7 @@ func (s *Service) checkDraftText(cat *catalog, layer wf.Layer, yaml, prompt []by
 		out.Diagnostics = diags
 		return out, nil
 	}
-	_, ds := ts.Repo.LoadDrafts(cat.docs, ts.Member, ts.scopes()...)
+	_, ds := ts.Repo.LoadDrafts(ctx, cat.docs, ts.Member, ts.scopes()...)
 	cat.diags = append(cat.diags, ds...)
 	cat.docs.Put(doc)
 	env := cat.env

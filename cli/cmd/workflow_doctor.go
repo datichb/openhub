@@ -16,7 +16,7 @@ import (
 
 // workflowIntegrityChecks reports, for every configured team-state, the
 // published workflows skipped by the integrity check (workflows.lock).
-func workflowIntegrityChecks() []doctor.Result {
+func workflowIntegrityChecks(ctx context.Context) []doctor.Result {
 	a := TryApp()
 	if a == nil {
 		return nil
@@ -31,11 +31,11 @@ func workflowIntegrityChecks() []doctor.Result {
 		if !repo.IsCloned() {
 			continue
 		}
-		out = append(out, workflowIntegrityCheck(t.DisplayName(), repo))
-		if c, ok := retiredExtendsCheck(t.DisplayName(), repo, hubWorkflowsDir()); ok {
+		out = append(out, workflowIntegrityCheck(ctx, t.DisplayName(), repo))
+		if c, ok := retiredExtendsCheck(ctx, t.DisplayName(), repo, hubWorkflowsDir()); ok {
 			out = append(out, c)
 		}
-		if c, ok := fanoutNeverCheck(t.DisplayName(), repo, hubWorkflowsDir()); ok {
+		if c, ok := fanoutNeverCheck(ctx, t.DisplayName(), repo, hubWorkflowsDir()); ok {
 			out = append(out, c)
 		}
 	}
@@ -45,18 +45,18 @@ func workflowIntegrityChecks() []doctor.Result {
 // retiredExtendsCheck reports the published team and project workflows
 // that extend a hub workflow retired as an alias (hub:feature, hub:cadrage:
 // feature-migration); ok is false when there is none (no check shown).
-func retiredExtendsCheck(name string, repo teamstate.WorkflowLayoutReader, hubWorkflows string) (doctor.Result, bool) {
+func retiredExtendsCheck(ctx context.Context, name string, repo teamstate.WorkflowLayoutReader, hubWorkflows string) (doctor.Result, bool) {
 	hub := workflow.NewMemCatalog()
 	_ = hub.LoadDir(hubWorkflows, workflow.LayerHub)
 	scopes := []teamstate.WorkflowScope{teamstate.TeamScope()}
-	projects, _ := repo.WorkflowProjects()
+	projects, _ := repo.WorkflowProjects(ctx)
 	for _, p := range projects {
 		scopes = append(scopes, teamstate.ProjectScope(p))
 	}
 	var found []string
 	for _, sc := range scopes {
 		cat := workflow.NewMemCatalog()
-		_ = repo.LoadWorkflowScopes(cat, sc)
+		_ = repo.LoadWorkflowScopes(ctx, cat, sc)
 		for _, ref := range cat.Refs() {
 			doc, _ := cat.Lookup(ref)
 			parent, err := workflow.ParseRef(doc.Spec.Extends)
@@ -82,18 +82,18 @@ func retiredExtendsCheck(name string, repo teamstate.WorkflowLayoutReader, hubWo
 // change a checkpoint the children of a hub fan-out pass (fanout: never:
 // cp-commit of sweep, cp-2 of implement-spec): the change does not reach a
 // fan-out session (sweep-fanout); ok is false when there is none.
-func fanoutNeverCheck(name string, repo teamstate.WorkflowLayoutReader, hubWorkflows string) (doctor.Result, bool) {
+func fanoutNeverCheck(ctx context.Context, name string, repo teamstate.WorkflowLayoutReader, hubWorkflows string) (doctor.Result, bool) {
 	hub := workflow.NewMemCatalog()
 	_ = hub.LoadDir(hubWorkflows, workflow.LayerHub)
 	scopes := []teamstate.WorkflowScope{teamstate.TeamScope()}
-	projects, _ := repo.WorkflowProjects()
+	projects, _ := repo.WorkflowProjects(ctx)
 	for _, p := range projects {
 		scopes = append(scopes, teamstate.ProjectScope(p))
 	}
 	var found []string
 	for _, sc := range scopes {
 		cat := workflow.NewMemCatalog()
-		_ = repo.LoadWorkflowScopes(cat, sc)
+		_ = repo.LoadWorkflowScopes(ctx, cat, sc)
 		found = append(found, fanoutNeverFindings(hub, sc.String(), cat)...)
 	}
 	if len(found) == 0 {
@@ -132,14 +132,14 @@ func fanoutNeverFindings(hub *workflow.MemCatalog, scope string, cat *workflow.M
 
 // workflowIntegrityCheck loads every scope of repo and summarizes the
 // integrity warnings.
-func workflowIntegrityCheck(name string, repo *teamstate.Repo) doctor.Result {
+func workflowIntegrityCheck(ctx context.Context, name string, repo teamstate.WorkflowRepo) doctor.Result {
 	scopes := []teamstate.WorkflowScope{teamstate.TeamScope()}
-	projects, _ := repo.WorkflowProjects()
+	projects, _ := repo.WorkflowProjects(ctx)
 	for _, p := range projects {
 		scopes = append(scopes, teamstate.ProjectScope(p))
 	}
 	cat := workflow.NewMemCatalog()
-	diags := repo.LoadWorkflowScopes(cat, scopes...)
+	diags := repo.LoadWorkflowScopes(ctx, cat, scopes...)
 	var skipped []string
 	for _, d := range diags {
 		if teamstate.IsIntegrityDiag(d) {
@@ -150,7 +150,7 @@ func workflowIntegrityCheck(name string, repo *teamstate.Repo) doctor.Result {
 	svc := &workflowsvc.Service{HubDir: findHubDir(), TeamState: func(context.Context, workflowsvc.Context) (*workflowsvc.TeamState, error) {
 		return &workflowsvc.TeamState{Repo: repo}, nil
 	}}
-	if b, err := svc.Bricks(context.Background(), workflowsvc.Context{}); err == nil {
+	if b, err := svc.Bricks(ctx, workflowsvc.Context{}); err == nil {
 		for _, d := range b.Diagnostics {
 			skipped = append(skipped, filepath.Base(d.Source))
 		}

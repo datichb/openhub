@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/datichb/openhub/cli/internal/domain"
+	"github.com/datichb/openhub/cli/internal/gitutil/gittest"
 	"github.com/datichb/openhub/cli/internal/runsvc"
 	"github.com/datichb/openhub/cli/internal/teamstate"
 )
@@ -310,4 +312,24 @@ func TestOrphanClaims(t *testing.T) {
 	assert.False(t, chk.OK)
 	assert.Contains(t, chk.Detail, "oh team release pt-cb8 -p p")
 	assert.True(t, claimsCheck(nil).OK)
+}
+
+// A launch on a claim the member holds at the planned status moves it to work
+// and ties it to the session in one commit (one push), not two.
+func TestStartTicketClaimIsOneCommit(t *testing.T) {
+	_, repo, _ := setupClaimTestApp(t)
+	ctx := runsvc.WithStartedSession(context.Background(), "ses_9")
+	_, err := repo.CreateClaim(ctx, teamstate.Claim{TicketID: "PLAN-1", Project: claimsProject, ClaimedBy: "testuser", Status: teamstate.ClaimStatusPlanned, Session: "ses_old"})
+	require.NoError(t, err)
+	count := func() string { return gittest.Run(t, repo.Remote(), "rev-list", "--count", "HEAD") }
+	before, err := strconv.Atoi(count())
+	require.NoError(t, err)
+
+	startTicketClaim(ctx, repo, claimsProject, "testuser", "PLAN-1")
+	c := claimsOnDisk(t, repo, "PLAN-1")
+	assert.Equal(t, teamstate.ClaimStatusInProgress, c.Status)
+	assert.Equal(t, "ses_9", c.Session)
+	after, err := strconv.Atoi(count())
+	require.NoError(t, err)
+	assert.Equal(t, before+1, after, "status and session in a single commit")
 }

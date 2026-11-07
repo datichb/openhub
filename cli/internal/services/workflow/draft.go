@@ -73,7 +73,7 @@ func (s *Service) SaveDraft(ctx context.Context, c Context, in DraftInput) (*Dra
 	if err != nil {
 		return nil, err
 	}
-	chk, err := s.checkDraftText(cat, in.Layer, in.YAML, in.Prompt)
+	chk, err := s.checkDraftText(ctx, cat, in.Layer, in.YAML, in.Prompt)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (s *Service) Drafts(ctx context.Context, c Context) ([]teamstate.DraftInfo,
 	if ts == nil {
 		return nil, ErrNoTeamState
 	}
-	return ts.Repo.ListDrafts(ts.Member, ts.scopes()...)
+	return ts.Repo.ListDrafts(ctx, ts.Member, ts.scopes()...)
 }
 
 // DiscardDraft deletes the current member's draft of id in layer.
@@ -149,7 +149,7 @@ func (s *Service) ResolveDraft(ctx context.Context, c Context, id string, opts R
 	if ts == nil {
 		return nil, ErrNoTeamState
 	}
-	drafts, ds := ts.Repo.LoadDrafts(cat.docs, ts.Member, ts.scopes()...)
+	drafts, ds := ts.Repo.LoadDrafts(ctx, cat.docs, ts.Member, ts.scopes()...)
 	cat.diags = append(cat.diags, ds...)
 	ref, ok := s.lookup(cat, id, opts.Layer)
 	if !ok {

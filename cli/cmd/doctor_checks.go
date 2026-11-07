@@ -28,8 +28,8 @@ func runtimeDoctorChecks(parent context.Context) []doctor.Result {
 
 	out = append(out, toolCheck(ctx))
 
-	out = append(out, workflowIntegrityChecks()...)
-	out = append(out, brickCatalogChecks()...)
+	out = append(out, workflowIntegrityChecks(ctx)...)
+	out = append(out, brickCatalogChecks(ctx)...)
 	out = append(out, deployLeftoversCheck(ctx))
 	out = append(out, legacySkillsCheck())
 	out = append(out, legacyKeysChecks(ctx)...)

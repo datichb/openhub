@@ -11,7 +11,6 @@ import (
 	"log/slog"
 	"os"
 	"regexp"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -328,6 +327,7 @@ type store interface {
 	teamstate.MemberReader
 	teamstate.ClaimReader
 	teamstate.ClaimWriter
+	teamstate.ClaimGroupWriter
 	teamstate.ClaimLabeler
 	teamstate.ClaimTrackerSync
 	teamstate.EventReader
@@ -339,13 +339,6 @@ type store interface {
 	teamstate.PatternReader
 	teamstate.PatternWriter
 	teamstate.BriefReader
-}
-
-// verdictStore is what the verdict of a review needs to move the claim.
-type verdictStore interface {
-	teamstate.ClaimReader
-	teamstate.ClaimWriter
-	teamstate.ClaimTrackerSync
 }
 
 // openStore opens the clone of the team-state repository (a test replaces it
@@ -840,42 +833,6 @@ func verdictTarget(board teamstate.BoardConfig, approved bool) string {
 	return board.DefaultWorkStatus()
 }
 
-// applyVerdictStatus moves the claim to the status a verdict leads to, within
-// the transaction of ctx. The transitions the board allows are used as they
-// are. An approval of a claim still at work goes through the review column
-// when the board has one and the transition to done is not allowed (in_progress
-// → done is not on the default board). A claim already at the target is left
-// as it is. On a board without a review column, the approval is applied
-// directly, as the tracker sync does.
-func applyVerdictStatus(ctx context.Context, repo verdictStore, board teamstate.BoardConfig, project, ticketID, target string) error {
-	claim, err := repo.GetClaim(ctx, project, ticketID)
-	if err != nil {
-		return err
-	}
-	if claim.Status == target {
-		return nil
-	}
-	if teamstate.IsValidBoardTransition(claim.Status, target) {
-		return repo.UpdateClaimStatus(ctx, project, ticketID, target)
-	}
-	if !slices.Contains(board.TerminalStatuses(), target) || claim.Status != board.DefaultWorkStatus() {
-		return repo.UpdateClaimStatus(ctx, project, ticketID, target) // refused, with the reason
-	}
-	for _, review := range board.ReviewStatuses() {
-		if !slices.Contains(board.AllStatuses(), review) {
-			continue
-		}
-		if teamstate.IsValidBoardTransition(claim.Status, review) && teamstate.IsValidBoardTransition(review, target) {
-			if err := repo.UpdateClaimStatus(ctx, project, ticketID, review); err != nil {
-				return err
-			}
-			return repo.UpdateClaimStatus(ctx, project, ticketID, target)
-		}
-	}
-	// No review column on this board: the approval is applied directly.
-	return repo.UpdateClaimStatusFromTracker(ctx, project, ticketID, target)
-}
-
 func handleTeamReviewVerdict(ctx context.Context, params json.RawMessage) (*protocol.ToolResult, error) {
 	var args struct {
 		Project         string  `json:"project"`
@@ -944,24 +901,20 @@ func handleTeamReviewVerdict(ctx context.Context, params json.RawMessage) (*prot
 		Data:    data,
 	}
 
-	// ── 3. Status, label and event: one transaction, one commit, one push ──
+	// ── 3. Status, label and event: one write, one commit, one push ──
 	// A failure of any step leaves nothing: the verdict is neither recorded
 	// nor labelled over a claim left in the wrong column. Sending the verdict
 	// again after a failure is safe (a claim already at the target is kept).
-	err = repo.Transact(ctx, func(ctx context.Context, _ *teamstate.Tx) (teamstate.TxResult, error) {
-		if err := applyVerdictStatus(ctx, repo, board, args.Project, args.TicketID, targetStatus); err != nil {
-			return teamstate.TxResult{}, err
-		}
-		if approved {
-			if err := repo.AddClaimLabel(ctx, args.Project, args.TicketID, teamstate.LabelAgentReviewed); err != nil {
-				return teamstate.TxResult{}, fmt.Errorf("adding the %s label: %w", teamstate.LabelAgentReviewed, err)
-			}
-		}
-		if err := repo.AppendEvent(ctx, event); err != nil {
-			return teamstate.TxResult{}, fmt.Errorf("recording the event: %w", err)
-		}
-		return teamstate.TxResult{Message: fmt.Sprintf("verdict: %s %s/%s → %s", args.Verdict, args.Project, args.TicketID, targetStatus)}, nil
-	})
+	write := teamstate.ClaimWrite{
+		Project: args.Project, TicketID: args.TicketID,
+		Status:  &teamstate.ClaimStatusMove{To: targetStatus, Board: &board},
+		Events:  []teamstate.Event{event},
+		Message: fmt.Sprintf("verdict: %s %s/%s → %s", args.Verdict, args.Project, args.TicketID, targetStatus),
+	}
+	if approved {
+		write.Labels = []string{teamstate.LabelAgentReviewed}
+	}
+	_, err = repo.WriteClaim(ctx, write)
 	if err != nil {
 		if errors.Is(err, teamstate.ErrClaimNotFound) {
 			return &protocol.ToolResult{

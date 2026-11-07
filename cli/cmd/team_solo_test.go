@@ -167,7 +167,7 @@ func TestTeamPromote(t *testing.T) {
 	other := filepath.Join(t.TempDir(), "other")
 	gittest.Run(t, t.TempDir(), "clone", bare, other)
 	cat := workflow.NewMemCatalog()
-	require.Empty(t, teamstate.NewRepo(bare, other).LoadWorkflowLayers(cat, "web"))
+	require.Empty(t, teamstate.NewRepo(bare, other).LoadWorkflowLayers(t.Context(), cat, "web"))
 	_, ok := cat.Lookup(workflow.Ref{Layer: workflow.LayerProject, ID: "quick"})
 	assert.True(t, ok)
 

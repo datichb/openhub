@@ -164,7 +164,7 @@ func planLeave(ctx context.Context, env leaveEnv, id string) (*leavePlan, error)
 			p.CardExists = true
 		}
 	}
-	if ops, err := p.repo.ClaimQueue(); err == nil {
+	if ops, err := p.repo.ClaimQueue(ctx); err == nil {
 		p.QueueOps = len(ops)
 	}
 	if pending, err := p.repo.PendingWork(ctx); err == nil {
@@ -367,7 +367,7 @@ func flushLeaveQueue(ctx context.Context, plan *leavePlan, rep *leaveReport) {
 	if _, _, err := plan.repo.FlushClaimQueue(flushCtx); err != nil {
 		rep.Warnings = append(rep.Warnings, i18n.Tf("v54l.leave.queue_flush_failed", err))
 	}
-	if left, err := plan.repo.ClaimQueue(); err == nil {
+	if left, err := plan.repo.ClaimQueue(ctx); err == nil {
 		rep.QueueLeft = left
 	}
 }

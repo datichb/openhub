@@ -31,6 +31,8 @@ func startTicketClaims(a *app.App, project *domain.Project) func(ctx context.Con
 		if !repo.IsCloned() {
 			return nil
 		}
+		// the first claim of the project records its remote in the team-state
+		ctx = withProjectIdentity(ctx, project, member)
 		var notes []string
 		for _, t := range tickets {
 			if n := startTicketClaim(ctx, repo, projectID, member, t); n != "" {
@@ -46,6 +48,7 @@ type ticketClaimStore interface {
 	teamstate.ConfigReader
 	teamstate.ClaimWriter
 	teamstate.ClaimAdopter
+	teamstate.ClaimGroupWriter
 }
 
 // startTicketClaim claims a ticket for member, or moves its claim from the
@@ -53,6 +56,9 @@ type ticketClaimStore interface {
 // nothing changed). The session that starts (runsvc.StartedSession, when the
 // caller knows it) is recorded on the claim, new or already held, so that the
 // end of the session applies to the claim it worked on.
+//
+// The claim, its status, its session and the claim.taken event are one write
+// (teamstate.WriteClaim): one commit and one push, not one per step.
 func startTicketClaim(ctx context.Context, repo ticketClaimStore, projectID, member, ticketID string) string {
 	var boardCfg teamstate.BoardConfig
 	if cfg, err := repo.LoadConfig(ctx); err == nil && cfg != nil {
@@ -60,22 +66,26 @@ func startTicketClaim(ctx context.Context, repo ticketClaimStore, projectID, mem
 	}
 	session := runsvc.StartedSession(ctx)
 	workStatus := boardCfg.DefaultWorkStatus()
-	// The claim.taken event goes in the commit of the claim.
-	existing, err := repo.CreateClaim(teamstate.WithClaimEvent(ctx, member), teamstate.Claim{TicketID: ticketID, Project: projectID, ClaimedBy: member, Status: workStatus, Session: session})
+	res, err := repo.WriteClaim(ctx, teamstate.ClaimWrite{
+		Project: projectID, TicketID: ticketID, Member: member, Session: session,
+		Create:   &teamstate.Claim{Status: workStatus},
+		Identity: projectIdentityFrom(ctx),
+		Status: &teamstate.ClaimStatusMove{
+			To: workStatus, From: []string{boardCfg.InitialStatus(), teamstate.ClaimStatusPlanned}, BestEffort: true,
+		},
+	})
 	switch {
-	case err == nil:
-		return i18n.Tf("cmd.run.claim.taken", projectID, ticketID)
-	case errors.Is(err, teamstate.ErrOffline), errors.Is(err, teamstate.ErrBusy):
+	case errors.Is(err, teamstate.ErrOffline), errors.Is(err, teamstate.ErrBusy), errors.Is(err, context.DeadlineExceeded):
 		// The team-state cannot be reached. A claim the member already holds
 		// (read in the clone) is handed to the session when the network is
 		// back, ahead of what the previous session had queued for it; a ticket
 		// nobody holds (in the clone) is taken then, if it is still free.
 		if session != "" {
-			if queued, qerr := repo.QueueAdoptClaim(projectID, ticketID, member, session); qerr == nil && queued {
+			if queued, qerr := repo.QueueAdoptClaim(context.WithoutCancel(ctx), projectID, ticketID, member, session); qerr == nil && queued {
 				return i18n.Tf("cmd.claims.start.adopt_queued", projectID, ticketID)
 			}
 		}
-		queued, qerr := repo.QueueCreateClaim(projectID, ticketID, member, session, workStatus)
+		queued, qerr := repo.QueueCreateClaim(context.WithoutCancel(ctx), projectID, ticketID, member, session, workStatus)
 		switch {
 		case qerr != nil:
 			return i18n.Tf("v54l.claims.start.offline", projectID, ticketID)
@@ -87,24 +97,15 @@ func startTicketClaim(ctx context.Context, repo ticketClaimStore, projectID, mem
 		// A refused access is not offline: the claim is not queued, the member
 		// is told (oh doctor) instead of finding the ticket unclaimed later.
 		return i18n.Tf("v54a.claims.start.access", projectID, ticketID)
-	case errors.Is(err, teamstate.ErrClaimExists) && existing != nil:
-		if existing.ClaimedBy != member {
-			return i18n.Tf("cmd.run.claim.other", ticketID, existing.ClaimedBy)
-		}
-		note := ""
-		if existing.Status == boardCfg.InitialStatus() || existing.Status == teamstate.ClaimStatusPlanned {
-			if err := repo.UpdateClaimStatus(ctx, projectID, ticketID, workStatus); err == nil {
-				note = i18n.Tf("cmd.run.claim.started", projectID, ticketID, existing.Status, workStatus)
-			}
-		}
-		_, queued, err := repo.AdoptClaimDurable(ctx, projectID, ticketID, member, session)
-		if err != nil {
-			slog.Warn("team claim not tied to the session", "ticket", ticketID, "session", session, "error", err)
-		}
-		if queued && note == "" {
-			note = i18n.Tf("cmd.claims.start.adopt_queued", projectID, ticketID)
-		}
-		return note
+	case err != nil:
+		slog.Warn("team claim not started", "ticket", ticketID, "session", session, "error", err)
+		return ""
+	case res.Created:
+		return i18n.Tf("cmd.run.claim.taken", projectID, ticketID)
+	case res.Held != nil:
+		return i18n.Tf("cmd.run.claim.other", ticketID, res.Held.ClaimedBy)
+	case res.Moved:
+		return i18n.Tf("cmd.run.claim.started", projectID, ticketID, res.From, workStatus)
 	}
 	return ""
 }

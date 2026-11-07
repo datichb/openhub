@@ -15,7 +15,7 @@ import (
 // brickCatalogChecks reports, for every configured team-state with team
 // bricks, the invalid bricks, the bricks refused by the integrity check and
 // a catalogue never sealed (ADR-054).
-func brickCatalogChecks() []doctor.Result {
+func brickCatalogChecks(ctx context.Context) []doctor.Result {
 	a := TryApp()
 	if a == nil || a.Config == nil {
 		return nil
@@ -30,7 +30,7 @@ func brickCatalogChecks() []doctor.Result {
 		if !repo.IsCloned() {
 			continue
 		}
-		if c, ok := brickCatalogCheck(t.DisplayName(), repo, findHubDir()); ok {
+		if c, ok := brickCatalogCheck(ctx, t.DisplayName(), repo, findHubDir()); ok {
 			out = append(out, c)
 		}
 	}
@@ -39,12 +39,12 @@ func brickCatalogChecks() []doctor.Result {
 
 // brickCatalogCheck checks the team catalogue of repo; ok is false when it
 // has no brick (no check shown).
-func brickCatalogCheck(name string, repo *teamstate.Repo, hubDir string) (doctor.Result, bool) {
+func brickCatalogCheck(ctx context.Context, name string, repo teamstate.WorkflowRepo, hubDir string) (doctor.Result, bool) {
 	svc := &workflowsvc.Service{HubDir: hubDir, TeamState: func(context.Context, workflowsvc.Context) (*workflowsvc.TeamState, error) {
 		return &workflowsvc.TeamState{Repo: repo}, nil
 	}}
 	check := doctor.Result{Name: i18n.Tf("cmd.doctor.bricks.name", name), OK: true}
-	b, probs, err := svc.CheckTeamBricks(context.Background(), workflowsvc.Context{})
+	b, probs, err := svc.CheckTeamBricks(ctx, workflowsvc.Context{})
 	if err != nil {
 		check.OK, check.Detail = false, err.Error()
 		return check, true

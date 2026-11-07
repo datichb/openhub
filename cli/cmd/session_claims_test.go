@@ -115,7 +115,7 @@ func TestEndTicketClaims(t *testing.T) {
 		assert.Equal(t, teamstate.ClaimStatusInProgress, claimsOnDisk(t, repo, "pt-bob").Status, "someone else's claim")
 		assert.Equal(t, "ses_other", claimsOnDisk(t, repo, "pt-other").Session, "another session's claim")
 		assert.Equal(t, teamstate.ClaimStatusDone, claimsOnDisk(t, repo, "pt-done").Status)
-		ops, err := repo.ClaimQueue()
+		ops, err := repo.ClaimQueue(t.Context())
 		require.NoError(t, err)
 		assert.Empty(t, ops, "the queue is empty")
 	})
@@ -210,7 +210,7 @@ func TestEndTicketClaimsOfflineThenOnline(t *testing.T) {
 	r := endSessionClaims(ctx, repo, in, time.Second, 20*time.Second)
 	require.ErrorIs(t, r.Flush.Err, teamstate.ErrOffline)
 	assert.Equal(t, 3, r.Flush.Pending, "one operation per ticket")
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	require.Len(t, ops, 3)
 	for _, op := range ops {
@@ -223,7 +223,7 @@ func TestEndTicketClaimsOfflineThenOnline(t *testing.T) {
 	// A second end (the hook may run twice) queues nothing more.
 	r = endSessionClaims(ctx, repo, in, time.Second, 20*time.Second)
 	require.ErrorIs(t, r.Flush.Err, teamstate.ErrOffline)
-	ops, err = repo.ClaimQueue()
+	ops, err = repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, ops, 3, "same operations: not queued twice")
 
@@ -241,7 +241,7 @@ func TestEndTicketClaimsOfflineThenOnline(t *testing.T) {
 	assert.Zero(t, f.Dropped)
 	assert.Equal(t, teamstate.ClaimStatusDone, claimsOnDisk(t, repo, "pt-closed").Status)
 	claimsGone(t, repo, "pt-open")
-	ops, err = repo.ClaimQueue()
+	ops, err = repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, ops)
 }
@@ -269,7 +269,7 @@ func TestEndTicketClaimsIsIdempotent(t *testing.T) {
 	require.NoError(t, second.Flush.Err)
 	assert.Zero(t, second.Flush.Applied)
 	assert.Equal(t, commits, commitsOf(t, repo.Path()), "no commit the second time")
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, ops)
 	assert.Equal(t, teamstate.ClaimStatusDone, claimsOnDisk(t, repo, "pt-closed").Status)

@@ -20,7 +20,7 @@ func TestClaimRemovedOnPurpose(t *testing.T) {
 		createUnder(t, repo, "p", Claim{TicketID: id, ClaimedBy: "alice", Status: ClaimStatusInProgress})
 	}
 	require.NoError(t, repo.ReleaseClaim(ctx, "p", "released"))
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpRelease, Project: "p", TicketID: "queued", ClaimedBy: "alice"}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpRelease, Project: "p", TicketID: "queued", ClaimedBy: "alice"}))
 	_, _, err := repo.FlushClaimQueue(ctx)
 	require.NoError(t, err)
 	require.NoError(t, repo.UpdateClaimStatusFromTracker(ctx, "p", "cleaned", ClaimStatusDone))

@@ -65,7 +65,7 @@ func (s *Service) Publish(ctx context.Context, c Context, draftID, message strin
 	if err != nil {
 		return nil, err
 	}
-	scope, id, err := s.draftScope(ts, draftID)
+	scope, id, err := s.draftScope(ctx, ts, draftID)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (s *Service) Restore(ctx context.Context, c Context, id string, version int
 	if err != nil {
 		return nil, err
 	}
-	scope, bare, err := s.publishedScope(ts, id)
+	scope, bare, err := s.publishedScope(ctx, ts, id)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func (s *Service) Archive(ctx context.Context, c Context, id, message string) (*
 	if err != nil {
 		return nil, err
 	}
-	scope, bare, err := s.publishedScope(ts, id)
+	scope, bare, err := s.publishedScope(ctx, ts, id)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (s *Service) FlushQueue(ctx context.Context, c Context) ([]*Publication, []
 	if err != nil {
 		return nil, []error{err}
 	}
-	ops, err := ts.Repo.Queue()
+	ops, err := ts.Repo.Queue(ctx)
 	if err != nil {
 		return nil, []error{err}
 	}
@@ -131,7 +131,7 @@ func (s *Service) FlushQueue(ctx context.Context, c Context) ([]*Publication, []
 		if errors.Is(err, teamstate.ErrOffline) {
 			break
 		}
-		_ = ts.Repo.Dequeue(op.Scope, op.ID)
+		_ = ts.Repo.Dequeue(context.WithoutCancel(ctx), op.Scope, op.ID)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s %s:%s: %w", op.Kind, op.Scope, op.ID, err))
 			continue
@@ -147,7 +147,7 @@ func (s *Service) run(ctx context.Context, ts *TeamState, op teamstate.QueuedOp)
 	if !errors.Is(err, teamstate.ErrOffline) {
 		return p, err
 	}
-	if qerr := ts.Repo.Enqueue(op); qerr != nil {
+	if qerr := ts.Repo.Enqueue(context.WithoutCancel(ctx), op); qerr != nil {
 		return nil, fmt.Errorf("%w (queue: %v)", err, qerr)
 	}
 	scope, _ := teamstate.ParseScope(op.Scope)
@@ -177,7 +177,7 @@ func (s *Service) apply(ctx context.Context, ts *TeamState, op teamstate.QueuedO
 }
 
 // build writes one operation in the transaction and revalidates it.
-func (s *Service) build(_ context.Context, ts *TeamState, tx *teamstate.Tx, scope teamstate.WorkflowScope, op teamstate.QueuedOp) (*Publication, string, error) {
+func (s *Service) build(ctx context.Context, ts *TeamState, tx *teamstate.Tx, scope teamstate.WorkflowScope, op teamstate.QueuedOp) (*Publication, string, error) {
 	if err := tx.CheckPublish(op.Member); err != nil {
 		return nil, "", err
 	}
@@ -187,7 +187,7 @@ func (s *Service) build(_ context.Context, ts *TeamState, tx *teamstate.Tx, scop
 		return nil, "", err
 	}
 	cur, hasCur := lock.Get(scope, op.ID)
-	history, err := tx.Repo().ListHistory(scope, op.ID)
+	history, err := tx.Repo().ListHistory(ctx, scope, op.ID)
 	if err != nil {
 		return nil, "", err
 	}
@@ -489,12 +489,12 @@ func (s *Service) requireTeam(ctx context.Context, c Context) (*TeamState, error
 }
 
 // draftScope finds the scope of the current member's draft id.
-func (s *Service) draftScope(ts *TeamState, id string) (teamstate.WorkflowScope, string, error) {
+func (s *Service) draftScope(ctx context.Context, ts *TeamState, id string) (teamstate.WorkflowScope, string, error) {
 	if ref, err := wf.ParseRef(id); err == nil {
 		scope, err := ts.scopeOf(ref.Layer)
 		return scope, ref.ID, err
 	}
-	drafts, err := ts.Repo.ListDrafts(ts.Member, ts.scopes()...)
+	drafts, err := ts.Repo.ListDrafts(ctx, ts.Member, ts.scopes()...)
 	if err != nil {
 		return teamstate.WorkflowScope{}, "", err
 	}
@@ -507,12 +507,12 @@ func (s *Service) draftScope(ts *TeamState, id string) (teamstate.WorkflowScope,
 }
 
 // publishedScope finds the scope where id is published (project first).
-func (s *Service) publishedScope(ts *TeamState, id string) (teamstate.WorkflowScope, string, error) {
+func (s *Service) publishedScope(ctx context.Context, ts *TeamState, id string) (teamstate.WorkflowScope, string, error) {
 	if ref, err := wf.ParseRef(id); err == nil {
 		scope, err := ts.scopeOf(ref.Layer)
 		return scope, ref.ID, err
 	}
-	lock, err := ts.Repo.ReadWorkflowLock()
+	lock, err := ts.Repo.ReadWorkflowLock(ctx)
 	if err != nil {
 		return teamstate.WorkflowScope{}, "", err
 	}
@@ -521,7 +521,7 @@ func (s *Service) publishedScope(ts *TeamState, id string) (teamstate.WorkflowSc
 		if _, ok := lock.Get(scopes[i], id); ok {
 			return scopes[i], id, nil
 		}
-		if h, _ := ts.Repo.ListHistory(scopes[i], id); len(h) > 0 {
+		if h, _ := ts.Repo.ListHistory(ctx, scopes[i], id); len(h) > 0 {
 			return scopes[i], id, nil
 		}
 	}

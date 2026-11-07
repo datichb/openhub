@@ -13,7 +13,7 @@ import (
 // team-state holding the team layer and, optionally, the project whose
 // layer is loaded too.
 type workflowTeamLayers struct {
-	Repo    *teamstate.Repo
+	Repo    teamstate.WorkflowRepo
 	Project string // project id; empty = team layer only
 	TeamID  string
 	Member  string

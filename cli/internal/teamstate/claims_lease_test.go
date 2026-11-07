@@ -97,7 +97,7 @@ func TestClaimIsExpiredFallbackIsIsStale(t *testing.T) {
 	for _, ago := range []time.Duration{time.Hour, 2 * 24 * time.Hour, 4 * 24 * time.Hour, 10 * 24 * time.Hour} {
 		c := Claim{LastActivity: InstantOf(time.Now().Add(-ago))}
 		cfg := &TeamConfig{Takeover: TakeoverConfig{StaleDays: 3}}
-		assert.Equal(t, repo.IsStale(&c, 3), c.IsExpired(time.Now(), cfg), ago.String())
+		assert.Equal(t, repo.IsStale(t.Context(), &c, 3), c.IsExpired(time.Now(), cfg), ago.String())
 	}
 }
 

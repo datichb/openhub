@@ -181,10 +181,10 @@ func claimQueueResults(states []claimQueueState, now time.Time) []doctor.Result 
 	return out
 }
 
-func claimQueueStates(teams []*claimsTeam) []claimQueueState {
+func claimQueueStates(ctx context.Context, teams []*claimsTeam) []claimQueueState {
 	var out []claimQueueState
 	for _, t := range teams {
-		ops, err := t.repo.ClaimQueue()
+		ops, err := t.repo.ClaimQueue(ctx)
 		s := claimQueueState{Repo: t.repo.Path(), Count: len(ops), Corrupt: err}
 		for _, op := range ops {
 			if s.Oldest.IsZero() || op.QueuedAt.Before(s.Oldest) {
@@ -250,7 +250,7 @@ func claimsLeaseResults(ctx context.Context, a *app.App, now time.Time) []doctor
 		}
 	}
 	results := append([]doctor.Result{expiredClaimsResult(expired, unverified...)}, staleReviewClaimsResult(inReview)...)
-	return append(results, claimQueueResults(claimQueueStates(teams), now)...)
+	return append(results, claimQueueResults(claimQueueStates(ctx, teams), now)...)
 }
 
 // fixClaimsQueue is oh doctor --fix for the claims queue.
@@ -270,7 +270,7 @@ func repairClaimsQueue(ctx context.Context, w io.Writer, confirm confirmFunc) er
 	var todo []*claimsTeam
 	count := 0
 	for _, t := range claimTeams(ctx, a, a.Config) {
-		if ops, err := t.repo.ClaimQueue(); err == nil && len(ops) > 0 {
+		if ops, err := t.repo.ClaimQueue(ctx); err == nil && len(ops) > 0 {
 			todo = append(todo, t)
 			count += len(ops)
 		}
@@ -310,7 +310,7 @@ func planClaimsQueueFix(ctx context.Context) (string, error) {
 	}
 	count, repos := 0, 0
 	for _, t := range claimTeams(ctx, a, a.Config) {
-		if ops, err := t.repo.ClaimQueue(); err == nil && len(ops) > 0 {
+		if ops, err := t.repo.ClaimQueue(ctx); err == nil && len(ops) > 0 {
 			count += len(ops)
 			repos++
 		}

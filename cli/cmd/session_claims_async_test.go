@@ -45,7 +45,7 @@ func TestSessionClaimsEndQueuesBeforeTheBackgroundTask(t *testing.T) {
 
 	sessionClaimsEnd(context.Background(), a, proj, s, true)
 
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	require.Len(t, ops, 1, "queued although the background task never ran")
 	assert.Equal(t, teamstate.ClaimOpRelease, ops[0].Kind)
@@ -66,7 +66,7 @@ func TestSessionClaimsEndFlushesInTheBackground(t *testing.T) {
 	sessionClaimsEnd(context.Background(), a, proj, s, true)
 	require.True(t, claimFlushes.wait(30*time.Second))
 	claimsGone(t, repo, "pt-open")
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, ops)
 }

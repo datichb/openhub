@@ -206,7 +206,7 @@ func TestQueueUnderLock(t *testing.T) {
 	release, err := repo.lockGit(context.Background())
 	require.NoError(t, err)
 	done := make(chan error, 1)
-	go func() { done <- repo.Enqueue(QueuedOp{Kind: "publish", Scope: "team", ID: "x"}) }()
+	go func() { done <- repo.Enqueue(t.Context(), QueuedOp{Kind: "publish", Scope: "team", ID: "x"}) }()
 	select {
 	case err := <-done:
 		t.Fatalf("enqueued while locked: %v", err)
@@ -214,7 +214,7 @@ func TestQueueUnderLock(t *testing.T) {
 	}
 	release()
 	require.NoError(t, <-done)
-	ops, err := repo.Queue()
+	ops, err := repo.Queue(t.Context())
 	require.NoError(t, err)
 	require.Len(t, ops, 1)
 	assert.True(t, errors.Is(&BusyError{}, ErrBusy))

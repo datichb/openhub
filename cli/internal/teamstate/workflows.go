@@ -191,7 +191,10 @@ func (r *Repo) CommitWorkflowLayout(ctx context.Context, scope WorkflowScope, ms
 }
 
 // WorkflowProjects lists the projects that have a workflows/ folder.
-func (r *Repo) WorkflowProjects() ([]string, error) {
+func (r *Repo) WorkflowProjects(ctx context.Context) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	entries, err := os.ReadDir(filepath.Join(r.path, "projects"))

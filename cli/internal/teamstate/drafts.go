@@ -1,6 +1,7 @@
 package teamstate
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -61,7 +62,10 @@ type DraftInfo struct {
 func (d DraftInfo) Ref() workflow.Ref { return workflow.Ref{Layer: d.Scope.Layer(), ID: d.ID} }
 
 // ListDrafts returns the drafts of member in scopes.
-func (r *Repo) ListDrafts(member string, scopes ...WorkflowScope) ([]DraftInfo, error) {
+func (r *Repo) ListDrafts(ctx context.Context, member string, scopes ...WorkflowScope) ([]DraftInfo, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.listDrafts(member, scopes...)
@@ -105,8 +109,8 @@ func (r *Repo) listDrafts(member string, scopes ...WorkflowScope) ([]DraftInfo, 
 // LoadDrafts puts the drafts of member in scopes into cat, replacing the
 // published documents of the same reference (Source.Draft is set). It
 // returns the references loaded.
-func (r *Repo) LoadDrafts(cat *workflow.MemCatalog, member string, scopes ...WorkflowScope) ([]workflow.Ref, workflow.Diagnostics) {
-	drafts, err := r.ListDrafts(member, scopes...)
+func (r *Repo) LoadDrafts(ctx context.Context, cat *workflow.MemCatalog, member string, scopes ...WorkflowScope) ([]workflow.Ref, workflow.Diagnostics) {
+	drafts, err := r.ListDrafts(ctx, member, scopes...)
 	if err != nil {
 		return nil, workflow.Diagnostics{integrityDiag(DiagWorkflowReadFailed, r.path, err)}
 	}

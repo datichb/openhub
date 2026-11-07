@@ -37,8 +37,8 @@ func TestClaimQueueFileFormat(t *testing.T) {
 	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	at := time.Date(2026, 7, 8, 14, 30, 0, 0, time.UTC)
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{ID: "a", Kind: ClaimOpStatus, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Session: "ses_1", Status: "review", QueuedAt: at}))
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{ID: "b", Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Label: "session-ended", QueuedAt: at}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{ID: "a", Kind: ClaimOpStatus, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Session: "ses_1", Status: "review", QueuedAt: at}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{ID: "b", Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Label: "session-ended", QueuedAt: at}))
 
 	data, err := os.ReadFile(filepath.Join(repo.Path(), ".git", "oh-claims-queue.json"))
 	require.NoError(t, err)
@@ -70,7 +70,7 @@ func TestClaimQueueFileFormat(t *testing.T) {
 	assert.Equal(t, want, string(data))
 	assert.Empty(t, gittest.Run(t, repo.Path(), "status", "--porcelain"), "the queue is not versioned")
 
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, ops, 2)
 }
@@ -86,7 +86,7 @@ func TestEnqueueClaimOpValidation(t *testing.T) {
 		"bad project":        {Kind: ClaimOpRelease, Project: "../x", TicketID: "T-1", ClaimedBy: "a"},
 		"bad ticket":         {Kind: ClaimOpRelease, Project: "P", TicketID: "", ClaimedBy: "a"},
 	} {
-		assert.ErrorIs(t, repo.EnqueueClaimOp(op), ErrInvalidClaimOp, name)
+		assert.ErrorIs(t, repo.EnqueueClaimOp(t.Context(), op), ErrInvalidClaimOp, name)
 	}
 	assert.NoFileExists(t, filepath.Join(repo.Path(), ".git", "oh-claims-queue.json"))
 }
@@ -94,7 +94,7 @@ func TestEnqueueClaimOpValidation(t *testing.T) {
 func TestEnqueueClaimOpNotCloned(t *testing.T) {
 	t.Parallel()
 	repo := NewRepo("", filepath.Join(t.TempDir(), "nope"))
-	assert.ErrorIs(t, repo.EnqueueClaimOp(relOp("SRU-1")), ErrNotCloned)
+	assert.ErrorIs(t, repo.EnqueueClaimOp(t.Context(), relOp("SRU-1")), ErrNotCloned)
 }
 
 func TestEnqueueClaimOpDeduplicates(t *testing.T) {
@@ -104,14 +104,14 @@ func TestEnqueueClaimOpDeduplicates(t *testing.T) {
 	touch := func(at time.Time) ClaimOp {
 		return ClaimOp{Kind: ClaimOpTouch, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Session: "ses_1", QueuedAt: at}
 	}
-	require.NoError(t, repo.EnqueueClaimOp(touch(early)))
-	require.NoError(t, repo.EnqueueClaimOp(touch(late)))
-	require.NoError(t, repo.EnqueueClaimOp(relOp("SRU-1")))
-	require.NoError(t, repo.EnqueueClaimOp(relOp("SRU-1")))
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Label: "a"}))
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Label: "b"}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), touch(early)))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), touch(late)))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), relOp("SRU-1")))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), relOp("SRU-1")))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Label: "a"}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Label: "b"}))
 
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	require.Len(t, ops, 4, "one touch (the latest), one release, two labels")
 	kinds := []string{ops[0].Kind, ops[1].Kind, ops[2].Kind, ops[3].Kind}
@@ -133,11 +133,11 @@ func TestEnqueueClaimOpConcurrent(t *testing.T) {
 			if i%2 == 1 {
 				r = other
 			}
-			assert.NoError(t, r.EnqueueClaimOp(relOp(fmt.Sprintf("SRU-%d", i))))
+			assert.NoError(t, r.EnqueueClaimOp(t.Context(), relOp(fmt.Sprintf("SRU-%d", i))))
 		}()
 	}
 	wg.Wait()
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, ops, 20)
 }
@@ -161,10 +161,10 @@ func TestFlushClaimQueueOneCommitForSeveralOperations(t *testing.T) {
 	}
 	before, beforeBare := commitCount(t, repo.path), commitCount(t, bare)
 
-	require.NoError(t, repo.EnqueueClaimOp(relOp("SRU-1")))
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpStatus, Project: "T-SRU", TicketID: "SRU-2", ClaimedBy: "benjamin", Session: "ses_1", Status: ClaimStatusReview}))
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-2", ClaimedBy: "benjamin", Session: "ses_1", Label: "session-ended"}))
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-3", ClaimedBy: "benjamin", Session: "ses_1", Label: "review"}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), relOp("SRU-1")))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpStatus, Project: "T-SRU", TicketID: "SRU-2", ClaimedBy: "benjamin", Session: "ses_1", Status: ClaimStatusReview}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-2", ClaimedBy: "benjamin", Session: "ses_1", Label: "session-ended"}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-3", ClaimedBy: "benjamin", Session: "ses_1", Label: "review"}))
 
 	applied, dropped, err := repo.FlushClaimQueue(ctx)
 	require.NoError(t, err)
@@ -198,15 +198,15 @@ func TestFlushClaimQueueStaysQueuedWhileOffline(t *testing.T) {
 	ctx := context.Background()
 	mustClaim(t, repo, "SRU-1")
 	mustClaim(t, repo, "SRU-2")
-	require.NoError(t, repo.EnqueueClaimOp(relOp("SRU-1")))
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-2", ClaimedBy: "benjamin", Session: "ses_1", Label: "session-ended"}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), relOp("SRU-1")))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-2", ClaimedBy: "benjamin", Session: "ses_1", Label: "session-ended"}))
 	before, beforeBare := commitCount(t, repo.path), commitCount(t, bare)
 	online := goOffline(t, repo)
 
 	applied, dropped, err := repo.FlushClaimQueue(ctx)
 	require.ErrorIs(t, err, ErrOffline)
 	assert.Zero(t, applied+dropped)
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, ops, 2, "the operations stay in the queue")
 	assert.Equal(t, before, commitCount(t, repo.path))
@@ -228,7 +228,7 @@ func TestFlushClaimQueueStaysQueuedWhenThePushFails(t *testing.T) {
 	t.Parallel()
 	repo, bare := setupGitTestRepo(t)
 	mustClaim(t, repo, "SRU-1")
-	require.NoError(t, repo.EnqueueClaimOp(relOp("SRU-1")))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), relOp("SRU-1")))
 	before := commitCount(t, repo.path)
 	// The pull works, the push does not: a pre-receive hook refuses.
 	hook := filepath.Join(bare, "hooks", "pre-receive")
@@ -236,7 +236,7 @@ func TestFlushClaimQueueStaysQueuedWhenThePushFails(t *testing.T) {
 
 	_, _, err := repo.FlushClaimQueue(context.Background())
 	require.Error(t, err)
-	ops, qerr := repo.ClaimQueue()
+	ops, qerr := repo.ClaimQueue(t.Context())
 	require.NoError(t, qerr)
 	assert.Len(t, ops, 1)
 	assert.Equal(t, before, commitCount(t, repo.path), "the local commit is dropped")
@@ -260,11 +260,11 @@ func TestFlushClaimQueueDropsWhatNoLongerApplies(t *testing.T) {
 	mustCreate(t, repo, Claim{TicketID: "TRANS", ClaimedBy: "benjamin", Session: "ses_1"})    // in_progress → done is not allowed
 	mustCreate(t, repo, Claim{TicketID: "OK", ClaimedBy: "benjamin", Session: "ses_1"})       // applies
 	for _, id := range []string{"OWNED", "OTHERSES", "NOSES", "GONE"} {
-		require.NoError(t, repo.EnqueueClaimOp(relOp(id)))
+		require.NoError(t, repo.EnqueueClaimOp(t.Context(), relOp(id)))
 	}
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpStatus, Project: "T-SRU", TicketID: "TRANS", ClaimedBy: "benjamin", Session: "ses_1", Status: ClaimStatusDone}))
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpStatus, Project: "T-SRU", TicketID: "TRANS", ClaimedBy: "benjamin", Session: "ses_1", Status: "nonsense"}))
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "OK", ClaimedBy: "benjamin", Session: "ses_1", Label: "x"}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpStatus, Project: "T-SRU", TicketID: "TRANS", ClaimedBy: "benjamin", Session: "ses_1", Status: ClaimStatusDone}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpStatus, Project: "T-SRU", TicketID: "TRANS", ClaimedBy: "benjamin", Session: "ses_1", Status: "nonsense"}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "OK", ClaimedBy: "benjamin", Session: "ses_1", Label: "x"}))
 	before := commitCount(t, repo.path)
 
 	applied, dropped, err := repo.FlushClaimQueue(ctx)
@@ -286,7 +286,7 @@ func TestFlushClaimQueueNoCommitWhenEverythingIsDropped(t *testing.T) {
 	t.Parallel()
 	repo, bare := setupGitTestRepo(t)
 	mustCreate(t, repo, Claim{TicketID: "SRU-1", ClaimedBy: "alice", Session: "ses_alice"})
-	require.NoError(t, repo.EnqueueClaimOp(relOp("SRU-1")))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), relOp("SRU-1")))
 	before, beforeBare := commitCount(t, repo.path), commitCount(t, bare)
 
 	applied, dropped, err := repo.FlushClaimQueue(context.Background())
@@ -302,7 +302,7 @@ func TestFlushClaimQueueAnyTransition(t *testing.T) {
 	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	mustClaim(t, repo, "SRU-1")
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpStatus, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Session: "ses_1", Status: ClaimStatusDone, AnyTransition: true}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpStatus, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Session: "ses_1", Status: ClaimStatusDone, AnyTransition: true}))
 	applied, dropped, err := repo.FlushClaimQueue(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 1, applied)
@@ -318,9 +318,9 @@ func TestFlushClaimQueueIsIdempotent(t *testing.T) {
 	ctx := context.Background()
 	mustClaim(t, repo, "SRU-1")
 	mustClaim(t, repo, "SRU-2")
-	require.NoError(t, repo.EnqueueClaimOp(relOp("SRU-1")))
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpStatus, Project: "T-SRU", TicketID: "SRU-2", ClaimedBy: "benjamin", Session: "ses_1", Status: ClaimStatusReview}))
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-2", ClaimedBy: "benjamin", Session: "ses_1", Label: "x"}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), relOp("SRU-1")))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpStatus, Project: "T-SRU", TicketID: "SRU-2", ClaimedBy: "benjamin", Session: "ses_1", Status: ClaimStatusReview}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-2", ClaimedBy: "benjamin", Session: "ses_1", Label: "x"}))
 	saved, err := os.ReadFile(repo.claimQueuePath())
 	require.NoError(t, err)
 
@@ -355,13 +355,13 @@ func TestFlushClaimQueueKeepsWhatIsQueuedMeanwhile(t *testing.T) {
 	repo, _ := setupGitTestRepo(t)
 	mustClaim(t, repo, "SRU-1")
 	mustClaim(t, repo, "SRU-2")
-	require.NoError(t, repo.EnqueueClaimOp(relOp("SRU-1")))
-	repo.beforePush = func() { assert.NoError(t, repo.EnqueueClaimOp(relOp("SRU-2"))) }
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), relOp("SRU-1")))
+	repo.beforePush = func() { assert.NoError(t, repo.EnqueueClaimOp(t.Context(), relOp("SRU-2"))) }
 
 	applied, _, err := repo.FlushClaimQueue(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 1, applied)
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	require.Len(t, ops, 1)
 	assert.Equal(t, "SRU-2", ops[0].TicketID)
@@ -396,14 +396,14 @@ func TestEnqueueClaimOpOverACorruptFile(t *testing.T) {
 	repo, _ := setupGitTestRepo(t)
 	require.NoError(t, os.WriteFile(repo.claimQueuePath(), []byte("not json"), 0o600))
 
-	_, err := repo.ClaimQueue()
+	_, err := repo.ClaimQueue(t.Context())
 	var corrupt *ClaimQueueCorruptError
 	require.ErrorAs(t, err, &corrupt)
 	assert.Empty(t, corrupt.SetAside, "reading does not move the file")
 	assert.FileExists(t, repo.claimQueuePath())
 
-	require.NoError(t, repo.EnqueueClaimOp(relOp("SRU-1")), "the new operation is not refused")
-	ops, err := repo.ClaimQueue()
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), relOp("SRU-1")), "the new operation is not refused")
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, ops, 1)
 	matches, err := filepath.Glob(repo.claimQueuePath() + ".corrupt-*")
@@ -421,7 +421,7 @@ func TestClaimQueueFromANewerOh(t *testing.T) {
 
 	_, _, err := repo.FlushClaimQueue(context.Background())
 	assert.ErrorIs(t, err, ErrClaimQueueNewer)
-	assert.ErrorIs(t, repo.EnqueueClaimOp(relOp("SRU-1")), ErrClaimQueueNewer)
+	assert.ErrorIs(t, repo.EnqueueClaimOp(t.Context(), relOp("SRU-1")), ErrClaimQueueNewer)
 	data, _ := os.ReadFile(repo.claimQueuePath())
 	assert.Equal(t, future, string(data), "left as it is")
 }
@@ -452,7 +452,7 @@ func TestFlushClaimQueueTouch(t *testing.T) {
 	// Queued 13 h after the creation (11 h left: less than half), flushed at once.
 	at := time.Now().UTC().Add(13 * time.Hour)
 	touch := ClaimOp{Kind: ClaimOpTouch, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Session: "ses_1", QueuedAt: at}
-	require.NoError(t, repo.EnqueueClaimOp(touch))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), touch))
 	applied, _, err := repo.FlushClaimQueue(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, 1, applied)
@@ -464,7 +464,7 @@ func TestFlushClaimQueueTouch(t *testing.T) {
 	// An older touch does not shorten the lease and commits nothing.
 	before := commitCount(t, repo.path)
 	touch.QueuedAt = time.Now().UTC()
-	require.NoError(t, repo.EnqueueClaimOp(touch))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), touch))
 	applied, dropped, err := repo.FlushClaimQueue(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, 1, applied)
@@ -480,7 +480,7 @@ func TestHeartbeatTouchesThenFlushes(t *testing.T) {
 	ctx := context.Background()
 	mustClaim(t, repo, "SRU-1")
 	mustClaim(t, repo, "SRU-2")
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-2", ClaimedBy: "benjamin", Session: "ses_1", Label: "x"}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-2", ClaimedBy: "benjamin", Session: "ses_1", Label: "x"}))
 	before := commitCount(t, bare)
 
 	now := time.Now().UTC().Add(13 * time.Hour)
@@ -515,7 +515,7 @@ func TestHeartbeatOfflineQueuesTheRenewalThenTheNextBeatAppliesIt(t *testing.T) 
 		assert.Empty(t, res.Touched)
 		assert.Equal(t, 2, res.Queued)
 	}
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, ops, 2)
 
@@ -536,13 +536,13 @@ func TestHeartbeatSkipsTheQueueWhenTheRenewalCouldNotReachTheRemote(t *testing.T
 	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	mustClaim(t, repo, "SRU-1")
-	require.NoError(t, repo.EnqueueClaimOp(relOp("SRU-1")))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), relOp("SRU-1")))
 	goOffline(t, repo)
 
 	_, err := repo.Heartbeat(context.Background(), []ClaimRef{ref("SRU-1")}, "benjamin", "ses_1", time.Now().Add(20*time.Hour))
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrOffline))
-	ops, qerr := repo.ClaimQueue()
+	ops, qerr := repo.ClaimQueue(t.Context())
 	require.NoError(t, qerr)
 	assert.Len(t, ops, 2, "the release and the touch")
 }

@@ -6972,5 +6972,8 @@
   "v55m.mcp.diag.scope": "projet %[1]s : %[2]s",
   "v55m.mcp.diag.name": "MCP %s : activé sans jeton",
   "v55m.team_mcp.state.inherited": "hérité — chaque membre décide",
-  "v55m.team_mcp.state.desc": "Ce que dit l'équipe : activé, désactivé ou hérité (rien n'est écrit)"
+  "v55m.team_mcp.state.desc": "Ce que dit l'équipe : activé, désactivé ou hérité (rien n'est écrit)",
+  "v55ts.doctor.project_identity.name": "Identité des projets (équipe)",
+  "v55ts.doctor.project_identity.unreadable": "%[1]s : le fichier projects/<id>/project.toml de l'équipe est illisible (%[2]v). Corrigez-le ou supprimez-le : la prochaine réservation l'écrira de nouveau.",
+  "v55ts.doctor.project_identity.mismatch": "%[1]s : l'équipe (%[2]s) enregistre le dépôt %[3]s pour ce projet, mais son dossier pointe vers %[4]s. Le projet a changé de dépôt, ou deux dépôts partagent le même identifiant ; vérifiez lequel est le bon."
 }

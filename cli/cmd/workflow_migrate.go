@@ -331,7 +331,7 @@ func migrateProjectWorkflowConfigs(ctx context.Context, a *app.App, svc *workflo
 		scope := teamstate.ProjectScope(project.ID)
 		id := workflow.LegacyWorkflowID
 		parent := "hub:" + id
-		if lock, err := repo.ReadWorkflowLock(); err == nil {
+		if lock, err := repo.ReadWorkflowLock(ctx); err == nil {
 			if _, ok := lock.Get(teamstate.TeamScope(), id); ok {
 				parent = "team:" + id // must extend the nearest layer
 			}
@@ -438,7 +438,7 @@ func writeMigrationDraft(tx *teamstate.Tx, scope teamstate.WorkflowScope, member
 // published `feature` yet; otherwise, or when invalid, the draft is kept.
 func publishMigration(ctx context.Context, svc *workflowsvc.Service, c workflowsvc.Context, repo teamstate.WorkflowLayoutReader, scope teamstate.WorkflowScope, id string, m *workflowMigration) {
 	ref := string(scope.Layer()) + ":" + id
-	if lock, err := repo.ReadWorkflowLock(); err == nil {
+	if lock, err := repo.ReadWorkflowLock(ctx); err == nil {
 		if _, ok := lock.Get(scope, id); ok {
 			m.notice("draft_kept", ref)
 			return

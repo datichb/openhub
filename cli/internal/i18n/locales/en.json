@@ -6972,5 +6972,8 @@
   "v55m.mcp.diag.scope": "project %[1]s: %[2]s",
   "v55m.mcp.diag.name": "MCP %s: enabled without a token",
   "v55m.team_mcp.state.inherited": "inherited — each member decides",
-  "v55m.team_mcp.state.desc": "What the team says: enabled, disabled or inherited (nothing is written)"
+  "v55m.team_mcp.state.desc": "What the team says: enabled, disabled or inherited (nothing is written)",
+  "v55ts.doctor.project_identity.name": "Project identity (team)",
+  "v55ts.doctor.project_identity.unreadable": "%[1]s: the team's projects/<id>/project.toml file cannot be read (%[2]v). Fix or delete it: the next claim will write it again.",
+  "v55ts.doctor.project_identity.mismatch": "%[1]s: the team (%[2]s) records the repository %[3]s for this project, but its folder points to %[4]s. The project moved to another repository, or two repositories share the same ID; check which one is right."
 }

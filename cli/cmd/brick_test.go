@@ -85,7 +85,7 @@ func TestBrickCLI(t *testing.T) {
 	clone := env.clones["bob"]
 	p := filepath.Join(clone, "catalog", "skills", "team", "hotfix-protocol.md")
 	require.NoError(t, os.WriteFile(p, []byte("---\nname: hotfix-protocol\ndescription: x\n---\n"), 0o644))
-	check, ok := brickCatalogCheck("acme", teamstate.NewRepo(env.bare, clone), findHubDir())
+	check, ok := brickCatalogCheck(t.Context(), "acme", teamstate.NewRepo(env.bare, clone), findHubDir())
 	require.True(t, ok)
 	assert.False(t, check.OK)
 	assert.Contains(t, check.Detail, "hotfix-protocol.md")
