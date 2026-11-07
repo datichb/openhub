@@ -18,6 +18,7 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **`oh mcp status [service]`** couvre maintenant jira, github et linear, et accepte un nom de service. Un nom inconnu donne une erreur qui liste les services valides, avec un code de sortie non nul. La colonne SOURCE peut valoir « équipe ».
 - **MCP d'équipe à trois états** (activé, désactivé, hérité) pour gitlab, jira, figma, gslides, github et linear. Dans la vue « Services MCP » de la TUI, `Espace` passe d'un état à l'autre, y compris pour revenir à « hérité ». ([MIGRATION.md](MIGRATION.md))
 - **Un service MCP activé sans jeton** (ni `token_key`, ni variable d'environnement) est signalé par `oh mcp status`, par `oh doctor` (aussi pour chaque projet) et par un avertissement au lancement d'une session.
+- **Identité du projet dans le team-state** : la première réservation prise par un lancement enregistre le remote du projet dans `projects/<ID>/project.toml` (écrit `hôte/chemin`, sans utilisateur ni jeton ; un fichier existant n'est jamais remplacé). `oh doctor` (`project_identity`, avertissement) signale un fichier illisible et un remote qui n'est plus l'origine du dossier du projet.
 
 ### Changed
 
@@ -26,6 +27,8 @@ Versioning : [Semantic Versioning](https://semver.org/lang/fr/)
 - **Les serveurs MCP sont donnés aux sessions dans un ordre fixe** : gitlab, jira, figma, gslides, github, linear.
 - **Les vues et l'aide ne proposent plus d'URL pour GitHub et Linear** : leur adresse d'API est fixe.
 - **Homebrew : oh est publié en cask.** GoReleaser publie `Casks/openhub.rb` (`homebrew_casks`) à la place de la formule `Formula/openhub.rb` (`brews`, déprécié). Les commandes ne changent pas : `brew install datichb/tap/openhub`, `brew upgrade openhub`. Le cask déclare `git` et `opencode` comme dépendances, retire la quarantaine macOS du binaire (non notarisé) et s'installe aussi sous Linux (Homebrew 4.5 ou plus). Un cask n'a pas de dépendance « recommandée » : `beads` et `terminal-notifier` sont proposés dans les notes affichées à l'installation. La publication demande GoReleaser 2.19 ou plus. ([MIGRATION.md](MIGRATION.md))
+- **Un lancement écrit la réservation, le statut et la session en un seul commit** (un pull, un push), au lieu d'un aller-retour git par étape ; il en va de même du verdict de revue de l'outil MCP `review_verdict` (statut, label et événement). Nouvelle API `teamstate.WriteClaim`.
+- **Interfaces fines pour le team-state** : le service des workflows (`TeamState.Repo`) et le lancement (`TeamRepo`, `TeamClaims`) ne nomment plus `*teamstate.Repo`. Les lectures locales du team-state (file des claims, workflows, brouillons, historique, `HasConfig`, `HasPolicies`) prennent un `ctx` et s'arrêtent avec lui. Aucun changement visible.
 
 ### Fixed
 
