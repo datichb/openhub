@@ -143,7 +143,10 @@ func (r *Repo) lockClaimQueue(ctx context.Context) (func(), error) {
 
 // ClaimQueue returns the queued operations, oldest first. A file that cannot
 // be read gives a *ClaimQueueCorruptError (nothing is moved).
-func (r *Repo) ClaimQueue() ([]ClaimOp, error) {
+func (r *Repo) ClaimQueue(ctx context.Context) ([]ClaimOp, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return r.readClaimQueue(false)
 }
 
@@ -255,11 +258,14 @@ func (op *ClaimOp) sameTarget(o *ClaimOp) bool {
 // for a claim the new session now works on, and replayed they would release
 // it), and an operation of another session queued after an adoption is not
 // added. Both are logged.
-func (r *Repo) EnqueueClaimOp(op ClaimOp) error {
+func (r *Repo) EnqueueClaimOp(ctx context.Context, op ClaimOp) error {
 	if err := op.validate(); err != nil {
 		return err
 	}
-	unlock, err := r.lockClaimQueue(context.Background())
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	unlock, err := r.lockClaimQueue(ctx)
 	if err != nil {
 		return err
 	}
@@ -521,9 +527,12 @@ func (r *Repo) applyCreate(tx *Tx, cfg *TeamConfig, op *ClaimOp) (ok, changed bo
 // QueueCreateClaim queues the taking of a ticket for the member (a launch that
 // could not reach the remote), after checking in the clone that the ticket has
 // no claim: queued is false, without error, when the clone already has one.
-func (r *Repo) QueueCreateClaim(project, ticketID, member, session, status string) (queued bool, err error) {
+func (r *Repo) QueueCreateClaim(ctx context.Context, project, ticketID, member, session, status string) (queued bool, err error) {
 	if member == "" {
 		return false, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return false, err
 	}
 	if _, err := SafeName(project); err != nil {
 		return false, fmt.Errorf("invalid project name: %w", err)
@@ -541,7 +550,7 @@ func (r *Repo) QueueCreateClaim(project, ticketID, member, session, status strin
 		return false, getErr
 	}
 	op := ClaimOp{Kind: ClaimOpCreate, Project: project, TicketID: ticketID, ClaimedBy: member, Session: session, Status: status}
-	if err := r.EnqueueClaimOp(op); err != nil {
+	if err := r.EnqueueClaimOp(ctx, op); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -573,7 +582,7 @@ func (r *Repo) Heartbeat(ctx context.Context, refs []ClaimRef, member, session s
 	if err != nil {
 		errs = append(errs, err)
 		if ctx.Err() == nil && !errors.Is(err, ErrNotCloned) {
-			res.Queued = r.queueTouches(refs, member, session, now)
+			res.Queued = r.queueTouches(ctx, refs, member, session, now)
 		}
 		// the queue would meet the same wall: one attempt on the network per
 		// beat, not two (a refused access waits for new credentials)
@@ -593,7 +602,7 @@ func (r *Repo) Heartbeat(ctx context.Context, refs []ClaimRef, member, session s
 // queueTouches queues a touch for each claim that TouchClaims would have
 // renewed; it returns how many were queued. Without member nothing is
 // queued: a touch needs the owner it is conditioned on.
-func (r *Repo) queueTouches(refs []ClaimRef, member, session string, now time.Time) int {
+func (r *Repo) queueTouches(ctx context.Context, refs []ClaimRef, member, session string, now time.Time) int {
 	if member == "" {
 		return 0
 	}
@@ -606,7 +615,7 @@ func (r *Repo) queueTouches(refs []ClaimRef, member, session string, now time.Ti
 			Kind: ClaimOpTouch, Project: c.Project, TicketID: c.TicketID,
 			ClaimedBy: c.ClaimedBy, Session: c.Session, QueuedAt: now.UTC(),
 		}
-		if err := r.EnqueueClaimOp(op); err != nil {
+		if err := r.EnqueueClaimOp(ctx, op); err != nil {
 			slog.Warn("teamstate.claims_queue.enqueue_failed", "ticket", c.TicketID, "error", err)
 			continue
 		}
@@ -617,8 +626,8 @@ func (r *Repo) queueTouches(refs []ClaimRef, member, session string, now time.Ti
 
 // QueuedAdoption is the session a queued adoption is going to give the claim
 // to ("" and false when none is queued).
-func (r *Repo) QueuedAdoption(project, ticketID, member string) (string, bool) {
-	ops, err := r.ClaimQueue()
+func (r *Repo) QueuedAdoption(ctx context.Context, project, ticketID, member string) (string, bool) {
+	ops, err := r.ClaimQueue(ctx)
 	if err != nil {
 		return "", false
 	}
@@ -637,9 +646,12 @@ func (r *Repo) QueuedAdoption(project, ticketID, member string) (string, bool) {
 // in the clone that the claim exists and is the member's. queued is false,
 // without error, when the claim is somebody else's; a claim that is not in
 // the clone gives ErrClaimNotFound.
-func (r *Repo) QueueAdoptClaim(project, ticketID, member, session string) (queued bool, err error) {
+func (r *Repo) QueueAdoptClaim(ctx context.Context, project, ticketID, member, session string) (queued bool, err error) {
 	if member == "" || session == "" {
 		return false, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return false, err
 	}
 	if _, err := SafeName(project); err != nil {
 		return false, fmt.Errorf("invalid project name: %w", err)
@@ -657,7 +669,7 @@ func (r *Repo) QueueAdoptClaim(project, ticketID, member, session string) (queue
 		return false, nil
 	}
 	op := ClaimOp{Kind: ClaimOpAdopt, Project: project, TicketID: ticketID, ClaimedBy: member, Session: session}
-	if err := r.EnqueueClaimOp(op); err != nil {
+	if err := r.EnqueueClaimOp(ctx, op); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -673,10 +685,12 @@ func (r *Repo) AdoptClaimDurable(ctx context.Context, project, ticketID, member,
 	adopted, err = r.AdoptClaim(ctx, project, ticketID, member, session)
 	switch {
 	case err == nil:
-		r.supersedeClaimOps(project, ticketID, member, session)
+		r.supersedeClaimOps(context.WithoutCancel(ctx), project, ticketID, member, session)
 		return adopted, false, nil
 	case errors.Is(err, ErrOffline), errors.Is(err, ErrBusy), errors.Is(err, context.DeadlineExceeded):
-		queued, qerr := r.QueueAdoptClaim(project, ticketID, member, session)
+		// the queue is local: a deadline that cut the remote short must not
+		// stop the adoption from being kept
+		queued, qerr := r.QueueAdoptClaim(context.WithoutCancel(ctx), project, ticketID, member, session)
 		if qerr != nil {
 			return false, false, errors.Join(err, qerr)
 		}
@@ -687,9 +701,9 @@ func (r *Repo) AdoptClaimDurable(ctx context.Context, project, ticketID, member,
 
 // supersedeClaimOps removes the queued operations of the sessions other than
 // session on the claim of member. The queue is left alone when none matches.
-func (r *Repo) supersedeClaimOps(project, ticketID, member, session string) {
+func (r *Repo) supersedeClaimOps(ctx context.Context, project, ticketID, member, session string) {
 	probe := ClaimOp{Project: project, TicketID: ticketID, ClaimedBy: member}
-	unlock, err := r.lockClaimQueue(context.Background())
+	unlock, err := r.lockClaimQueue(ctx)
 	if err != nil {
 		return
 	}

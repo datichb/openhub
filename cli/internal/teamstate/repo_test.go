@@ -99,13 +99,13 @@ func TestRepoHasFiles(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	r := NewRepo("", dir)
-	assert.False(t, r.HasConfig(), "no config.toml")
-	assert.False(t, r.HasPolicies(), "no policies.toml")
+	assert.False(t, r.HasConfig(t.Context()), "no config.toml")
+	assert.False(t, r.HasPolicies(t.Context()), "no policies.toml")
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.toml"), []byte("[notification]\nenabled = false\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "policies.toml"), []byte("[policies]\n"), 0o644))
-	assert.True(t, r.HasConfig(), "config.toml")
-	assert.True(t, r.HasPolicies(), "policies.toml")
+	assert.True(t, r.HasConfig(t.Context()), "config.toml")
+	assert.True(t, r.HasPolicies(t.Context()), "policies.toml")
 }
 
 // TestGitCloneInvalidURL_FailsFastWithNoPrompt verifies two properties of the

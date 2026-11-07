@@ -93,14 +93,14 @@ func TestClaimsBeatEmptiesTheQueueWithoutOpenSession(t *testing.T) {
 
 	b := beaterOf(a, time.Now())
 	require.NoError(t, b.beat(context.Background()), "a remote that does not answer is not an error of the beat")
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, ops, 1)
 
 	online()
 	require.NoError(t, b.beat(context.Background()))
 	claimsGone(t, repo, "pt-open")
-	ops, err = repo.ClaimQueue()
+	ops, err = repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, ops)
 }
@@ -109,7 +109,7 @@ func TestClaimsBeatEmptiesTheQueueWithoutOpenSession(t *testing.T) {
 func TestClaimsQueueTaskEmptiesTheQueue(t *testing.T) {
 	a, repo := setupBeat(t)
 	claimsCreate(t, repo, "pt-open", "testuser", "ses_1")
-	require.NoError(t, repo.EnqueueClaimOp(teamstate.ClaimOp{Kind: teamstate.ClaimOpRelease, Project: claimsProject, TicketID: "pt-open", ClaimedBy: "testuser", Session: "ses_1"}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), teamstate.ClaimOp{Kind: teamstate.ClaimOpRelease, Project: claimsProject, TicketID: "pt-open", ClaimedBy: "testuser", Session: "ses_1"}))
 
 	readHubConfig = func() (*config.Config, error) { return a.Config, nil }
 	t.Cleanup(func() { readHubConfig = config.Read })
@@ -133,7 +133,7 @@ func TestClaimsBeatOfflineQueuesTheRenewal(t *testing.T) {
 
 	b := beaterOf(a, later)
 	require.NoError(t, b.beat(context.Background()))
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	require.Len(t, ops, 1)
 	assert.Equal(t, teamstate.ClaimOpTouch, ops[0].Kind)
@@ -150,7 +150,7 @@ func TestClaimsBeatHeartbeatOff(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(repo.Path(), "config.toml"), []byte("[claim]\nheartbeat_minutes = 0\n"), 0o644))
 	claimsCreate(t, repo, "pt-a", "testuser", "ses_1")
 	claimsCreate(t, repo, "pt-gone", "testuser", "ses_old")
-	require.NoError(t, repo.EnqueueClaimOp(teamstate.ClaimOp{Kind: teamstate.ClaimOpRelease, Project: claimsProject, TicketID: "pt-gone", ClaimedBy: "testuser", Session: "ses_old"}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), teamstate.ClaimOp{Kind: teamstate.ClaimOpRelease, Project: claimsProject, TicketID: "pt-gone", ClaimedBy: "testuser", Session: "ses_old"}))
 	before := claimsOnDisk(t, repo, "pt-a").LeaseUntil
 
 	b := beaterOf(a, time.Now().Add(13*time.Hour))

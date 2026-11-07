@@ -503,7 +503,10 @@ func (r *Repo) untrackedKeeps(ctx context.Context) []string {
 }
 
 // HasConfig returns true if config.toml exists in the team-state repo.
-func (r *Repo) HasConfig() bool {
+func (r *Repo) HasConfig(ctx context.Context) bool {
+	if ctx.Err() != nil {
+		return false
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	_, err := os.Stat(filepath.Join(r.path, "config.toml"))
@@ -511,7 +514,10 @@ func (r *Repo) HasConfig() bool {
 }
 
 // HasPolicies returns true if policies.toml exists in the team-state repo.
-func (r *Repo) HasPolicies() bool {
+func (r *Repo) HasPolicies(ctx context.Context) bool {
+	if ctx.Err() != nil {
+		return false
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	_, err := os.Stat(filepath.Join(r.path, "policies.toml"))

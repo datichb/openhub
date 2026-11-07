@@ -119,7 +119,7 @@ func TestInitStructureCreatesWorkflowLayout(t *testing.T) {
 	require.NoError(t, repo.EnsureWorkflowLayout(ProjectScope("web")))
 	_, err := os.Stat(filepath.Join(repo.Path(), "projects", "web", "workflows", "published", ".gitkeep"))
 	assert.NoError(t, err)
-	projects, err := repo.WorkflowProjects()
+	projects, err := repo.WorkflowProjects(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, []string{"web"}, projects)
 }
@@ -133,7 +133,7 @@ func TestWorkflowLockRoundTrip(t *testing.T) {
 	l.Set(ProjectScope("web"), "review", LockEntry{Version: 1, Hash: "sha256:b", PromptHash: "sha256:c", PublishedBy: "bob", PublishedAt: at})
 	require.NoError(t, repo.WriteWorkflowLockLocal(l))
 
-	got, err := repo.ReadWorkflowLock()
+	got, err := repo.ReadWorkflowLock(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, l, got)
 	data, err := os.ReadFile(filepath.Join(repo.Path(), WorkflowsLockFile))
@@ -164,7 +164,7 @@ description: Web hotfix
 `, "")
 
 	cat := hubCatalog(t)
-	diags := repo.LoadWorkflowLayers(cat, "web")
+	diags := repo.LoadWorkflowLayers(t.Context(), cat, "web")
 	require.Empty(t, diags)
 
 	r, diags := workflow.Check(cat, workflow.Ref{Layer: workflow.LayerProject, ID: "ticket-hotfix"}, nil,
@@ -175,7 +175,7 @@ description: Web hotfix
 
 	// Without the project, only the team layer is loaded.
 	cat = hubCatalog(t)
-	require.Empty(t, repo.LoadWorkflowLayers(cat, ""))
+	require.Empty(t, repo.LoadWorkflowLayers(t.Context(), cat, ""))
 	_, ok := cat.Lookup(workflow.Ref{Layer: workflow.LayerProject, ID: "ticket-hotfix"})
 	assert.False(t, ok)
 }
@@ -202,7 +202,7 @@ func TestLoadWorkflowLayers_HandEditedFileIsSkipped(t *testing.T) {
 
 	require.NoError(t, repo.Pull(ctx))
 	cat := hubCatalog(t)
-	diags := repo.LoadWorkflowLayers(cat, "")
+	diags := repo.LoadWorkflowLayers(t.Context(), cat, "")
 	require.Equal(t, []string{DiagWorkflowHashMismatch}, codesOf(diags))
 	assert.Equal(t, workflow.SeverityWarning, diags[0].Severity)
 	assert.Contains(t, diags[0].Source, "ticket-hotfix.yaml")
@@ -223,13 +223,13 @@ func TestLoadWorkflowLayers_IntegrityWarnings(t *testing.T) {
 	// File never published.
 	writeRepoFile(t, repo, filepath.Join("workflows", "published", "draft-like.yaml"), "apiVersion: oh/v1\nkind: Workflow\nid: draft-like\nrisk: read\n")
 	// Lock entry whose file was deleted.
-	l, err := repo.ReadWorkflowLock()
+	l, err := repo.ReadWorkflowLock(t.Context())
 	require.NoError(t, err)
 	l.Set(TeamScope(), "gone", LockEntry{Version: 1, Hash: "sha256:x"})
 	require.NoError(t, repo.WriteWorkflowLockLocal(l))
 
 	cat := hubCatalog(t)
-	diags := repo.LoadWorkflowLayers(cat, "")
+	diags := repo.LoadWorkflowLayers(t.Context(), cat, "")
 	assert.ElementsMatch(t, []string{DiagWorkflowPromptMismatch, DiagWorkflowUnlocked, DiagWorkflowLockOrphan}, codesOf(diags))
 	for _, d := range diags {
 		assert.Equal(t, workflow.SeverityWarning, d.Severity, d.Code)
@@ -239,7 +239,7 @@ func TestLoadWorkflowLayers_IntegrityWarnings(t *testing.T) {
 	// An unreadable lock loads nothing.
 	writeRepoFile(t, repo, WorkflowsLockFile, "[team\n")
 	cat = hubCatalog(t)
-	diags = repo.LoadWorkflowLayers(cat, "")
+	diags = repo.LoadWorkflowLayers(t.Context(), cat, "")
 	assert.Equal(t, []string{DiagWorkflowLockInvalid}, codesOf(diags))
 	assert.Len(t, cat.Refs(), 1)
 }
@@ -250,7 +250,7 @@ func TestLoadWorkflowLayers_ParseErrorsAreReported(t *testing.T) {
 	publishLocal(t, repo, TeamScope(), "broken", "apiVersion: oh/v1\nkind: Workflow\nid: broken\nnope: 1\n", "")
 	publishLocal(t, repo, TeamScope(), "renamed", "apiVersion: oh/v1\nkind: Workflow\nid: other\nrisk: read\n", "")
 	cat := workflow.NewMemCatalog()
-	diags := repo.LoadWorkflowLayers(cat, "")
+	diags := repo.LoadWorkflowLayers(t.Context(), cat, "")
 	assert.True(t, diags.HasErrors())
 	assert.Contains(t, codesOf(diags), "id_filename_mismatch")
 	assert.Empty(t, cat.Refs())

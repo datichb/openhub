@@ -27,12 +27,12 @@ func (s *Service) History(ctx context.Context, c Context, id string) ([]Version,
 	if err != nil {
 		return nil, err
 	}
-	scope, bare, err := s.publishedScope(ts, id)
+	scope, bare, err := s.publishedScope(ctx, ts, id)
 	if err != nil {
 		return nil, err
 	}
 	ref := wf.Ref{Layer: scope.Layer(), ID: bare}
-	lock, err := ts.Repo.ReadWorkflowLock()
+	lock, err := ts.Repo.ReadWorkflowLock(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (s *Service) History(ctx context.Context, c Context, id string) ([]Version,
 		rel, _ := teamstate.PublishedRel(scope, bare)
 		out = append(out, Version{Ref: ref, Version: cur.Version, Current: true, Entry: cur, Path: filepath.Join(ts.Repo.Path(), rel)})
 	}
-	hist, err := ts.Repo.ListHistory(scope, bare)
+	hist, err := ts.Repo.ListHistory(ctx, scope, bare)
 	if err != nil {
 		return nil, err
 	}

@@ -23,7 +23,7 @@ func TestDrafts(t *testing.T) {
 	_, err = repo.WriteDraftLocal(ProjectScope("web"), "bob", "ticket-hotfix", []byte(teamHotfixYAML), nil)
 	require.NoError(t, err)
 
-	drafts, err := repo.ListDrafts("alice", TeamScope(), ProjectScope("web"))
+	drafts, err := repo.ListDrafts(t.Context(), "alice", TeamScope(), ProjectScope("web"))
 	require.NoError(t, err)
 	require.Len(t, drafts, 1, "only alice's drafts")
 	assert.Equal(t, "team:ticket-hotfix", drafts[0].Ref().String())
@@ -33,8 +33,8 @@ func TestDrafts(t *testing.T) {
 	// their own prompt copy.
 	cat := hubCatalog(t)
 	publishLocal(t, repo, TeamScope(), "ticket-hotfix", teamHotfixYAML, "Published {{ .ticket }}")
-	require.Empty(t, repo.LoadWorkflowLayers(cat, ""))
-	refs, diags := repo.LoadDrafts(cat, "alice", TeamScope())
+	require.Empty(t, repo.LoadWorkflowLayers(t.Context(), cat, ""))
+	refs, diags := repo.LoadDrafts(t.Context(), cat, "alice", TeamScope())
 	require.Empty(t, diags)
 	assert.Equal(t, []workflow.Ref{{Layer: workflow.LayerTeam, ID: "ticket-hotfix"}}, refs)
 	doc, _ := cat.Lookup(refs[0])
@@ -51,9 +51,9 @@ func TestDrafts(t *testing.T) {
 	removed, err := repo.DeleteDraftLocal(TeamScope(), "alice", "ticket-hotfix")
 	require.NoError(t, err)
 	assert.Len(t, removed, 2)
-	drafts, _ = repo.ListDrafts("alice", TeamScope())
+	drafts, _ = repo.ListDrafts(t.Context(), "alice", TeamScope())
 	assert.Empty(t, drafts)
-	_, err = repo.ListDrafts("../x", TeamScope())
+	_, err = repo.ListDrafts(t.Context(), "../x", TeamScope())
 	assert.ErrorIs(t, err, ErrUnsafeName)
 }
 
@@ -73,14 +73,14 @@ func TestListHistory(t *testing.T) {
 	writeRepoFile(t, repo, prel, "p")
 	require.NoError(t, os.WriteFile(filepath.Join(repo.Path(), "workflows", "history", "ticket", "x.yaml"), nil, 0o644))
 
-	h, err := repo.ListHistory(TeamScope(), "ticket")
+	h, err := repo.ListHistory(t.Context(), TeamScope(), "ticket")
 	require.NoError(t, err)
 	require.Len(t, h, 3)
 	assert.Equal(t, []int{1, 2, 10}, []int{h[0].Version, h[1].Version, h[2].Version})
 	assert.Equal(t, "bob", h[1].Entry.PublishedBy)
 	assert.NotEmpty(t, h[1].Prompt)
 	assert.Empty(t, h[0].Prompt)
-	none, err := repo.ListHistory(TeamScope(), "nope")
+	none, err := repo.ListHistory(t.Context(), TeamScope(), "nope")
 	require.NoError(t, err)
 	assert.Empty(t, none)
 }

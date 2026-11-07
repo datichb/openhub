@@ -26,8 +26,8 @@ type RepoInfo interface {
 	Path() string
 	Remote() string
 	IsCloned() bool
-	HasConfig() bool
-	HasPolicies() bool
+	HasConfig(ctx context.Context) bool
+	HasPolicies(ctx context.Context) bool
 }
 
 // RepoSync synchronizes the clone with the remote.
@@ -50,7 +50,7 @@ type BoardStatusSetter interface {
 type ClaimReader interface {
 	ListClaims(ctx context.Context, project string) ([]Claim, error)
 	GetClaim(ctx context.Context, project, ticketID string) (*Claim, error)
-	IsStale(claim *Claim, staleDays int) bool
+	IsStale(ctx context.Context, claim *Claim, staleDays int) bool
 }
 
 // ClaimWriter changes the claims of the members (take, release, hand over,
@@ -262,22 +262,22 @@ type ClaimRehomer interface {
 // adoption is queued when the remote cannot be reached.
 type ClaimAdopter interface {
 	AdoptClaimDurable(ctx context.Context, project, ticketID, member, session string) (adopted, queued bool, err error)
-	QueueAdoptClaim(project, ticketID, member, session string) (queued bool, err error)
+	QueueAdoptClaim(ctx context.Context, project, ticketID, member, session string) (queued bool, err error)
 	// QueueCreateClaim queues the taking of a ticket that has no claim yet.
-	QueueCreateClaim(project, ticketID, member, session, status string) (queued bool, err error)
+	QueueCreateClaim(ctx context.Context, project, ticketID, member, session, status string) (queued bool, err error)
 }
 
 // ClaimAdoptionReader tells the session a queued adoption gave a claim to.
 type ClaimAdoptionReader interface {
-	QueuedAdoption(project, ticketID, member string) (string, bool)
+	QueuedAdoption(ctx context.Context, project, ticketID, member string) (string, bool)
 }
 
 // ClaimOpQueue is the durable queue of the claim operations kept in the
 // clone: an operation is queued locally (never waits for git) and applied
 // later by FlushClaimQueue.
 type ClaimOpQueue interface {
-	ClaimQueue() ([]ClaimOp, error)
-	EnqueueClaimOp(op ClaimOp) error
+	ClaimQueue(ctx context.Context) ([]ClaimOp, error)
+	EnqueueClaimOp(ctx context.Context, op ClaimOp) error
 	FlushClaimQueue(ctx context.Context) (applied, dropped int, err error)
 }
 
@@ -290,9 +290,9 @@ type StructureEnsurer interface {
 // WorkflowLayoutReader reads the workflows of the team-state: the layers a
 // catalog is loaded from, the projects that have workflows, the lock.
 type WorkflowLayoutReader interface {
-	LoadWorkflowScopes(cat *workflow.MemCatalog, scopes ...WorkflowScope) workflow.Diagnostics
-	WorkflowProjects() ([]string, error)
-	ReadWorkflowLock() (*WorkflowLock, error)
+	LoadWorkflowScopes(ctx context.Context, cat *workflow.MemCatalog, scopes ...WorkflowScope) workflow.Diagnostics
+	WorkflowProjects(ctx context.Context) ([]string, error)
+	ReadWorkflowLock(ctx context.Context) (*WorkflowLock, error)
 }
 
 // WorkflowLayoutCommitter commits the layout of the workflows of a scope.

@@ -142,7 +142,7 @@ func endTicketClaims(ctx context.Context, repo claimEnder, in sessionClaimsInput
 		// A session that took the claim over while the remote was out of
 		// reach (a queued adoption) is the one the claim belongs to.
 		owner := c.Session
-		if queued, ok := repo.QueuedAdoption(in.Project, t, in.Member); ok {
+		if queued, ok := repo.QueuedAdoption(ctx, in.Project, t, in.Member); ok {
 			owner = queued
 		}
 		if in.Session != "" && owner != "" && owner != in.Session {
@@ -187,7 +187,7 @@ func endTicketClaims(ctx context.Context, repo claimEnder, in sessionClaimsInput
 			outcome.End = claimKept
 		}
 		if op.Kind != "" {
-			if err := repo.EnqueueClaimOp(op); err != nil {
+			if err := repo.EnqueueClaimOp(context.WithoutCancel(ctx), op); err != nil {
 				slog.Warn("team claim not queued", "ticket", t, "error", err)
 				continue
 			}
@@ -215,7 +215,7 @@ func flushClaimQueue(ctx context.Context, repo teamstate.ClaimOpQueue, lockWait,
 	f.Applied, f.Dropped, f.Err = repo.FlushClaimQueue(fctx)
 	if f.Err != nil {
 		slog.Warn("team claims queue not flushed", "error", f.Err)
-		if ops, err := repo.ClaimQueue(); err == nil {
+		if ops, err := repo.ClaimQueue(context.WithoutCancel(ctx)); err == nil {
 			f.Pending = len(ops)
 		}
 	}

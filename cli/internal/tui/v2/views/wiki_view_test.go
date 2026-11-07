@@ -28,12 +28,12 @@ type wikiRepo struct {
 	failWith  error
 }
 
-func (r *wikiRepo) Path() string               { return "" }
-func (r *wikiRepo) Remote() string             { return "" }
-func (r *wikiRepo) IsCloned() bool             { return true }
-func (r *wikiRepo) HasConfig() bool            { return false }
-func (r *wikiRepo) HasPolicies() bool          { return false }
-func (r *wikiRepo) Pull(context.Context) error { return nil }
+func (r *wikiRepo) Path() string                     { return "" }
+func (r *wikiRepo) Remote() string                   { return "" }
+func (r *wikiRepo) IsCloned() bool                   { return true }
+func (r *wikiRepo) HasConfig(context.Context) bool   { return false }
+func (r *wikiRepo) HasPolicies(context.Context) bool { return false }
+func (r *wikiRepo) Pull(context.Context) error       { return nil }
 func (r *wikiRepo) WikiListPages(context.Context) ([]string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

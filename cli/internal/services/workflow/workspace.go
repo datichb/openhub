@@ -68,7 +68,7 @@ func (s *Service) Workspace(ctx context.Context, c Context) (*Workspace, error) 
 		}
 	}
 
-	refs, ds := ts.Repo.LoadDrafts(cat.docs, ts.Member, ts.scopes()...)
+	refs, ds := ts.Repo.LoadDrafts(ctx, cat.docs, ts.Member, ts.scopes()...)
 	loaded := map[string]bool{}
 	for _, ref := range refs {
 		if doc, ok := cat.docs.Lookup(ref); ok {

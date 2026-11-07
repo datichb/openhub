@@ -321,7 +321,10 @@ func (r *Repo) BriefExists(ctx context.Context, project, ticketID string) bool {
 }
 
 // IsStale returns true if a claim has been inactive for longer than staleDays.
-func (r *Repo) IsStale(claim *Claim, staleDays int) bool {
+func (r *Repo) IsStale(ctx context.Context, claim *Claim, staleDays int) bool {
+	if ctx.Err() != nil {
+		return false
+	}
 	return claimStale(claim, staleDays, time.Now())
 }
 

@@ -40,7 +40,7 @@ func TestOfflineAdoptionSurvivesTheReleaseOfThePreviousSession(t *testing.T) {
 	c := claimsOnDisk(t, repo, "pt-open")
 	assert.Equal(t, "testuser", c.ClaimedBy)
 	assert.Equal(t, "ses_2", c.Session, "the claim is held by the new session")
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, ops)
 
@@ -111,7 +111,7 @@ func TestOfflineLaunchOnANewTicketQueuesTheClaim(t *testing.T) {
 		}
 	}
 	assert.Equal(t, 1, taken)
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, ops)
 }

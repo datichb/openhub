@@ -126,7 +126,7 @@ func TestClaimsLeaseDoctorChecks(t *testing.T) {
 
 	// A queue that has been waiting for a long time.
 	online := goOffline(t, repo)
-	require.NoError(t, repo.EnqueueClaimOp(teamstate.ClaimOp{Kind: teamstate.ClaimOpRelease, Project: claimsProject, TicketID: "pt-a", ClaimedBy: "testuser", Session: "ses_1"}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), teamstate.ClaimOp{Kind: teamstate.ClaimOpRelease, Project: claimsProject, TicketID: "pt-a", ClaimedBy: "testuser", Session: "ses_1"}))
 	rs = claimsLeaseResults(ctx, a, time.Now().Add(2*time.Hour))
 	require.Len(t, rs, 2)
 	assert.Equal(t, doctorIDClaimsQueue, rs[1].ID)
@@ -137,7 +137,7 @@ func TestClaimsLeaseDoctorChecks(t *testing.T) {
 	require.NoError(t, repairClaimsQueue(ctx, &out, alwaysConfirm))
 	claimsGone(t, repo, "pt-a")
 	assert.Contains(t, out.String(), "1")
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, ops)
 }

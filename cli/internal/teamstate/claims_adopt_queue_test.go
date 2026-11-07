@@ -16,7 +16,7 @@ func TestAdoptOperationNeedsASession(t *testing.T) {
 	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
 	op := adoptOp("")
-	assert.ErrorIs(t, repo.EnqueueClaimOp(op), ErrInvalidClaimOp)
+	assert.ErrorIs(t, repo.EnqueueClaimOp(t.Context(), op), ErrInvalidClaimOp)
 }
 
 // Queuing the adoption cancels what the other sessions had queued on the
@@ -24,36 +24,36 @@ func TestAdoptOperationNeedsASession(t *testing.T) {
 func TestQueuedAdoptionCancelsTheOperationsOfOtherSessions(t *testing.T) {
 	t.Parallel()
 	repo, _ := setupGitTestRepo(t)
-	require.NoError(t, repo.EnqueueClaimOp(relOp("SRU-1")))
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Label: "session-ended"})) // no session
-	require.NoError(t, repo.EnqueueClaimOp(relOp("SRU-2")))
-	require.NoError(t, repo.EnqueueClaimOp(adoptOp("ses_2")))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), relOp("SRU-1")))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpLabel, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Label: "session-ended"})) // no session
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), relOp("SRU-2")))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), adoptOp("ses_2")))
 
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	require.Len(t, ops, 2)
 	assert.Equal(t, "SRU-2", ops[0].TicketID, "another claim: untouched")
 	assert.Equal(t, ClaimOpAdopt, ops[1].Kind)
 
 	// An operation of the previous session queued after the adoption is not added.
-	require.NoError(t, repo.EnqueueClaimOp(relOp("SRU-1")))
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpTouch, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Session: "ses_1"}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), relOp("SRU-1")))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpTouch, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Session: "ses_1"}))
 	// Those of the new session are.
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpTouch, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Session: "ses_2"}))
-	ops, err = repo.ClaimQueue()
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpTouch, Project: "T-SRU", TicketID: "SRU-1", ClaimedBy: "benjamin", Session: "ses_2"}))
+	ops, err = repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	require.Len(t, ops, 3)
 	assert.Equal(t, "ses_2", ops[2].Session)
 
-	session, ok := repo.QueuedAdoption("T-SRU", "SRU-1", "benjamin")
+	session, ok := repo.QueuedAdoption(t.Context(), "T-SRU", "SRU-1", "benjamin")
 	assert.True(t, ok)
 	assert.Equal(t, "ses_2", session)
-	_, ok = repo.QueuedAdoption("T-SRU", "SRU-2", "benjamin")
+	_, ok = repo.QueuedAdoption(t.Context(), "T-SRU", "SRU-2", "benjamin")
 	assert.False(t, ok)
 
 	// A later adoption by another session replaces the first.
-	require.NoError(t, repo.EnqueueClaimOp(adoptOp("ses_3")))
-	session, _ = repo.QueuedAdoption("T-SRU", "SRU-1", "benjamin")
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), adoptOp("ses_3")))
+	session, _ = repo.QueuedAdoption(t.Context(), "T-SRU", "SRU-1", "benjamin")
 	assert.Equal(t, "ses_3", session)
 }
 
@@ -63,7 +63,7 @@ func TestFlushClaimQueueAppliesAnAdoption(t *testing.T) {
 	ctx := context.Background()
 	mustCreate(t, repo, Claim{TicketID: "SRU-1", ClaimedBy: "benjamin", Session: "ses_1"})
 	require.NoError(t, repo.AddClaimLabel(ctx, "T-SRU", "SRU-1", LabelSessionEnded))
-	require.NoError(t, repo.EnqueueClaimOp(adoptOp("ses_2")))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), adoptOp("ses_2")))
 	before := commitCount(t, bare)
 
 	applied, dropped, err := repo.FlushClaimQueue(ctx)
@@ -77,7 +77,7 @@ func TestFlushClaimQueueAppliesAnAdoption(t *testing.T) {
 	assert.Equal(t, before+1, commitCount(t, bare))
 
 	// Replayed: nothing changes.
-	require.NoError(t, repo.EnqueueClaimOp(adoptOp("ses_2")))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), adoptOp("ses_2")))
 	applied, _, err = repo.FlushClaimQueue(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, 1, applied)
@@ -85,8 +85,8 @@ func TestFlushClaimQueueAppliesAnAdoption(t *testing.T) {
 
 	// Somebody else's claim, or a claim that is gone: dropped.
 	mustCreate(t, repo, Claim{TicketID: "SRU-3", ClaimedBy: "alice", Session: "ses_a"})
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpAdopt, Project: "T-SRU", TicketID: "SRU-3", ClaimedBy: "benjamin", Session: "ses_2"}))
-	require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpAdopt, Project: "T-SRU", TicketID: "GONE-1", ClaimedBy: "benjamin", Session: "ses_2"}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpAdopt, Project: "T-SRU", TicketID: "SRU-3", ClaimedBy: "benjamin", Session: "ses_2"}))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpAdopt, Project: "T-SRU", TicketID: "GONE-1", ClaimedBy: "benjamin", Session: "ses_2"}))
 	applied, dropped, err = repo.FlushClaimQueue(ctx)
 	require.NoError(t, err)
 	assert.Zero(t, applied)
@@ -101,14 +101,14 @@ func TestAdoptClaimDurableOffline(t *testing.T) {
 	ctx := context.Background()
 	mustCreate(t, repo, Claim{TicketID: "SRU-1", ClaimedBy: "benjamin", Session: "ses_1"})
 	mustCreate(t, repo, Claim{TicketID: "BOB-1", ClaimedBy: "bob", Session: "ses_b"})
-	require.NoError(t, repo.EnqueueClaimOp(relOp("SRU-1")))
+	require.NoError(t, repo.EnqueueClaimOp(t.Context(), relOp("SRU-1")))
 	online := goOffline(t, repo)
 
 	adopted, queued, err := repo.AdoptClaimDurable(ctx, "T-SRU", "SRU-1", "benjamin", "ses_2")
 	require.NoError(t, err)
 	assert.False(t, adopted)
 	assert.True(t, queued)
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	require.Len(t, ops, 1, "the release of the previous session is cancelled")
 	assert.Equal(t, ClaimOpAdopt, ops[0].Kind)
@@ -138,14 +138,14 @@ func TestAdoptClaimDurableOnlineCancelsTheQueueOfTheOthers(t *testing.T) {
 	mustCreate(t, repo, Claim{TicketID: "SRU-1", ClaimedBy: "benjamin"})
 	mustCreate(t, repo, Claim{TicketID: "SRU-2", ClaimedBy: "benjamin"})
 	for _, id := range []string{"SRU-1", "SRU-2"} {
-		require.NoError(t, repo.EnqueueClaimOp(ClaimOp{Kind: ClaimOpRelease, Project: "T-SRU", TicketID: id, ClaimedBy: "benjamin"}))
+		require.NoError(t, repo.EnqueueClaimOp(t.Context(), ClaimOp{Kind: ClaimOpRelease, Project: "T-SRU", TicketID: id, ClaimedBy: "benjamin"}))
 	}
 
 	adopted, queued, err := repo.AdoptClaimDurable(ctx, "T-SRU", "SRU-1", "benjamin", "ses_2")
 	require.NoError(t, err)
 	assert.True(t, adopted)
 	assert.False(t, queued)
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	require.Len(t, ops, 1)
 	assert.Equal(t, "SRU-2", ops[0].TicketID)

@@ -173,7 +173,7 @@ func TestIsStale(t *testing.T) {
 			ClaimedAt:    now, // if LastActivity is zero, use ClaimedAt
 			LastActivity: InstantOf(tc.lastActivity),
 		}
-		result := repo.IsStale(claim, tc.staleDays)
+		result := repo.IsStale(t.Context(), claim, tc.staleDays)
 		if result != tc.expected {
 			t.Errorf("test %d: expected stale=%v, got %v (lastActivity=%v, staleDays=%d)",
 				i, tc.expected, result, tc.lastActivity, tc.staleDays)

@@ -253,7 +253,7 @@ func TestPublishRevalidates(t *testing.T) {
 	require.ErrorAs(t, err, &inv)
 	repo := env.clones["alice"]
 	assert.NoFileExists(t, filepath.Join(repo.Path(), "workflows", "published", "ticket-hotfix.yaml"), "nothing written")
-	l, err := repo.ReadWorkflowLock()
+	l, err := repo.ReadWorkflowLock(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, l.Team)
 	assert.FileExists(t, filepath.Join(repo.Path(), "workflows", "drafts", "alice", "ticket-hotfix.yaml"), "the draft is kept")

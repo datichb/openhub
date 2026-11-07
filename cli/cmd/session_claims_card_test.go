@@ -60,7 +60,7 @@ func TestSessionEndSettlesTheClaimOfACard(t *testing.T) {
 			c.check(t, repo)
 			assert.Equal(t, teamstate.ClaimStatusInProgress, claimsOnDisk(t, repo, "624").Status, "another session's claim")
 			assert.Equal(t, teamstate.ClaimStatusInProgress, claimsOnDisk(t, repo, "625").Status, "another member's claim")
-			ops, err := repo.ClaimQueue()
+			ops, err := repo.ClaimQueue(t.Context())
 			require.NoError(t, err)
 			assert.Empty(t, ops, "the durable queue was flushed")
 		})
@@ -80,7 +80,7 @@ func TestSessionEndSettlesTheTicketsAndTheCardTogether(t *testing.T) {
 
 	sessionClaimsEnd(ctx, a, proj, s, true)
 
-	ops, err := repo.ClaimQueue()
+	ops, err := repo.ClaimQueue(t.Context())
 	require.NoError(t, err)
 	require.Len(t, ops, 2, "queued although the background task never ran")
 	kinds := map[string]string{}

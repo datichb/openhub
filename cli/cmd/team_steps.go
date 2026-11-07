@@ -89,8 +89,8 @@ type teamStepState struct {
 // the policies and the profile of the member.
 func (s *teamStepState) useRepo(repo teamStepStore) {
 	s.Repo = repo
-	s.HasConfig = repo.HasConfig()
-	s.HasPolicies = repo.HasPolicies()
+	s.HasConfig = repo.HasConfig(s.Ctx)
+	s.HasPolicies = repo.HasPolicies(s.Ctx)
 	s.ExistingCfg, _ = repo.LoadConfig(s.Ctx)
 	if s.HasConfig && s.ExistingCfg != nil {
 		s.StaleDaysStr = strconv.Itoa(s.ExistingCfg.Takeover.StaleDays)

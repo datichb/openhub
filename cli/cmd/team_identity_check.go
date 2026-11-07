@@ -11,11 +11,11 @@ import (
 // is needed (the GitLab the identity is verified on).
 type remoteRef string
 
-func (r remoteRef) Path() string      { return "" }
-func (r remoteRef) Remote() string    { return string(r) }
-func (r remoteRef) IsCloned() bool    { return false }
-func (r remoteRef) HasConfig() bool   { return false }
-func (r remoteRef) HasPolicies() bool { return false }
+func (r remoteRef) Path() string                     { return "" }
+func (r remoteRef) Remote() string                   { return string(r) }
+func (r remoteRef) IsCloned() bool                   { return false }
+func (r remoteRef) HasConfig(context.Context) bool   { return false }
+func (r remoteRef) HasPolicies(context.Context) bool { return false }
 
 // precheckIdentity verifies the GitLab identity of the card m before it is
 // published in the team-state: the token oh holds for the GitLab of the

@@ -34,7 +34,7 @@ func TestSyncDoesNotRecoverAClaimReleasedOnPurpose(t *testing.T) {
 			require.NoError(t, repo.ReleaseClaim(ctx, "p", "1"))
 		}, false},
 		{"queued release of a session", func(t *testing.T, repo *teamstate.Repo, _ string) {
-			require.NoError(t, repo.EnqueueClaimOp(teamstate.ClaimOp{Kind: teamstate.ClaimOpRelease, Project: "p", TicketID: "1", ClaimedBy: "alice"}))
+			require.NoError(t, repo.EnqueueClaimOp(t.Context(), teamstate.ClaimOp{Kind: teamstate.ClaimOpRelease, Project: "p", TicketID: "1", ClaimedBy: "alice"}))
 			applied, _, err := repo.FlushClaimQueue(ctx)
 			require.NoError(t, err)
 			require.Equal(t, 1, applied)

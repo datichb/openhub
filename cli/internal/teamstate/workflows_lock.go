@@ -1,6 +1,7 @@
 package teamstate
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -108,7 +109,10 @@ func (l *WorkflowLock) IDs(scope WorkflowScope) []string {
 }
 
 // ReadWorkflowLock reads workflows.lock; a missing file is an empty lock.
-func (r *Repo) ReadWorkflowLock() (*WorkflowLock, error) {
+func (r *Repo) ReadWorkflowLock(ctx context.Context) (*WorkflowLock, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.readWorkflowLock()

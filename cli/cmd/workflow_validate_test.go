@@ -177,19 +177,19 @@ func TestWorkflowValidate_TeamLayers(t *testing.T) {
 
 func TestWorkflowIntegrityCheck(t *testing.T) {
 	layers := testTeamLayers(t)
-	c := workflowIntegrityCheck("acme", layers.Repo)
+	c := workflowIntegrityCheck(t.Context(), "acme", layers.Repo)
 	if c.OK || !strings.Contains(c.Detail, "solo.yaml") || !strings.Contains(c.Name, "acme") {
 		t.Fatalf("check = %+v", c)
 	}
 	if err := os.Remove(filepath.Join(layers.Repo.Path(), "workflows", "published", "solo.yaml")); err != nil {
 		t.Fatal(err)
 	}
-	l, _ := layers.Repo.ReadWorkflowLock()
+	l, _ := layers.Repo.ReadWorkflowLock(t.Context())
 	l.Delete(teamstate.TeamScope(), "solo")
 	if err := layers.Repo.WriteWorkflowLockLocal(l); err != nil {
 		t.Fatal(err)
 	}
-	if c := workflowIntegrityCheck("acme", layers.Repo); !c.OK {
+	if c := workflowIntegrityCheck(t.Context(), "acme", layers.Repo); !c.OK {
 		t.Fatalf("check = %+v", c)
 	}
 }

@@ -71,11 +71,11 @@ func startTicketClaim(ctx context.Context, repo ticketClaimStore, projectID, mem
 		// back, ahead of what the previous session had queued for it; a ticket
 		// nobody holds (in the clone) is taken then, if it is still free.
 		if session != "" {
-			if queued, qerr := repo.QueueAdoptClaim(projectID, ticketID, member, session); qerr == nil && queued {
+			if queued, qerr := repo.QueueAdoptClaim(context.WithoutCancel(ctx), projectID, ticketID, member, session); qerr == nil && queued {
 				return i18n.Tf("cmd.claims.start.adopt_queued", projectID, ticketID)
 			}
 		}
-		queued, qerr := repo.QueueCreateClaim(projectID, ticketID, member, session, workStatus)
+		queued, qerr := repo.QueueCreateClaim(context.WithoutCancel(ctx), projectID, ticketID, member, session, workStatus)
 		switch {
 		case qerr != nil:
 			return i18n.Tf("v54l.claims.start.offline", projectID, ticketID)

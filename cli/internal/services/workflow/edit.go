@@ -116,7 +116,7 @@ func (s *Service) Preview(ctx context.Context, c Context, draftID string) (*Prev
 	if err != nil {
 		return nil, err
 	}
-	scope, id, err := s.draftScope(ts, draftID)
+	scope, id, err := s.draftScope(ctx, ts, draftID)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (s *Service) Preview(ctx context.Context, c Context, draftID string) (*Prev
 	}
 	pub, _ := wf.Check(cat.docs, ref, nil, cat.env)
 
-	if _, ds := ts.Repo.LoadDrafts(cat.docs, ts.Member, scope); len(ds) > 0 {
+	if _, ds := ts.Repo.LoadDrafts(ctx, cat.docs, ts.Member, scope); len(ds) > 0 {
 		cat.diags = append(cat.diags, ds...)
 	}
 	doc, ok := cat.docs.Lookup(ref)
@@ -161,13 +161,13 @@ func (s *Service) Preview(ctx context.Context, c Context, draftID string) (*Prev
 		p.Impact.NewBricks = missing(teamBricksUsed(r.Spec, cat.env.Agents, cat.bricks.Team), teamBricksUsed(from, cat.env.Agents, cat.bricks.Team))
 	}
 
-	lock, err := ts.Repo.ReadWorkflowLock()
+	lock, err := ts.Repo.ReadWorkflowLock(ctx)
 	if err != nil {
 		return nil, err
 	}
 	cur, _ := lock.Get(scope, id)
 	p.NextVersion = cur.Version
-	if hist, err := ts.Repo.ListHistory(scope, id); err == nil {
+	if hist, err := ts.Repo.ListHistory(ctx, scope, id); err == nil {
 		for _, h := range hist {
 			p.NextVersion = max(p.NextVersion, h.Version)
 		}
