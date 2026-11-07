@@ -269,6 +269,12 @@ jobs:
 
   # What "Go CLI (<system>)" has always been for a branch protection: one check
   # per system that says whether the Go CLI is green (checks, tests, coverage).
+  #
+  # The three checks are the same on purpose: the needs.*.result of a matrix job
+  # is one result for all its legs, so a failing shard of one system turns the
+  # three "Go CLI (<system>)" checks red, not only the one of that system. A
+  # per-system result would need the jobs API; it is not worth it, and the names
+  # of the checks (the ones of the branch protection) must not change.
   go-cli:
     name: Go CLI (${{ matrix.os }})
     runs-on: ubuntu-latest
