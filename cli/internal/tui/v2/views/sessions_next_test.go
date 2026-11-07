@@ -46,7 +46,20 @@ func TestSessionsNextStepsErrorIsQuiet(t *testing.T) {
 		onLoop(func() { v.selectKey(key); v.onSelectionChanged() })
 	}
 	require.Eventually(t, func() bool { return be.nextCalls.Load() >= 2 }, 3*time.Second, 10*time.Millisecond, "the steps are read")
-	onLoop(func() {}) // the answers are applied
+	// Every read started (by the mount or by a selection) is answered and
+	// applied: one still in flight would count as a retry below.
+	require.Eventually(t, func() bool {
+		settled := false
+		onLoop(func() {
+			settled = len(v.next) >= 3
+			for _, n := range v.next {
+				if n.loading {
+					settled = false
+				}
+			}
+		})
+		return settled
+	}, 5*time.Second, 10*time.Millisecond, "the steps are all answered")
 
 	sh.mu.Lock()
 	toasts := append([]string(nil), sh.toasts...)
