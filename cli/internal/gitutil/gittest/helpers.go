@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/datichb/openhub/cli/internal/gitremote"
 )
 
 var (
@@ -118,18 +120,13 @@ func BareClone(t testing.TB) (bare, clone string) {
 	}
 	copyTree(t, filepath.Join(m, "bare"), bare)
 	copyTree(t, filepath.Join(m, "clone"), clone)
-	// The clone points at the bare repository of the model: at the copy.
-	cfg := filepath.Join(clone, ".git", "config")
-	data, err := os.ReadFile(cfg)
-	if err != nil {
-		t.Fatalf("gittest: %v", err)
-	}
+	// The clone points at the bare repository of the model: at the copy. The
+	// URL is read as git wrote it (gitremote decodes the escapes of a Windows
+	// path, C:\\Users\\…) and rewritten by git itself.
 	from := filepath.Join(m, "bare")
-	if !strings.Contains(string(data), from) {
-		t.Fatalf("gittest: the clone of the model does not point at %s:\n%s", from, data)
+	if have, _ := gitremote.Origin(clone); filepath.Clean(have) != filepath.Clean(from) {
+		t.Fatalf("gittest: the clone of the model points at %q, not at %q", have, from)
 	}
-	if err := os.WriteFile(cfg, []byte(strings.ReplaceAll(string(data), from, bare)), 0o644); err != nil {
-		t.Fatalf("gittest: %v", err)
-	}
+	Run(t, clone, "remote", "set-url", "origin", bare)
 	return bare, clone
 }
