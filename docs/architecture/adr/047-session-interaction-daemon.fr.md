@@ -64,7 +64,7 @@ Fermer la fenêtre opencode **ne coupe pas** la session : seul « Arrêter » l'
 - Un abonnement au flux d'événements par serveur prêt. À chaque (re)connexion, une resynchronisation lit les sessions actives, les permissions et les formulaires en attente.
 - États dérivés : `waiting` (décision en attente) > `active` (boucle en cours) > `idle`. Coût et tokens sont lus en fin de tour.
 - Les sous-sessions sont rattachées à leur session racine : leur activité et leurs décisions remontent à elle.
-- Flux en direct `GET /v1/stream` (NDJSON, précédé des 100 dernières entrées) pour la TUI et `oh session follow`.
+- Flux en direct `GET /v1/stream` (NDJSON, précédé des 100 dernières entrées) pour la TUI et `oh session follow`. Depuis la 5.5, chaque entrée porte un numéro de séquence (`seq`) et le démon garde une fenêtre de 1024 entrées : `?since=<seq>` reprend le flux sans perte ni doublon dans la fenêtre, et un événement `resync` signale qu'au-delà (client trop lent ou absent trop longtemps, démon relancé) des entrées ont pu être manquées. Le client suit la séquence et reprend seul : plus de relecture des stores toutes les 2 s. Protocole détaillé dans la doc du paquet `internal/daemon`.
 
 **Sécurité.** Un PID n'est jamais signalé sans qu'un appel authentifié au serveur ait réussi : un PID réutilisé par une autre application n'est pas touché.
 
