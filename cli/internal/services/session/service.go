@@ -39,8 +39,9 @@ type Service struct {
 	Wiki *wiki.Service
 	// Live opens the oh daemon live stream (nil = polling only).
 	Live LiveStream
-	// PollEvery is the refresh period of Subscribe without the daemon (default 2s).
-	PollEvery time.Duration
+	// ReconnectEvery is the pause before Subscribe tries the daemon stream again
+	// when it ended or the daemon is not running (default 1s).
+	ReconnectEvery time.Duration
 	// OhDecided tells the oh daemon that a decision it raised (budget,
 	// error) was answered here (nil = none): it updates the session state
 	// and resumes a step interrupted by the budget.
