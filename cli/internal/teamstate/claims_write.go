@@ -50,6 +50,11 @@ type ClaimWrite struct {
 	Labels []string
 	// Events are appended to the activity log.
 	Events []Event
+	// Identity records the identity of the project (projects/<id>/project.toml)
+	// in the same commit when it has none yet (EnsureProjectIdentity); an
+	// existing file is left alone. Nothing is recorded for a claim of another
+	// member. Nil: not recorded.
+	Identity *ProjectIdentity
 	// Message is the commit message; empty: the one of the steps that ran.
 	Message string
 }
@@ -58,6 +63,8 @@ type ClaimWrite struct {
 type ClaimWriteResult struct {
 	// Created: the claim did not exist and was taken.
 	Created bool
+	// IdentityRecorded: the identity of the project was written.
+	IdentityRecorded bool
 	// Held is the claim of another member, when there is one: nothing was
 	// written.
 	Held *Claim
@@ -160,6 +167,15 @@ func (r *Repo) writeClaimSteps(ctx context.Context, w ClaimWrite, res *ClaimWrit
 		if err := r.AppendEvent(ctx, e); err != nil {
 			return fmt.Errorf("recording the event: %w", err)
 		}
+	}
+	if w.Identity != nil && w.Identity.Remote != "" {
+		id := *w.Identity
+		id.ID = w.Project
+		created, err := r.writeProjectIdentity(ctx, id, false)
+		if err != nil {
+			return err
+		}
+		res.IdentityRecorded = created
 	}
 	return nil
 }
