@@ -42,9 +42,23 @@ type PolicyRequest struct {
 	Policy QuitPolicy `json:"policy"`
 }
 
-// StreamEvent is one line of GET /v1/stream (exactly one field is set; an
-// empty object is a keep-alive).
+// StreamEvent is one line of GET /v1/stream. Exactly one of Feed, Change or
+// Resync is set, except for a keep-alive, which has none of them. Seq is
+// additive: an entry carries its sequence number (strictly increasing within
+// one daemon run), a keep-alive or the end of the initial replay carries the
+// current one. A client that ignores Seq and Resync keeps working: it only
+// loses the resume.
 type StreamEvent struct {
 	Feed   *domain.FeedItem      `json:"feed,omitempty"`
 	Change *domain.SessionChange `json:"change,omitempty"`
+	// Seq is the sequence number of the entry (0 when the daemon predates it).
+	Seq uint64 `json:"seq,omitempty"`
+	// Resync tells the client that it may have missed entries (a resume past
+	// the replay window, a slow reader, a daemon restart): it reloads what it
+	// shows. The feed backlog of the session follows, with the original Seq.
+	Resync bool `json:"resync,omitempty"`
 }
+
+// StreamSinceParam is the query parameter of GET /v1/stream that resumes after
+// the given sequence number.
+const StreamSinceParam = "since"
