@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -168,4 +169,35 @@ func TestSubscribeSurvivesAPanic(t *testing.T) {
 	defer cancel()
 	// The panic is a gap: the reload comes first, then the stream.
 	assert.Equal(t, []string{"", "ses_after"}, nextIDs(t, svc.Subscribe(cctx), 2))
+}
+
+func TestFollowOtherErrorAndCancel(t *testing.T) {
+	svc, ctx := newTestService(t)
+	boom := errors.New("boom")
+	svc.Live = func(context.Context, string) (<-chan api.StreamEvent, error) { return nil, boom }
+	_, err := svc.Follow(ctx, "ses_a")
+	require.ErrorIs(t, err, boom)
+
+	// A reader that leaves while the feed is full stops the follow.
+	src := make(chan api.StreamEvent, 200)
+	for range 200 {
+		src <- api.StreamEvent{Feed: &domain.FeedItem{SessionID: "ses_a", Kind: domain.FeedText}}
+	}
+	svc.Live = func(context.Context, string) (<-chan api.StreamEvent, error) { return src, nil }
+	cctx, cancel := context.WithCancel(ctx)
+	feed, err := svc.Follow(cctx, "ses_a")
+	require.NoError(t, err)
+	cancel()
+	require.Eventually(t, func() bool {
+		for {
+			select {
+			case _, ok := <-feed:
+				if !ok {
+					return true
+				}
+			default:
+				return false
+			}
+		}
+	}, 5*time.Second, 5*time.Millisecond)
 }
