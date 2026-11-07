@@ -15,6 +15,11 @@ import (
 // isolated test binary (OH_TESTENV, removed with it by testenv.Isolate) or, for
 // the packages that use Main only, in a folder that Main removes when the tests
 // are over. A test only reads a model: it works on a copy.
+//
+// Limit: a test binary that has neither OH_TESTENV nor a call to Main (today
+// only the tests of gittest and of testenv themselves) leaves its
+// oh-gittest-models-* folder in the temporary folder of the machine. Any other
+// package must call testenv.Isolate or gittest.Main in its TestMain.
 var models struct {
 	mu   sync.Mutex
 	dirs map[string]string
