@@ -163,7 +163,7 @@ Le conteneur par défaut est écarté (2026-11-06). Les indications de niveau de
 ## 3. Étapes avant le développement
 
 1. **Lot documentaire (sans prototype)** : F (limite réseau écrite), D.1 et D.2, E (skills), I (vérification `webfetch`). Petit, peut partir dès que les changements en cours sont fusionnés.
-   - En parallèle, **indications de niveau de sécurité (J)** : voir les lots L0 à L5 du [cadrage](cadrage-indications-securite.md#12-découpage-en-lots). Indépendant de A ; la facette « Réseau » affichera « ouvert » jusqu'à A.
+   - En parallèle, **indications de niveau de sécurité (J)** : voir les lots L0 à L5 du [cadrage](cadrage-indications-securite.md#8-surfaces-et-lots). Indépendant de A ; la facette « Réseau » affichera « ouvert » jusqu'à A.
 2. **Prototype A (spike, 3 à 5 jours)** dans un worktree jetable :
    - réseau interne + joignabilité du démon sur Colima (virtiofs), Podman machine, Podman sans root sous Linux, Docker sous Linux ;
    - A1 contre A2 : même scénario (npm install, pip install, go mod download, git clone de la forge, appel LLM par le proxy, `bd`, MCP d'oh) ;

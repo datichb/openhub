@@ -17,7 +17,7 @@ L'[ADR-061](adr-061-ui-contract-architecture.fr.md) définit un contrat d'interf
 Ce qui existe déjà :
 
 - **`oh serve`** (`cmd/serve*.go`) : 127.0.0.1, jeton et cookie, contrôle du Host (`serve_auth.go`), quelques routes `/api/v1` en lecture seule, une page de tableau de bord intégrée, et un SSE qui relit tout toutes les 5 s.
-- **`ohd`** ([ADR-047](047-session-interaction-daemon.fr.md)) : un démon par utilisateur sur `~/.oh/run/ohd.sock` (droits 0600, utilisateur du pair vérifié), démarré à la demande avec un verrou. Il héberge le proxy d'identifiants ([ADR-044](044-credential-proxy-session-limits.fr.md)), les passerelles, les crochets du plugin et le CheckpointService, et diffuse `/v1/stream`. Il s'arrête après 10 minutes sans serveur vivant.
+- **`ohd`** ([ADR-047](../../architecture/adr/047-session-interaction-daemon.fr.md)) : un démon par utilisateur sur `~/.oh/run/ohd.sock` (droits 0600, utilisateur du pair vérifié), démarré à la demande avec un verrou. Il héberge le proxy d'identifiants ([ADR-044](../../architecture/adr/044-credential-proxy-session-limits.fr.md)), les passerelles, les crochets du plugin et le CheckpointService, et diffuse `/v1/stream`. Il s'arrête après 10 minutes sans serveur vivant.
 - **Les clients** ont des besoins différents : le TUI et l'app peuvent utiliser un socket Unix ; un navigateur a besoin de TCP.
 
 ## Décision

@@ -64,7 +64,7 @@ Les [ADR-061](adr-061-ui-contract-architecture.fr.md) et [ADR-062](adr-062-ui-se
 - **Swift** (SwiftUI et AppKit si nécessaire) avec une **WKWebView**.
 - Un **`WKURLSchemeHandler` `oh://`** relaie vers `~/.oh/run/ui.sock` : pas de port, pas de jeton dans l'URL.
 - Le binaire `oh` (Intel et Apple Silicon) est intégré dans `OpenHub.app/Contents/Helpers/` ; l'app démarre `uiserver` par lui.
-- **Intégration native** : icône dans la barre des menus avec le badge `● N ⏸ M`, badge sur l'icône du Dock, notifications natives avec boutons d'action, sélecteur de dossier natif pour ajouter un projet, lancement à l'ouverture de session, sortie conforme à l'[ADR-047](047-session-interaction-daemon.fr.md) §5.
+- **Intégration native** : icône dans la barre des menus avec le badge `● N ⏸ M`, badge sur l'icône du Dock, notifications natives avec boutons d'action, sélecteur de dossier natif pour ajouter un projet, lancement à l'ouverture de session, sortie conforme à l'[ADR-047](../../architecture/adr/047-session-interaction-daemon.fr.md) §5.
 - Le PATH est lu dans un shell de connexion.
 - « Installer la commande `oh` » crée un lien symbolique vers le binaire de l'app.
 - **Adresse du serveur configurable**, pour ne pas fermer la porte à une variante « client seul » ([ADR-062](adr-062-ui-server.fr.md) §8).
