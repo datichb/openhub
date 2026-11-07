@@ -316,8 +316,15 @@ func TestKeysCatalogEnterLaunches(t *testing.T) {
 	require.Eventually(t, func() bool {
 		ok := false
 		s.loop(func() {
+			// The catalogue is loaded and its workflow is the selected item:
+			// while it loads, the list holds a single placeholder row and no
+			// item is selected, so Enter would launch nothing.
 			list, isList := s.app.GetFocus().(*widgets.SectionedList)
-			ok = isList && len(list.GetItems()) > 0 // the catalogue is loaded
+			if !isList {
+				return
+			}
+			_, it, selected := list.CurrentItem()
+			ok = selected && strings.Contains(it.MainText, "ticket")
 		})
 		return ok
 	}, 2*time.Second, 5*time.Millisecond)
