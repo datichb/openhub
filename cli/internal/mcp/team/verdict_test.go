@@ -205,3 +205,38 @@ func mustInt(s string) int {
 	_, _ = fmt.Sscanf(s, "%d", &n)
 	return n
 }
+
+// The arguments of the verdict are checked before the repository is opened.
+func TestReviewVerdictRefusesBadArguments(t *testing.T) {
+	_, err := handleTeamReviewVerdict(t.Context(), json.RawMessage(`{"project":`))
+	require.Error(t, err)
+
+	res, err := handleTeamReviewVerdict(t.Context(), json.RawMessage(`{"project":"p","ticket_id":"t","verdict":"maybe"}`))
+	require.NoError(t, err)
+	require.True(t, res.IsError)
+	assert.Contains(t, res.Content[0].Text, `Invalid verdict "maybe"`)
+}
+
+// The reason, the verdict of the AI reviewer and the cycle go in the event.
+func TestReviewVerdictEventCarriesTheAudit(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	stateDir := setupHandlerWriteTest(t)
+	seedClaim(t, stateDir, "SRU-7", "review")
+
+	res, err := handleTeamReviewVerdict(t.Context(), json.RawMessage(
+		`{"project":"myproject","ticket_id":"SRU-7","verdict":"rejected","reason":"tests missing","reviewer_verdict":"changes","cycle":2}`))
+	require.NoError(t, err)
+	require.False(t, res.IsError, res.Content[0].Text)
+	assert.Equal(t, "in_progress", readClaim(t, stateDir, "SRU-7").Status)
+
+	events, err := os.ReadDir(filepath.Join(stateDir, "projects", "myproject", "events"))
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	data, err := os.ReadFile(filepath.Join(stateDir, "projects", "myproject", "events", events[0].Name()))
+	require.NoError(t, err)
+	for _, want := range []string{`"reason":"tests missing"`, `"reviewer_verdict":"changes"`, `"cycle":2`, `"author":"benjamin"`} {
+		assert.Contains(t, string(data), want)
+	}
+}
