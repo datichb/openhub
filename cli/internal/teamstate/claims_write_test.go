@@ -138,3 +138,57 @@ func TestWriteClaimVerdictThroughTheReviewColumn(t *testing.T) {
 	assert.Contains(t, c.Labels, LabelAgentReviewed)
 	assert.Equal(t, "verdict: approved T-SRU/SRU-1 → done", gittest.Run(t, bare, "log", "-1", "--format=%s", "main"))
 }
+
+// The routing of a verdict on the board of the team: through the review
+// column when the board has one, straight to the terminal column when it has
+// none, and a claim already at the target is left as it is.
+func TestWriteClaimMoveFollowsTheBoard(t *testing.T) {
+	t.Parallel()
+	noReview := BoardConfig{Columns: []BoardColumnConfig{
+		{ID: "backlog", Name: "Backlog", Role: ColumnRoleInitial},
+		{ID: "dev", Name: "Dev", Role: ColumnRoleActive},
+		{ID: "shipped", Name: "Shipped", Role: ColumnRoleTerminal},
+	}}
+	withReview := BoardConfig{Columns: []BoardColumnConfig{
+		{ID: "todo", Name: "To do", Role: ColumnRoleInitial},
+		{ID: "in_progress", Name: "Doing", Role: ColumnRoleActive},
+		{ID: "review", Name: "Review", Role: ColumnRoleReview},
+		{ID: "done", Name: "Done", Role: ColumnRoleTerminal},
+	}}
+	tests := []struct {
+		name      string
+		board     BoardConfig
+		from, to  string
+		wantMoved bool
+		wantLog   string // subject of the commit, "" when none
+	}{
+		{"approval goes through review", BoardConfig{}, ClaimStatusInProgress, ClaimStatusDone, true, "status: T-SRU/SRU-1 → review (+1)"},
+		{"board with a review column of its own", withReview, ClaimStatusInProgress, ClaimStatusDone, true, "status: T-SRU/SRU-1 → review (+1)"},
+		{"board without review column goes straight to the terminal column", noReview, "dev", "shipped", true, "status: T-SRU/SRU-1 → shipped"},
+		{"claim already at the target", BoardConfig{}, ClaimStatusDone, ClaimStatusDone, false, ""},
+		{"rejection", BoardConfig{}, ClaimStatusReview, ClaimStatusInProgress, true, "status: T-SRU/SRU-1 → in_progress"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			repo, bare := setupGitTestRepo(t)
+			mustCreate(t, repo, Claim{TicketID: "SRU-1", ClaimedBy: "benjamin", Status: tt.from})
+			repo.SetBoardStatuses(tt.board.AllStatuses())
+			before := commitCount(t, bare)
+			board := tt.board
+
+			res, err := repo.WriteClaim(t.Context(), ClaimWrite{Project: "T-SRU", TicketID: "SRU-1", Status: &ClaimStatusMove{To: tt.to, Board: &board}})
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantMoved, res.Moved)
+			c, err := repo.GetClaim(t.Context(), "T-SRU", "SRU-1")
+			require.NoError(t, err)
+			assert.Equal(t, tt.to, c.Status)
+			if tt.wantLog == "" {
+				assert.Equal(t, before, commitCount(t, bare))
+				return
+			}
+			assert.Equal(t, before+1, commitCount(t, bare), "one commit whatever the number of hops")
+			assert.Equal(t, tt.wantLog, gittest.Run(t, bare, "log", "-1", "--format=%s", "main"))
+		})
+	}
+}
