@@ -48,6 +48,7 @@ TestTeamRejoinConfirmsAnUnknownSSHServer 1 1.16
 TestUserPluginsCheck 1 1.08
 TestRunDryRunPreparedRunCannotStart 1 1.02
 TestTeamBoardFollowsTheColumnsOfTheTeamConfig 1 1.02
+TestLocalProjectIdentity 1 1
 TestTeamsAdd_TheIDIsFreeAndTheFolderIsTheOneOfTheTeam 1 0.98
 TestTeamModeSessionsOfTheOthersNameTheProject 1 0.97
 TestProjectAddWizard 1 0.88
@@ -279,6 +280,7 @@ TestClaimExpiryTellsTheOwnerOnce 2 1.11
 TestClaimsBeatSkipsATeamWhoseSSHServerIsUnknown 2 1.05
 TestSessionClaimsEndQueuesBeforeTheBackgroundTask 2 1.04
 TestSessionEndReadsTheCardOfAPatternedTicketByItsIssueNumber 2 1.01
+TestProjectIdentityDoctor 2 1
 TestTeamWithoutStatePath_NeverUsesTheWorkingDirectory 2 1.00
 TestLoad_ACloneAtTheFormerPlaceIsKept 2 0.95
 TestTeamLifecycleDoctorWarnsOfAStoppedDaemon 2 0.94
@@ -512,6 +514,7 @@ TestRejoinIdentityStillVerifiedWhenGitLabAnswers 3 1.08
 TestTeamRejoinCore_WritesTheTrackerUsernameOfTheMember 3 1.04
 TestFlushClaimQueueIsBounded 3 1.00
 TestReleaseOfOwnClaimAsksNothing 3 1.00
+TestStartTicketClaimIsOneCommit 3 1
 TestClaimsLeaseDoctorChecksReportsALongReview 3 0.96
 TestRunRelease_Success 3 0.90
 TestRunClaimExpiredDeclined 3 0.81
@@ -744,6 +747,7 @@ TestSessionClaimsEndFlushesInTheBackground 4 1.12
 TestClaimsQueueTaskEmptiesTheQueue 4 1.07
 TestClaimsBeatFollowsTheTeamsJoinedAfterTheStart 4 1.03
 TestEventSinkIsSilentWhenNotificationsAreOff 4 1.00
+TestStartTicketClaimsRecordTheProjectIdentity 4 1
 TestTeamConfigStatusNeverTouchesTheMembers 4 1.00
 TestWorkflowValidateDraft 4 0.96
 TestBoardTicketLaunchNamesTheGitLabIssue 4 0.88

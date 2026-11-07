@@ -31,6 +31,8 @@ func startTicketClaims(a *app.App, project *domain.Project) func(ctx context.Con
 		if !repo.IsCloned() {
 			return nil
 		}
+		// the first claim of the project records its remote in the team-state
+		ctx = withProjectIdentity(ctx, project, member)
 		var notes []string
 		for _, t := range tickets {
 			if n := startTicketClaim(ctx, repo, projectID, member, t); n != "" {
@@ -66,7 +68,8 @@ func startTicketClaim(ctx context.Context, repo ticketClaimStore, projectID, mem
 	workStatus := boardCfg.DefaultWorkStatus()
 	res, err := repo.WriteClaim(ctx, teamstate.ClaimWrite{
 		Project: projectID, TicketID: ticketID, Member: member, Session: session,
-		Create: &teamstate.Claim{Status: workStatus},
+		Create:   &teamstate.Claim{Status: workStatus},
+		Identity: projectIdentityFrom(ctx),
 		Status: &teamstate.ClaimStatusMove{
 			To: workStatus, From: []string{boardCfg.InitialStatus(), teamstate.ClaimStatusPlanned}, BestEffort: true,
 		},
