@@ -1,0 +1,55 @@
+# Écarts — Piste X (touches et petits terminaux)
+
+Branche `feat/v5-fix-keys` (worktree `../openhub-fix-keys`), base `main` `ec8b7136`.
+
+## N19 — Contrat des touches
+
+**Fait** (commit « fix(tui): key contract… (v5 critical, N19) ») :
+- `shell.globalKeyHandler` réécrit dans l'ordre du contrat : urgence (Ctrl+Q/C, Échap qui efface une sélection) → palette et fenêtres → **Échap ferme tous les toasts affichés** → vues `InputCapturing` → touches réservées (Ctrl+P, Ctrl+T, F1, Échap = dépiler/hub, `?`) → `HandleKey` de la vue → widget focalisé → replis (`j/k/g/G`, `/` = palette, Entrée = palette seulement si `!focusAcceptsEnter`). Plus de palette sur une lettre quelconque ; `d` ne ferme plus les toasts. Ctrl+T extrait dans `toggleTeamMode`.
+- `focusAcceptsEnter` : List, Table, Button, Form, InputField, DropDown, TreeView, Checkbox, TextArea, tout widget qui embarque `*tview.List` (SectionedList, par l'interface `SetSelectedFunc`) et une interface optionnelle `AcceptsEnter()`.
+- `ShellAccess.Confirm(title, detail, danger, onYes)` (`shell/confirm.go`) : focus initial sur le texte (une Entrée réflexe ne confirme pas), Esc/Annuler = rien, focus rendu au widget d'origine ; `ModalAction.Danger` (bouton rouge).
+- Worktrees : `WorktreeGit` injectable (`WorktreeViewConfig.Git`, défaut = ligne de commande git), **toutes les commandes git hors de la boucle d'affichage** (liste comprise) ; `d`, `p`, `x` confirmés ; `x` ne supprime jamais un worktree utilisé par une session non arrêtée (`WorktreeViewConfig.InUse`, défaut : sessions du projet dont `LaunchPath` = le worktree et `State != stopped`).
+- Fiche : Ctrl+S → Récap (validation des entrées), lancement seulement depuis le Récap chargé (`launchWith` exige `step == Recap && recap != nil` ; Récap en préparation → toast `tui.keys.recap_loading`) ; retour Ctrl+B / Alt+← / PgUp, suivant Alt+→ / PgDn ; indications par étape.
+- Assistants (`InlineWizardView`) : Échap → « Quitter l'assistant ? [Quitter] [Passer l'étape] (facultative) [Continuer] » ; Quitter = `OnComplete(false, nil)` puis `PopView` (une seule fois) ; plus de double Échap ; retour Ctrl+B / Alt+← / PgUp.
+- Aide `?` : `/`, Ctrl+T, section « Fiche de lancement et assistants », touches de la vue active (ses indications), phrase sur le changement de comportement ; `tui.help.rune_search` supprimée.
+- Docs : `guides/tui-usage.{fr,en}`, `reference/tui.{fr,en}`, `reference/tui-inline-wizard.{fr,en}`, `guides/team-setup.*`, `guides/tutorial.*`, `guides/getting-started.*`, README fr/en, `design/tui-shell.md` ; CHANGELOG `[Unreleased]` (section « Changed — touches de la TUI », ⚠ changement de comportement).
+
+**Écarts / décisions prises en chemin** :
+1. **Échap ferme *tous* les toasts** d'un coup (pas le plus ancien), et la règle s'applique aussi dans les vues qui capturent la saisie (fiche, assistants, éditeur) : le premier Échap ferme un toast d'erreur avant de fermer la fiche. Conforme à « avant le dépilement », à vérifier en recette.
+2. **Champs texte** : quand le focus est un `InputField`/`TextArea` d'une vue non capturante, `?`, `/` et `j/k/g/G` vont au champ (sinon impossible de taper `?` dans une recherche). Petite extension du contrat.
+3. **Confirmations ajoutées au-delà des worktrees** (grep de tous les `case 'd'`/`'x'`) : board d'équipe `x` (libérer un ticket) et wiki `x` (rejeter une proposition) n'avaient aucune confirmation → `Confirm`. Déjà confirmés (`ShowSelectModal` oui/non, laissés tels quels) : projets, équipes, secrets, modèles (hub/projet/équipe), patterns, politiques, fournisseur, catalogue (`x` archiver/abandonner). Non destructifs ou annulables, laissés : `team_detail` `d` (ne fait rien), `workflow_editor` `x` (annulable par `u`), `sessions` `x` (classe une alerte).
+4. **Bouton de confirmation** : libellé générique « Confirmer » (rouge si `danger`) plutôt qu'un « Supprimer » faux pour « libérer »/« rejeter ».
+5. **`x` des worktrees** : la vue n'appelle plus `worktree.CleanupMerged` (paquet de R) ; l'implémentation par défaut de `WorktreeGit.CleanupMerged` refait la même boucle avec le filtre « utilisé par une session » et s'appuie sur `worktree.IsMerged` (corrigé par R, N16). Sessions antérieures sans `State` : utilisées tant que `EndedAt` est vide.
+6. **Question de l'assistant** affichée à la place de la barre d'aide (pas une fenêtre du shell) : fonctionne aussi dans `RunInlineWizardStandalone` (`oh init` hors TUI), dont le `ShellAccess` ne sait pas afficher de fenêtre. ←/→ et Tab parcourent les boutons ; focus initial sur Continuer. Échap ignoré pendant le `OnDone` d'une étape (spinner).
+7. **Écran de résumé de l'assistant** : Échap revient à la vue précédente (la doc le disait, le code le bloquait).
+8. **PgUp/PgDn** sont pris par la fiche et les assistants (DC18) : ils ne font plus défiler une zone de texte multi-ligne de la fiche.
+9. Correctif en passant : un toast fermé à la main était décompté une seconde fois par son minuteur (`dismissToast` ignore maintenant un toast déjà fermé).
+10. **Non traité** : `views/wizard.go` (moteur `RunWizard` classique, assistants CLI hors TUI) garde son double Échap ; hors de la liste de fichiers de la piste.
+
+**Tests** : `shell/keys_test.go` (SimulationScreen + vrai shell : Entrée sur SectionedList → sélection ; sans liste → palette ; `/` et Ctrl+P → palette, `x` → rien ; Échap avec toast → toast fermé sans dépiler, puis dépile ; `d` géré par la vue → vue seule, toast gardé ; `?` réservé ; catalogue : Entrée lance (espion `Launch`) ; `Confirm`), `views/worktree_view_test.go` (`d`/`p`/`x` → confirmation, rien avant ; `x` garde le worktree utilisé), `TestLaunchFormCtrlSGoesToTheRecap`, `TestInlineWizardView_EscQuit`, `TestInlineWizardView_BackKeys`, `TestInlineWizardView_QuitPromptKeys` (vraies touches), tests de l'assistant réécrits (double Échap → question).
+**Capture réelle** (pty + pyte, binaire de la branche, copie de l'`OH_HOME` de recette) : catalogue → Entrée ouvre la fiche ; fiche → Ctrl+S bloqué sans ticket, indications par étape ; `project add` → Échap → « ! Quitter l'assistant ? Quitter Continuer » → ← Entrée → retour à l'accueil ; worktrees `x` → fenêtre de confirmation, Échap → rien. Le pilote `~/workspace/openhub-test/bin/oh-tui-drive` pointe vers un venv supprimé (`…/opencode/tuivenv`) : copie locale avec taille réglable et redimensionnement (`r CxL`) dans `…/opencode/pisteX/drive` (venv `…/pisteX/venv`).
+
+## N20 — Mode compact et terminal trop petit
+
+**Fait** (commit « fix(tui): compact mode… (v5 critical, N20) ») :
+- Seuils centralisés `views.LevelFor(cols, rows, pref)` (`views/layout_level.go` : `MinCols=60`, `MinRows=16`, `CompactRows=32`) : complet ≥ 32 lignes, compact 16–31, trop petit sous 60×16 (quel que soit le réglage).
+- Shell (`shell/layout.go`) : le niveau est calculé à chaque dessin (`SetBeforeDrawFunc`) et appliqué sur la boucle d'affichage (`applyLevel`) : `Omnibar.SetCompact` (3 lignes : indications/saisie, séparateur, barre de mode ; 8 en complet), hauteur de l'omnibar dynamique partout (`ResizeItem`, `SetOmnibarVisible`, position des suggestions : plus de 8 en dur), marge haute du contenu 0 en compact. Trop petit : message centré dessiné à la place de l'écran (« Terminal trop petit (L×H) — 60×16 minimum. » / « Agrandissez la fenêtre, ou Ctrl+Q pour quitter »), touches bloquées sauf Ctrl+Q/C.
+- Accueils (hub, projet, équipe) : bandeau sur une ligne (`compactBanner`, avec le badge de mode), en-tête projet/équipe sur une ligne (chemin · branche · outil, coupé à droite), pas de pied ni d'espaceurs ; largeur étroite `min(72, largeur)` ; reconstruction au changement de niveau **ou** de largeur utile, en gardant l'élément sélectionné et la colonne (`homeRestore`, par la `Reference` de l'élément). Mesuré en réel : 80×24 → 20 lignes de liste (0 avant).
+- Réglage `[cli] compact = auto | always | never` : `config.CLIConfig.Compact` (`auto` enregistré vide), `oh config set|unset cli.compact` (valeur validée, défaut listé par `oh config list --all`), Réglages › CLI › Mode compact (appliqué au dessin suivant, sans redémarrage), `shell.Config.Compact`.
+- Docs : `guides/tui-usage.*` (« Petits terminaux »), `reference/tui.*`, `reference/config.*`, `reference/cli-config.*`, `design/tui-shell.md` ; CHANGELOG `[Unreleased]`.
+
+**Écarts / décisions** :
+1. Le niveau dépend de la **taille du terminal** (lignes de l'écran), pas de la hauteur du contenu : la hauteur du contenu dépend elle-même du niveau (palette 8 ou 3 lignes). Les seuils du plan (32 / 16 / 60) sont appliqués tels quels à l'écran.
+2. « Trop petit » est dessiné par `BeforeDraw` (pas une page tview) : aucune vue n'est démontée, le focus ne bouge pas ; quand une fenêtre est ouverte (ex. la fenêtre « Quitter oh » ouverte par Ctrl+Q avec des sessions actives), l'écran normal est dessiné pour qu'elle reste utilisable.
+3. Le niveau est une valeur globale du paquet `views` (`SetLayoutLevel` / `CurrentLayoutLevel`), posée par le shell : une seule TUI par processus. Les vues autres que les accueils ne changent pas de mise en page (elles gagnent seulement les lignes de la palette et de la marge).
+4. `never` garde la mise en page complète même sous 32 lignes (liste vide possible en 80×24, choix de l'utilisateur) ; le message « trop petit » reste actif.
+5. Fichiers hors de la liste de la piste, petits et additifs : `internal/config/config.go` (champ `Compact`), `cmd/config.go`, `cmd/config_list_all.go`, `cmd/tui.go` (une ligne), `views/settings_view.go` (un champ).
+
+**Tests** : `views.TestLevelFor`, `views.TestContentWidthFor`, `shell/layout_test.go` sur SimulationScreen (80×24 : niveau compact, liste ≥ 10 lignes, palette 3 lignes, premier élément et bandeau d'une ligne visibles, pas de figlet ; 120×40 : figlet, palette 8 lignes ; `always` / `never` ; 50×12 : message, Ctrl+P bloqué, Ctrl+Q quitte ; 120×40 → 80×24 → 120×40 : changement de niveau, focus sur le même élément), `cmd.TestConfigSetCompact`. `-race -count=10` sur le shell : vert (un premier essai avait trouvé une course **du test** : deux shells en parallèle écrivent `tview.Styles` → sous-tests séquentiels).
+**Capture réelle** (pty + pyte) : hub 80×24 (bandeau « OPENHUB » sur une ligne, 20 lignes de liste, palette 3 lignes), 120×40 (complet), 50×12 (message), retour 80×24 ; mode équipe et mode projet en 80×24 et 64×20 (en-tête d'une ligne, largeur réduite à 64) ; 140×42 (deux colonnes, complet) ; omnibar et aide en compact.
+
+## Reste / à signaler
+- `views/wizard.go` (`RunWizard` classique, assistants CLI hors TUI) : double Échap conservé (hors périmètre).
+- Le pilote `~/workspace/openhub-test/bin/oh-tui-drive` pointe vers un venv supprimé ; la copie de la piste (`…/opencode/pisteX/drive`, taille par `DRIVE_COLS`/`DRIVE_ROWS`, redimensionnement `r CxL`, `<a-left>`/`<a-right>`) peut le remplacer.
+- Lancé hors d'un projet avec plusieurs projets, `oh` ouvre d'abord un sélecteur huh « Choisir un projet » avant la TUI (vu en capture) : sans rapport avec X, à signaler à R (N12, `resolveProject`).
+- Revue visuelle (refonte globale, fichier 18) : l'aide `?` est étroite en 64 colonnes (texte replié) ; en compact, l'en-tête projet coupe le chemin à droite.
