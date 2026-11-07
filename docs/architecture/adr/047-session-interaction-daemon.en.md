@@ -64,7 +64,7 @@ Closing the opencode window **does not stop** the session: only "Stop" interrupt
 - One subscription to the event stream per ready server. At each (re)connection, a resync reads the active sessions and the pending permissions and forms.
 - Derived states: `waiting` (pending decision) > `active` (loop running) > `idle`. Cost and tokens are read at the end of each turn.
 - Sub-sessions are attached to their root session: their activity and decisions are reported on it.
-- Live stream `GET /v1/stream` (NDJSON, preceded by the last 100 entries) for the TUI and `oh session follow`.
+- Live stream `GET /v1/stream` (NDJSON, preceded by the last 100 entries) for the TUI and `oh session follow`. Since 5.5, every entry carries a sequence number (`seq`) and the daemon keeps a window of 1024 entries: `?since=<seq>` resumes the stream with no loss and no duplicate within the window, and a `resync` event tells that beyond it (a client too slow or away for too long, a restarted daemon) entries may have been missed. The client follows the sequence and resumes by itself: the stores are no longer reread every 2 s. Detailed protocol in the documentation of the `internal/daemon` package.
 
 **Safety.** A PID is never signaled unless an authenticated call to the server has succeeded: a PID reused by another application is left alone.
 

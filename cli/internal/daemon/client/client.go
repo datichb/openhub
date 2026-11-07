@@ -30,9 +30,10 @@ import (
 type Client struct {
 	paths      api.Paths
 	http       *http.Client
-	stream     *http.Client // no timeout (live stream)
-	capability string       // issuing capability (privileged routes)
-	token      string       // server group token (workflow routes)
+	stream     *http.Client  // no timeout (live stream)
+	capability string        // issuing capability (privileged routes)
+	token      string        // server group token (workflow routes)
+	streamWait time.Duration // pause before a stream resume (default streamRetry)
 }
 
 // WithGroupToken returns a copy of c sending the token of a server group
@@ -209,49 +210,6 @@ func (c *Client) ClientGone(ctx context.Context, id string) error {
 // SetPolicy sets the quit policy of a server group.
 func (c *Client) SetPolicy(ctx context.Context, group string, p api.QuitPolicy) error {
 	return c.do(ctx, http.MethodPost, api.Route(api.RouteGroupPolicy, "group", group), api.PolicyRequest{Policy: p}, nil)
-}
-
-// Stream subscribes to the live stream of the daemon: session changes, plus
-// the feed of one session when sessionID is set (its recent backlog first).
-// The channel is closed when the stream ends (ctx cancelled, daemon gone).
-func (c *Client) Stream(ctx context.Context, sessionID string) (<-chan api.StreamEvent, error) {
-	path := "http://ohd" + api.Prefix + api.RouteStream
-	if sessionID != "" {
-		path += "?session=" + url.QueryEscape(sessionID)
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, path, http.NoBody)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := c.stream.Do(req) //nolint:bodyclose // closed by the reader goroutine
-	if err != nil {
-		return nil, notRunningOr(err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("ohd stream: %s", resp.Status)
-	}
-	out := make(chan api.StreamEvent, 64)
-	safego.Go(func() {
-		defer close(out)
-		defer resp.Body.Close()
-		dec := json.NewDecoder(resp.Body)
-		for {
-			var ev api.StreamEvent
-			if err := dec.Decode(&ev); err != nil {
-				return
-			}
-			if ev.Feed == nil && ev.Change == nil {
-				continue // keep-alive
-			}
-			select {
-			case out <- ev:
-			case <-ctx.Done():
-				return
-			}
-		}
-	})
-	return out, nil
 }
 
 // KeepAlive sends heartbeats for a client until ctx is cancelled, then

@@ -20,11 +20,14 @@ type LiveStream func(ctx context.Context, sessionID string) (<-chan api.StreamEv
 // ErrNoLive means the live stream is unavailable (oh daemon not running).
 var ErrNoLive = errors.New("live follow-up unavailable (oh daemon not running)")
 
-// defaultPollEvery is the refresh period of Subscribe without the daemon.
-const defaultPollEvery = 2 * time.Second
+// defaultReconnectEvery is the pause before Subscribe tries the daemon again.
+const defaultReconnectEvery = time.Second
 
 // Follow returns the live feed of a session (read-only), starting with its
-// recent backlog. The channel closes when ctx ends or the daemon stops.
+// recent backlog. The channel closes when ctx ends or the daemon stops. The
+// client resumes a dropped connection without losing or repeating an item; a
+// resync event (items lost past the daemon window) has no feed item to show
+// and is skipped, the backlog that follows brings back what is still known.
 func (s *Service) Follow(ctx context.Context, sessionID string) (<-chan domain.FeedItem, error) {
 	if s.Live == nil {
 		return nil, ErrNoLive
@@ -71,16 +74,21 @@ func (s *Service) totalCost(ctx context.Context, sessionID string, root float64)
 }
 
 // Subscribe returns the changes of every session (badge, Sessions view,
-// inbox). It uses the daemon stream and falls back to polling the stores
-// while the daemon is not running. The channel closes when ctx ends.
+// inbox) from the daemon stream. The stream numbers its entries and resumes
+// by itself after a dropped connection (daemon/client), so nothing is
+// polled: when the daemon is not running, the subscription waits and tries
+// again. Whenever entries may have been missed (a resync from the daemon, a
+// stream opened again after a gap), it emits a change with an empty SessionID,
+// meaning "reload everything". The channel closes when ctx ends.
 func (s *Service) Subscribe(ctx context.Context) <-chan domain.SessionChange {
 	out := make(chan domain.SessionChange, 64)
-	every := s.PollEvery
+	every := s.ReconnectEvery
 	if every <= 0 {
-		every = defaultPollEvery
+		every = defaultReconnectEvery
 	}
 	safego.Go(func() {
 		defer close(out)
+		attempts := 0 // survives a restart after a panic: that is a gap too
 		// A panic (the stream, the stores) restarts the loop after a pause,
 		// instead of closing the channel on views that would wait for ever.
 		safego.Supervise(ctx, "sessions subscription", func(ctx context.Context) {
@@ -92,92 +100,34 @@ func (s *Service) Subscribe(ctx context.Context) <-chan domain.SessionChange {
 					return false
 				}
 			}
-			var last map[string]pollState
-			for ctx.Err() == nil {
-				if s.Live != nil {
-					if evs, err := s.Live(ctx, ""); err == nil {
-						last = nil
-						for ev := range evs {
-							if ev.Change != nil && !emit(*ev.Change) {
+			reload := func() bool { return emit(domain.SessionChange{Time: time.Now(), Decisions: true}) }
+			for ctx.Err() == nil && s.Live != nil {
+				attempts++
+				if evs, err := s.Live(ctx, ""); err == nil {
+					if attempts > 1 && !reload() {
+						return
+					}
+					for ev := range evs {
+						switch {
+						case ev.Change != nil:
+							if !emit(*ev.Change) {
+								return
+							}
+						case ev.Resync:
+							if !reload() {
 								return
 							}
 						}
-						select { // stream ended: reconnect (or poll)
-						case <-ctx.Done():
-							return
-						case <-time.After(time.Second):
-						}
-						continue
 					}
 				}
-				// Daemon unavailable: poll a few times, then try the stream again.
-				for i := 0; i < 3 && ctx.Err() == nil; i++ {
-					cur := s.pollState(ctx)
-					if last != nil {
-						for _, c := range diffPoll(last, cur) {
-							if !emit(c) {
-								return
-							}
-						}
-					}
-					last = cur
-					select {
-					case <-ctx.Done():
-						return
-					case <-time.After(every):
-					}
+				select { // the stream ended or the daemon is not running: try again
+				case <-ctx.Done():
+					return
+				case <-time.After(every):
 				}
 			}
+			<-ctx.Done() // no live stream: nothing to follow
 		})
 	})
-	return out
-}
-
-type pollState struct {
-	state     domain.RunState
-	cost      float64
-	decisions int
-}
-
-func (s *Service) pollState(ctx context.Context) map[string]pollState {
-	out := map[string]pollState{}
-	if s.Sessions == nil {
-		return out
-	}
-	list, err := s.Sessions.List(ctx, "")
-	if err != nil {
-		return out
-	}
-	for _, sess := range list {
-		if sess.GroupKey != "" {
-			out[sess.ID] = pollState{state: sess.State, cost: sess.Cost}
-		}
-	}
-	if s.Decisions != nil {
-		if open, err := s.Decisions.ListOpen(ctx, domain.DecisionFilter{}); err == nil {
-			for _, d := range open {
-				p := out[d.SessionID]
-				p.decisions++
-				out[d.SessionID] = p
-			}
-		}
-	}
-	return out
-}
-
-func diffPoll(prev, cur map[string]pollState) []domain.SessionChange {
-	var out []domain.SessionChange
-	now := time.Now()
-	for id, c := range cur {
-		p, ok := prev[id]
-		if !ok || p != c {
-			out = append(out, domain.SessionChange{Time: now, SessionID: id, State: c.state, Decisions: !ok || p.decisions != c.decisions})
-		}
-	}
-	for id := range prev {
-		if _, ok := cur[id]; !ok {
-			out = append(out, domain.SessionChange{Time: now, SessionID: id, Decisions: true})
-		}
-	}
 	return out
 }
