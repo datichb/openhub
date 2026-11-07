@@ -11,15 +11,11 @@ En cas de contradiction, c'est la règle la plus récente qui est gardée ici.
 
 ## 1. Sessions et sous-agents
 
-- **Modèle des sous-agents** : `amazon-bedrock/eu.anthropic.claude-sonnet-5-5` (variante `#high` par défaut, `#xhigh` pour les lots de sécurité ou délicats). **Jamais** les profils `us.` ou `global.` (résidence des données).
-- **Région** : la région Bedrock (`eu-west-1`) vient **seulement** de `openhub/opencode.json`. Ce fichier est local et ignoré par git, et `AWS_REGION` n'est défini nulle part. Un worktree n'a donc pas ce fichier, et une session qui y tourne sans lui échoue (« The provided model identifier is invalid » : le profil `eu.` n'existe pas dans la région par défaut). Marche à suivre (5.4.1) :
-  1. `cp openhub/opencode.json ../openhub-wt-<…>/opencode.json` (il reste ignoré par git ; ne jamais le commiter) ;
-  2. créer la session : `opencode api post /api/session --data '{"parentID":"<session orchestrateur>","title":"…","agent":"general","model":{"id":"eu.anthropic.claude-sonnet-5-5","providerID":"amazon-bedrock","variant":"high|xhigh"}}'`. Le champ `location` est ignoré à la création ;
-  3. **avant le premier message**, la placer dans le worktree : `tools.opencode.session_move({sessionID, directory: worktree})`, puis vérifier avec `opencode api get /api/session/<id>` ;
-  4. envoyer la consigne avec l'outil `subagent` (`sessionID`, `background: true`).
-- **Au plus 3 sous-agents en parallèle**, lancés en arrière-plan. Noter leur `sessionID` dans le journal de la version.
-- **Les commandes des sous-agents s'exécutent au premier plan uniquement** (outil shell avec un délai long, 2 700 000 ms pour une suite complète). Jamais de tâche de fond ni d'attente de notification : deux sessions se sont déjà arrêtées sans rapport à cause de ça.
-- **Coupure du fournisseur** : `BedrockOfficeHoursDenyPolicy` coupe l'accès le soir (vers 23 h). Un sous-agent interrompu se reprend avec son `sessionID` (« reprends où tu en étais, vérifie `git status` »). En cas de « model identifier invalid », relancer dans une nouvelle session.
+- **Sous-agents** : outil `Agent` de Claude Code (type `general-purpose`), qui hérite du modèle de la session. Aucune configuration de fournisseur, de région ni de session à créer à la main.
+- **Un lot = un worktree** (§ 4), créé par l'orchestrateur **avant** de lancer le sous-agent. La consigne donne le chemin du worktree, et le sous-agent n'écrit que là.
+- **Au plus 3 sous-agents en parallèle**, lancés en arrière-plan. L'orchestrateur note leur nom ou identifiant dans le journal de la version.
+- **Commandes longues** (suite complète, `-race`) : délai explicite (10 minutes au plus en premier plan) ; au-delà, les lancer en arrière-plan et attendre leur fin avant de rapporter. Jamais de rapport « en cours ».
+- **Reprise** : un sous-agent interrompu se reprend avec `SendMessage` (« reprends où tu en étais, vérifie `git status` »).
 - **La session principale (orchestrateur)** coordonne, fusionne, vérifie, écrit le journal et pose le tag (**seulement à la demande de l'utilisateur**).
 - **Consigne donnée à un sous-agent**, toujours complète :
   - contexte ;
@@ -27,11 +23,11 @@ En cas de contradiction, c'est la règle la plus récente qui est gardée ici.
   - solution décidée ;
   - fichiers de son périmètre ;
   - **fichiers des lots parallèles à ne pas toucher** ;
-  - ces règles (§ 2 à § 7) ;
+  - ces règles (§ 2 à § 7 et § 11) ;
   - vérifications obligatoires ;
   - format du rapport (§ 8).
 - **On ne pose pas de question au sous-agent** : il prend l'option la plus prudente et la signale dans son rapport.
-- **Questions à l'utilisateur** avec l'outil `question`, accompagnées de contexte.
+- **Questions à l'utilisateur** avec `AskUserQuestion`, accompagnées de contexte.
 - **Décider avec l'utilisateur, un peu plus souvent** (demandé le 06/11) : l'orchestrateur le consulte avant chaque vague (contenu et choix des lots), **à chaque rapport de lot, avant la fusion** (écarts, options prudentes prises, changements du code de production hors du périmètre, restes), et en fin de vague (bilan et suite). Il explique chaque fois le contexte et donne sa recommandation ; c'est l'utilisateur qui tranche.
 
 ## 2. Interdits
@@ -45,7 +41,7 @@ En cas de contradiction, c'est la règle la plus récente qui est gardée ici.
 - Aucun appel réseau réel : faux serveurs uniquement.
 - Ne pas toucher `~/.oh`, `~/.config/opencode` ni la config git globale.
 - **Jamais `oh purge`**, même avec `HOME`/`OH_HOME` temporaires : il lance `pkill -f "oh serve"` et `pkill -f "oh mcp"` sur toute la machine. Aucune commande destructrice réelle en dehors des dossiers de test.
-- L'agent ne pousse jamais : c'est l'utilisateur qui pousse (`origin`, puis `github`).
+- Un sous-agent ne pousse jamais. L'orchestrateur ne pousse que sur demande explicite de l'utilisateur (une demande vaut pour ce push, pas pour les suivants).
 
 ## 3. Isolation, trousseau et secrets
 
@@ -58,7 +54,7 @@ En cas de contradiction, c'est la règle la plus récente qui est gardée ici.
 
 - **Un lot = un worktree et une branche**, créés depuis le dépôt :
   ```bash
-  cd /Users/benjamin.datiche/workspace/openhub
+  cd <dépôt openhub>
   git worktree add ../openhub-wt-<version>-<lot> -b <type>/<version>-<lot> main
   ```
   Exemples : `../openhub-wt-56-sessions`, branche `refactor/56-sessions` ; `<type>` vaut `feat`, `fix` ou `refactor`.
@@ -94,7 +90,7 @@ En cas de contradiction, c'est la règle la plus récente qui est gardée ici.
   - `capability_allow.yaml` s'**unit** (ne jamais prendre un seul côté) ;
   - deux tests ajoutés au même endroit d'un fichier : garder les deux fonctions.
 - **Couverture** : aucune baisse par paquet par rapport à la mesure précédente (`-coverprofile`) ; seuil de la CI ≥ 60 %.
-- **Lint** : golangci-lint **2.14**, binaire `/private/var/folders/74/n9955l812k972sl5cj314qdm0000gn/T/opencode/golangci-lint-2.14.0-darwin-arm64/golangci-lint` (à retélécharger s'il a disparu), avec `GOTOOLCHAIN=go1.26.10`, `--build-tags=integration,e2e,container` et un `GOLANGCI_LINT_CACHE` en dehors du worktree.
+- **Lint** : golangci-lint **2.14.0** compilé avec Go 1.26 (`GOBIN=<dossier> GOTOOLCHAIN=go1.26.10 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0`), avec `GOTOOLCHAIN=go1.26.10`, `--build-tags=integration,e2e,container` et un `GOLANGCI_LINT_CACHE` en dehors du worktree. Une version plus ancienne refuse le module (« built with a lower Go version »).
 
 ## 7. Fusion et fin de vague (orchestrateur)
 
@@ -138,3 +134,12 @@ En cas de contradiction, c'est la règle la plus récente qui est gardée ici.
 - **Branchement du TUI gelé** à partir de la fin de la 5.5 : `archtest` mesure les lignes et les fonctions de `cmd/tui_*.go`, et elles ne peuvent que baisser. Une nouvelle fonctionnalité met sa logique dans `services/` ou `appsvc/`, jamais dans `cmd/tui_*`.
 - **Aucun changement visible pour l'utilisateur dans les lots de refactoring** (5.6 à 5.8). Une différence voulue est une décision, notée dans le récapitulatif.
 - **Goldens d'écran identiques** pendant un lot de refactoring ; s'ils changent, c'est que l'affichage a bougé : on s'arrête et on corrige.
+
+## 11. CI sur trois systèmes (apprises avec 55-ci, 07/11)
+
+- **Windows et macOS ne tournent qu'en CI** (sur Linux, `GOOS=windows go vet` ne vérifie que la compilation). Un lot qui touche des chemins, `.git/config`, des fichiers temporaires ou des processus **pousse sa branche** pour obtenir une CI avant la fusion, avec l'accord de l'utilisateur.
+- **`.git/config`** se lit avec `gitremote` et s'écrit avec `git config` ou `git remote set-url`, jamais en comparant ou remplaçant du texte brut : Windows double les antislashs (`C:\\Users\\…`).
+- **Scripts de CI** : bash 3.2 sur macOS. Pas de `mapfile` ni `readarray`, pas de tableaux associatifs (`declare -A`), pas de `${var,,}`.
+- **Jobs agrégés** : le résultat d'un job à matrice est unique ; un shard qui échoue fait passer au rouge les trois checks `Go CLI (…)`. Les noms de ces checks ne changent pas (protection de branche).
+- **Test instable** : on le reproduit d'abord (charge CPU, `-count=300` sur le binaire de test), on corrige la cause (attendre l'effet plutôt qu'un délai), puis on montre le même `-count` vert. Ni `t.Skip` ni quarantaine.
+- **Nouveaux tests de `./cmd` ou nouveaux paquets** : `make test-shards-sync`, puis `test-shards.sh check` ; un test ou un paquet hors de tout shard fait échouer la CI.
