@@ -12,16 +12,7 @@
 # pull and hand it to helpers that take interfaces.
 
 # The shared instance of the team commands (teamRepo, set once in
-# PersistentPreRun), and the two constructors ensureTeamRepo /
-# ensureTeamRepoForProject (the second one wires launch.Deps.TeamRepo, which is
-# concrete).
+# PersistentPreRun), and the two constructors ensureTeamRepo / ensureTeamRepoFor
+# (the second one is what launch.Deps.TeamRepo wraps into the interface
+# teamstate.RemoteClaimStore).
 cmd/team.go 3
-
-# wiring of launch.Deps.TeamRepo (services/launch, concrete *teamstate.Repo).
-cmd/launch_deps.go 1
-
-# These feed services/workflow.TeamState.Repo, which works on the drafts, the
-# history and the queue of the workflows (no interface of a sub-domain yet).
-cmd/workflow_layers.go 1
-cmd/workflow_doctor.go 1
-cmd/brick_doctor.go 1

@@ -196,8 +196,8 @@ type Deps struct {
 	Daemon func(ctx context.Context) (*client.Client, error)
 	// RemoteSender wires the remote service for sending.
 	RemoteSender func() *remotesvc.Service
-	// TeamRepo returns the team-state clone of the project.
-	TeamRepo func(ctx context.Context, project *domain.Project) (*teamstate.Repo, error)
+	// TeamRepo returns the claims of the team-state clone of the project.
+	TeamRepo func(ctx context.Context, project *domain.Project) (teamstate.RemoteClaimStore, error)
 	// SpawnFanoutDriver starts the driver of a fan-out parent and returns its
 	// log path (nil: no driver).
 	SpawnFanoutDriver func(sessionID string) (string, error)

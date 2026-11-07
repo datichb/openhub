@@ -22,6 +22,8 @@ import (
 var interfaceOnlyDirs = []string{
 	"internal/tracker/",
 	"internal/mcp/team/",
+	"internal/services/workflow/",
+	"internal/services/launch/",
 }
 
 const teamstatePath = "github.com/datichb/openhub/cli/internal/teamstate"

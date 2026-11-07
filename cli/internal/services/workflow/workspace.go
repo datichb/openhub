@@ -53,7 +53,7 @@ func (s *Service) Workspace(ctx context.Context, c Context) (*Workspace, error) 
 	w.TeamID, w.Member, w.Project, w.Editable = ts.TeamID, ts.Member, ts.Project, true
 
 	queued := map[wf.Ref]bool{}
-	if ops, err := ts.Repo.Queue(); err == nil {
+	if ops, err := ts.Repo.Queue(ctx); err == nil {
 		for _, op := range ops {
 			if op.Member != ts.Member {
 				continue
@@ -125,7 +125,7 @@ func (s *Service) QueuedOps(ctx context.Context, c Context) ([]teamstate.QueuedO
 	if err != nil || ts == nil {
 		return nil, err
 	}
-	ops, err := ts.Repo.Queue()
+	ops, err := ts.Repo.Queue(ctx)
 	if err != nil {
 		return nil, err
 	}

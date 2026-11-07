@@ -219,3 +219,9 @@ func (r *Repo) SourceLayer(file string) (workflow.Layer, bool) {
 	}
 	return workflow.LayerProject, true
 }
+
+// PromptSource reads the prompt templates of the published workflows of the
+// clone, and those of fallback for the other layers.
+func (r *Repo) PromptSource(fallback workflow.PromptSource) workflow.PromptSource {
+	return PromptSource{Repo: r, Fallback: fallback}
+}

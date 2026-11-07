@@ -186,7 +186,7 @@ func TestWorkflowIntegrityCheck(t *testing.T) {
 	}
 	l, _ := layers.Repo.ReadWorkflowLock(t.Context())
 	l.Delete(teamstate.TeamScope(), "solo")
-	if err := layers.Repo.WriteWorkflowLockLocal(l); err != nil {
+	if err := teamstate.NewRepo("", layers.Repo.Path()).WriteWorkflowLockLocal(l); err != nil {
 		t.Fatal(err)
 	}
 	if c := workflowIntegrityCheck(t.Context(), "acme", layers.Repo); !c.OK {

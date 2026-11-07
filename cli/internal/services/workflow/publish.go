@@ -109,7 +109,7 @@ func (s *Service) FlushQueue(ctx context.Context, c Context) ([]*Publication, []
 	if err != nil {
 		return nil, []error{err}
 	}
-	ops, err := ts.Repo.Queue()
+	ops, err := ts.Repo.Queue(ctx)
 	if err != nil {
 		return nil, []error{err}
 	}
@@ -131,7 +131,7 @@ func (s *Service) FlushQueue(ctx context.Context, c Context) ([]*Publication, []
 		if errors.Is(err, teamstate.ErrOffline) {
 			break
 		}
-		_ = ts.Repo.Dequeue(op.Scope, op.ID)
+		_ = ts.Repo.Dequeue(context.WithoutCancel(ctx), op.Scope, op.ID)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s %s:%s: %w", op.Kind, op.Scope, op.ID, err))
 			continue
@@ -147,7 +147,7 @@ func (s *Service) run(ctx context.Context, ts *TeamState, op teamstate.QueuedOp)
 	if !errors.Is(err, teamstate.ErrOffline) {
 		return p, err
 	}
-	if qerr := ts.Repo.Enqueue(op); qerr != nil {
+	if qerr := ts.Repo.Enqueue(context.WithoutCancel(ctx), op); qerr != nil {
 		return nil, fmt.Errorf("%w (queue: %v)", err, qerr)
 	}
 	scope, _ := teamstate.ParseScope(op.Scope)

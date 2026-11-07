@@ -17,8 +17,9 @@ import (
 // first parameter: the reads are local and short (they read the clone, they do
 // not run git and do not wait for the lock), but they stop when the context is
 // done, like the mutations, Pull, CommitAndPush and Transact, which can wait
-// or run git. The few that take none (RepoInfo, IsStale, the claim queue kept
-// in the clone, the workflow layers and lock) only stat or read a local file.
+// or run git. The few that take none are the accessors (Path, Remote,
+// IsCloned, SourceLayer) and the *Local writers a caller commits afterwards,
+// which only stat, read or write a file of the clone.
 
 // RepoInfo describes the clone: where it is, where it comes from, what it
 // holds.
@@ -67,6 +68,17 @@ type ClaimWriter interface {
 	// session in a single commit; none is made when every lease is still
 	// long. It returns the claims it renewed.
 	TouchClaims(ctx context.Context, refs []ClaimRef, member, session string, now time.Time) ([]ClaimRef, error)
+}
+
+// RemoteClaimStore is what the launch of a remote session asks of the claims:
+// take a ticket, hand a claim the member holds over to the session (kept in
+// the queue when the remote cannot be reached), release it, and record the
+// remote progress on it.
+type RemoteClaimStore interface {
+	CreateClaim(ctx context.Context, c Claim) (*Claim, error)
+	AdoptClaimDurable(ctx context.Context, project, ticketID, member, session string) (adopted, queued bool, err error)
+	ReleaseClaim(ctx context.Context, project, ticketID string) error
+	SetClaimRemote(ctx context.Context, project, ticketID string, r ClaimRemote) error
 }
 
 // ClaimLifecycle releases and hands over a claim with the events of what was
@@ -290,9 +302,66 @@ type StructureEnsurer interface {
 // WorkflowLayoutReader reads the workflows of the team-state: the layers a
 // catalog is loaded from, the projects that have workflows, the lock.
 type WorkflowLayoutReader interface {
+	LoadWorkflowLayers(ctx context.Context, cat *workflow.MemCatalog, project string) workflow.Diagnostics
 	LoadWorkflowScopes(ctx context.Context, cat *workflow.MemCatalog, scopes ...WorkflowScope) workflow.Diagnostics
 	WorkflowProjects(ctx context.Context) ([]string, error)
 	ReadWorkflowLock(ctx context.Context) (*WorkflowLock, error)
+}
+
+// WorkflowSourceReader tells where a workflow file of the clone comes from
+// and reads the prompt templates it refers to.
+type WorkflowSourceReader interface {
+	// SourceLayer is the layer (team or project) of a file of the clone; false
+	// for a file that is not in the team-state.
+	SourceLayer(file string) (workflow.Layer, bool)
+	// PromptSource reads the prompt templates of the published workflows,
+	// and those of fallback for the other layers.
+	PromptSource(fallback workflow.PromptSource) workflow.PromptSource
+}
+
+// WorkflowDraftStore reads and writes the drafts of the workflows (and of the
+// bricks) of a member. The *Local writers touch the clone without committing:
+// the caller commits the files they return (CommitAndPush).
+type WorkflowDraftStore interface {
+	ListDrafts(ctx context.Context, member string, scopes ...WorkflowScope) ([]DraftInfo, error)
+	LoadDrafts(ctx context.Context, cat *workflow.MemCatalog, member string, scopes ...WorkflowScope) ([]workflow.Ref, workflow.Diagnostics)
+	WriteDraftLocal(scope WorkflowScope, member, id string, data, prompt []byte) ([]string, error)
+	DeleteDraftLocal(scope WorkflowScope, member, id string) ([]string, error)
+	WriteBrickDraftLocal(member, kind, id, family string, data []byte) ([]string, error)
+}
+
+// WorkflowHistoryReader reads the previous versions of a published workflow.
+type WorkflowHistoryReader interface {
+	ListHistory(ctx context.Context, scope WorkflowScope, id string) ([]HistoryVersion, error)
+}
+
+// WorkflowPublishQueue is the queue of the publications kept in the clone
+// while the remote cannot be reached.
+type WorkflowPublishQueue interface {
+	Queue(ctx context.Context) ([]QueuedOp, error)
+	Enqueue(ctx context.Context, op QueuedOp) error
+	Dequeue(ctx context.Context, scope, id string) error
+}
+
+// WorkflowCommitter writes to the team-state: a commit of files written
+// locally, and a transaction (pull, build, commit, push).
+type WorkflowCommitter interface {
+	CommitAndPush(ctx context.Context, msg string, files ...string) error
+	Transact(ctx context.Context, build func(ctx context.Context, tx *Tx) (TxResult, error)) error
+}
+
+// WorkflowRepo is what the workflow service asks of the team-state: its
+// layers, drafts, history and publication queue, and the way to commit.
+// *Repo implements it; a test of the service fakes the methods it reaches.
+type WorkflowRepo interface {
+	Path() string
+	ConfigReader
+	WorkflowLayoutReader
+	WorkflowSourceReader
+	WorkflowDraftStore
+	WorkflowHistoryReader
+	WorkflowPublishQueue
+	WorkflowCommitter
 }
 
 // WorkflowLayoutCommitter commits the layout of the workflows of a scope.
@@ -307,6 +376,7 @@ var (
 	_ BoardStatusSetter       = (*Repo)(nil)
 	_ ClaimReader             = (*Repo)(nil)
 	_ ClaimWriter             = (*Repo)(nil)
+	_ RemoteClaimStore        = (*Repo)(nil)
 	_ ClaimLabeler            = (*Repo)(nil)
 	_ ClaimTrackerSync        = (*Repo)(nil)
 	_ ClaimCleaner            = (*Repo)(nil)
@@ -321,6 +391,12 @@ var (
 	_ ClaimOpQueue            = (*Repo)(nil)
 	_ StructureEnsurer        = (*Repo)(nil)
 	_ WorkflowLayoutReader    = (*Repo)(nil)
+	_ WorkflowSourceReader    = (*Repo)(nil)
+	_ WorkflowDraftStore      = (*Repo)(nil)
+	_ WorkflowHistoryReader   = (*Repo)(nil)
+	_ WorkflowPublishQueue    = (*Repo)(nil)
+	_ WorkflowCommitter       = (*Repo)(nil)
+	_ WorkflowRepo            = (*Repo)(nil)
 	_ WorkflowLayoutCommitter = (*Repo)(nil)
 	_ MemberReader            = (*Repo)(nil)
 	_ MemberPatcher           = (*Repo)(nil)

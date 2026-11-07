@@ -122,7 +122,7 @@ func RemoteTickets(values map[string]any, ticketInput string) []string {
 }
 
 // TeamClaims adapts the project team-state to remotesvc.TeamClaims.
-type TeamClaims struct{ Repo *teamstate.Repo }
+type TeamClaims struct{ Repo teamstate.RemoteClaimStore }
 
 // Claim reserves the ticket for the remote session carried by ctx
 // (teamstate.WithClaimSession, set by remotesvc.Service.Send): a new claim

@@ -132,7 +132,7 @@ func fanoutNeverFindings(hub *workflow.MemCatalog, scope string, cat *workflow.M
 
 // workflowIntegrityCheck loads every scope of repo and summarizes the
 // integrity warnings.
-func workflowIntegrityCheck(ctx context.Context, name string, repo *teamstate.Repo) doctor.Result {
+func workflowIntegrityCheck(ctx context.Context, name string, repo teamstate.WorkflowRepo) doctor.Result {
 	scopes := []teamstate.WorkflowScope{teamstate.TeamScope()}
 	projects, _ := repo.WorkflowProjects(ctx)
 	for _, p := range projects {
@@ -150,7 +150,7 @@ func workflowIntegrityCheck(ctx context.Context, name string, repo *teamstate.Re
 	svc := &workflowsvc.Service{HubDir: findHubDir(), TeamState: func(context.Context, workflowsvc.Context) (*workflowsvc.TeamState, error) {
 		return &workflowsvc.TeamState{Repo: repo}, nil
 	}}
-	if b, err := svc.Bricks(context.Background(), workflowsvc.Context{}); err == nil {
+	if b, err := svc.Bricks(ctx, workflowsvc.Context{}); err == nil {
 		for _, d := range b.Diagnostics {
 			skipped = append(skipped, filepath.Base(d.Source))
 		}

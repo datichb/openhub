@@ -400,7 +400,10 @@ type QueuedOp struct {
 func (r *Repo) queuePath() string { return filepath.Join(r.path, ".git", "oh-workflow-queue.json") }
 
 // Queue returns the queued operations, oldest first.
-func (r *Repo) Queue() ([]QueuedOp, error) {
+func (r *Repo) Queue(ctx context.Context) ([]QueuedOp, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	data, err := os.ReadFile(r.queuePath())
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -416,13 +419,13 @@ func (r *Repo) Queue() ([]QueuedOp, error) {
 }
 
 // Enqueue adds op, replacing a queued operation on the same workflow.
-func (r *Repo) Enqueue(op QueuedOp) error {
-	release, err := r.lockGit(context.Background())
+func (r *Repo) Enqueue(ctx context.Context, op QueuedOp) error {
+	release, err := r.lockGit(ctx)
 	if err != nil {
 		return err
 	}
 	defer release()
-	ops, err := r.Queue()
+	ops, err := r.Queue(ctx)
 	if err != nil {
 		return err
 	}
@@ -439,13 +442,13 @@ func (r *Repo) Enqueue(op QueuedOp) error {
 }
 
 // Dequeue removes the queued operation on scope/id.
-func (r *Repo) Dequeue(scope, id string) error {
-	release, err := r.lockGit(context.Background())
+func (r *Repo) Dequeue(ctx context.Context, scope, id string) error {
+	release, err := r.lockGit(ctx)
 	if err != nil {
 		return err
 	}
 	defer release()
-	ops, err := r.Queue()
+	ops, err := r.Queue(ctx)
 	if err != nil {
 		return err
 	}

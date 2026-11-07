@@ -39,7 +39,7 @@ func brickCatalogChecks(ctx context.Context) []doctor.Result {
 
 // brickCatalogCheck checks the team catalogue of repo; ok is false when it
 // has no brick (no check shown).
-func brickCatalogCheck(ctx context.Context, name string, repo *teamstate.Repo, hubDir string) (doctor.Result, bool) {
+func brickCatalogCheck(ctx context.Context, name string, repo teamstate.WorkflowRepo, hubDir string) (doctor.Result, bool) {
 	svc := &workflowsvc.Service{HubDir: hubDir, TeamState: func(context.Context, workflowsvc.Context) (*workflowsvc.TeamState, error) {
 		return &workflowsvc.TeamState{Repo: repo}, nil
 	}}
