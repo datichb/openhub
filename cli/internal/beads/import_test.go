@@ -21,6 +21,9 @@ func fakeBd(t *testing.T) (calls func() []string) {
 	if runtime.GOOS == "windows" {
 		t.Skip("shell script")
 	}
+	// A machine under load can take longer than the 10 s of a bd command to
+	// start the script: the process is then killed and the error has no message.
+	patientBd(t)
 	dir := t.TempDir()
 	log, db := filepath.Join(dir, "calls.log"), filepath.Join(dir, "db")
 	script := `#!/bin/sh

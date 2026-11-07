@@ -29,6 +29,9 @@ type wizardKeys struct {
 	failed  bool
 	tvApp   *tview.Application
 	started sync.Once
+	// sent: keys went in since the last waitForText, whose screen was prev.
+	sent bool
+	prev string
 }
 
 // onKeys makes runCLIWizard run the wizards on a simulation screen and call
@@ -100,12 +103,14 @@ func (k *wizardKeys) waitFor(text string) {
 }
 
 func (k *wizardKeys) key(keys ...tcell.Key) {
+	k.sent = true
 	for _, key := range keys {
 		k.sc.InjectKey(key, 0, tcell.ModNone)
 	}
 }
 
 func (k *wizardKeys) typ(s string) {
+	k.sent = true
 	for _, r := range s {
 		k.sc.InjectKey(tcell.KeyRune, r, tcell.ModNone)
 	}

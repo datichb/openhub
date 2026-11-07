@@ -209,8 +209,9 @@ func (e *ShellBDError) Error() string {
 func (e *ShellBDError) Is(target error) bool { return target == ErrShellBD }
 
 // shellProbeTimeout bounds each start of the shell: start-up files may be
-// slow (version managers).
-const shellProbeTimeout = 15 * time.Second
+// slow (version managers). A variable so that the tests can wait longer on a
+// loaded machine, where a probe that times out is read as « answers nothing ».
+var shellProbeTimeout = 15 * time.Second
 
 // CheckShellBD runs `command -v bd` in the shell of a local session (the
 // shell named by SHELL, with only the session environment env, as the tool

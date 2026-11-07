@@ -176,6 +176,10 @@ func executionConfig(a *app.App) config.ExecutionConfig {
 	return config.ExecutionConfig{}
 }
 
+// containerRunner runs the commands of the container engines. nil: the real
+// ones. The tests of this package set a runner that finds no engine (no_engine_test.go).
+var containerRunner container.Runner
+
 // containerRuntime is the container runtime configured by the Settings
 // (engine, Colima profile, image cache), without the pinned version check (Doctor).
 func containerRuntime(a *app.App) *container.Runtime {
@@ -189,7 +193,7 @@ func containerRuntime(a *app.App) *container.Runtime {
 	if err != nil {
 		memory = ex.ContainerMemory // refused with the reason when a container is prepared
 	}
-	return container.New(container.Options{Engine: engine, ColimaProfile: profile, KeepImages: ex.Images(), Memory: memory,
+	return container.New(container.Options{Runner: containerRunner, Engine: engine, ColimaProfile: profile, KeepImages: ex.Images(), Memory: memory,
 		CacheDir: filepath.Join(ohCacheDir(), "container")})
 }
 

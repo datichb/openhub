@@ -1,4 +1,4 @@
-.PHONY: build build-linux run test test-tui test-unit test-durations test-integration test-e2e test-container lint clean install embed-sync embed-bd sync-content
+.PHONY: build build-linux run test test-tui test-unit test-shard test-shards test-shards-check test-shards-sync test-durations test-integration test-e2e test-container lint clean install embed-sync embed-bd sync-content
 
 # Build variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -50,6 +50,49 @@ test-e2e:
 # Container runtime tests against real engines (Colima and/or Podman running)
 test-container:
 	go test ./internal/runtime/... ./internal/runsvc/... -count=1 -tags container -v -run 'TestReal'
+
+# The tests the way the CI splits them (../.github/scripts/test-shards.sh): the
+# tests of ./cmd in four shards, cmd-1 to cmd-4, and the other packages in
+# three, rest-1 to rest-3. The tests of ./cmd run one after the other, so the
+# shards are what makes them fast: `make test-shards` runs them all at the same
+# time (about half the time of `go test ./...` on a laptop, whose cores are mostly
+# idle while the tests wait for git), `make test-shard SHARD=cmd-2` one of them.
+# TEST_SHARD_FLAGS: other go test arguments; the CI adds
+# "-race -coverprofile=coverage.out -covermode=atomic" on Linux and nothing on
+# macOS and Windows, as here by default (-race doubles the time of the tests).
+SHARD ?= rest-1
+TEST_SHARD_FLAGS ?=
+test-shard:
+	@args=$$(../.github/scripts/test-shards.sh args $(SHARD)) || exit 1; \
+	[ -n "$$args" ] || { echo "nothing to test in $(SHARD)"; exit 0; }; \
+	args=$$(echo "$$args" | tr '\n' ' '); \
+	echo "go test $$args $(TEST_SHARD_FLAGS)"; \
+	go test $$args $(TEST_SHARD_FLAGS) -count=1 -timeout $(TEST_TIMEOUT)
+
+# Every shard at once, one log per shard in bin/test-shards/ (shown for the
+# shards that fail).
+test-shards:
+	@mkdir -p bin/test-shards; rm -f bin/test-shards/*; \
+	ids=$$(../.github/scripts/test-shards.sh ids) || exit 1; start=$$(date +%s); \
+	for id in $$ids; do \
+		( s=$$(date +%s); $(MAKE) --no-print-directory test-shard SHARD=$$id TEST_SHARD_FLAGS="$(TEST_SHARD_FLAGS)" > bin/test-shards/$$id.log 2>&1; \
+		  echo "$$? $$(( $$(date +%s) - s ))" > bin/test-shards/$$id.status ) & \
+	done; wait; failed=0; \
+	for id in $$ids; do \
+		set -- $$(cat bin/test-shards/$$id.status); \
+		if [ "$$1" = 0 ]; then echo "ok    $$id  $$2 s"; else echo "FAIL  $$id  $$2 s"; tail -n 40 bin/test-shards/$$id.log; failed=1; fi; \
+	done; \
+	echo "total $$(( $$(date +%s) - start )) s"; exit $$failed
+
+# Every test of ./cmd and every other package is in exactly one shard (what the
+# CI checks).
+test-shards-check:
+	../.github/scripts/test-shards.sh check
+
+# Puts the new tests of ./cmd and the new packages in a shard (and drops the
+# ones that are gone): commit ../.github/test-shards-*.txt.
+test-shards-sync:
+	../.github/scripts/test-shards.sh sync
 
 # Duration of the suite: runs `go test -json` (no race by default) and prints the
 # real duration, the pass/fail/skip counts, the duration of each package and the

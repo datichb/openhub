@@ -60,12 +60,16 @@ func Run(t testing.TB, dir string, args ...string) string {
 }
 
 // Repo creates a repository on main in a temporary directory, with one
-// commit (README.md), and returns its path.
+// commit (README.md), and returns its path. It is a copy of a repository built
+// once per test binary (see model.go).
 func Repo(t testing.TB) string {
 	t.Helper()
+	m := model(t, "repo", func(dir string) {
+		Run(t, dir, "init", "-q", "-b", "main")
+		Commit(t, dir, "README.md", "init\n", "init")
+	})
 	dir := t.TempDir()
-	Run(t, dir, "init", "-q", "-b", "main")
-	Commit(t, dir, "README.md", "init\n", "init")
+	copyTree(t, m, dir)
 	return dir
 }
 
@@ -95,15 +99,37 @@ func EmptyBare(t testing.TB) string {
 
 // BareClone creates a bare repository and a clone of it, both on main. The
 // clone has one commit (README.md) already pushed, and main tracks
-// origin/main: it is ready to commit and push.
+// origin/main: it is ready to commit and push. Both are copies of a pair built
+// once per test binary (see model.go).
 func BareClone(t testing.TB) (bare, clone string) {
 	t.Helper()
+	m := model(t, "bareclone", func(dir string) {
+		modelBare, modelClone := filepath.Join(dir, "bare"), filepath.Join(dir, "clone")
+		Run(t, dir, "init", "-q", "--bare", "-b", "main", modelBare)
+		Run(t, dir, "init", "-q", "-b", "main", modelClone)
+		Run(t, modelClone, "remote", "add", "origin", modelBare)
+		Commit(t, modelClone, "README.md", "init\n", "init")
+		Run(t, modelClone, "push", "-q", "-u", "origin", "main")
+	})
 	bare = t.TempDir()
-	Run(t, bare, "init", "-q", "--bare", "-b", "main")
 	clone = filepath.Join(t.TempDir(), "clone")
-	Run(t, filepath.Dir(clone), "init", "-q", "-b", "main", clone)
-	Run(t, clone, "remote", "add", "origin", bare)
-	Commit(t, clone, "README.md", "init\n", "init")
-	Run(t, clone, "push", "-q", "-u", "origin", "main")
+	if err := os.Mkdir(clone, 0o755); err != nil {
+		t.Fatalf("gittest: %v", err)
+	}
+	copyTree(t, filepath.Join(m, "bare"), bare)
+	copyTree(t, filepath.Join(m, "clone"), clone)
+	// The clone points at the bare repository of the model: at the copy.
+	cfg := filepath.Join(clone, ".git", "config")
+	data, err := os.ReadFile(cfg)
+	if err != nil {
+		t.Fatalf("gittest: %v", err)
+	}
+	from := filepath.Join(m, "bare")
+	if !strings.Contains(string(data), from) {
+		t.Fatalf("gittest: the clone of the model does not point at %s:\n%s", from, data)
+	}
+	if err := os.WriteFile(cfg, []byte(strings.ReplaceAll(string(data), from, bare)), 0o644); err != nil {
+		t.Fatalf("gittest: %v", err)
+	}
 	return bare, clone
 }

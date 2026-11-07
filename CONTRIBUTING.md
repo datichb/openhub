@@ -14,6 +14,7 @@ make deps          # go mod tidy + download
 make embed-sync    # sync agents/skills/permissions into Go embed
 make build         # produces bin/oh
 make test          # all tests with -race
+make test-shards   # the suite split like the CI does, all shards at once (faster, no -race)
 make lint          # golangci-lint
 ```
 

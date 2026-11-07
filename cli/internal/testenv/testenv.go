@@ -47,6 +47,11 @@ var watched = []string{"hub.toml", "oh.db"}
 
 var original []string
 
+// Dir is the temporary folder of the isolated test binary, removed once the
+// tests ran: what must live as long as the binary (a fixture built once) goes
+// there. It is "" when the binary is not isolated.
+func Dir() string { return os.Getenv(marker) }
+
 // OriginalEnv is the environment of the test binary before Isolate, for the
 // rare test that reads something of the real environment (credentials of a
 // tool, for the tests that call a real model). Read only: never write there.

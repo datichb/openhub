@@ -68,17 +68,18 @@ func TestEndTicketClaims(t *testing.T) {
 		"pt-already": {},
 	}
 	setup := func(t *testing.T) *teamstate.Repo {
-		_, repo, _ := setupClaimTestApp(t)
-		claimsCreate(t, repo, "pt-closed", "testuser", "ses_1")
-		claimsCreate(t, repo, "pt-review", "testuser", "ses_1")
-		claimsCreate(t, repo, "pt-open", "testuser", "ses_1")
-		claimsCreate(t, repo, "pt-legacy", "testuser", "") // taken before the session was recorded
-		claimsCreate(t, repo, "pt-bob", "bob", "ses_bob")
-		claimsCreate(t, repo, "pt-other", "testuser", "ses_other") // another session of the member
-		claimsCreate(t, repo, "pt-already", "testuser", "ses_1")
-		require.NoError(t, repo.AddClaimLabel(ctx, claimsProject, "pt-already", teamstate.LabelSessionEnded))
-		claimsCreate(t, repo, "pt-done", "testuser", "ses_1")
-		require.NoError(t, repo.UpdateClaimStatusFromTracker(ctx, claimsProject, "pt-done", teamstate.ClaimStatusDone))
+		_, repo, _ := setupClaimTestAppSeeded(t, "end-ticket-claims", func(t *testing.T, repo *teamstate.Repo) {
+			claimsCreate(t, repo, "pt-closed", "testuser", "ses_1")
+			claimsCreate(t, repo, "pt-review", "testuser", "ses_1")
+			claimsCreate(t, repo, "pt-open", "testuser", "ses_1")
+			claimsCreate(t, repo, "pt-legacy", "testuser", "") // taken before the session was recorded
+			claimsCreate(t, repo, "pt-bob", "bob", "ses_bob")
+			claimsCreate(t, repo, "pt-other", "testuser", "ses_other") // another session of the member
+			claimsCreate(t, repo, "pt-already", "testuser", "ses_1")
+			require.NoError(t, repo.AddClaimLabel(ctx, claimsProject, "pt-already", teamstate.LabelSessionEnded))
+			claimsCreate(t, repo, "pt-done", "testuser", "ses_1")
+			require.NoError(t, repo.UpdateClaimStatusFromTracker(ctx, claimsProject, "pt-done", teamstate.ClaimStatusDone))
+		})
 		return repo
 	}
 	run := func(t *testing.T, repo *teamstate.Repo, st sessionEndState) claimsEndReport {
